@@ -1,5 +1,5 @@
 ---
-title: "Combinatorics #1: 计数中常用的结论"
+title: "Combinatorics #0.1: 计数中常用的结论"
 date: 2026-04-20
 slug: "combinatorics-1-counting-conclusions"
 description: "常见计数结论、Lucas 定理、不定方程解计数、平面分拆、DAG 路径计数、多项式平移、XOR 均匀性与若干竞赛常用结论。"
