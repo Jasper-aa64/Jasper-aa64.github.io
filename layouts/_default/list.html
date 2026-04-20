@@ -1,0 +1,24 @@
+{{ define "main" }}
+  <section class="section-block">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">{{ .Kind | humanize }}</span>
+        <h1>{{ .Title }}</h1>
+      </div>
+    </div>
+
+    {{ if eq .Kind "taxonomy" }}
+      <div class="post-grid">
+        {{ range .Pages }}
+          {{ partial "post-card.html" . }}
+        {{ end }}
+      </div>
+    {{ else }}
+      <div class="post-grid">
+        {{ range .Paginator.Pages }}
+          {{ partial "post-card.html" . }}
+        {{ end }}
+      </div>
+    {{ end }}
+  </section>
+{{ end }}

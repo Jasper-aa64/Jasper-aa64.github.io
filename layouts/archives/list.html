@@ -1,0 +1,26 @@
+{{ define "main" }}
+  <section class="section-block">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Timeline</span>
+        <h1>{{ .Title }}</h1>
+      </div>
+    </div>
+
+    <div class="archive-list">
+      {{ range (where site.RegularPages "Section" "posts").GroupByDate "2006" }}
+        <section class="archive-year">
+          <h2>{{ .Key }}</h2>
+          <div class="archive-items">
+            {{ range .Pages }}
+              <a class="archive-item" href="{{ .RelPermalink }}">
+                <time>{{ .Date.Format "Jan 02" }}</time>
+                <span>{{ .Title }}</span>
+              </a>
+            {{ end }}
+          </div>
+        </section>
+      {{ end }}
+    </div>
+  </section>
+{{ end }}

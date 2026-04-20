@@ -1,0 +1,38 @@
+{{ define "main" }}
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">{{ if eq .Section "posts" }}Posts{{ else }}Page{{ end }}</span>
+      <h1>{{ .Title }}</h1>
+      {{ if eq .Section "posts" }}
+        <div class="article-meta">
+          <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format "Jan 2, 2006" }}</time>
+          {{ with .Params.categories }}
+            <span>·</span>
+            <span>{{ delimit . ", " }}</span>
+          {{ end }}
+        </div>
+        {{ with .Params.tags }}
+          <div class="chip-row">
+            {{ range . }}
+              <a class="chip" href="/tags/{{ . | urlize }}/">#{{ . }}</a>
+            {{ end }}
+          </div>
+        {{ end }}
+      {{ end }}
+    </header>
+
+    <div class="article-layout">
+      <div class="article-content prose">
+        {{ .Content }}
+      </div>
+      {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span class="eyebrow">On this page</span>
+            {{ .TableOfContents }}
+          </div>
+        </aside>
+      {{ end }}
+    </div>
+  </article>
+{{ end }}

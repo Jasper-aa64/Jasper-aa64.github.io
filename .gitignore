@@ -8,6 +8,10 @@ Gemfile.lock
 .jekyll-metadata
 _site
 
+# Hugo build output
+public
+.hugo_build.lock
+
 # RubyGems
 *.gem
 

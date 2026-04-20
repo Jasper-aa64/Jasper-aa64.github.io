@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="{{ site.Language.LanguageCode | default `en-us` }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+    <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
+    <link rel="canonical" href="{{ .Permalink }}">
+    <link rel="stylesheet" href="/vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="/css/site.css">
+    <script defer src="/vendor/katex/katex.min.js"></script>
+    <script defer src="/vendor/katex/contrib/auto-render.min.js"></script>
+    <script defer src="/js/math.js"></script>
+  </head>
+  <body data-has-math="{{ if .Params.math }}true{{ else }}false{{ end }}">
+    <div class="page-shell">
+      <div class="page-glow page-glow-a"></div>
+      <div class="page-glow page-glow-b"></div>
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>{{ site.Title }}</strong>
+              <small>{{ site.Params.tagline }}</small>
+            </span>
+          </a>
+          <nav class="site-nav">
+            {{ range site.Menus.main }}
+              {{ $active := or ($.IsMenuCurrent "main" .) ($.HasMenuCurrent "main" .) (eq $.RelPermalink .URL) }}
+              <a class="nav-link{{ if $active }} is-active{{ end }}" href="{{ .URL }}">{{ .Name }}</a>
+            {{ end }}
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        {{ block "main" . }}{{ end }}
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>{{ site.Title }}</strong>
+          <p>{{ site.Params.description }}</p>
+        </div>
+        <div class="footer-links">
+          <a href="{{ site.Params.github }}">GitHub</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

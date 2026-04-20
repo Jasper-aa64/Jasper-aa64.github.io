@@ -1,0 +1,42 @@
+{{ define "main" }}
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Hugo · Light Theme · Blue Accent</span>
+      <h1>{{ site.Params.heroTitle }}</h1>
+      <p>{{ site.Params.heroText }}</p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="/posts/">Browse posts</a>
+        <a class="button button-secondary" href="/about/">About this notebook</a>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <div class="metric-card">
+        <span class="metric-label">Posts</span>
+        <strong>{{ len (where site.RegularPages "Section" "posts") }}</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Categories</span>
+        <strong>{{ len site.Taxonomies.categories }}</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Tags</span>
+        <strong>{{ len site.Taxonomies.tags }}</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Latest</span>
+        <h2>Recent notes</h2>
+      </div>
+      <a class="text-link" href="/archives/">See all</a>
+    </div>
+    <div class="post-grid">
+      {{ range first 6 (where site.RegularPages "Section" "posts") }}
+        {{ partial "post-card.html" . }}
+      {{ end }}
+    </div>
+  </section>
+{{ end }}
