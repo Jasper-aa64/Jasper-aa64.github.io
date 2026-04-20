@@ -37,10 +37,10 @@ menu:
 
 params:
   author: "Jasper32"
-  tagline: "Formulae & Conclusions"
-  description: "Competitive programming notes, distilled into reusable formulae, proofs, and implementation templates."
-  heroTitle: "Algorithm notes, cleaned up."
-  heroText: "A Hugo-powered notebook for combinatorics, number theory, DP patterns, and code-ready conclusions."
+  tagline: "Notes on code, systems, and ideas"
+  description: "A personal notebook for algorithms, technical write-ups, implementation details, and things worth remembering."
+  heroTitle: "Technical notes, kept usable."
+  heroText: "A light-weight Hugo notebook for algorithms today, broader engineering and technical notes over time."
   github: "https://github.com/JMaaa32"
 
 markup:
