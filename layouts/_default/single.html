@@ -35,4 +35,30 @@
       {{ end }}
     </div>
   </article>
+
+  {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const sections = document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4');
+      
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            tocLinks.forEach(link => link.classList.remove('active'));
+            const id = entry.target.getAttribute('id');
+            const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+            if (activeLink) {
+              activeLink.classList.add('active');
+            }
+          }
+        });
+      }, { rootMargin: '-10% 0px -80% 0px' });
+
+      sections.forEach(section => {
+        observer.observe(section);
+      });
+    });
+  </script>
+  {{ end }}
 {{ end }}
