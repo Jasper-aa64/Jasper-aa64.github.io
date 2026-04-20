@@ -104,14 +104,15 @@
 </ul>
 <hr>
 <h1 id="2-floor-sum-algorithm-euclidean-like-类欧几里得">2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</h1>
-<h2 id="basic-form-">Basic form — $O(\log \max\{a,b,m\})$</h2>
+<h2 id="basic-form">Basic form</h2>
 $$\sum_{i=0}^{n-1}\left\lfloor\frac{a \cdot i+b}{m}\right\rfloor, \quad n,m,a,b > 0$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">LL</span> <span class="nf">F</span><span class="p">(</span><span class="n">LL</span> <span class="n">n</span><span class="p">,</span> <span class="n">LL</span> <span class="n">m</span><span class="p">,</span> <span class="n">LL</span> <span class="n">a</span><span class="p">,</span> <span class="n">LL</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">/</span> <span class="n">m</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">b</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="k">return</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">/</span> <span class="n">m</span><span class="p">)</span> <span class="o">+</span> <span class="n">F</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">%</span> <span class="n">m</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="k">return</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">a</span> <span class="o">/</span> <span class="n">m</span><span class="p">)</span> <span class="o">+</span> <span class="n">F</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">a</span> <span class="o">%</span> <span class="n">m</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">F</span><span class="p">((</span><span class="n">a</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">/</span> <span class="n">m</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">%</span> <span class="n">m</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h2 id="general-form--allows-negative---requires">General form — allows negative $a, b$;  requires $n \geq 0, m > 0$</h2>
+</span></span></code></pre></div><h2 id="general-form">General form</h2>
+<p>Allows negative $a, b$; requires $n \geq 0, m > 0$.</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">ll</span> <span class="nf">F_all</span><span class="p">(</span><span class="n">ll</span> <span class="n">n</span><span class="p">,</span> <span class="n">ll</span> <span class="n">m</span><span class="p">,</span> <span class="n">ll</span> <span class="n">a</span><span class="p">,</span> <span class="n">ll</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">floordiv</span> <span class="o">=</span> <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="n">ll</span> <span class="n">x</span><span class="p">,</span> <span class="n">ll</span> <span class="n">m</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">m</span><span class="p">;</span>
@@ -297,7 +298,7 @@ For counting/minimisation, split on highest bit, recurse, count cross contributi
 <h1 id="4-fibonacci">4 Fibonacci</h1>
 <h2 id="sum-formula">Sum formula</h2>
 $$S(n) = \sum_{i=1}^{n} F_i = F_{n+2} - 1$$<p><em>Proof:</em> $F_k = F_{k+2} - F_{k+1}$; telescoping sum from $k=1$ to $n$ gives $F_{n+2} - F_2 = F_{n+2} - 1$.</p>
-<h2 id="41-fast-doubling-">4.1 Fast Doubling — $O(\log n)$</h2>
+<h2 id="41-fast-doubling">4.1 Fast Doubling</h2>
 <p>Given $a = F_k$, $b = F_{k+1}$:</p>
 $$F_{2k} = a(2b - a), \qquad F_{2k+1} = a^2 + b^2$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">pair</span><span class="o">&lt;</span><span class="kt">long</span> <span class="kt">long</span><span class="p">,</span><span class="kt">long</span> <span class="kt">long</span><span class="o">&gt;</span> <span class="n">fib_pair</span><span class="p">(</span><span class="kt">long</span> <span class="kt">long</span> <span class="n">n</span><span class="p">,</span> <span class="kt">long</span> <span class="kt">long</span> <span class="n">mod</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">};</span>
@@ -312,7 +313,7 @@ $$F_{2k} = a(2b - a), \qquad F_{2k+1} = a^2 + b^2$$<div class="highlight"><pre t
 </span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="p">[</span><span class="n">f</span><span class="p">,</span> <span class="n">_</span><span class="p">]</span> <span class="o">=</span> <span class="n">fib_pair</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">MOD</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="n">f</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">MOD</span><span class="p">)</span> <span class="o">%</span> <span class="n">MOD</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h2 id="42-number-of-digits-of">4.2 Number of digits of $F_n$</h2>
+</span></span></code></pre></div><h2 id="42-number-of-digits-of-fibonacci-numbers">4.2 Number of digits of Fibonacci numbers</h2>
 $$\text{digits}(F_n) = \left\lfloor n \log_{10} \varphi - \tfrac{1}{2}\log_{10} 5 \right\rfloor + 1$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="kt">long</span> <span class="kt">long</span> <span class="nf">fib_digits</span><span class="p">(</span><span class="kt">long</span> <span class="kt">long</span> <span class="n">n</span><span class="p">,</span> <span class="kt">double</span> <span class="n">base</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="kt">double</span> <span class="n">phi</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span><span class="p">))</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">;</span>
@@ -335,8 +336,8 @@ $$F_n = \frac{1}{\sqrt{5}}\left[\left(\frac{1+\sqrt{5}}{2}\right)^n - \left(\fra
 </li>
 <li>Integer square root: <code>r = (ll)sqrt(x)</code>, check <code>r*r == x</code> (also try <code>r±1</code> for float precision).</li>
 </ol>
-<h2 id="52-two-elements-sum-to-a-perfect-square">5.2 &ldquo;Two elements sum to a perfect square&rdquo;</h2>
-<h3 id="521-does-any-pair--form-a-perfect-square">5.2.1 Does any pair $(a_i + a_j)$ form a perfect square?</h3>
+<h2 id="52-two-elements-sum-to-a-perfect-square">5.2 Two elements sum to a perfect square</h2>
+<h3 id="521-existence-check">5.2.1 Existence check</h3>
 <p>Let <code>Amax</code> = max value, <code>Smax = 2*Amax</code>.</p>
 <ol>
 <li>Precompute all squares up to <code>Smax</code>: <code>sq = {0, 1, 4, 9, ..., ⌊√Smax⌋²}</code></li>
@@ -346,10 +347,10 @@ $$F_n = \frac{1}{\sqrt{5}}\left[\left(\frac{1+\sqrt{5}}{2}\right)^n - \left(\fra
 <p>Complexity: $O(n \sqrt{S_{\max}})$.</p>
 <h3 id="522-count-all-such-pairs">5.2.2 Count all such pairs</h3>
 <p>Same as above — accumulate <code>cnt[t - x]</code> instead of just checking existence. Scan left-to-right so each unordered pair is counted once.</p>
-<h3 id="523-small-value-range--frequency-array">5.2.3 Small value range — frequency array</h3>
+<h3 id="523-small-value-range">5.2.3 Small value range</h3>
 <p>If <code>Amax</code> is small (e.g. $\leq 2 \times 10^5$): use frequency array <code>freq[v]</code>. For each square <code>t</code>, enumerate <code>v</code>, pair <code>u = t - v</code>, add <code>freq[v]*freq[u]</code>. Handle <code>v == u</code> with $\binom{\text{freq}[v]}{2}$.</p>
 <p>Complexity: $O(\sqrt{S_{\max}} \cdot A_{\max})$, small constant.</p>
-<h2 id="53-consecutive-integers-summing-to-a-perfect-square">5.3 &ldquo;Consecutive integers summing to a perfect square&rdquo;</h2>
+<h2 id="53-consecutive-integers-summing-to-a-perfect-square">5.3 Consecutive integers summing to a perfect square</h2>
 <p>Find $l..r$ such that $l + (l+1) + \cdots + r = \dfrac{(l+r)(r-l+1)}{2} = k^2$.</p>
 <p>With length $m = r - l + 1$: sum $= \dfrac{m(2l + m - 1)}{2}$, which becomes a number-theory equation.</p>
 <p><strong>Algorithms:</strong></p>
@@ -357,7 +358,7 @@ $$F_n = \frac{1}{\sqrt{5}}\left[\left(\frac{1+\sqrt{5}}{2}\right)^n - \left(\fra
 <li><strong>Two pointers / sliding window</strong> (when all values positive): expand right if <code>sum &lt; target</code>, shrink left if <code>sum &gt; target</code>. When target isn&rsquo;t fixed, check if <code>sum</code> is a perfect square at each step.</li>
 <li><strong>Enumerate square root</strong>: if sum&rsquo;s upper bound is $M$, enumerate $k$, set $S = k^2$, solve for $m$ or $l$.</li>
 </ol>
-<h2 id="54-prefix-difference-is-a-perfect-square--general-template">5.4 &ldquo;Prefix difference is a perfect square&rdquo; — general template</h2>
+<h2 id="54-prefix-difference-is-a-perfect-square">5.4 Prefix difference is a perfect square</h2>
 <p>Many problems reduce to: $\text{prefix}[j] - \text{prefix}[i]$ is a perfect square.</p>
 <ul>
 <li>Enumerate right endpoint $j$; maintain hashmap <code>cnt[prefix[i]]</code>.</li>
@@ -376,8 +377,8 @@ $$\sum_{t \in \text{sq}} \texttt{cnt}[\text{prefix}[j] - t]$$<p>Complexity: $O(n
     <li><a href="#1-geometric-series-sum">1 Geometric Series Sum</a></li>
     <li><a href="#2-floor-sum-algorithm-euclidean-like-类欧几里得">2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</a>
       <ul>
-        <li><a href="#basic-form-">Basic form — $O(\log \max\{a,b,m\})$</a></li>
-        <li><a href="#general-form--allows-negative---requires">General form — allows negative $a, b$;  requires $n \geq 0, m > 0$</a></li>
+        <li><a href="#basic-form">Basic form</a></li>
+        <li><a href="#general-form">General form</a></li>
         <li><a href="#21-template-problem--luogu-p5170">2.1 Template problem — Luogu P5170</a></li>
         <li><a href="#22-example--2025-icpc-wuhan-a-planting-trees">2.2 Example — 2025 ICPC Wuhan A. Planting Trees</a></li>
       </ul>
@@ -386,34 +387,24 @@ $$\sum_{t \in \text{sq}} \texttt{cnt}[\text{prefix}[j] - t]$$<p>Complexity: $O(n
       <ul>
         <li><a href="#31-xor--addition">3.1 XOR ↔ Addition</a></li>
         <li><a href="#32-basic-properties">3.2 Basic Properties</a></li>
-        <li><a href="#33-common-conclusions">3.3 Common Conclusions</a>
-          <ul>
-            <li><a href="#331-trie-templates">3.3.1 Trie Templates</a></li>
-          </ul>
-        </li>
+        <li><a href="#33-common-conclusions">3.3 Common Conclusions</a></li>
         <li><a href="#34-linear-basis-merge">3.4 Linear Basis Merge</a></li>
       </ul>
     </li>
     <li><a href="#4-fibonacci">4 Fibonacci</a>
       <ul>
         <li><a href="#sum-formula">Sum formula</a></li>
-        <li><a href="#41-fast-doubling-">4.1 Fast Doubling — $O(\log n)$</a></li>
-        <li><a href="#42-number-of-digits-of">4.2 Number of digits of $F_n$</a></li>
+        <li><a href="#41-fast-doubling">4.1 Fast Doubling</a></li>
+        <li><a href="#42-number-of-digits-of-fibonacci-numbers">4.2 Number of digits of Fibonacci numbers</a></li>
         <li><a href="#43-closed-form-binets-formula">4.3 Closed form (Binet&rsquo;s formula)</a></li>
       </ul>
     </li>
     <li><a href="#5-perfect-squares">5 Perfect Squares</a>
       <ul>
         <li><a href="#51-fast-detection">5.1 Fast detection</a></li>
-        <li><a href="#52-two-elements-sum-to-a-perfect-square">5.2 &ldquo;Two elements sum to a perfect square&rdquo;</a>
-          <ul>
-            <li><a href="#521-does-any-pair--form-a-perfect-square">5.2.1 Does any pair $(a_i + a_j)$ form a perfect square?</a></li>
-            <li><a href="#522-count-all-such-pairs">5.2.2 Count all such pairs</a></li>
-            <li><a href="#523-small-value-range--frequency-array">5.2.3 Small value range — frequency array</a></li>
-          </ul>
-        </li>
-        <li><a href="#53-consecutive-integers-summing-to-a-perfect-square">5.3 &ldquo;Consecutive integers summing to a perfect square&rdquo;</a></li>
-        <li><a href="#54-prefix-difference-is-a-perfect-square--general-template">5.4 &ldquo;Prefix difference is a perfect square&rdquo; — general template</a></li>
+        <li><a href="#52-two-elements-sum-to-a-perfect-square">5.2 Two elements sum to a perfect square</a></li>
+        <li><a href="#53-consecutive-integers-summing-to-a-perfect-square">5.3 Consecutive integers summing to a perfect square</a></li>
+        <li><a href="#54-prefix-difference-is-a-perfect-square">5.4 Prefix difference is a perfect square</a></li>
       </ul>
     </li>
   </ul>

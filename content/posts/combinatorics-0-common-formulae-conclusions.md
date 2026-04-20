@@ -20,7 +20,7 @@ First term $a_1$, common ratio $q$, sum of first $n$ terms $S_n$:
 
 # 2 Floor Sum Algorithm (Euclidean-like 类欧几里得)
 
-## Basic form — $O(\log \max\{a,b,m\})$
+## Basic form
 
 $$\sum_{i=0}^{n-1}\left\lfloor\frac{a \cdot i+b}{m}\right\rfloor, \quad n,m,a,b > 0$$
 
@@ -33,7 +33,9 @@ LL F(LL n, LL m, LL a, LL b) {
 }
 ```
 
-## General form — allows negative $a, b$;  requires $n \geq 0, m > 0$
+## General form
+
+Allows negative $a, b$; requires $n \geq 0, m > 0$.
 
 ```cpp
 ll F_all(ll n, ll m, ll a, ll b) {
@@ -246,7 +248,7 @@ $$S(n) = \sum_{i=1}^{n} F_i = F_{n+2} - 1$$
 
 *Proof:* $F_k = F_{k+2} - F_{k+1}$; telescoping sum from $k=1$ to $n$ gives $F_{n+2} - F_2 = F_{n+2} - 1$.
 
-## 4.1 Fast Doubling — $O(\log n)$
+## 4.1 Fast Doubling
 
 Given $a = F_k$, $b = F_{k+1}$:
 
@@ -268,7 +270,7 @@ long long fibSum(long long n, long long MOD) {
 }
 ```
 
-## 4.2 Number of digits of $F_n$
+## 4.2 Number of digits of Fibonacci numbers
 
 $$\text{digits}(F_n) = \left\lfloor n \log_{10} \varphi - \tfrac{1}{2}\log_{10} 5 \right\rfloor + 1$$
 
@@ -299,9 +301,9 @@ For integer $x \geq 0$:
    - Last decimal digit $\in \{0,1,4,5,6,9\}$
 2. Integer square root: `r = (ll)sqrt(x)`, check `r*r == x` (also try `r±1` for float precision).
 
-## 5.2 "Two elements sum to a perfect square"
+## 5.2 Two elements sum to a perfect square
 
-### 5.2.1 Does any pair $(a_i + a_j)$ form a perfect square?
+### 5.2.1 Existence check
 
 Let `Amax` = max value, `Smax = 2*Amax`.
 
@@ -315,13 +317,13 @@ Complexity: $O(n \sqrt{S_{\max}})$.
 
 Same as above — accumulate `cnt[t - x]` instead of just checking existence. Scan left-to-right so each unordered pair is counted once.
 
-### 5.2.3 Small value range — frequency array
+### 5.2.3 Small value range
 
 If `Amax` is small (e.g. $\leq 2 \times 10^5$): use frequency array `freq[v]`. For each square `t`, enumerate `v`, pair `u = t - v`, add `freq[v]*freq[u]`. Handle `v == u` with $\binom{\text{freq}[v]}{2}$.
 
 Complexity: $O(\sqrt{S_{\max}} \cdot A_{\max})$, small constant.
 
-## 5.3 "Consecutive integers summing to a perfect square"
+## 5.3 Consecutive integers summing to a perfect square
 
 Find $l..r$ such that $l + (l+1) + \cdots + r = \dfrac{(l+r)(r-l+1)}{2} = k^2$.
 
@@ -331,7 +333,7 @@ With length $m = r - l + 1$: sum $= \dfrac{m(2l + m - 1)}{2}$, which becomes a n
 1. **Two pointers / sliding window** (when all values positive): expand right if `sum < target`, shrink left if `sum > target`. When target isn't fixed, check if `sum` is a perfect square at each step.
 2. **Enumerate square root**: if sum's upper bound is $M$, enumerate $k$, set $S = k^2$, solve for $m$ or $l$.
 
-## 5.4 "Prefix difference is a perfect square" — general template
+## 5.4 Prefix difference is a perfect square
 
 Many problems reduce to: $\text{prefix}[j] - \text{prefix}[i]$ is a perfect square.
 

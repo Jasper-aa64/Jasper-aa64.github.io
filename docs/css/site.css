@@ -382,13 +382,45 @@ pre {
   border-radius: 20px;
 }
 
-.toc-card nav ul {
-  padding-left: 18px;
+.toc-card nav > ul {
+  list-style: none;
+  padding-left: 0;
   margin: 12px 0 0;
 }
 
+.toc-card nav ul {
+  margin: 0;
+  padding-left: 0;
+}
+
+.toc-card nav li + li {
+  margin-top: 8px;
+}
+
+.toc-card nav ul ul {
+  margin-top: 8px;
+  padding-left: 14px;
+  border-left: 1px solid rgba(88, 140, 206, 0.18);
+}
+
+.toc-card nav ul ul li + li {
+  margin-top: 6px;
+}
+
 .toc-card a {
+  display: block;
   color: var(--muted);
+  text-decoration: none;
+  line-height: 1.45;
+}
+
+.toc-card nav > ul > li > a {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.toc-card nav ul ul a {
+  font-size: 0.96rem;
 }
 
 .prose {
