@@ -16,6 +16,13 @@
       <description>A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns.</description>
     </item>
     <item>
+      <title>Combinatorics #1: 计数中常用的结论</title>
+      <link>https://jmaaa32.github.io/posts/combinatorics-1-counting-conclusions/</link>
+      <pubDate>Mon, 20 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>https://jmaaa32.github.io/posts/combinatorics-1-counting-conclusions/</guid>
+      <description>常见计数结论、Lucas 定理、不定方程解计数、平面分拆、DAG 路径计数、多项式平移、XOR 均匀性与若干竞赛常用结论。</description>
+    </item>
+    <item>
       <title>About</title>
       <link>https://jmaaa32.github.io/about/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
