@@ -419,24 +419,60 @@ $$\sum_{t \in \text{sq}} \texttt{cnt}[\text{prefix}[j] - t]$$<p>Complexity: $O(n
   <script>
     document.addEventListener("DOMContentLoaded", function() {
       const tocLinks = document.querySelectorAll('.toc-card a');
-      const sections = document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
       
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            tocLinks.forEach(link => link.classList.remove('active'));
-            const id = entry.target.getAttribute('id');
-            const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
-            if (activeLink) {
-              activeLink.classList.add('active');
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      function getOffsetTop(element) {
+        let offsetTop = 0;
+        while(element) {
+          offsetTop += element.offsetTop;
+          element = element.offsetParent;
+        }
+        return offsetTop;
+      }
+
+      function onScroll() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            
+            
+            const tocCard = document.querySelector('.toc-card');
+            const linkTop = activeLink.offsetTop;
+            const linkBottom = linkTop + activeLink.offsetHeight;
+            const cardScrollTop = tocCard.scrollTop;
+            const cardHeight = tocCard.clientHeight;
+
+            if (linkTop < cardScrollTop) {
+              tocCard.scrollTo({ top: linkTop - 20, behavior: 'smooth' });
+            } else if (linkBottom > cardScrollTop + cardHeight) {
+              tocCard.scrollTo({ top: linkBottom - cardHeight + 20, behavior: 'smooth' });
             }
           }
-        });
-      }, { rootMargin: '-10% 0px -80% 0px' });
+        }
+      }
 
-      sections.forEach(section => {
-        observer.observe(section);
-      });
+      window.addEventListener('scroll', onScroll, { passive: true });
+      
+      setTimeout(onScroll, 50);
     });
   </script>
   
