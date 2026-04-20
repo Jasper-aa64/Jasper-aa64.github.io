@@ -227,24 +227,22 @@ code, pre {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 40px;
-  align-items: start;
 }
 
-/* TOC Styles Optimization */
 .article-toc {
-  position: sticky;
-  top: 100px;
-  align-self: start;
+  /* stretches to full column height so toc-card can travel the whole page */
 }
 
 .toc-card {
+  position: sticky;
+  top: 100px;
   background: var(--bg-elevated);
   backdrop-filter: blur(16px);
   padding: 24px;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
 }
 
