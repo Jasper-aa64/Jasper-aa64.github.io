@@ -2,6 +2,8 @@
 .bundle
 vendor
 Gemfile.lock
+!static/vendor/
+!static/vendor/**
 
 # Jekyll cache
 .jekyll-cache

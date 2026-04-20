@@ -6,13 +6,24 @@
     <title>Combinatorics #0: Common Formulae &amp; Conclusions | CP Notes</title>
     <meta name="description" content="A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns.">
     <link rel="canonical" href="https://jmaaa32.github.io/posts/combinatorics-0-common-formulae-conclusions/">
-    <link rel="stylesheet" href="/vendor/katex/katex.min.css">
     <link rel="stylesheet" href="/css/site.css">
-    <script defer src="/vendor/katex/katex.min.js"></script>
-    <script defer src="/vendor/katex/contrib/auto-render.min.js"></script>
-    <script defer src="/js/math.js"></script>
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/vendor/mathjax/es5/tex-chtml.js"></script>
+    
   </head>
-  <body data-has-math="true">
+  <body>
     <div class="page-shell">
       <div class="page-glow page-glow-a"></div>
       <div class="page-glow page-glow-b"></div>
