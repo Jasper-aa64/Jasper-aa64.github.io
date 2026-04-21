@@ -2,117 +2,126 @@
 title: "Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements"
 date: 2026-04-20
 slug: "combinatorics-1-2-inclusion-exclusion-diophantine-derangements"
-description: "Inclusion-exclusion in set and operator form, bounded Diophantine counting with prefix-sum DP and divide-and-conquer NTT, derangement formulas, and Stirling numbers."
-summary: "Inclusion-exclusion in set and operator form, bounded Diophantine counting with prefix-sum DP and divide-and-conquer NTT, derangement formulas, and Stirling numbers."
+description: "Inclusion-exclusion in set and operator form, equal-count subproblems, bounded Diophantine counting, derangements, Stirling numbers, and selected contest problems."
+summary: "Inclusion-exclusion in set and operator form, equal-count subproblems, bounded Diophantine counting, derangements, Stirling numbers, and selected contest problems."
 categories: [Combinatorics]
 tags: [math, combinatorics, inclusion-exclusion, derangements, diophantine, stirling, counting, NTT]
 math: true
 toc: true
 ---
 
-This note collects the standard counting templates that appear most often in contest problems:
-
-- inclusion-exclusion in both set form and operator form
-- onto-function and adjacency-avoidance counting
-- bounded linear Diophantine equations (inclusion-exclusion, prefix-sum DP, divide-and-conquer NTT, equal-cap formula)
-- derangements and fixed-point counting
-- Stirling numbers of the second kind
-
 # 1 Inclusion-Exclusion Basics
 
 ## Set form
 
-**Two sets.** Let $S$ be a finite set and $A, B \subseteq S$. Then
-
+**Two sets.** Let $S$ be finite and $A, B \subseteq S$:
 $$|S \setminus (A \cup B)| = |S| - |A| - |B| + |A \cap B|$$
 
-**Three sets.** For $A, B, C \subseteq S$,
-
+**Three sets.**
 $$|S \setminus (A \cup B \cup C)| = |S| - |A| - |B| - |C| + |A \cap B| + |A \cap C| + |B \cap C| - |A \cap B \cap C|$$
 
-**General form.** For subsets $A_1, \dots, A_n \subseteq S$,
-
-$$\left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{T \subseteq [n]} (-1)^{|T|} \left|\bigcap_{i \in T} A_i\right|$$
-
-where the empty-intersection term equals $|S|$.
+**General form.**
+$$\left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{i=0}^{n}(-1)^i \sum_{1 \le j_1 < \cdots < j_i \le n} \left|\bigcap_{k=1}^{i} A_{j_k}\right|$$
 
 ## Operator form
 
-Let $A_i$ denote a "bad property," and $N(A_{i_1} A_{i_2} \cdots)$ the number of elements with all listed properties. Then
+Let $a_1, \dots, a_n$ be $n$ properties on a finite set $S$. Define:
 
-$$N\!\left(\prod_{i=1}^{n}(1 - A_i)\right) = \sum_{T \subseteq [n]} (-1)^{|T|} N\!\left(\prod_{i \in T} A_i\right)$$
+- $N(a_i)$ = number of elements having property $a_i$. Special case: $N(1) = |S|$.
+- $N(1 - a_i)$ = number of elements **not** having property $a_i$.
+- $N(a_{i_1} a_{i_2} \cdots a_{i_k})$ = number of elements having **all** of $a_{i_1}, \dots, a_{i_k}$.
+- Linearity: $N(a \pm b) = N(a) \pm N(b)$.
 
-This algebraic form is convenient for deriving formulas: expand the product, collect signs, identify $N(\cdots)$ for each intersection.
+**Basic formula** (elements with none of the properties):
+$$N\!\bigl((1-a_1)(1-a_2)\cdots(1-a_n)\bigr) = \sum_{i=0}^{n}(-1)^i \sum_{1 \le j_1 < \cdots < j_i \le n} N(a_{j_1} \cdots a_{j_i})$$
 
-# 2 Classic Examples
+**Generalised formula** (first $x$ properties required, next $n$ forbidden):
+$$N\!\bigl(a_1\cdots a_x(1-a_{x+1})\cdots(1-a_{x+n})\bigr) = \sum_{i=0}^{n}(-1)^i \sum_{x < j_1 < \cdots < j_i \le x+n} N(a_1\cdots a_x\, a_{j_1}\cdots a_{j_i})$$
 
-## 2.1 Euler's totient
+> **[Example 1]** Count integers in $\{1, \dots, n\}$ that are multiples of 5 but neither multiples of 2 nor of 3.
+>
+> Set $a_1$: multiple of 2; $a_2$: multiple of 3; $a_3$: multiple of 5.
+> $$N\!\bigl((1-a_1)(1-a_2)\,a_3\bigr) = N(a_3) - N(a_1 a_3) - N(a_2 a_3) + N(a_1 a_2 a_3)$$
+> $$= \left\lfloor\frac{n}{5}\right\rfloor - \left\lfloor\frac{n}{10}\right\rfloor - \left\lfloor\frac{n}{15}\right\rfloor + \left\lfloor\frac{n}{30}\right\rfloor$$
 
-Let $n = p_1^{\alpha_1} \cdots p_k^{\alpha_k}$. Then
+> **[Example 2 — Nowcoder 19857]** $N$ couples ($2N$ people) in a circle, rotations equivalent, mirrors distinct. Count arrangements where no couple is adjacent.
+>
+> Let $A_i$: couple $i$ is adjacent. When $i$ pairs are forced adjacent, merge each into a block (2 internal orderings → $2^i$); the circle has $2N-i$ objects with $(2N-i-1)!$ circular arrangements:
+> $$\boxed{\text{Ans} = \sum_{i=0}^{N}(-1)^i \binom{N}{i} 2^i (2N-i-1)!}$$
 
-$$\varphi(n) = n \prod_{i=1}^{k}\left(1 - \frac{1}{p_i}\right)$$
+---
 
-Set $S = \{1, \dots, n\}$ and $A_i = \{x \in S : p_i \mid x\}$. For any index set $T$,
+# 2 Examples
 
-$$\left|\bigcap_{i \in T} A_i\right| = \frac{n}{\prod_{i \in T} p_i}$$
+## 2.1 Euler's Totient
 
-because every $p_i$ divides $n$. Inclusion-exclusion expands directly into the product formula.
+**Claim.** Let $n = p_1^{\alpha_1} \cdots p_k^{\alpha_k}$. Then $\varphi(n) = n\!\left(1 - \tfrac{1}{p_1}\right)\!\cdots\!\left(1 - \tfrac{1}{p_k}\right)$.
 
-## 2.2 Couples in a circular arrangement
+**Setup.** $S = \{1, \dots, n\}$, property $a_i$: "$x$ is a multiple of $p_i$." We want $\varphi(n) = N\!\bigl((1-a_1)\cdots(1-a_k)\bigr)$.
 
-**Problem.** $2N$ people ($N$ couples) are arranged in a circle. Two arrangements are the same if one is a rotation of the other (mirror flips are distinct). Count arrangements where no couple is adjacent.
+**Intersection count.** For any $\{i_1, \dots, i_t\} \subseteq \{1, \dots, k\}$, multiples of $p_{i_1}\cdots p_{i_t}$ in $S$:
+$$N(a_{i_1}\cdots a_{i_t}) = \frac{n}{p_{i_1}\cdots p_{i_t}}$$
 
-Let $A_i$ = couple $i$ is adjacent. If $i$ couples are forced adjacent, each becomes a block (2 internal orderings), and the circle has $2N - i$ objects with $(2N - i - 1)!$ circular arrangements.
+**Apply inclusion-exclusion.**
+$$\varphi(n) = \sum_{t=0}^{k}(-1)^t \sum_{1 \le i_1 < \cdots < i_t \le k} \frac{n}{p_{i_1}\cdots p_{i_t}} = n\left[1 - \sum_i \frac{1}{p_i} + \sum_{i<j}\frac{1}{p_i p_j} - \cdots\right]$$
 
-$$\boxed{\text{Ans} = \sum_{i=0}^{N} (-1)^i \binom{N}{i} 2^i (2N - i - 1)!}$$
+**Recognise the bracket** as a product expansion:
+$$\boxed{\prod_{i=1}^{k}\!\left(1 - \frac{1}{p_i}\right) = \sum_{S \subseteq \{1,\dots,k\}}(-1)^{|S|} \cdot \frac{1}{\prod_{i \in S} p_i}}$$
 
-## 2.3 Surjections: every person gets at least one item
+Hence $\boxed{\varphi(n) = n\prod_{i=1}^{k}\!\left(1 - \tfrac{1}{p_i}\right)}$.
 
-Distribute $m$ labeled objects among $n$ labeled people, every person receiving at least one. Let $A_i$ = person $i$ gets nothing. Then $|S| = n^m$ and forcing $t$ people empty leaves each object $(n-t)$ choices, giving
+---
 
-$$\boxed{\sum_{t=0}^{n} (-1)^t \binom{n}{t} (n-t)^m}$$
+# 3 Equal-Count Subproblems
 
-This equals $n!\, S_2(m, n)$ where $S_2$ is the Stirling number of the second kind.
+The raw inclusion-exclusion sum runs over all $2^n$ subsets $T \subseteq [n]$:
+$$N\!\left(\prod_{i=1}^n(1-A_i)\right) = \sum_{T \subseteq [n]}(-1)^{|T|} N\!\left(\prod_{i \in T} A_i\right)$$
 
-## 2.4 No paired elements are adjacent (linear)
+**Key observation.** If $N(A_{i_1}\cdots A_{i_k})$ depends only on $k$ — the same value for every choice of $k$ indices — then all $\binom{n}{k}$ subsets of size $k$ contribute identically, and the $2^n$-term sum collapses to $n+1$ terms:
+$$N\!\left(\prod_{i=1}^n(1-A_i)\right) = \sum_{k=0}^{n}(-1)^k \binom{n}{k} \cdot N(A_1 A_2 \cdots A_k)$$
 
-$2n$ elements $a_1, \dots, a_n, b_1, \dots, b_n$. Count permutations where no pair $(a_i, b_i)$ is adjacent. Forcing $k$ pairs adjacent merges each into a block (2 internal orders), leaving $2n - k$ objects.
+> **[Example 1 — Surjections]**
+>
+> $m$ labeled objects into $n$ labeled people; everyone gets at least one.
+>
+> **Setup.** $|S| = n^m$. Property $a_i$: person $i$ gets nothing.
+>
+> **Intersection count.** Fix any $t$ people empty: each object has $n-t$ choices, so $N(a_{j_1}\cdots a_{j_t}) = (n-t)^m$. Depends only on $t$. ✓
+>
+> $$\boxed{\sum_{t=0}^{n}(-1)^t \binom{n}{t}(n-t)^m}$$
+>
+> Equals $n!\, S_2(m, n)$. Exactly $r$ people receive objects: $\binom{n}{r} r!\, S_2(m, r)$.
 
-$$|A_{i_1} \cap \cdots \cap A_{i_k}| = 2^k (2n - k)!$$
+> **[Example 2 — No pair adjacent, linear]**
+>
+> $2n$ elements $a_1,\dots,a_n$ and $b_1,\dots,b_n$. Count permutations where no pair $(a_i, b_i)$ is adjacent.
+>
+> **Intersection count.** Force any $k$ pairs adjacent: merge into blocks ($2^k$ internal orderings), leaving $2n-k$ objects: $N(A_{i_1}\cdots A_{i_k}) = 2^k(2n-k)!$ Depends only on $k$. ✓
+>
+> $$\boxed{\sum_{k=0}^{n}(-1)^k \binom{n}{k} 2^k (2n-k)!}$$
 
-$$\boxed{\sum_{k=0}^{n} (-1)^k \binom{n}{k} 2^k (2n - k)!}$$
+---
 
-# 3 Bounded Linear Diophantine Equations
+# 4 Bounded Linear Diophantine Equations
 
-Count integer solutions of
+Count integer solutions of $x_1 + \cdots + x_k = n$, $l_i \le x_i \le r_i$.
 
-$$x_1 + x_2 + \cdots + x_k = n, \qquad l_i \le x_i \le r_i$$
+## 4.1 Inclusion-exclusion formula
 
-## 3.1 Inclusion-exclusion formula
+Shift: $y_i = x_i - l_i$, $U_i = r_i - l_i$, $N = n - \sum l_i$. If $N < 0$ or $N > \sum U_i$, answer is 0. Otherwise count $\sum y_i = N$, $0 \le y_i \le U_i$.
 
-**Step 1: remove lower bounds.** Set $y_i = x_i - l_i$, $U_i = r_i - l_i$, $N = n - \sum l_i$. The problem becomes $\sum y_i = N$, $0 \le y_i \le U_i$. If $N < 0$ or $N > \sum U_i$, answer is $0$.
+Let $A_i$: $y_i \ge U_i + 1$. For subset $T$, let $M = N - \sum_{i \in T}(U_i+1)$; the term is 0 when $M < 0$.
 
-**Step 2: apply inclusion-exclusion.** Let $A_i$ = $y_i \ge U_i + 1$.
+$$\boxed{\# = \sum_{T \subseteq [k]} (-1)^{|T|} \binom{N - \sum_{i \in T}(U_i+1) + k-1}{k-1}}$$
 
-$$\# = \sum_{T \subseteq [k]} (-1)^{|T|} \binom{N - \sum_{i \in T}(U_i + 1) + k - 1}{k - 1}$$
+Direct evaluation: $O(k \cdot 2^k)$.
 
-In the original variables:
+## 4.2 Prefix-sum DP: $O(kN)$
 
-$$\# = \sum_{T \subseteq [k]} (-1)^{|T|} \binom{n - \sum_{i=1}^{k} l_i - \sum_{i \in T}(r_i - l_i + 1) + k - 1}{k - 1}$$
-
-Direct subset enumeration costs $O(k \cdot 2^k)$.
-
-## 3.2 Prefix-sum DP: $O(kN)$
-
-Let $dp[i][s]$ = number of ways to use the first $i$ variables to reach sum $s$. Naively:
-
-$$dp[i][s] = \sum_{x=0}^{\min(U_i, s)} dp[i-1][s-x]$$
-
-With prefix sums $\text{pref}[t] = \sum_{u=0}^{t} dp[i-1][u]$, this becomes $O(1)$ per state:
-
+$dp[i][s]$ = ways to make sum $s$ with first $i$ variables. With prefix sums $\text{pref}[t] = \sum_{u=0}^{t} dp[i-1][u]$:
 $$dp[i][s] = \text{pref}[s] - \text{pref}[s - U_i - 1]$$
 
-(with $\text{pref}[-1] = 0$). Total complexity: $O(kN)$, space $O(N)$ with rolling arrays.
+Answer is $dp[k][N]$ (mod $10^9+7$). If $N$ is too large for memory, use the NTT method.
 
 ```cpp
 #include <bits/stdc++.h>
@@ -121,29 +130,29 @@ const int MOD = 1000000007;
 inline int add(int a, int b) { a += b; if (a >= MOD) a -= MOD; return a; }
 
 int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-
-    int k; long long n;
-    cin >> k >> n;
+    ios::sync_with_stdio(false); cin.tie(nullptr);
+    int k; long long n; cin >> k >> n;
     vector<long long> L(k), R(k);
     for (int i = 0; i < k; ++i) cin >> L[i] >> R[i];
 
     long long sumL = 0, sumU = 0;
-    vector<int> U(k);
+    vector<long long> U64(k);
     for (int i = 0; i < k; ++i) {
         sumL += L[i];
         long long ui = R[i] - L[i];
         if (ui < 0) { cout << 0 << "\n"; return 0; }
-        U[i] = (int)ui; sumU += ui;
+        U64[i] = ui; sumU += ui;
     }
     long long N64 = n - sumL;
     if (N64 < 0 || N64 > sumU) { cout << 0 << "\n"; return 0; }
     int N = (int)N64;
 
-    vector<int> prev(N + 1, 0), cur(N + 1, 0), pref(N + 1, 0);
-    prev[0] = 1;
-    int reach = 0;
+    // clamp each U_i to N — anything larger never affects the DP
+    vector<int> U(k);
+    for (int i = 0; i < k; ++i) U[i] = (int)min(U64[i], N64);
+
+    vector<int> prev(N+1, 0), cur(N+1, 0), pref(N+1, 0);
+    prev[0] = 1; int reach = 0;
     for (int i = 0; i < k; ++i) {
         reach = min(N, reach + U[i]);
         int run = 0;
@@ -154,160 +163,285 @@ int main() {
             if (left >= 0) { val -= pref[left]; if (val < 0) val += MOD; }
             cur[s] = val;
         }
-        for (int s = reach + 1; s <= N; ++s) cur[s] = 0;
+        for (int s = reach+1; s <= N; ++s) cur[s] = 0;
         swap(prev, cur);
     }
-    cout << prev[N] << "\n";
-    return 0;
+    cout << prev[N] << "\n";   // answer mod 10^9+7
 }
 ```
 
-## 3.3 Divide-and-conquer NTT: $O(N \log N \log k)$
+## 4.3 Divide-and-conquer NTT — generating function method
 
-Each variable $y_i \in [0, U_i]$ corresponds to the polynomial $P_i(x) = 1 + x + \cdots + x^{U_i}$. The answer is the coefficient of $x^N$ in $\prod_{i=1}^{k} P_i(x)$.
+Each variable $y_i \in [0, U_i]$ corresponds to $P_i(x) = 1 + x + \cdots + x^{U_i}$. Answer $= [x^N]\prod P_i(x)$.
 
-Merge the $k$ polynomials with divide-and-conquer, truncating to degree $N$ at each step. Each level does $O(N \log N)$ work via NTT, and there are $\log k$ levels.
+Merge the $k$ polynomials with divide-and-conquer, truncating to degree $N$ at each step. Cost per node $v$: $O(d_v \log d_v)$ where $d_v \le N+1$. In the common case this is approximately $O(N \log N \log k)$; worst case $O(kN \log N)$.
+
+Answer is mod $998244353$.
 
 ```cpp
-// Truncated convolution: C = (A * B) kept to degree lim
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MOD = 998244353, G = 3;
+
+long long pw(long long a, long long b, long long mod = MOD) {
+    long long r = 1; a %= mod;
+    for (; b > 0; b >>= 1) { if (b & 1) r = r*a%mod; a = a*a%mod; }
+    return r;
+}
+
+void ntt(vector<int>& a, bool inv) {
+    int n = a.size();
+    for (int i = 1, j = 0; i < n; ++i) {
+        int bit = n >> 1;
+        for (; j & bit; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) swap(a[i], a[j]);
+    }
+    for (int len = 2; len <= n; len <<= 1) {
+        long long w = inv ? pw(G, MOD-1-(MOD-1)/len) : pw(G, (MOD-1)/len);
+        for (int i = 0; i < n; i += len) {
+            long long wn = 1;
+            for (int j = 0; j < len/2; ++j) {
+                int u = a[i+j], v = (long long)a[i+j+len/2]*wn%MOD;
+                a[i+j]       = u+v >= MOD ? u+v-MOD : u+v;
+                a[i+j+len/2] = u-v <    0 ? u-v+MOD : u-v;
+                wn = wn*w%MOD;
+            }
+        }
+    }
+    if (inv) { long long iv = pw(n, MOD-2); for (auto& x : a) x = (long long)x*iv%MOD; }
+}
+
 vector<int> conv_trunc(vector<int> A, vector<int> B, int lim) {
     if (A.empty() || B.empty()) return {};
-    if ((int)A.size() > lim + 1) A.resize(lim + 1);
-    if ((int)B.size() > lim + 1) B.resize(lim + 1);
-    int need = (int)A.size() + (int)B.size() - 1;
+    if ((int)A.size() > lim+1) A.resize(lim+1);
+    if ((int)B.size() > lim+1) B.resize(lim+1);
+    int need = (int)A.size()+(int)B.size()-1;
     int n = 1; while (n < need) n <<= 1;
     A.resize(n); B.resize(n);
     ntt(A, false); ntt(B, false);
-    for (int i = 0; i < n; ++i) A[i] = (int)(1LL * A[i] * B[i] % MOD);
+    for (int i = 0; i < n; ++i) A[i] = (long long)A[i]*B[i]%MOD;
     ntt(A, true);
-    A.resize(min(need, lim + 1));
+    A.resize(min(need, lim+1));
     return A;
 }
 
-// Divide-and-conquer merge of polys[l..r)
-vector<int> multiply_range(vector<vector<int>>& polys, int l, int r, int N) {
-    if (r - l == 1) return polys[l];
-    int m = (l + r) >> 1;
-    auto L = multiply_range(polys, l, m, N);
-    auto R = multiply_range(polys, m, r, N);
-    return conv_trunc(L, R, N);
+vector<int> dc(vector<vector<int>>& polys, int l, int r, int N) {
+    if (r-l == 1) return polys[l];
+    int m = (l+r) >> 1;
+    return conv_trunc(dc(polys, l, m, N), dc(polys, m, r, N), N);
+}
+
+int main() {
+    ios::sync_with_stdio(false); cin.tie(nullptr);
+    int k; long long n; cin >> k >> n;
+    vector<long long> L(k), R(k);
+    for (int i = 0; i < k; ++i) cin >> L[i] >> R[i];
+
+    long long sumL = 0, sumU = 0;
+    vector<long long> U64(k);
+    for (int i = 0; i < k; ++i) {
+        sumL += L[i];
+        long long ui = R[i]-L[i];
+        if (ui < 0) { cout << 0 << "\n"; return 0; }
+        U64[i] = ui; sumU += ui;
+    }
+    long long N64 = n-sumL;
+    if (N64 < 0 || N64 > sumU) { cout << 0 << "\n"; return 0; }
+    int N = (int)N64;
+
+    vector<vector<int>> polys(k);
+    for (int i = 0; i < k; ++i) {
+        int len = (int)min(U64[i], (long long)N)+1;
+        polys[i].assign(len, 1);  // P_i(x) = 1 + x + ... + x^{min(U_i,N)}
+    }
+    auto res = dc(polys, 0, k, N);
+    cout << (N < (int)res.size() ? res[N] : 0) << "\n";  // answer mod 998244353
 }
 ```
 
-Build each $P_i$ as `vector<int>(min(U[i],N)+1, 1)` and call `multiply_range`. Extract `prod[N]`.
+## 4.4 Equal-cap case: $O\!\left(\min\!\left(n, \lfloor S/(k+1) \rfloor\right)\right)$
 
-## 3.4 Equal-cap case: all upper bounds are $k$, complexity $O(S/k)$
+$n$ variables each in $[0, k]$, sum $= S$. By symmetry, inclusion-exclusion collapses to:
 
-Count ordered non-negative integer solutions of $x_1 + \cdots + x_n = S$ with each $x_j \le k$.
+$$\boxed{g(n,S,k) = \sum_{i=0}^{\min(n,\lfloor S/(k+1)\rfloor)}(-1)^i \binom{n}{i} \binom{S-i(k+1)+n-1}{n-1}}$$
 
-Without upper bounds the answer is $\binom{S + n - 1}{n - 1}$ (stars and bars). Applying inclusion-exclusion on the $i$ variables that exceed $k$:
+Terms with $S - i(k+1) < 0$ vanish. If $k \ge S$, the upper bound is never active: answer $= \binom{S+n-1}{n-1}$. If $S < 0$ or $S > nk$, answer is 0.
 
-$$g(n, S, k) = \sum_{i=0}^{\lfloor S/(k+1) \rfloor} (-1)^i \binom{n}{i} \binom{S - i(k+1) + n - 1}{n - 1}$$
+---
 
-The sum has only $\lfloor S/(k+1) \rfloor + 1$ terms because $\binom{S-i(k+1)+n-1}{n-1} = 0$ once $S - i(k+1) < 0$. This gives $O(S/k)$ time.
+# 5 Derangements
 
-If $k \ge S$ no variable can exceed $S$, so the upper bound is vacuous and the answer is simply $\binom{S+n-1}{n-1}$.
+A derangement is a permutation $p$ of $\{1,\dots,n\}$ with $p_i \ne i$ for all $i$. Count: $D(n)$.
 
-# 4 Derangements
+## 5.1 Recurrence
 
-A derangement is a permutation $p$ of $\{1, \dots, n\}$ with $p_i \ne i$ for all $i$. Denote the count by $D(n)$.
-
-## 4.1 Recurrence
-
-$$D(0) = 1, \quad D(1) = 0, \quad D(n) = (n-1)\bigl(D(n-1) + D(n-2)\bigr) \quad (n \ge 2)$$
+$$D(0) = 1,\quad D(1) = 0,\quad D(n) = (n-1)\bigl(D(n-1)+D(n-2)\bigr)\quad(n \ge 2)$$
 
 ```cpp
 D[0] = 1; D[1] = 0;
 for (int i = 2; i <= MAXN; ++i)
-    D[i] = 1LL * (i - 1) * (D[i - 1] + D[i - 2]) % MOD;
+    D[i] = 1LL*(i-1)*(D[i-1]+D[i-2])%MOD;
 ```
 
-## 4.2 Inclusion-exclusion formula
+## 5.2 Inclusion-exclusion
 
-Let $A_i$ = position $i$ is fixed. Then
+$$D(n) = \sum_{k=0}^{n}(-1)^k \binom{n}{k}(n-k)! = \boxed{n!\sum_{k=0}^{n}\frac{(-1)^k}{k!}}$$
 
-$$D(n) = \left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{k=0}^{n} (-1)^k \binom{n}{k}(n-k)!$$
+$D(n)/n! \to 1/e$ as $n \to \infty$.
 
-$$\boxed{D(n) = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!}}$$
+## 5.3 EGF
 
-As $n \to \infty$, $D(n)/n! \to 1/e$.
+Forbid 1-cycles: $\text{CYC}_{\ge2}(x) = -\ln(1-x) - x$.
 
-## 4.3 Exponential generating function
+$$\boxed{H(x) = \exp(\text{CYC}_{\ge2}(x)) = \frac{e^{-x}}{1-x}}$$
 
-Every permutation is a set of disjoint cycles. The EGF of all cycles is
+## 5.4 Binomial inversion
 
-$$\text{CYC}(x) = \sum_{k \ge 1} \frac{x^k}{k} = -\ln(1 - x)$$
+$$D(n) = \sum_{i=0}^{n}(-1)^{n-i}\binom{n}{i}i!$$
 
-Forbidding 1-cycles:
+## 5.5 Exactly $k$ fixed points
 
-$$\text{CYC}_{\ge 2}(x) = -\ln(1 - x) - x$$
+**Problem.** Count permutations of $\{1,\dots,n\}$ with exactly $k$ positions satisfying $p_i = i$.
 
-The EGF of derangements is
+**Step 1 — choose the fixed positions:** $\binom{n}{k}$ ways.
 
-$$\boxed{H(x) = \exp\!\bigl(\text{CYC}_{\ge 2}(x)\bigr) = \frac{e^{-x}}{1 - x}}$$
+**Step 2 — derange the remaining $n-k$ positions.** From the $n-k$ remaining, "accidentally" fix $i$ more:
+$$N\!\Bigl(\prod_j(1-A_j)\Bigr) = \sum_{i=0}^{n-k}(-1)^i\binom{n-k}{i}(n-(k+i))!$$
 
-Expanding $H(x) = e^{-x} \cdot \frac{1}{1-x}$ and extracting $[x^n]$ recovers the inclusion-exclusion formula.
+**Combining:**
+$$\binom{n}{k}\sum_{i=0}^{n-k}(-1)^i\binom{n-k}{i}(n-(k+i))!$$
 
-## 4.4 Binomial inversion
+The inner sum is exactly $D_{n-k}$, so:
 
-Let $f_n$ = derangements of $[n]$ (exactly 0 fixed points), $g_n = n!$ (all permutations = at most all fixed). By binomial inversion:
+$$\boxed{\binom{n}{k}\,D_{n-k}}$$
 
-$$f_n = \sum_{i=0}^{n} \binom{n}{i} (-1)^{n-i} i! = \sum_{i=0}^{n} (-1)^{n-i} \frac{n!}{(n-i)!}$$
+---
 
-This agrees with the inclusion-exclusion formula above and is another $O(n)$ computation.
+# 6 Stirling Numbers of the Second Kind — Preview
 
-## 4.5 Exactly $k$ fixed points
+$S_2(n,k)$ (also $\begin{Bmatrix}n\\\\k\end{Bmatrix}$): $n$ distinct balls into $k$ indistinguishable non-empty boxes.
 
-Choose which $k$ positions are fixed ($\binom{n}{k}$ ways), then derange the remaining $n - k$:
+**Recurrence.**
+$$S_2(n,k) = \underbrace{S_2(n-1,k-1)}_{\text{ball }n\text{ opens a new box}} + \underbrace{k\cdot S_2(n-1,k)}_{\text{ball }n\text{ joins an existing box}}$$
 
-$$\boxed{\binom{n}{k} D(n - k)}$$
+**Closed form.**
+$$S_2(n,k) = \frac{1}{k!}\sum_{i=0}^{k}(-1)^i\binom{k}{i}(k-i)^n$$
 
-# 5 Stirling Numbers of the Second Kind
+**Falling factorial expansion.**
+$$x^n = \sum_{k=0}^{n}S_2(n,k)\,x^{\underline{k}}, \qquad x^{\underline{k}} = x(x-1)\cdots(x-k+1) = \frac{x!}{(x-k)!}$$
 
-$S_2(n, k)$ (also written $\left\{\begin{smallmatrix}n\\k\end{smallmatrix}\right\}$) counts ways to partition $n$ labeled objects into $k$ non-empty, unlabeled groups.
+**Surjections** into $k$ labeled boxes: $k!\,S_2(n,k)$.
 
-**Recurrence:**
+---
 
-$$S_2(n, k) = k \cdot S_2(n-1, k) + S_2(n-1, k-1)$$
+# 7 Selected Problems
 
-(the $n$-th object either joins one of the existing $k$ groups, or starts a new group of its own).
+## 7.1 Nowcoder 16513 — integers coprime to a prime set
 
-**Explicit formula:**
+Given a set $A = \{a_1,\dots,a_k\}$ of primes ($k \le 20$, $a_i \le 100$), count integers in $[L,R]$ not divisible by any $a_i$. ($L, R \le 10^{18}$)
 
-$$S_2(n, k) = \frac{1}{k!} \sum_{i=0}^{k} (-1)^i \binom{k}{i} (k - i)^n$$
+**Reduction.** Count on $[1,X]$ and subtract: Answer $= F(R) - F(L-1)$.
 
-**Connection to surjections:** distributing $n$ labeled objects into $k$ labeled non-empty boxes gives $k!\, S_2(n, k)$.
+**Key fact.** Multiples of $d$ in $[L, R]$:
+$$\left\lfloor\frac{R}{d}\right\rfloor - \left\lfloor\frac{L-1}{d}\right\rfloor$$
+This is the standard $[L,R] \to [1,R]$ minus $[1,L-1]$ trick.
 
-**Falling factorial expansion:**
+**Inclusion-exclusion** over subsets $S \subseteq A$:
+$$F(X) = \sum_{S \subseteq A}(-1)^{|S|}\left\lfloor\frac{X}{\prod_{a \in S}a}\right\rfloor$$
 
-$$x^n = \sum_{k=0}^{n} S_2(n, k)\, x^{\underline{k}}$$
+Since all $a_i$ are prime, $\prod_{a \in S}a = \text{lcm}(S)$. Prune when product $> X$. Complexity: $O(2^k)$.
 
-where $x^{\underline{k}} = x(x-1)(x-2)\cdots(x-k+1)$ is the $k$-th falling factorial of $x$.
+## 7.2 CF 547C — Mike and Foam (dynamic coprime pairs)
 
-# 6 Selected Problems
+$n$ beer glasses with heights $a_1,\dots,a_n$. Counter starts empty. $q$ operations: each places a glass on or removes one from the counter. After each operation output the number of pairs $(i,j)$ ($i < j$) on the counter with $\gcd(a_i, a_j) = 1$.
 
-## 6.1 Integers in $[L, R]$ coprime to a prime set
+($1 \le n, q \le 2\times10^5$; $1 \le a_i \le 5\times10^5$)
 
-**Problem (Nowcoder 16513).** Given a set $A = \{a_1, \dots, a_k\}$ of primes, count integers in $[L, R]$ not divisible by any $a_i$.
+**Problem restatement.** Maintain multiset $S$; after each insert/delete of $v$, count how many $y \in S$ satisfy $\gcd(y, v) = 1$. Direct loop is $O(|S|\log v)$ — too slow.
 
-Define $F(X) = \#\{1 \le n \le X : \forall a \in A,\ a \nmid n\}$. By inclusion-exclusion over subsets $S \subseteq A$:
+### Key data structure
 
-$$F(X) = \sum_{S \subseteq A} (-1)^{|S|} \left\lfloor \frac{X}{\prod_{a \in S} a} \right\rfloor$$
+Maintain $\text{cnt}[d]$ = elements in $S$ divisible by $d$, and running answer $\text{ans}$.
 
-Answer: $F(R) - F(L - 1)$. Complexity: $O(2^k)$ per query (prune when $\prod > X$).
+For any $v$ with distinct prime factors $p_1,\dots,p_m$, the number of elements in $S$ coprime to $v$ is:
+$$\Delta = \sum_{T \subseteq \{p_1,\dots,p_m\}}(-1)^{|T|}\,\text{cnt}\!\left[\prod_{i \in T}p_i\right] = \sum_{d \mid v}\mu(d)\,\text{cnt}[d]$$
 
-## 6.2 Dynamic coprime pair counting
+(only squarefree $d$ matter; $\mu(d) = (-1)^{|T|}$ for squarefree $d$).
 
-**Problem (CF 547C).** Maintain a multiset $S$ under insertions and deletions. After each operation, output the number of pairs $(i, j)$ with $i < j$ and $\gcd(a_i, a_j) = 1$.
+### Insert vs Delete — order matters
 
-**Method 1 — Inclusion-exclusion.** Maintain $\text{cnt}[d]$ = number of elements in $S$ divisible by $d$. When inserting value $v$ with prime factorization $\{p_1, \dots, p_m\}$, the number of existing elements coprime to $v$ is
+**Insert $v$:** compute $\Delta$ with current $\text{cnt}$, then `ans += Δ`, then `cnt[d]++` for all squarefree divisors $d$ of $v$.
 
-$$\sum_{S \subseteq \{p_1,\dots,p_m\}} (-1)^{|S|} \text{cnt}\!\left[\prod_{p \in S} p\right]$$
+**Delete $v$:** `cnt[d]--` first (remove $v$), then compute $\Delta$, then `ans -= Δ`.
 
-Update $\text{cnt}[d]$ for all $2^m$ squarefree divisors of $v$ after computing the delta. Deletion is symmetric: update $\text{cnt}$ first, then compute the delta.
+This ensures $v$ is never counted against itself.
 
-**Method 2 — Möbius inversion.**
+### Complexity
 
-$$\sum_{y \in S} \mathbf{1}[\gcd(v, y) = 1] = \sum_{d \mid v} \mu(d) \cdot \#\{y \in S : d \mid y\} = \sum_{d \mid v} \mu(d)\, \text{cnt}[d]$$
+$O(2^{\omega(v)})$ per op; $\omega(v) \le 7$ for $v \le 5\times10^5$, so at most 128 entries touched per op. Sieve Möbius in $O(V\log\log V)$.
 
-Both methods run in $O(2^{\omega(v)})$ per query where $\omega(v) \le 7$ for $v \le 5 \times 10^5$.
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MAXV = 500001;
+int mu[MAXV], cnt[MAXV];
+
+void sieve() {
+    vector<int> primes;
+    vector<bool> composite(MAXV, false);
+    mu[1] = 1;
+    for (int i = 2; i < MAXV; ++i) {
+        if (!composite[i]) { primes.push_back(i); mu[i] = -1; }
+        for (int p : primes) {
+            if ((long long)i*p >= MAXV) break;
+            composite[i*p] = true;
+            if (i % p == 0) { mu[i*p] = 0; break; }
+            mu[i*p] = -mu[i];
+        }
+    }
+}
+
+vector<int> sqfree_divs(int v) {
+    vector<int> ps;
+    for (int p = 2; (long long)p*p <= v; ++p)
+        if (v % p == 0) { ps.push_back(p); while (v % p == 0) v /= p; }
+    if (v > 1) ps.push_back(v);
+    int m = ps.size();
+    vector<int> divs; divs.reserve(1 << m);
+    for (int mask = 0; mask < (1 << m); ++mask) {
+        int d = 1;
+        for (int i = 0; i < m; ++i) if (mask >> i & 1) d *= ps[i];
+        divs.push_back(d);
+    }
+    return divs;
+}
+
+int main() {
+    ios::sync_with_stdio(false); cin.tie(nullptr);
+    sieve();
+    int n; cin >> n;
+    vector<int> a(n+1);
+    for (int i = 1; i <= n; ++i) cin >> a[i];
+
+    int q; cin >> q;
+    vector<bool> on(n+1, false);
+    long long ans = 0;
+    while (q--) {
+        int idx; cin >> idx;
+        int v = a[idx];
+        auto divs = sqfree_divs(v);
+        if (!on[idx]) {                          // insert
+            for (int d : divs) ans += mu[d]*cnt[d];
+            for (int d : divs) cnt[d]++;
+        } else {                                 // delete
+            for (int d : divs) cnt[d]--;
+            for (int d : divs) ans -= mu[d]*cnt[d];
+        }
+        on[idx] = !on[idx];
+        cout << ans << "\n";
+    }
+}
+```
