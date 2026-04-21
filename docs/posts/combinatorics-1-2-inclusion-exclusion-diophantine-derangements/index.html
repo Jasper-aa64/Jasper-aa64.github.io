@@ -1,90 +1,382 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements | CP Notes</title><meta name=description content="Inclusion-exclusion in set and operator form, bounded Diophantine counting with prefix-sum DP and divide-and-conquer NTT, derangement formulas, and Stirling numbers."><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><div class="page-glow page-glow-a"></div><div class="page-glow page-glow-b"></div><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>CP Notes</strong>
-<small>Notes on code, systems, and ideas</small></span></a><nav class=site-nav><a class=nav-link href=/>Home</a>
-<a class=nav-link href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements</h1><div class=article-meta><time datetime=2026-04-20>Apr 20, 2026</time>
-<span>·</span>
-<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/combinatorics/>#combinatorics</a>
-<a class=chip href=/tags/inclusion-exclusion/>#inclusion-exclusion</a>
-<a class=chip href=/tags/derangements/>#derangements</a>
-<a class=chip href=/tags/diophantine/>#diophantine</a>
-<a class=chip href=/tags/stirling/>#stirling</a>
-<a class=chip href=/tags/counting/>#counting</a>
-<a class=chip href=/tags/ntt/>#NTT</a></div></header><div class=article-layout><div class="article-content prose"><p>This note collects the standard counting templates that appear most often in contest problems:</p><ul><li>inclusion-exclusion in both set form and operator form</li><li>onto-function and adjacency-avoidance counting</li><li>bounded linear Diophantine equations (inclusion-exclusion, prefix-sum DP, divide-and-conquer NTT, equal-cap formula)</li><li>derangements and fixed-point counting</li><li>Stirling numbers of the second kind</li></ul><h1 id=1-inclusion-exclusion-basics>1 Inclusion-Exclusion Basics</h1><h2 id=set-form>Set form</h2><p><strong>Two sets.</strong> Let $S$ be a finite set and $A, B \subseteq S$. Then</p>$$|S \setminus (A \cup B)| = |S| - |A| - |B| + |A \cap B|$$<p><strong>Three sets.</strong> For $A, B, C \subseteq S$,</p>$$|S \setminus (A \cup B \cup C)| = |S| - |A| - |B| - |C| + |A \cap B| + |A \cap C| + |B \cap C| - |A \cap B \cap C|$$<p><strong>General form.</strong> For subsets $A_1, \dots, A_n \subseteq S$,</p>$$\left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{T \subseteq [n]} (-1)^{|T|} \left|\bigcap_{i \in T} A_i\right|$$<p>where the empty-intersection term equals $|S|$.</p><h2 id=operator-form>Operator form</h2><p>Let $A_i$ denote a &ldquo;bad property,&rdquo; and $N(A_{i_1} A_{i_2} \cdots)$ the number of elements with all listed properties. Then</p>$$N\!\left(\prod_{i=1}^{n}(1 - A_i)\right) = \sum_{T \subseteq [n]} (-1)^{|T|} N\!\left(\prod_{i \in T} A_i\right)$$<p>This algebraic form is convenient for deriving formulas: expand the product, collect signs, identify $N(\cdots)$ for each intersection.</p><h1 id=2-classic-examples>2 Classic Examples</h1><h2 id=21-eulers-totient>2.1 Euler&rsquo;s totient</h2><p>Let $n = p_1^{\alpha_1} \cdots p_k^{\alpha_k}$. Then</p>$$\varphi(n) = n \prod_{i=1}^{k}\left(1 - \frac{1}{p_i}\right)$$<p>Set $S = \{1, \dots, n\}$ and $A_i = \{x \in S : p_i \mid x\}$. For any index set $T$,</p>$$\left|\bigcap_{i \in T} A_i\right| = \frac{n}{\prod_{i \in T} p_i}$$<p>because every $p_i$ divides $n$. Inclusion-exclusion expands directly into the product formula.</p><h2 id=22-couples-in-a-circular-arrangement>2.2 Couples in a circular arrangement</h2><p><strong>Problem.</strong> $2N$ people ($N$ couples) are arranged in a circle. Two arrangements are the same if one is a rotation of the other (mirror flips are distinct). Count arrangements where no couple is adjacent.</p><p>Let $A_i$ = couple $i$ is adjacent. If $i$ couples are forced adjacent, each becomes a block (2 internal orderings), and the circle has $2N - i$ objects with $(2N - i - 1)!$ circular arrangements.</p>$$\boxed{\text{Ans} = \sum_{i=0}^{N} (-1)^i \binom{N}{i} 2^i (2N - i - 1)!}$$<h2 id=23-surjections-every-person-gets-at-least-one-item>2.3 Surjections: every person gets at least one item</h2><p>Distribute $m$ labeled objects among $n$ labeled people, every person receiving at least one. Let $A_i$ = person $i$ gets nothing. Then $|S| = n^m$ and forcing $t$ people empty leaves each object $(n-t)$ choices, giving</p>$$\boxed{\sum_{t=0}^{n} (-1)^t \binom{n}{t} (n-t)^m}$$<p>This equals $n!\, S_2(m, n)$ where $S_2$ is the Stirling number of the second kind.</p><h2 id=24-no-paired-elements-are-adjacent-linear>2.4 No paired elements are adjacent (linear)</h2><p>$2n$ elements $a_1, \dots, a_n, b_1, \dots, b_n$. Count permutations where no pair $(a_i, b_i)$ is adjacent. Forcing $k$ pairs adjacent merges each into a block (2 internal orders), leaving $2n - k$ objects.</p>$$|A_{i_1} \cap \cdots \cap A_{i_k}| = 2^k (2n - k)!$$$$\boxed{\sum_{k=0}^{n} (-1)^k \binom{n}{k} 2^k (2n - k)!}$$<h1 id=3-bounded-linear-diophantine-equations>3 Bounded Linear Diophantine Equations</h1><p>Count integer solutions of</p>$$x_1 + x_2 + \cdots + x_k = n, \qquad l_i \le x_i \le r_i$$<h2 id=31-inclusion-exclusion-formula>3.1 Inclusion-exclusion formula</h2><p><strong>Step 1: remove lower bounds.</strong> Set $y_i = x_i - l_i$, $U_i = r_i - l_i$, $N = n - \sum l_i$. The problem becomes $\sum y_i = N$, $0 \le y_i \le U_i$. If $N < 0$ or $N > \sum U_i$, answer is $0$.</p><p><strong>Step 2: apply inclusion-exclusion.</strong> Let $A_i$ = $y_i \ge U_i + 1$.</p>$$\# = \sum_{T \subseteq [k]} (-1)^{|T|} \binom{N - \sum_{i \in T}(U_i + 1) + k - 1}{k - 1}$$<p>In the original variables:</p>$$\# = \sum_{T \subseteq [k]} (-1)^{|T|} \binom{n - \sum_{i=1}^{k} l_i - \sum_{i \in T}(r_i - l_i + 1) + k - 1}{k - 1}$$<p>Direct subset enumeration costs $O(k \cdot 2^k)$.</p><h2 id=32-prefix-sum-dp>3.2 Prefix-sum DP: $O(kN)$</h2><p>Let $dp[i][s]$ = number of ways to use the first $i$ variables to reach sum $s$. Naively:</p>$$dp[i][s] = \sum_{x=0}^{\min(U_i, s)} dp[i-1][s-x]$$<p>With prefix sums $\text{pref}[t] = \sum_{u=0}^{t} dp[i-1][u]$, this becomes $O(1)$ per state:</p>$$dp[i][s] = \text{pref}[s] - \text{pref}[s - U_i - 1]$$<p>(with $\text{pref}[-1] = 0$). Total complexity: $O(kN)$, space $O(N)$ with rolling arrays.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;bits/stdc++.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=k>using</span> <span class=k>namespace</span> <span class=n>std</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=k>const</span> <span class=kt>int</span> <span class=n>MOD</span> <span class=o>=</span> <span class=mi>1000000007</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=kr>inline</span> <span class=kt>int</span> <span class=nf>add</span><span class=p>(</span><span class=kt>int</span> <span class=n>a</span><span class=p>,</span> <span class=kt>int</span> <span class=n>b</span><span class=p>)</span> <span class=p>{</span> <span class=n>a</span> <span class=o>+=</span> <span class=n>b</span><span class=p>;</span> <span class=k>if</span> <span class=p>(</span><span class=n>a</span> <span class=o>&gt;=</span> <span class=n>MOD</span><span class=p>)</span> <span class=n>a</span> <span class=o>-=</span> <span class=n>MOD</span><span class=p>;</span> <span class=k>return</span> <span class=n>a</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>main</span><span class=p>()</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=n>ios</span><span class=o>::</span><span class=n>sync_with_stdio</span><span class=p>(</span><span class=nb>false</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>cin</span><span class=p>.</span><span class=n>tie</span><span class=p>(</span><span class=k>nullptr</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>k</span><span class=p>;</span> <span class=kt>long</span> <span class=kt>long</span> <span class=n>n</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>cin</span> <span class=o>&gt;&gt;</span> <span class=n>k</span> <span class=o>&gt;&gt;</span> <span class=n>n</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>vector</span><span class=o>&lt;</span><span class=kt>long</span> <span class=kt>long</span><span class=o>&gt;</span> <span class=n>L</span><span class=p>(</span><span class=n>k</span><span class=p>),</span> <span class=n>R</span><span class=p>(</span><span class=n>k</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>k</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span> <span class=n>cin</span> <span class=o>&gt;&gt;</span> <span class=n>L</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>&gt;&gt;</span> <span class=n>R</span><span class=p>[</span><span class=n>i</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=kt>long</span> <span class=kt>long</span> <span class=n>sumL</span> <span class=o>=</span> <span class=mi>0</span><span class=p>,</span> <span class=n>sumU</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;</span> <span class=n>U</span><span class=p>(</span><span class=n>k</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>k</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=n>sumL</span> <span class=o>+=</span> <span class=n>L</span><span class=p>[</span><span class=n>i</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>        <span class=kt>long</span> <span class=kt>long</span> <span class=n>ui</span> <span class=o>=</span> <span class=n>R</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>-</span> <span class=n>L</span><span class=p>[</span><span class=n>i</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>ui</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span> <span class=n>cout</span> <span class=o>&lt;&lt;</span> <span class=mi>0</span> <span class=o>&lt;&lt;</span> <span class=s>&#34;</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>;</span> <span class=k>return</span> <span class=mi>0</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=n>U</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>=</span> <span class=p>(</span><span class=kt>int</span><span class=p>)</span><span class=n>ui</span><span class=p>;</span> <span class=n>sumU</span> <span class=o>+=</span> <span class=n>ui</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=kt>long</span> <span class=kt>long</span> <span class=n>N64</span> <span class=o>=</span> <span class=n>n</span> <span class=o>-</span> <span class=n>sumL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>N64</span> <span class=o>&lt;</span> <span class=mi>0</span> <span class=o>||</span> <span class=n>N64</span> <span class=o>&gt;</span> <span class=n>sumU</span><span class=p>)</span> <span class=p>{</span> <span class=n>cout</span> <span class=o>&lt;&lt;</span> <span class=mi>0</span> <span class=o>&lt;&lt;</span> <span class=s>&#34;</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>;</span> <span class=k>return</span> <span class=mi>0</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>N</span> <span class=o>=</span> <span class=p>(</span><span class=kt>int</span><span class=p>)</span><span class=n>N64</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;</span> <span class=n>prev</span><span class=p>(</span><span class=n>N</span> <span class=o>+</span> <span class=mi>1</span><span class=p>,</span> <span class=mi>0</span><span class=p>),</span> <span class=n>cur</span><span class=p>(</span><span class=n>N</span> <span class=o>+</span> <span class=mi>1</span><span class=p>,</span> <span class=mi>0</span><span class=p>),</span> <span class=n>pref</span><span class=p>(</span><span class=n>N</span> <span class=o>+</span> <span class=mi>1</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>prev</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>reach</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>k</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=n>reach</span> <span class=o>=</span> <span class=n>min</span><span class=p>(</span><span class=n>N</span><span class=p>,</span> <span class=n>reach</span> <span class=o>+</span> <span class=n>U</span><span class=p>[</span><span class=n>i</span><span class=p>]);</span>
-</span></span><span class=line><span class=cl>        <span class=kt>int</span> <span class=n>run</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>s</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>s</span> <span class=o>&lt;=</span> <span class=n>reach</span><span class=p>;</span> <span class=o>++</span><span class=n>s</span><span class=p>)</span> <span class=p>{</span> <span class=n>run</span> <span class=o>=</span> <span class=n>add</span><span class=p>(</span><span class=n>run</span><span class=p>,</span> <span class=n>prev</span><span class=p>[</span><span class=n>s</span><span class=p>]);</span> <span class=n>pref</span><span class=p>[</span><span class=n>s</span><span class=p>]</span> <span class=o>=</span> <span class=n>run</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>s</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>s</span> <span class=o>&lt;=</span> <span class=n>reach</span><span class=p>;</span> <span class=o>++</span><span class=n>s</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>            <span class=kt>int</span> <span class=n>left</span> <span class=o>=</span> <span class=n>s</span> <span class=o>-</span> <span class=n>U</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>-</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>            <span class=kt>int</span> <span class=n>val</span> <span class=o>=</span> <span class=n>pref</span><span class=p>[</span><span class=n>s</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=n>left</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span> <span class=n>val</span> <span class=o>-=</span> <span class=n>pref</span><span class=p>[</span><span class=n>left</span><span class=p>];</span> <span class=k>if</span> <span class=p>(</span><span class=n>val</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=n>val</span> <span class=o>+=</span> <span class=n>MOD</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>            <span class=n>cur</span><span class=p>[</span><span class=n>s</span><span class=p>]</span> <span class=o>=</span> <span class=n>val</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>s</span> <span class=o>=</span> <span class=n>reach</span> <span class=o>+</span> <span class=mi>1</span><span class=p>;</span> <span class=n>s</span> <span class=o>&lt;=</span> <span class=n>N</span><span class=p>;</span> <span class=o>++</span><span class=n>s</span><span class=p>)</span> <span class=n>cur</span><span class=p>[</span><span class=n>s</span><span class=p>]</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>swap</span><span class=p>(</span><span class=n>prev</span><span class=p>,</span> <span class=n>cur</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=n>cout</span> <span class=o>&lt;&lt;</span> <span class=n>prev</span><span class=p>[</span><span class=n>N</span><span class=p>]</span> <span class=o>&lt;&lt;</span> <span class=s>&#34;</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><h2 id=33-divide-and-conquer-ntt>3.3 Divide-and-conquer NTT: $O(N \log N \log k)$</h2><p>Each variable $y_i \in [0, U_i]$ corresponds to the polynomial $P_i(x) = 1 + x + \cdots + x^{U_i}$. The answer is the coefficient of $x^N$ in $\prod_{i=1}^{k} P_i(x)$.</p><p>Merge the $k$ polynomials with divide-and-conquer, truncating to degree $N$ at each step. Each level does $O(N \log N)$ work via NTT, and there are $\log k$ levels.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=c1>// Truncated convolution: C = (A * B) kept to degree lim
-</span></span></span><span class=line><span class=cl><span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;</span> <span class=n>conv_trunc</span><span class=p>(</span><span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;</span> <span class=n>A</span><span class=p>,</span> <span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;</span> <span class=n>B</span><span class=p>,</span> <span class=kt>int</span> <span class=n>lim</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>A</span><span class=p>.</span><span class=n>empty</span><span class=p>()</span> <span class=o>||</span> <span class=n>B</span><span class=p>.</span><span class=n>empty</span><span class=p>())</span> <span class=k>return</span> <span class=p>{};</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>((</span><span class=kt>int</span><span class=p>)</span><span class=n>A</span><span class=p>.</span><span class=n>size</span><span class=p>()</span> <span class=o>&gt;</span> <span class=n>lim</span> <span class=o>+</span> <span class=mi>1</span><span class=p>)</span> <span class=n>A</span><span class=p>.</span><span class=n>resize</span><span class=p>(</span><span class=n>lim</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>((</span><span class=kt>int</span><span class=p>)</span><span class=n>B</span><span class=p>.</span><span class=n>size</span><span class=p>()</span> <span class=o>&gt;</span> <span class=n>lim</span> <span class=o>+</span> <span class=mi>1</span><span class=p>)</span> <span class=n>B</span><span class=p>.</span><span class=n>resize</span><span class=p>(</span><span class=n>lim</span> <span class=o>+</span> <span class=mi>1</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>need</span> <span class=o>=</span> <span class=p>(</span><span class=kt>int</span><span class=p>)</span><span class=n>A</span><span class=p>.</span><span class=n>size</span><span class=p>()</span> <span class=o>+</span> <span class=p>(</span><span class=kt>int</span><span class=p>)</span><span class=n>B</span><span class=p>.</span><span class=n>size</span><span class=p>()</span> <span class=o>-</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>n</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span> <span class=k>while</span> <span class=p>(</span><span class=n>n</span> <span class=o>&lt;</span> <span class=n>need</span><span class=p>)</span> <span class=n>n</span> <span class=o>&lt;&lt;=</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>A</span><span class=p>.</span><span class=n>resize</span><span class=p>(</span><span class=n>n</span><span class=p>);</span> <span class=n>B</span><span class=p>.</span><span class=n>resize</span><span class=p>(</span><span class=n>n</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>ntt</span><span class=p>(</span><span class=n>A</span><span class=p>,</span> <span class=nb>false</span><span class=p>);</span> <span class=n>ntt</span><span class=p>(</span><span class=n>B</span><span class=p>,</span> <span class=nb>false</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>n</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span> <span class=n>A</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>=</span> <span class=p>(</span><span class=kt>int</span><span class=p>)(</span><span class=mi>1LL</span> <span class=o>*</span> <span class=n>A</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>*</span> <span class=n>B</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>%</span> <span class=n>MOD</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>ntt</span><span class=p>(</span><span class=n>A</span><span class=p>,</span> <span class=nb>true</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>A</span><span class=p>.</span><span class=n>resize</span><span class=p>(</span><span class=n>min</span><span class=p>(</span><span class=n>need</span><span class=p>,</span> <span class=n>lim</span> <span class=o>+</span> <span class=mi>1</span><span class=p>));</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>A</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl><span class=c1>// Divide-and-conquer merge of polys[l..r)
-</span></span></span><span class=line><span class=cl><span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;</span> <span class=n>multiply_range</span><span class=p>(</span><span class=n>vector</span><span class=o>&lt;</span><span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;&gt;&amp;</span> <span class=n>polys</span><span class=p>,</span> <span class=kt>int</span> <span class=n>l</span><span class=p>,</span> <span class=kt>int</span> <span class=n>r</span><span class=p>,</span> <span class=kt>int</span> <span class=n>N</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>r</span> <span class=o>-</span> <span class=n>l</span> <span class=o>==</span> <span class=mi>1</span><span class=p>)</span> <span class=k>return</span> <span class=n>polys</span><span class=p>[</span><span class=n>l</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>m</span> <span class=o>=</span> <span class=p>(</span><span class=n>l</span> <span class=o>+</span> <span class=n>r</span><span class=p>)</span> <span class=o>&gt;&gt;</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>auto</span> <span class=n>L</span> <span class=o>=</span> <span class=n>multiply_range</span><span class=p>(</span><span class=n>polys</span><span class=p>,</span> <span class=n>l</span><span class=p>,</span> <span class=n>m</span><span class=p>,</span> <span class=n>N</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>auto</span> <span class=n>R</span> <span class=o>=</span> <span class=n>multiply_range</span><span class=p>(</span><span class=n>polys</span><span class=p>,</span> <span class=n>m</span><span class=p>,</span> <span class=n>r</span><span class=p>,</span> <span class=n>N</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nf>conv_trunc</span><span class=p>(</span><span class=n>L</span><span class=p>,</span> <span class=n>R</span><span class=p>,</span> <span class=n>N</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>Build each $P_i$ as <code>vector&lt;int>(min(U[i],N)+1, 1)</code> and call <code>multiply_range</code>. Extract <code>prod[N]</code>.</p><h2 id=34-equal-cap-case-all-upper-bounds-are--complexity>3.4 Equal-cap case: all upper bounds are $k$, complexity $O(S/k)$</h2><p>Count ordered non-negative integer solutions of $x_1 + \cdots + x_n = S$ with each $x_j \le k$.</p><p>Without upper bounds the answer is $\binom{S + n - 1}{n - 1}$ (stars and bars). Applying inclusion-exclusion on the $i$ variables that exceed $k$:</p>$$g(n, S, k) = \sum_{i=0}^{\lfloor S/(k+1) \rfloor} (-1)^i \binom{n}{i} \binom{S - i(k+1) + n - 1}{n - 1}$$<p>The sum has only $\lfloor S/(k+1) \rfloor + 1$ terms because $\binom{S-i(k+1)+n-1}{n-1} = 0$ once $S - i(k+1) < 0$. This gives $O(S/k)$ time.</p><p>If $k \ge S$ no variable can exceed $S$, so the upper bound is vacuous and the answer is simply $\binom{S+n-1}{n-1}$.</p><h1 id=4-derangements>4 Derangements</h1><p>A derangement is a permutation $p$ of $\{1, \dots, n\}$ with $p_i \ne i$ for all $i$. Denote the count by $D(n)$.</p><h2 id=41-recurrence>4.1 Recurrence</h2>$$D(0) = 1, \quad D(1) = 0, \quad D(n) = (n-1)\bigl(D(n-1) + D(n-2)\bigr) \quad (n \ge 2)$$<div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=n>D</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span> <span class=n>D</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>2</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;=</span> <span class=n>MAXN</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>    <span class=n>D</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>=</span> <span class=mi>1LL</span> <span class=o>*</span> <span class=p>(</span><span class=n>i</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>*</span> <span class=p>(</span><span class=n>D</span><span class=p>[</span><span class=n>i</span> <span class=o>-</span> <span class=mi>1</span><span class=p>]</span> <span class=o>+</span> <span class=n>D</span><span class=p>[</span><span class=n>i</span> <span class=o>-</span> <span class=mi>2</span><span class=p>])</span> <span class=o>%</span> <span class=n>MOD</span><span class=p>;</span>
-</span></span></code></pre></div><h2 id=42-inclusion-exclusion-formula>4.2 Inclusion-exclusion formula</h2><p>Let $A_i$ = position $i$ is fixed. Then</p>$$D(n) = \left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{k=0}^{n} (-1)^k \binom{n}{k}(n-k)!$$$$\boxed{D(n) = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!}}$$<p>As $n \to \infty$, $D(n)/n! \to 1/e$.</p><h2 id=43-exponential-generating-function>4.3 Exponential generating function</h2><p>Every permutation is a set of disjoint cycles. The EGF of all cycles is</p>$$\text{CYC}(x) = \sum_{k \ge 1} \frac{x^k}{k} = -\ln(1 - x)$$<p>Forbidding 1-cycles:</p>$$\text{CYC}_{\ge 2}(x) = -\ln(1 - x) - x$$<p>The EGF of derangements is</p>$$\boxed{H(x) = \exp\!\bigl(\text{CYC}_{\ge 2}(x)\bigr) = \frac{e^{-x}}{1 - x}}$$<p>Expanding $H(x) = e^{-x} \cdot \frac{1}{1-x}$ and extracting $[x^n]$ recovers the inclusion-exclusion formula.</p><h2 id=44-binomial-inversion>4.4 Binomial inversion</h2><p>Let $f_n$ = derangements of $[n]$ (exactly 0 fixed points), $g_n = n!$ (all permutations = at most all fixed). By binomial inversion:</p>$$f_n = \sum_{i=0}^{n} \binom{n}{i} (-1)^{n-i} i! = \sum_{i=0}^{n} (-1)^{n-i} \frac{n!}{(n-i)!}$$<p>This agrees with the inclusion-exclusion formula above and is another $O(n)$ computation.</p><h2 id=45-exactly--fixed-points>4.5 Exactly $k$ fixed points</h2><p>Choose which $k$ positions are fixed ($\binom{n}{k}$ ways), then derange the remaining $n - k$:</p>$$\boxed{\binom{n}{k} D(n - k)}$$<h1 id=5-stirling-numbers-of-the-second-kind>5 Stirling Numbers of the Second Kind</h1><p>$S_2(n, k)$ (also written $\left\{\begin{smallmatrix}n\\k\end{smallmatrix}\right\}$) counts ways to partition $n$ labeled objects into $k$ non-empty, unlabeled groups.</p><p><strong>Recurrence:</strong></p>$$S_2(n, k) = k \cdot S_2(n-1, k) + S_2(n-1, k-1)$$<p>(the $n$-th object either joins one of the existing $k$ groups, or starts a new group of its own).</p><p><strong>Explicit formula:</strong></p>$$S_2(n, k) = \frac{1}{k!} \sum_{i=0}^{k} (-1)^i \binom{k}{i} (k - i)^n$$<p><strong>Connection to surjections:</strong> distributing $n$ labeled objects into $k$ labeled non-empty boxes gives $k!\, S_2(n, k)$.</p><p><strong>Falling factorial expansion:</strong></p>$$x^n = \sum_{k=0}^{n} S_2(n, k)\, x^{\underline{k}}$$<p>where $x^{\underline{k}} = x(x-1)(x-2)\cdots(x-k+1)$ is the $k$-th falling factorial of $x$.</p><h1 id=6-selected-problems>6 Selected Problems</h1><h2 id=61-integers-in--coprime-to-a-prime-set>6.1 Integers in $[L, R]$ coprime to a prime set</h2><p><strong>Problem (Nowcoder 16513).</strong> Given a set $A = \{a_1, \dots, a_k\}$ of primes, count integers in $[L, R]$ not divisible by any $a_i$.</p><p>Define $F(X) = \#\{1 \le n \le X : \forall a \in A,\ a \nmid n\}$. By inclusion-exclusion over subsets $S \subseteq A$:</p>$$F(X) = \sum_{S \subseteq A} (-1)^{|S|} \left\lfloor \frac{X}{\prod_{a \in S} a} \right\rfloor$$<p>Answer: $F(R) - F(L - 1)$. Complexity: $O(2^k)$ per query (prune when $\prod > X$).</p><h2 id=62-dynamic-coprime-pair-counting>6.2 Dynamic coprime pair counting</h2><p><strong>Problem (CF 547C).</strong> Maintain a multiset $S$ under insertions and deletions. After each operation, output the number of pairs $(i, j)$ with $i < j$ and $\gcd(a_i, a_j) = 1$.</p><p><strong>Method 1 — Inclusion-exclusion.</strong> Maintain $\text{cnt}[d]$ = number of elements in $S$ divisible by $d$. When inserting value $v$ with prime factorization $\{p_1, \dots, p_m\}$, the number of existing elements coprime to $v$ is</p>$$\sum_{S \subseteq \{p_1,\dots,p_m\}} (-1)^{|S|} \text{cnt}\!\left[\prod_{p \in S} p\right]$$<p>Update $\text{cnt}[d]$ for all $2^m$ squarefree divisors of $v$ after computing the delta. Deletion is symmetric: update $\text{cnt}$ first, then compute the delta.</p><p><strong>Method 2 — Möbius inversion.</strong></p>$$\sum_{y \in S} \mathbf{1}[\gcd(v, y) = 1] = \sum_{d \mid v} \mu(d) \cdot \#\{y \in S : d \mid y\} = \sum_{d \mid v} \mu(d)\, \text{cnt}[d]$$<p>Both methods run in $O(2^{\omega(v)})$ per query where $\omega(v) \le 7$ for $v \le 5 \times 10^5$.</p></div><aside class=article-toc><div class=toc-card><span class=eyebrow>On this page</span><nav id=TableOfContents><ul><li><a href=#1-inclusion-exclusion-basics>1 Inclusion-Exclusion Basics</a><ul><li><a href=#set-form>Set form</a></li><li><a href=#operator-form>Operator form</a></li></ul></li><li><a href=#2-classic-examples>2 Classic Examples</a><ul><li><a href=#21-eulers-totient>2.1 Euler&rsquo;s totient</a></li><li><a href=#22-couples-in-a-circular-arrangement>2.2 Couples in a circular arrangement</a></li><li><a href=#23-surjections-every-person-gets-at-least-one-item>2.3 Surjections: every person gets at least one item</a></li><li><a href=#24-no-paired-elements-are-adjacent-linear>2.4 No paired elements are adjacent (linear)</a></li></ul></li><li><a href=#3-bounded-linear-diophantine-equations>3 Bounded Linear Diophantine Equations</a><ul><li><a href=#31-inclusion-exclusion-formula>3.1 Inclusion-exclusion formula</a></li><li><a href=#32-prefix-sum-dp>3.2 Prefix-sum DP: $O(kN)$</a></li><li><a href=#33-divide-and-conquer-ntt>3.3 Divide-and-conquer NTT: $O(N \log N \log k)$</a></li><li><a href=#34-equal-cap-case-all-upper-bounds-are--complexity>3.4 Equal-cap case: all upper bounds are $k$, complexity $O(S/k)$</a></li></ul></li><li><a href=#4-derangements>4 Derangements</a><ul><li><a href=#41-recurrence>4.1 Recurrence</a></li><li><a href=#42-inclusion-exclusion-formula>4.2 Inclusion-exclusion formula</a></li><li><a href=#43-exponential-generating-function>4.3 Exponential generating function</a></li><li><a href=#44-binomial-inversion>4.4 Binomial inversion</a></li><li><a href=#45-exactly--fixed-points>4.5 Exactly $k$ fixed points</a></li></ul></li><li><a href=#5-stirling-numbers-of-the-second-kind>5 Stirling Numbers of the Second Kind</a></li><li><a href=#6-selected-problems>6 Selected Problems</a><ul><li><a href=#61-integers-in--coprime-to-a-prime-set>6.1 Integers in $[L, R]$ coprime to a prime set</a></li><li><a href=#62-dynamic-coprime-pair-counting>6.2 Dynamic coprime pair counting</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const t=document.querySelectorAll(".toc-card a"),e=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(e.length===0||t.length===0)return;function s(e){let t=0;for(;e;)t+=e.offsetTop,e=e.offsetParent;return t}function n(){const s=window.scrollY+140;let n=e[0];for(let t=0;t<e.length;t++){const o=e[t].getBoundingClientRect().top+window.scrollY;if(s>=o)n=e[t];else break}if(t.forEach(e=>e.classList.remove("active")),n){const t=n.getAttribute("id"),e=document.querySelector(`.toc-card a[href="#${t}"]`);if(e){e.classList.add("active");const t=document.querySelector(".toc-card"),n=e.offsetTop,s=n+e.offsetHeight,o=t.scrollTop,i=t.clientHeight;n<o?t.scrollTo({top:n-20,behavior:"smooth"}):s>o+i&&t.scrollTo({top:s-i+20,behavior:"smooth"})}}}window.addEventListener("scroll",n,{passive:!0}),setTimeout(n,50)})</script></main><footer class="site-footer container"><div><strong>CP Notes</strong><p>A personal notebook for algorithms, technical write-ups, implementation details, and things worth remembering.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements | CP Notes</title>
+    <meta name="description" content="Inclusion-exclusion in set and operator form, bounded Diophantine counting with prefix-sum DP and divide-and-conquer NTT, derangement formulas, and Stirling numbers.">
+    <link rel="canonical" href="https://jmaaa32.github.io/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/">
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="page-glow page-glow-a"></div>
+      <div class="page-glow page-glow-b"></div>
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>CP Notes</strong>
+              <small>Notes on code, systems, and ideas</small>
+            </span>
+          </a>
+          <nav class="site-nav">
+            
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              <a class="nav-link" href="/posts/">Posts</a>
+            
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-20">Apr 20, 2026</time>
+          
+            <span>·</span>
+            <span>Combinatorics</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/combinatorics/">#combinatorics</a>
+            
+              <a class="chip" href="/tags/inclusion-exclusion/">#inclusion-exclusion</a>
+            
+              <a class="chip" href="/tags/derangements/">#derangements</a>
+            
+              <a class="chip" href="/tags/diophantine/">#diophantine</a>
+            
+              <a class="chip" href="/tags/stirling/">#stirling</a>
+            
+              <a class="chip" href="/tags/counting/">#counting</a>
+            
+              <a class="chip" href="/tags/ntt/">#NTT</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      <div class="article-content prose">
+        <p>This note collects the standard counting templates that appear most often in contest problems:</p>
+<ul>
+<li>inclusion-exclusion in both set form and operator form</li>
+<li>onto-function and adjacency-avoidance counting</li>
+<li>bounded linear Diophantine equations (inclusion-exclusion, prefix-sum DP, divide-and-conquer NTT, equal-cap formula)</li>
+<li>derangements and fixed-point counting</li>
+<li>Stirling numbers of the second kind</li>
+</ul>
+<h1 id="1-inclusion-exclusion-basics">1 Inclusion-Exclusion Basics</h1>
+<h2 id="set-form">Set form</h2>
+<p><strong>Two sets.</strong> Let $S$ be a finite set and $A, B \subseteq S$. Then</p>
+$$|S \setminus (A \cup B)| = |S| - |A| - |B| + |A \cap B|$$<p><strong>Three sets.</strong> For $A, B, C \subseteq S$,</p>
+$$|S \setminus (A \cup B \cup C)| = |S| - |A| - |B| - |C| + |A \cap B| + |A \cap C| + |B \cap C| - |A \cap B \cap C|$$<p><strong>General form.</strong> For subsets $A_1, \dots, A_n \subseteq S$,</p>
+$$\left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{T \subseteq [n]} (-1)^{|T|} \left|\bigcap_{i \in T} A_i\right|$$<p>where the empty-intersection term equals $|S|$.</p>
+<h2 id="operator-form">Operator form</h2>
+<p>Let $A_i$ denote a &ldquo;bad property,&rdquo; and $N(A_{i_1} A_{i_2} \cdots)$ the number of elements with all listed properties. Then</p>
+$$N\!\left(\prod_{i=1}^{n}(1 - A_i)\right) = \sum_{T \subseteq [n]} (-1)^{|T|} N\!\left(\prod_{i \in T} A_i\right)$$<p>This algebraic form is convenient for deriving formulas: expand the product, collect signs, identify $N(\cdots)$ for each intersection.</p>
+<h1 id="2-classic-examples">2 Classic Examples</h1>
+<h2 id="21-eulers-totient">2.1 Euler&rsquo;s totient</h2>
+<p>Let $n = p_1^{\alpha_1} \cdots p_k^{\alpha_k}$. Then</p>
+$$\varphi(n) = n \prod_{i=1}^{k}\left(1 - \frac{1}{p_i}\right)$$<p>Set $S = \{1, \dots, n\}$ and $A_i = \{x \in S : p_i \mid x\}$. For any index set $T$,</p>
+$$\left|\bigcap_{i \in T} A_i\right| = \frac{n}{\prod_{i \in T} p_i}$$<p>because every $p_i$ divides $n$. Inclusion-exclusion expands directly into the product formula.</p>
+<h2 id="22-couples-in-a-circular-arrangement">2.2 Couples in a circular arrangement</h2>
+<p><strong>Problem.</strong> $2N$ people ($N$ couples) are arranged in a circle. Two arrangements are the same if one is a rotation of the other (mirror flips are distinct). Count arrangements where no couple is adjacent.</p>
+<p>Let $A_i$ = couple $i$ is adjacent. If $i$ couples are forced adjacent, each becomes a block (2 internal orderings), and the circle has $2N - i$ objects with $(2N - i - 1)!$ circular arrangements.</p>
+$$\boxed{\text{Ans} = \sum_{i=0}^{N} (-1)^i \binom{N}{i} 2^i (2N - i - 1)!}$$<h2 id="23-surjections-every-person-gets-at-least-one-item">2.3 Surjections: every person gets at least one item</h2>
+<p>Distribute $m$ labeled objects among $n$ labeled people, every person receiving at least one. Let $A_i$ = person $i$ gets nothing. Then $|S| = n^m$ and forcing $t$ people empty leaves each object $(n-t)$ choices, giving</p>
+$$\boxed{\sum_{t=0}^{n} (-1)^t \binom{n}{t} (n-t)^m}$$<p>This equals $n!\, S_2(m, n)$ where $S_2$ is the Stirling number of the second kind.</p>
+<h2 id="24-no-paired-elements-are-adjacent-linear">2.4 No paired elements are adjacent (linear)</h2>
+<p>$2n$ elements $a_1, \dots, a_n, b_1, \dots, b_n$. Count permutations where no pair $(a_i, b_i)$ is adjacent. Forcing $k$ pairs adjacent merges each into a block (2 internal orders), leaving $2n - k$ objects.</p>
+$$|A_{i_1} \cap \cdots \cap A_{i_k}| = 2^k (2n - k)!$$$$\boxed{\sum_{k=0}^{n} (-1)^k \binom{n}{k} 2^k (2n - k)!}$$<h1 id="3-bounded-linear-diophantine-equations">3 Bounded Linear Diophantine Equations</h1>
+<p>Count integer solutions of</p>
+$$x_1 + x_2 + \cdots + x_k = n, \qquad l_i \le x_i \le r_i$$<h2 id="31-inclusion-exclusion-formula">3.1 Inclusion-exclusion formula</h2>
+<p><strong>Step 1: remove lower bounds.</strong> Set $y_i = x_i - l_i$, $U_i = r_i - l_i$, $N = n - \sum l_i$. The problem becomes $\sum y_i = N$, $0 \le y_i \le U_i$. If $N < 0$ or $N > \sum U_i$, answer is $0$.</p>
+<p><strong>Step 2: apply inclusion-exclusion.</strong> Let $A_i$ = $y_i \ge U_i + 1$.</p>
+$$\# = \sum_{T \subseteq [k]} (-1)^{|T|} \binom{N - \sum_{i \in T}(U_i + 1) + k - 1}{k - 1}$$<p>In the original variables:</p>
+$$\# = \sum_{T \subseteq [k]} (-1)^{|T|} \binom{n - \sum_{i=1}^{k} l_i - \sum_{i \in T}(r_i - l_i + 1) + k - 1}{k - 1}$$<p>Direct subset enumeration costs $O(k \cdot 2^k)$.</p>
+<h2 id="32-prefix-sum-dp">3.2 Prefix-sum DP: $O(kN)$</h2>
+<p>Let $dp[i][s]$ = number of ways to use the first $i$ variables to reach sum $s$. Naively:</p>
+$$dp[i][s] = \sum_{x=0}^{\min(U_i, s)} dp[i-1][s-x]$$<p>With prefix sums $\text{pref}[t] = \sum_{u=0}^{t} dp[i-1][u]$, this becomes $O(1)$ per state:</p>
+$$dp[i][s] = \text{pref}[s] - \text{pref}[s - U_i - 1]$$<p>(with $\text{pref}[-1] = 0$). Total complexity: $O(kN)$, space $O(N)$ with rolling arrays.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;bits/stdc++.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">const</span> <span class="kt">int</span> <span class="n">MOD</span> <span class="o">=</span> <span class="mi">1000000007</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="kr">inline</span> <span class="kt">int</span> <span class="nf">add</span><span class="p">(</span><span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span> <span class="n">a</span> <span class="o">+=</span> <span class="n">b</span><span class="p">;</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">&gt;=</span> <span class="n">MOD</span><span class="p">)</span> <span class="n">a</span> <span class="o">-=</span> <span class="n">MOD</span><span class="p">;</span> <span class="k">return</span> <span class="n">a</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ios</span><span class="o">::</span><span class="n">sync_with_stdio</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cin</span><span class="p">.</span><span class="n">tie</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">k</span><span class="p">;</span> <span class="kt">long</span> <span class="kt">long</span> <span class="n">n</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cin</span> <span class="o">&gt;&gt;</span> <span class="n">k</span> <span class="o">&gt;&gt;</span> <span class="n">n</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">long</span> <span class="kt">long</span><span class="o">&gt;</span> <span class="n">L</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">R</span><span class="p">(</span><span class="n">k</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">k</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="n">cin</span> <span class="o">&gt;&gt;</span> <span class="n">L</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;&gt;</span> <span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="kt">long</span> <span class="n">sumL</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">sumU</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">U</span><span class="p">(</span><span class="n">k</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">k</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sumL</span> <span class="o">+=</span> <span class="n">L</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">long</span> <span class="kt">long</span> <span class="n">ui</span> <span class="o">=</span> <span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">L</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">ui</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span> <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="mi">0</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="n">U</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">ui</span><span class="p">;</span> <span class="n">sumU</span> <span class="o">+=</span> <span class="n">ui</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="kt">long</span> <span class="n">N64</span> <span class="o">=</span> <span class="n">n</span> <span class="o">-</span> <span class="n">sumL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">N64</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">N64</span> <span class="o">&gt;</span> <span class="n">sumU</span><span class="p">)</span> <span class="p">{</span> <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="mi">0</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">N</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">N64</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">prev</span><span class="p">(</span><span class="n">N</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">cur</span><span class="p">(</span><span class="n">N</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">pref</span><span class="p">(</span><span class="n">N</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">prev</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">reach</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">k</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">reach</span> <span class="o">=</span> <span class="n">min</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">reach</span> <span class="o">+</span> <span class="n">U</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">run</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">s</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">s</span> <span class="o">&lt;=</span> <span class="n">reach</span><span class="p">;</span> <span class="o">++</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span> <span class="n">run</span> <span class="o">=</span> <span class="n">add</span><span class="p">(</span><span class="n">run</span><span class="p">,</span> <span class="n">prev</span><span class="p">[</span><span class="n">s</span><span class="p">]);</span> <span class="n">pref</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">run</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">s</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">s</span> <span class="o">&lt;=</span> <span class="n">reach</span><span class="p">;</span> <span class="o">++</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">int</span> <span class="n">left</span> <span class="o">=</span> <span class="n">s</span> <span class="o">-</span> <span class="n">U</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">int</span> <span class="n">val</span> <span class="o">=</span> <span class="n">pref</span><span class="p">[</span><span class="n">s</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">left</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span> <span class="n">val</span> <span class="o">-=</span> <span class="n">pref</span><span class="p">[</span><span class="n">left</span><span class="p">];</span> <span class="k">if</span> <span class="p">(</span><span class="n">val</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="n">val</span> <span class="o">+=</span> <span class="n">MOD</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="n">cur</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">s</span> <span class="o">=</span> <span class="n">reach</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> <span class="n">s</span> <span class="o">&lt;=</span> <span class="n">N</span><span class="p">;</span> <span class="o">++</span><span class="n">s</span><span class="p">)</span> <span class="n">cur</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">swap</span><span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="n">cur</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">prev</span><span class="p">[</span><span class="n">N</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="33-divide-and-conquer-ntt">3.3 Divide-and-conquer NTT: $O(N \log N \log k)$</h2>
+<p>Each variable $y_i \in [0, U_i]$ corresponds to the polynomial $P_i(x) = 1 + x + \cdots + x^{U_i}$. The answer is the coefficient of $x^N$ in $\prod_{i=1}^{k} P_i(x)$.</p>
+<p>Merge the $k$ polynomials with divide-and-conquer, truncating to degree $N$ at each step. Each level does $O(N \log N)$ work via NTT, and there are $\log k$ levels.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="c1">// Truncated convolution: C = (A * B) kept to degree lim
+</span></span></span><span class="line"><span class="cl"><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">conv_trunc</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">A</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">B</span><span class="p">,</span> <span class="kt">int</span> <span class="n">lim</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">A</span><span class="p">.</span><span class="n">empty</span><span class="p">()</span> <span class="o">||</span> <span class="n">B</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span> <span class="k">return</span> <span class="p">{};</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">((</span><span class="kt">int</span><span class="p">)</span><span class="n">A</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">lim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="n">A</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">lim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">((</span><span class="kt">int</span><span class="p">)</span><span class="n">B</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">lim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="n">B</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">lim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">need</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">A</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">B</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="k">while</span> <span class="p">(</span><span class="n">n</span> <span class="o">&lt;</span> <span class="n">need</span><span class="p">)</span> <span class="n">n</span> <span class="o">&lt;&lt;=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">A</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">n</span><span class="p">);</span> <span class="n">B</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ntt</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="nb">false</span><span class="p">);</span> <span class="n">ntt</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="nb">false</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">)(</span><span class="mi">1LL</span> <span class="o">*</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">%</span> <span class="n">MOD</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ntt</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">A</span><span class="p">.</span><span class="n">resize</span><span class="p">(</span><span class="n">min</span><span class="p">(</span><span class="n">need</span><span class="p">,</span> <span class="n">lim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">A</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Divide-and-conquer merge of polys[l..r)
+</span></span></span><span class="line"><span class="cl"><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">multiply_range</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&gt;&amp;</span> <span class="n">polys</span><span class="p">,</span> <span class="kt">int</span> <span class="n">l</span><span class="p">,</span> <span class="kt">int</span> <span class="n">r</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">r</span> <span class="o">-</span> <span class="n">l</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="k">return</span> <span class="n">polys</span><span class="p">[</span><span class="n">l</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">m</span> <span class="o">=</span> <span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">L</span> <span class="o">=</span> <span class="n">multiply_range</span><span class="p">(</span><span class="n">polys</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">R</span> <span class="o">=</span> <span class="n">multiply_range</span><span class="p">(</span><span class="n">polys</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">conv_trunc</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">N</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Build each $P_i$ as <code>vector&lt;int&gt;(min(U[i],N)+1, 1)</code> and call <code>multiply_range</code>. Extract <code>prod[N]</code>.</p>
+<h2 id="34-equal-cap-case-all-upper-bounds-are--complexity">3.4 Equal-cap case: all upper bounds are $k$, complexity $O(S/k)$</h2>
+<p>Count ordered non-negative integer solutions of $x_1 + \cdots + x_n = S$ with each $x_j \le k$.</p>
+<p>Without upper bounds the answer is $\binom{S + n - 1}{n - 1}$ (stars and bars). Applying inclusion-exclusion on the $i$ variables that exceed $k$:</p>
+$$g(n, S, k) = \sum_{i=0}^{\lfloor S/(k+1) \rfloor} (-1)^i \binom{n}{i} \binom{S - i(k+1) + n - 1}{n - 1}$$<p>The sum has only $\lfloor S/(k+1) \rfloor + 1$ terms because $\binom{S-i(k+1)+n-1}{n-1} = 0$ once $S - i(k+1) < 0$. This gives $O(S/k)$ time.</p>
+<p>If $k \ge S$ no variable can exceed $S$, so the upper bound is vacuous and the answer is simply $\binom{S+n-1}{n-1}$.</p>
+<h1 id="4-derangements">4 Derangements</h1>
+<p>A derangement is a permutation $p$ of $\{1, \dots, n\}$ with $p_i \ne i$ for all $i$. Denote the count by $D(n)$.</p>
+<h2 id="41-recurrence">4.1 Recurrence</h2>
+$$D(0) = 1, \quad D(1) = 0, \quad D(n) = (n-1)\bigl(D(n-1) + D(n-2)\bigr) \quad (n \ge 2)$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">D</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">D</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;=</span> <span class="n">MAXN</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">D</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1LL</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">D</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">2</span><span class="p">])</span> <span class="o">%</span> <span class="n">MOD</span><span class="p">;</span>
+</span></span></code></pre></div><h2 id="42-inclusion-exclusion-formula">4.2 Inclusion-exclusion formula</h2>
+<p>Let $A_i$ = position $i$ is fixed. Then</p>
+$$D(n) = \left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{k=0}^{n} (-1)^k \binom{n}{k}(n-k)!$$$$\boxed{D(n) = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!}}$$<p>As $n \to \infty$, $D(n)/n! \to 1/e$.</p>
+<h2 id="43-exponential-generating-function">4.3 Exponential generating function</h2>
+<p>Every permutation is a set of disjoint cycles. The EGF of all cycles is</p>
+$$\text{CYC}(x) = \sum_{k \ge 1} \frac{x^k}{k} = -\ln(1 - x)$$<p>Forbidding 1-cycles:</p>
+$$\text{CYC}_{\ge 2}(x) = -\ln(1 - x) - x$$<p>The EGF of derangements is</p>
+$$\boxed{H(x) = \exp\!\bigl(\text{CYC}_{\ge 2}(x)\bigr) = \frac{e^{-x}}{1 - x}}$$<p>Expanding $H(x) = e^{-x} \cdot \frac{1}{1-x}$ and extracting $[x^n]$ recovers the inclusion-exclusion formula.</p>
+<h2 id="44-binomial-inversion">4.4 Binomial inversion</h2>
+<p>Let $f_n$ = derangements of $[n]$ (exactly 0 fixed points), $g_n = n!$ (all permutations = at most all fixed). By binomial inversion:</p>
+$$f_n = \sum_{i=0}^{n} \binom{n}{i} (-1)^{n-i} i! = \sum_{i=0}^{n} (-1)^{n-i} \frac{n!}{(n-i)!}$$<p>This agrees with the inclusion-exclusion formula above and is another $O(n)$ computation.</p>
+<h2 id="45-exactly--fixed-points">4.5 Exactly $k$ fixed points</h2>
+<p>Choose which $k$ positions are fixed ($\binom{n}{k}$ ways), then derange the remaining $n - k$:</p>
+$$\boxed{\binom{n}{k} D(n - k)}$$<h1 id="5-stirling-numbers-of-the-second-kind">5 Stirling Numbers of the Second Kind</h1>
+<p>$S_2(n, k)$ (also written $\left\{\begin{smallmatrix}n\\k\end{smallmatrix}\right\}$) counts ways to partition $n$ labeled objects into $k$ non-empty, unlabeled groups.</p>
+<p><strong>Recurrence:</strong></p>
+$$S_2(n, k) = k \cdot S_2(n-1, k) + S_2(n-1, k-1)$$<p>(the $n$-th object either joins one of the existing $k$ groups, or starts a new group of its own).</p>
+<p><strong>Explicit formula:</strong></p>
+$$S_2(n, k) = \frac{1}{k!} \sum_{i=0}^{k} (-1)^i \binom{k}{i} (k - i)^n$$<p><strong>Connection to surjections:</strong> distributing $n$ labeled objects into $k$ labeled non-empty boxes gives $k!\, S_2(n, k)$.</p>
+<p><strong>Falling factorial expansion:</strong></p>
+$$x^n = \sum_{k=0}^{n} S_2(n, k)\, x^{\underline{k}}$$<p>where $x^{\underline{k}} = x(x-1)(x-2)\cdots(x-k+1)$ is the $k$-th falling factorial of $x$.</p>
+<h1 id="6-selected-problems">6 Selected Problems</h1>
+<h2 id="61-integers-in--coprime-to-a-prime-set">6.1 Integers in $[L, R]$ coprime to a prime set</h2>
+<p><strong>Problem (Nowcoder 16513).</strong> Given a set $A = \{a_1, \dots, a_k\}$ of primes, count integers in $[L, R]$ not divisible by any $a_i$.</p>
+<p>Define $F(X) = \#\{1 \le n \le X : \forall a \in A,\ a \nmid n\}$. By inclusion-exclusion over subsets $S \subseteq A$:</p>
+$$F(X) = \sum_{S \subseteq A} (-1)^{|S|} \left\lfloor \frac{X}{\prod_{a \in S} a} \right\rfloor$$<p>Answer: $F(R) - F(L - 1)$. Complexity: $O(2^k)$ per query (prune when $\prod > X$).</p>
+<h2 id="62-dynamic-coprime-pair-counting">6.2 Dynamic coprime pair counting</h2>
+<p><strong>Problem (CF 547C).</strong> Maintain a multiset $S$ under insertions and deletions. After each operation, output the number of pairs $(i, j)$ with $i < j$ and $\gcd(a_i, a_j) = 1$.</p>
+<p><strong>Method 1 — Inclusion-exclusion.</strong> Maintain $\text{cnt}[d]$ = number of elements in $S$ divisible by $d$. When inserting value $v$ with prime factorization $\{p_1, \dots, p_m\}$, the number of existing elements coprime to $v$ is</p>
+$$\sum_{S \subseteq \{p_1,\dots,p_m\}} (-1)^{|S|} \text{cnt}\!\left[\prod_{p \in S} p\right]$$<p>Update $\text{cnt}[d]$ for all $2^m$ squarefree divisors of $v$ after computing the delta. Deletion is symmetric: update $\text{cnt}$ first, then compute the delta.</p>
+<p><strong>Method 2 — Möbius inversion.</strong></p>
+$$\sum_{y \in S} \mathbf{1}[\gcd(v, y) = 1] = \sum_{d \mid v} \mu(d) \cdot \#\{y \in S : d \mid y\} = \sum_{d \mid v} \mu(d)\, \text{cnt}[d]$$<p>Both methods run in $O(2^{\omega(v)})$ per query where $\omega(v) \le 7$ for $v \le 5 \times 10^5$.</p>
+
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span class="eyebrow">On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-inclusion-exclusion-basics">1 Inclusion-Exclusion Basics</a>
+      <ul>
+        <li><a href="#set-form">Set form</a></li>
+        <li><a href="#operator-form">Operator form</a></li>
+      </ul>
+    </li>
+    <li><a href="#2-classic-examples">2 Classic Examples</a>
+      <ul>
+        <li><a href="#21-eulers-totient">2.1 Euler&rsquo;s totient</a></li>
+        <li><a href="#22-couples-in-a-circular-arrangement">2.2 Couples in a circular arrangement</a></li>
+        <li><a href="#23-surjections-every-person-gets-at-least-one-item">2.3 Surjections: every person gets at least one item</a></li>
+        <li><a href="#24-no-paired-elements-are-adjacent-linear">2.4 No paired elements are adjacent (linear)</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-bounded-linear-diophantine-equations">3 Bounded Linear Diophantine Equations</a>
+      <ul>
+        <li><a href="#31-inclusion-exclusion-formula">3.1 Inclusion-exclusion formula</a></li>
+        <li><a href="#32-prefix-sum-dp">3.2 Prefix-sum DP: $O(kN)$</a></li>
+        <li><a href="#33-divide-and-conquer-ntt">3.3 Divide-and-conquer NTT: $O(N \log N \log k)$</a></li>
+        <li><a href="#34-equal-cap-case-all-upper-bounds-are--complexity">3.4 Equal-cap case: all upper bounds are $k$, complexity $O(S/k)$</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-derangements">4 Derangements</a>
+      <ul>
+        <li><a href="#41-recurrence">4.1 Recurrence</a></li>
+        <li><a href="#42-inclusion-exclusion-formula">4.2 Inclusion-exclusion formula</a></li>
+        <li><a href="#43-exponential-generating-function">4.3 Exponential generating function</a></li>
+        <li><a href="#44-binomial-inversion">4.4 Binomial inversion</a></li>
+        <li><a href="#45-exactly--fixed-points">4.5 Exactly $k$ fixed points</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-stirling-numbers-of-the-second-kind">5 Stirling Numbers of the Second Kind</a></li>
+    <li><a href="#6-selected-problems">6 Selected Problems</a>
+      <ul>
+        <li><a href="#61-integers-in--coprime-to-a-prime-set">6.1 Integers in $[L, R]$ coprime to a prime set</a></li>
+        <li><a href="#62-dynamic-coprime-pair-counting">6.2 Dynamic coprime pair counting</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      function onScroll() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            
+            
+            const tocCard = document.querySelector('.toc-card');
+            const linkTop = activeLink.offsetTop;
+            const linkBottom = linkTop + activeLink.offsetHeight;
+            const cardScrollTop = tocCard.scrollTop;
+            const cardHeight = tocCard.clientHeight;
+            const padding = 18;
+
+            if (linkTop < cardScrollTop + padding) {
+              tocCard.scrollTop = Math.max(0, linkTop - padding);
+            } else if (linkBottom > cardScrollTop + cardHeight - padding) {
+              tocCard.scrollTop = linkBottom - cardHeight + padding;
+            }
+          }
+        }
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      
+      setTimeout(onScroll, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>CP Notes</strong>
+          <p>A personal notebook for algorithms, technical write-ups, implementation details, and things worth remembering.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -45,15 +45,6 @@
       
       if (headings.length === 0 || tocLinks.length === 0) return;
 
-      function getOffsetTop(element) {
-        let offsetTop = 0;
-        while(element) {
-          offsetTop += element.offsetTop;
-          element = element.offsetParent;
-        }
-        return offsetTop;
-      }
-
       function onScroll() {
         const scrollPosition = window.scrollY + 140; // offset for sticky header
         let currentHeading = headings[0];
@@ -81,11 +72,12 @@
             const linkBottom = linkTop + activeLink.offsetHeight;
             const cardScrollTop = tocCard.scrollTop;
             const cardHeight = tocCard.clientHeight;
+            const padding = 18;
 
-            if (linkTop < cardScrollTop) {
-              tocCard.scrollTo({ top: linkTop - 20, behavior: 'smooth' });
-            } else if (linkBottom > cardScrollTop + cardHeight) {
-              tocCard.scrollTo({ top: linkBottom - cardHeight + 20, behavior: 'smooth' });
+            if (linkTop < cardScrollTop + padding) {
+              tocCard.scrollTop = Math.max(0, linkTop - padding);
+            } else if (linkBottom > cardScrollTop + cardHeight - padding) {
+              tocCard.scrollTop = linkBottom - cardHeight + padding;
             }
           }
         }

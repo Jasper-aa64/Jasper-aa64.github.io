@@ -1,126 +1,487 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics #0: Common Formulae & Conclusions | CP Notes</title><meta name=description content="A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns."><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-0-common-formulae-conclusions/><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><div class="page-glow page-glow-a"></div><div class="page-glow page-glow-b"></div><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>CP Notes</strong>
-<small>Notes on code, systems, and ideas</small></span></a><nav class=site-nav><a class=nav-link href=/>Home</a>
-<a class=nav-link href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics #0: Common Formulae & Conclusions</h1><div class=article-meta><time datetime=2026-04-20>Apr 20, 2026</time>
-<span>·</span>
-<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/combinatorics/>#combinatorics</a>
-<a class=chip href=/tags/floor-sum/>#floor-sum</a>
-<a class=chip href=/tags/xor/>#xor</a>
-<a class=chip href=/tags/fibonacci/>#fibonacci</a>
-<a class=chip href=/tags/perfect-squares/>#perfect-squares</a></div></header><div class=article-layout><div class="article-content prose"><h1 id=1-geometric-series-sum>1 Geometric Series Sum</h1><p>First term $a_1$, common ratio $q$, sum of first $n$ terms $S_n$:</p><ul><li>$q = 1$: $S_n = n a_1$</li><li>$q \neq 1$: $S_n = \dfrac{a_1(1 - q^n)}{1 - q}$</li></ul><hr><h1 id=2-floor-sum-algorithm-euclidean-like-类欧几里得>2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</h1><h2 id=basic-form>Basic form</h2>$$\sum_{i=0}^{n-1}\left\lfloor\frac{a \cdot i+b}{m}\right\rfloor, \quad n,m,a,b > 0$$<div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=n>LL</span> <span class=nf>F</span><span class=p>(</span><span class=n>LL</span> <span class=n>n</span><span class=p>,</span> <span class=n>LL</span> <span class=n>m</span><span class=p>,</span> <span class=n>LL</span> <span class=n>a</span><span class=p>,</span> <span class=n>LL</span> <span class=n>b</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>a</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span> <span class=k>return</span> <span class=n>n</span> <span class=o>*</span> <span class=p>(</span><span class=n>b</span> <span class=o>/</span> <span class=n>m</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>b</span> <span class=o>&gt;=</span> <span class=n>m</span><span class=p>)</span> <span class=k>return</span> <span class=n>n</span> <span class=o>*</span> <span class=p>(</span><span class=n>b</span> <span class=o>/</span> <span class=n>m</span><span class=p>)</span> <span class=o>+</span> <span class=n>F</span><span class=p>(</span><span class=n>n</span><span class=p>,</span> <span class=n>a</span><span class=p>,</span> <span class=n>b</span> <span class=o>%</span> <span class=n>m</span><span class=p>,</span> <span class=n>m</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>a</span> <span class=o>&gt;=</span> <span class=n>m</span><span class=p>)</span> <span class=k>return</span> <span class=p>(</span><span class=n>n</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>*</span> <span class=n>n</span> <span class=o>/</span> <span class=mi>2</span> <span class=o>*</span> <span class=p>(</span><span class=n>a</span> <span class=o>/</span> <span class=n>m</span><span class=p>)</span> <span class=o>+</span> <span class=n>F</span><span class=p>(</span><span class=n>n</span><span class=p>,</span> <span class=n>a</span> <span class=o>%</span> <span class=n>m</span><span class=p>,</span> <span class=n>b</span><span class=p>,</span> <span class=n>m</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>F</span><span class=p>((</span><span class=n>a</span> <span class=o>*</span> <span class=n>n</span> <span class=o>+</span> <span class=n>b</span><span class=p>)</span> <span class=o>/</span> <span class=n>m</span><span class=p>,</span> <span class=n>m</span><span class=p>,</span> <span class=p>(</span><span class=n>a</span> <span class=o>*</span> <span class=n>n</span> <span class=o>+</span> <span class=n>b</span><span class=p>)</span> <span class=o>%</span> <span class=n>m</span><span class=p>,</span> <span class=n>a</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><h2 id=general-form>General form</h2><p>Allows negative $a, b$; requires $n \geq 0, m > 0$.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=n>ll</span> <span class=nf>F_all</span><span class=p>(</span><span class=n>ll</span> <span class=n>n</span><span class=p>,</span> <span class=n>ll</span> <span class=n>m</span><span class=p>,</span> <span class=n>ll</span> <span class=n>a</span><span class=p>,</span> <span class=n>ll</span> <span class=n>b</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>auto</span> <span class=n>floordiv</span> <span class=o>=</span> <span class=p>[</span><span class=o>&amp;</span><span class=p>](</span><span class=n>ll</span> <span class=n>x</span><span class=p>,</span> <span class=n>ll</span> <span class=n>m</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>x</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=p>)</span> <span class=k>return</span> <span class=n>x</span> <span class=o>/</span> <span class=n>m</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=o>-</span><span class=p>(</span> <span class=p>(</span><span class=o>-</span><span class=n>x</span> <span class=o>+</span> <span class=n>m</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=n>m</span> <span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=p>};</span>
-</span></span><span class=line><span class=cl>    <span class=n>ll</span> <span class=n>ans</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>a</span> <span class=o>&lt;</span> <span class=mi>0</span> <span class=o>||</span> <span class=n>a</span> <span class=o>&gt;=</span> <span class=n>m</span><span class=p>)</span> <span class=p>{</span> <span class=n>ll</span> <span class=n>q</span> <span class=o>=</span> <span class=n>floordiv</span><span class=p>(</span><span class=n>a</span><span class=p>,</span> <span class=n>m</span><span class=p>);</span> <span class=n>ans</span> <span class=o>+=</span> <span class=n>q</span> <span class=o>*</span> <span class=n>n</span> <span class=o>*</span> <span class=p>(</span><span class=n>n</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=mi>2</span><span class=p>;</span> <span class=n>a</span> <span class=o>-=</span> <span class=n>q</span> <span class=o>*</span> <span class=n>m</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>b</span> <span class=o>&lt;</span> <span class=mi>0</span> <span class=o>||</span> <span class=n>b</span> <span class=o>&gt;=</span> <span class=n>m</span><span class=p>)</span> <span class=p>{</span> <span class=n>ll</span> <span class=n>q</span> <span class=o>=</span> <span class=n>floordiv</span><span class=p>(</span><span class=n>b</span><span class=p>,</span> <span class=n>m</span><span class=p>);</span> <span class=n>ans</span> <span class=o>+=</span> <span class=n>q</span> <span class=o>*</span> <span class=n>n</span><span class=p>;</span> <span class=n>b</span> <span class=o>-=</span> <span class=n>q</span> <span class=o>*</span> <span class=n>m</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=c1>// now 0 &lt;= a, b &lt; m — use non-negative version
-</span></span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>(</span><span class=nb>true</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>a</span> <span class=o>&gt;=</span> <span class=n>m</span><span class=p>)</span> <span class=p>{</span> <span class=n>ans</span> <span class=o>+=</span> <span class=p>(</span><span class=n>n</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>*</span> <span class=n>n</span> <span class=o>/</span> <span class=mi>2</span> <span class=o>*</span> <span class=p>(</span><span class=n>a</span> <span class=o>/</span> <span class=n>m</span><span class=p>);</span> <span class=n>a</span> <span class=o>%=</span> <span class=n>m</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>b</span> <span class=o>&gt;=</span> <span class=n>m</span><span class=p>)</span> <span class=p>{</span> <span class=n>ans</span> <span class=o>+=</span> <span class=n>n</span> <span class=o>*</span> <span class=p>(</span><span class=n>b</span> <span class=o>/</span> <span class=n>m</span><span class=p>);</span> <span class=n>b</span> <span class=o>%=</span> <span class=n>m</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=n>ll</span> <span class=n>y_max</span> <span class=o>=</span> <span class=n>a</span> <span class=o>*</span> <span class=n>n</span> <span class=o>+</span> <span class=n>b</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>y_max</span> <span class=o>&lt;</span> <span class=n>m</span><span class=p>)</span> <span class=k>break</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>n</span> <span class=o>=</span> <span class=n>y_max</span> <span class=o>/</span> <span class=n>m</span><span class=p>;</span> <span class=n>b</span> <span class=o>=</span> <span class=n>y_max</span> <span class=o>%</span> <span class=n>m</span><span class=p>;</span> <span class=n>swap</span><span class=p>(</span><span class=n>a</span><span class=p>,</span> <span class=n>m</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>ans</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><h2 id=21-template-problem--luogu-p5170>2.1 Template problem — <a href=https://www.luogu.com.cn/problem/P5170>Luogu P5170</a></h2><p>Given $n, a, b, c$, compute $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor$, $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor^2$, $\sum_{i=0}^{n} i\lfloor\frac{ai+b}{c}\rfloor$ mod $998244353$.</p><p><strong>Universal Euclidean algorithm:</strong></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;iostream&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=k>template</span> <span class=o>&lt;</span><span class=k>typename</span> <span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=n>pow</span><span class=p>(</span><span class=n>T</span> <span class=n>a</span><span class=p>,</span> <span class=kt>int</span> <span class=n>b</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=n>T</span> <span class=n>res</span><span class=p>;</span> <span class=k>for</span> <span class=p>(;</span> <span class=n>b</span><span class=p>;</span> <span class=n>b</span> <span class=o>&gt;&gt;=</span> <span class=mi>1</span><span class=p>)</span> <span class=p>{</span> <span class=k>if</span> <span class=p>(</span><span class=n>b</span> <span class=o>&amp;</span> <span class=mi>1</span><span class=p>)</span> <span class=n>res</span> <span class=o>=</span> <span class=n>res</span> <span class=o>*</span> <span class=n>a</span><span class=p>;</span> <span class=n>a</span> <span class=o>=</span> <span class=n>a</span> <span class=o>*</span> <span class=n>a</span><span class=p>;</span> <span class=p>}</span> <span class=k>return</span> <span class=n>res</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span><span class=line><span class=cl><span class=k>template</span> <span class=o>&lt;</span><span class=k>typename</span> <span class=n>T</span><span class=o>&gt;</span> <span class=n>T</span> <span class=n>euclid</span><span class=p>(</span><span class=kt>int</span> <span class=n>a</span><span class=p>,</span> <span class=kt>int</span> <span class=n>b</span><span class=p>,</span> <span class=kt>int</span> <span class=n>c</span><span class=p>,</span> <span class=kt>int</span> <span class=n>n</span><span class=p>,</span> <span class=n>T</span> <span class=n>U</span><span class=p>,</span> <span class=n>T</span> <span class=n>R</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>b</span> <span class=o>&gt;=</span> <span class=n>c</span><span class=p>)</span> <span class=k>return</span> <span class=n>pow</span><span class=p>(</span><span class=n>U</span><span class=p>,</span> <span class=n>b</span> <span class=o>/</span> <span class=n>c</span><span class=p>)</span> <span class=o>*</span> <span class=n>euclid</span><span class=p>(</span><span class=n>a</span><span class=p>,</span> <span class=n>b</span> <span class=o>%</span> <span class=n>c</span><span class=p>,</span> <span class=n>c</span><span class=p>,</span> <span class=n>n</span><span class=p>,</span> <span class=n>U</span><span class=p>,</span> <span class=n>R</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>a</span> <span class=o>&gt;=</span> <span class=n>c</span><span class=p>)</span> <span class=k>return</span> <span class=n>euclid</span><span class=p>(</span><span class=n>a</span> <span class=o>%</span> <span class=n>c</span><span class=p>,</span> <span class=n>b</span><span class=p>,</span> <span class=n>c</span><span class=p>,</span> <span class=n>n</span><span class=p>,</span> <span class=n>U</span><span class=p>,</span> <span class=n>pow</span><span class=p>(</span><span class=n>U</span><span class=p>,</span> <span class=n>a</span> <span class=o>/</span> <span class=n>c</span><span class=p>)</span> <span class=o>*</span> <span class=n>R</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>auto</span> <span class=n>m</span> <span class=o>=</span> <span class=p>((</span><span class=kt>long</span> <span class=kt>long</span><span class=p>)</span><span class=n>a</span> <span class=o>*</span> <span class=n>n</span> <span class=o>+</span> <span class=n>b</span><span class=p>)</span> <span class=o>/</span> <span class=n>c</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>m</span><span class=p>)</span> <span class=k>return</span> <span class=n>pow</span><span class=p>(</span><span class=n>R</span><span class=p>,</span> <span class=n>n</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nf>pow</span><span class=p>(</span><span class=n>R</span><span class=p>,</span> <span class=p>(</span><span class=n>c</span> <span class=o>-</span> <span class=n>b</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=n>a</span><span class=p>)</span> <span class=o>*</span> <span class=n>U</span> <span class=o>*</span>
-</span></span><span class=line><span class=cl>           <span class=n>euclid</span><span class=p>(</span><span class=n>c</span><span class=p>,</span> <span class=p>(</span><span class=n>c</span> <span class=o>-</span> <span class=n>b</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>%</span> <span class=n>a</span><span class=p>,</span> <span class=n>a</span><span class=p>,</span> <span class=n>m</span> <span class=o>-</span> <span class=mi>1</span><span class=p>,</span> <span class=n>R</span><span class=p>,</span> <span class=n>U</span><span class=p>)</span> <span class=o>*</span>
-</span></span><span class=line><span class=cl>           <span class=n>pow</span><span class=p>(</span><span class=n>R</span><span class=p>,</span> <span class=n>n</span> <span class=o>-</span> <span class=p>(</span><span class=n>c</span> <span class=o>*</span> <span class=n>m</span> <span class=o>-</span> <span class=n>b</span> <span class=o>-</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=n>a</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span><span class=line><span class=cl><span class=k>constexpr</span> <span class=kt>int</span> <span class=n>M</span> <span class=o>=</span> <span class=mi>998244353</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=k>struct</span> <span class=nc>Info</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=kt>long</span> <span class=kt>long</span> <span class=n>x</span><span class=p>,</span> <span class=n>y</span><span class=p>,</span> <span class=n>s</span><span class=p>,</span> <span class=n>t</span><span class=p>,</span> <span class=n>u</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>Info</span><span class=p>()</span> <span class=o>:</span> <span class=n>x</span><span class=p>(</span><span class=mi>0</span><span class=p>),</span> <span class=n>y</span><span class=p>(</span><span class=mi>0</span><span class=p>),</span> <span class=n>s</span><span class=p>(</span><span class=mi>0</span><span class=p>),</span> <span class=n>t</span><span class=p>(</span><span class=mi>0</span><span class=p>),</span> <span class=n>u</span><span class=p>(</span><span class=mi>0</span><span class=p>)</span> <span class=p>{}</span>
-</span></span><span class=line><span class=cl>    <span class=n>Info</span> <span class=k>operator</span><span class=o>*</span><span class=p>(</span><span class=k>const</span> <span class=n>Info</span><span class=o>&amp;</span> <span class=n>rhs</span><span class=p>)</span> <span class=k>const</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=n>Info</span> <span class=n>res</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>res</span><span class=p>.</span><span class=n>x</span> <span class=o>=</span> <span class=p>(</span><span class=n>x</span> <span class=o>+</span> <span class=n>rhs</span><span class=p>.</span><span class=n>x</span><span class=p>)</span> <span class=o>%</span> <span class=n>M</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>res</span><span class=p>.</span><span class=n>y</span> <span class=o>=</span> <span class=p>(</span><span class=n>y</span> <span class=o>+</span> <span class=n>rhs</span><span class=p>.</span><span class=n>y</span><span class=p>)</span> <span class=o>%</span> <span class=n>M</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>res</span><span class=p>.</span><span class=n>s</span> <span class=o>=</span> <span class=p>(</span><span class=n>s</span> <span class=o>+</span> <span class=n>rhs</span><span class=p>.</span><span class=n>s</span> <span class=o>+</span> <span class=n>rhs</span><span class=p>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>y</span><span class=p>)</span> <span class=o>%</span> <span class=n>M</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>auto</span> <span class=n>tmp</span> <span class=o>=</span> <span class=p>(</span><span class=n>rhs</span><span class=p>.</span><span class=n>x</span> <span class=o>*</span> <span class=p>(</span><span class=n>rhs</span><span class=p>.</span><span class=n>x</span> <span class=o>+</span> <span class=mi>1</span><span class=p>)</span> <span class=o>/</span> <span class=mi>2</span> <span class=o>+</span> <span class=n>x</span> <span class=o>*</span> <span class=n>rhs</span><span class=p>.</span><span class=n>x</span><span class=p>)</span> <span class=o>%</span> <span class=n>M</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>res</span><span class=p>.</span><span class=n>t</span> <span class=o>=</span> <span class=p>(</span><span class=n>t</span> <span class=o>+</span> <span class=n>rhs</span><span class=p>.</span><span class=n>t</span> <span class=o>+</span> <span class=n>x</span> <span class=o>*</span> <span class=n>rhs</span><span class=p>.</span><span class=n>s</span> <span class=o>+</span> <span class=n>tmp</span> <span class=o>*</span> <span class=n>y</span><span class=p>)</span> <span class=o>%</span> <span class=n>M</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>res</span><span class=p>.</span><span class=n>u</span> <span class=o>=</span> <span class=p>(</span><span class=n>u</span> <span class=o>+</span> <span class=n>rhs</span><span class=p>.</span><span class=n>u</span> <span class=o>+</span> <span class=mi>2</span> <span class=o>*</span> <span class=n>y</span> <span class=o>*</span> <span class=n>rhs</span><span class=p>.</span><span class=n>s</span> <span class=o>+</span> <span class=n>rhs</span><span class=p>.</span><span class=n>x</span> <span class=o>*</span> <span class=n>y</span> <span class=o>%</span> <span class=n>M</span> <span class=o>*</span> <span class=n>y</span><span class=p>)</span> <span class=o>%</span> <span class=n>M</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=n>res</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl><span class=p>};</span>
-</span></span><span class=line><span class=cl><span class=kt>void</span> <span class=nf>solve</span><span class=p>(</span><span class=kt>int</span> <span class=n>a</span><span class=p>,</span> <span class=kt>int</span> <span class=n>b</span><span class=p>,</span> <span class=kt>int</span> <span class=n>c</span><span class=p>,</span> <span class=kt>int</span> <span class=n>n</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=n>Info</span> <span class=n>U</span><span class=p>,</span> <span class=n>R</span><span class=p>;</span> <span class=n>U</span><span class=p>.</span><span class=n>y</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span> <span class=n>R</span><span class=p>.</span><span class=n>x</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>auto</span> <span class=n>res</span> <span class=o>=</span> <span class=n>euclid</span><span class=p>(</span><span class=n>a</span><span class=p>,</span> <span class=n>b</span><span class=p>,</span> <span class=n>c</span><span class=p>,</span> <span class=n>n</span><span class=p>,</span> <span class=n>U</span><span class=p>,</span> <span class=n>R</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>std</span><span class=o>::</span><span class=n>cout</span> <span class=o>&lt;&lt;</span> <span class=p>(</span><span class=n>res</span><span class=p>.</span><span class=n>s</span> <span class=o>+</span> <span class=n>b</span> <span class=o>/</span> <span class=n>c</span><span class=p>)</span> <span class=o>%</span> <span class=n>M</span> <span class=o>&lt;&lt;</span> <span class=sc>&#39; &#39;</span> <span class=o>&lt;&lt;</span> <span class=p>(</span><span class=n>res</span><span class=p>.</span><span class=n>u</span> <span class=o>+</span> <span class=p>(</span><span class=kt>long</span> <span class=kt>long</span><span class=p>)(</span><span class=n>b</span><span class=o>/</span><span class=n>c</span><span class=p>)</span><span class=o>*</span><span class=p>(</span><span class=n>b</span><span class=o>/</span><span class=n>c</span><span class=p>))</span> <span class=o>%</span> <span class=n>M</span> <span class=o>&lt;&lt;</span> <span class=sc>&#39; &#39;</span> <span class=o>&lt;&lt;</span> <span class=n>res</span><span class=p>.</span><span class=n>t</span> <span class=o>&lt;&lt;</span> <span class=sc>&#39;\n&#39;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>main</span><span class=p>()</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>t</span><span class=p>;</span> <span class=n>std</span><span class=o>::</span><span class=n>cin</span> <span class=o>&gt;&gt;</span> <span class=n>t</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(;</span> <span class=n>t</span><span class=p>;</span> <span class=o>--</span><span class=n>t</span><span class=p>)</span> <span class=p>{</span> <span class=kt>int</span> <span class=n>a</span><span class=p>,</span> <span class=n>b</span><span class=p>,</span> <span class=n>c</span><span class=p>,</span> <span class=n>n</span><span class=p>;</span> <span class=n>std</span><span class=o>::</span><span class=n>cin</span> <span class=o>&gt;&gt;</span> <span class=n>n</span> <span class=o>&gt;&gt;</span> <span class=n>a</span> <span class=o>&gt;&gt;</span> <span class=n>b</span> <span class=o>&gt;&gt;</span> <span class=n>c</span><span class=p>;</span> <span class=n>solve</span><span class=p>(</span><span class=n>a</span><span class=p>,</span> <span class=n>b</span><span class=p>,</span> <span class=n>c</span><span class=p>,</span> <span class=n>n</span><span class=p>);</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><h2 id=22-example--2025-icpc-wuhan-a-planting-trees>2.2 Example — <a href=https://qoj.ac/contest/2609/problem/14719>2025 ICPC Wuhan A. Planting Trees</a></h2><p><strong>Problem:</strong> Two plants start at heights $x, y$. Each day they grow by $f$ and $g$ respectively, then height is taken mod $m$.<br>Count days where the first plant is shorter ($L_t < R_t$).</p>$$L_t = (x + ft) \bmod m, \quad R_t = (y + gt) \bmod m, \quad \text{Ans} = \sum_{t=0}^{n-1} [L_t < R_t]$$<p><strong>Key trick — convert $[u < v]$ to a floor sum:</strong></p><p>For any $0 \leq u, v < m$:</p>$$[u < v] = 1 + \left\lfloor\frac{(v-1) - u}{m}\right\rfloor \tag{1}$$<p><em>Proof:</em> $(v-1)-u \in [-m, m-1]$. If $u < v$: value $\in [0, m-1)$, floor = 0, RHS = 1. If $u \geq v$: value $\in [-m,-1]$, floor = $-1$, RHS = 0. ✓</p><p>Apply (1) with $u = L_t,\ v = R_t$:</p>$$[L_t < R_t] = 1 + \left\lfloor\frac{R_t - 1 - L_t}{m}\right\rfloor \tag{2}$$<p>Expand $L_t, R_t$ by <strong>writing mod as &ldquo;original minus $m\lfloor\cdot\rfloor$&rdquo;:</strong></p>$$L_t = ft + x - m\left\lfloor\frac{ft+x}{m}\right\rfloor, \qquad R_t = gt + y - m\left\lfloor\frac{gt+y}{m}\right\rfloor$$<p>Substitute into the numerator of (2):</p>$$R_t - 1 - L_t = (g-f)t + (y-x-1) - m\left(\left\lfloor\frac{gt+y}{m}\right\rfloor - \left\lfloor\frac{ft+x}{m}\right\rfloor\right)$$<p>Divide by $m$ and take floor (the $m\lfloor\cdot\rfloor/m$ terms are already integers, so they pass through the floor unchanged):</p>$$\left\lfloor\frac{R_t-1-L_t}{m}\right\rfloor = \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor$$<p>So (2) becomes:</p>$$[L_t < R_t] = 1 + \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor \tag{3}$$<p>Sum (3) over $t = 0,\dots,n-1$, letting $F(n,m,a,b) = \sum_{t=0}^{n-1}\left\lfloor\frac{at+b}{m}\right\rfloor$:</p>$$\boxed{\text{Ans} = n + F(n,m,g-f,\,y-x-1) - F(n,m,g,\,y) + F(n,m,f,\,x)}$$<div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=kt>void</span> <span class=nf>solve</span><span class=p>()</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=n>ll</span> <span class=n>f</span><span class=p>,</span> <span class=n>x</span><span class=p>,</span> <span class=n>g</span><span class=p>,</span> <span class=n>y</span><span class=p>,</span> <span class=n>n</span><span class=p>,</span> <span class=n>M</span><span class=p>;</span> <span class=n>cin</span> <span class=o>&gt;&gt;</span> <span class=n>f</span> <span class=o>&gt;&gt;</span> <span class=n>x</span> <span class=o>&gt;&gt;</span> <span class=n>g</span> <span class=o>&gt;&gt;</span> <span class=n>y</span> <span class=o>&gt;&gt;</span> <span class=n>n</span> <span class=o>&gt;&gt;</span> <span class=n>M</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>ll</span> <span class=n>ans</span> <span class=o>=</span> <span class=n>n</span> <span class=o>+</span> <span class=n>F_all</span><span class=p>(</span><span class=n>n</span><span class=p>,</span> <span class=n>M</span><span class=p>,</span> <span class=n>g</span><span class=o>-</span><span class=n>f</span><span class=p>,</span> <span class=n>y</span><span class=o>-</span><span class=n>x</span><span class=o>-</span><span class=mi>1</span><span class=p>)</span> <span class=o>-</span> <span class=n>F_all</span><span class=p>(</span><span class=n>n</span><span class=p>,</span> <span class=n>M</span><span class=p>,</span> <span class=n>g</span><span class=p>,</span> <span class=n>y</span><span class=p>)</span> <span class=o>+</span> <span class=n>F_all</span><span class=p>(</span><span class=n>n</span><span class=p>,</span> <span class=n>M</span><span class=p>,</span> <span class=n>f</span><span class=p>,</span> <span class=n>x</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>cout</span> <span class=o>&lt;&lt;</span> <span class=n>ans</span> <span class=o>&lt;&lt;</span> <span class=s>&#34;</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><hr><h1 id=3-xor-kingdom>3 XOR Kingdom</h1><h2 id=31-xor--addition>3.1 XOR ↔ Addition</h2>$$x + y = (x \oplus y) + 2 \cdot (x \mathbin{\&} y)$$<ul><li><strong>XOR</strong> = addition without carry</li><li><strong>AND</strong> = exactly which bits carry</li></ul><h2 id=32-basic-properties>3.2 Basic Properties</h2><ol><li>Commutative & associative: <code>a^b = b^a</code>, <code>(a^b)^c = a^(b^c)</code> — bits are independent.</li><li>Identity & self-inverse: <code>a^0 = a</code>, <code>a^a = 0</code>.</li><li>⭐ Invertible: if <code>a^b = c</code> then <code>a = b^c</code>.</li><li>Each bit is $\bmod 2$ addition (no carry).</li><li><strong>Prefix XOR of $1..n$</strong> has period 4:</li></ol><table><thead><tr><th>$n \bmod 4$</th><th><code>1^2^...^n</code></th></tr></thead><tbody><tr><td>0</td><td><code>n</code></td></tr><tr><td>1</td><td><code>1</code></td></tr><tr><td>2</td><td><code>n+1</code></td></tr><tr><td>3</td><td><code>0</code></td></tr></tbody></table><h2 id=33-common-conclusions>3.3 Common Conclusions</h2><ol><li><p><strong>Subarray XOR via prefix XOR</strong><br>Let <code>pref[i] = a[1]^...^a[i]</code>. Then XOR of <code>a[l..r]</code> = <code>pref[r] ^ pref[l-1]</code>.</p><ul><li><strong>Count subarrays with XOR = K:</strong> prefix XOR + hashmap.</li></ul><div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=n>ll</span> <span class=nf>countXorSubarrays</span><span class=p>(</span><span class=n>vector</span><span class=o>&lt;</span><span class=kt>int</span><span class=o>&gt;&amp;</span> <span class=n>a</span><span class=p>,</span> <span class=kt>int</span> <span class=n>K</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=n>unordered_map</span><span class=o>&lt;</span><span class=kt>int</span><span class=p>,</span><span class=kt>int</span><span class=o>&gt;</span> <span class=n>cnt</span><span class=p>;</span> <span class=n>cnt</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span> <span class=o>=</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>pref</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>ll</span> <span class=n>ans</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=nl>x</span> <span class=p>:</span> <span class=n>a</span><span class=p>)</span> <span class=p>{</span> <span class=n>pref</span> <span class=o>^=</span> <span class=n>x</span><span class=p>;</span> <span class=n>ans</span> <span class=o>+=</span> <span class=n>cnt</span><span class=p>[</span><span class=n>pref</span> <span class=o>^</span> <span class=n>K</span><span class=p>];</span> <span class=n>cnt</span><span class=p>[</span><span class=n>pref</span><span class=p>]</span><span class=o>++</span><span class=p>;</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>ans</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div></li><li><p><strong>Subset XOR and linear algebra</strong><br>Each number is a bit-vector; XOR is vector addition over $GF(2)$. → <strong>Linear basis.</strong></p></li><li><p><strong>Maximum XOR pair / maximum subset XOR</strong></p><ul><li>Max <code>ai ^ aj</code>: 01-Trie, greedy from highest bit. $O(n \log A)$.</li><li>Max XOR of subset / linear combination: linear basis, greedy from high bit.</li></ul></li><li><p><strong>Count pairs with XOR &lt; K</strong><br>01-Trie with subtree sizes; for each prefix query how many stored prefixes $p$ satisfy <code>(pref[i]^p) &lt; K</code>. $O(n \log A)$.</p></li><li><p><strong>XOR convolution</strong><br>FWT in $O(N \log N)$ on frequency vectors of size $N = 2^m$.</p></li><li><p><strong>Bit divide-and-conquer</strong><br>For counting/minimisation, split on highest bit, recurse, count cross contributions.</p></li></ol><h3 id=331-trie-templates>3.3.1 Trie Templates</h3><p><strong>Max XOR pair:</strong></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=k>struct</span> <span class=nc>Trie</span> <span class=p>{</span> <span class=kt>int</span> <span class=n>ch</span><span class=p>[</span><span class=mi>2</span><span class=p>];</span> <span class=n>Trie</span><span class=p>(){</span> <span class=n>ch</span><span class=p>[</span><span class=mi>0</span><span class=p>]</span><span class=o>=</span><span class=n>ch</span><span class=p>[</span><span class=mi>1</span><span class=p>]</span><span class=o>=-</span><span class=mi>1</span><span class=p>;</span> <span class=p>}</span> <span class=p>};</span>
-</span></span><span class=line><span class=cl><span class=n>vector</span><span class=o>&lt;</span><span class=n>Trie</span><span class=o>&gt;</span> <span class=n>T</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=kt>void</span> <span class=nf>insert</span><span class=p>(</span><span class=kt>int</span> <span class=n>x</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>p</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>b</span> <span class=o>=</span> <span class=mi>30</span><span class=p>;</span> <span class=n>b</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=p>;</span> <span class=o>--</span><span class=n>b</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=kt>int</span> <span class=n>bit</span> <span class=o>=</span> <span class=p>(</span><span class=n>x</span> <span class=o>&gt;&gt;</span> <span class=n>b</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>T</span><span class=p>[</span><span class=n>p</span><span class=p>].</span><span class=n>ch</span><span class=p>[</span><span class=n>bit</span><span class=p>]</span> <span class=o>==</span> <span class=o>-</span><span class=mi>1</span><span class=p>)</span> <span class=p>{</span> <span class=n>T</span><span class=p>[</span><span class=n>p</span><span class=p>].</span><span class=n>ch</span><span class=p>[</span><span class=n>bit</span><span class=p>]</span> <span class=o>=</span> <span class=n>T</span><span class=p>.</span><span class=n>size</span><span class=p>();</span> <span class=n>T</span><span class=p>.</span><span class=n>emplace_back</span><span class=p>();</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=n>p</span> <span class=o>=</span> <span class=n>T</span><span class=p>[</span><span class=n>p</span><span class=p>].</span><span class=n>ch</span><span class=p>[</span><span class=n>bit</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>queryMaxXor</span><span class=p>(</span><span class=kt>int</span> <span class=n>x</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>p</span> <span class=o>=</span> <span class=mi>0</span><span class=p>,</span> <span class=n>res</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>b</span> <span class=o>=</span> <span class=mi>30</span><span class=p>;</span> <span class=n>b</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=p>;</span> <span class=o>--</span><span class=n>b</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=kt>int</span> <span class=n>bit</span> <span class=o>=</span> <span class=p>(</span><span class=n>x</span> <span class=o>&gt;&gt;</span> <span class=n>b</span><span class=p>)</span> <span class=o>&amp;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>want</span> <span class=o>=</span> <span class=n>bit</span> <span class=o>^</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>T</span><span class=p>[</span><span class=n>p</span><span class=p>].</span><span class=n>ch</span><span class=p>[</span><span class=n>want</span><span class=p>]</span> <span class=o>!=</span> <span class=o>-</span><span class=mi>1</span><span class=p>)</span> <span class=p>{</span> <span class=n>res</span> <span class=o>|=</span> <span class=p>(</span><span class=mi>1</span> <span class=o>&lt;&lt;</span> <span class=n>b</span><span class=p>);</span> <span class=n>p</span> <span class=o>=</span> <span class=n>T</span><span class=p>[</span><span class=n>p</span><span class=p>].</span><span class=n>ch</span><span class=p>[</span><span class=n>want</span><span class=p>];</span> <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=k>else</span> <span class=n>p</span> <span class=o>=</span> <span class=n>T</span><span class=p>[</span><span class=n>p</span><span class=p>].</span><span class=n>ch</span><span class=p>[</span><span class=n>bit</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>res</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p><strong>Count XOR pairs &lt; K:</strong> maintain subtree size <code>sz</code> at each Trie node; at each bit, if taking the &ldquo;same&rdquo; branch keeps XOR smaller, add the whole opposite subtree count.</p><h2 id=34-linear-basis-merge>3.4 Linear Basis Merge</h2><ul><li>Classic application: $k$-th minimum XOR value (use basis + greedy / divide-and-conquer + count).</li></ul><hr><h1 id=4-fibonacci>4 Fibonacci</h1><h2 id=sum-formula>Sum formula</h2>$$S(n) = \sum_{i=1}^{n} F_i = F_{n+2} - 1$$<p><em>Proof:</em> $F_k = F_{k+2} - F_{k+1}$; telescoping sum from $k=1$ to $n$ gives $F_{n+2} - F_2 = F_{n+2} - 1$.</p><h2 id=41-fast-doubling>4.1 Fast Doubling</h2><p>Given $a = F_k$, $b = F_{k+1}$:</p>$$F_{2k} = a(2b - a), \qquad F_{2k+1} = a^2 + b^2$$<div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=n>pair</span><span class=o>&lt;</span><span class=kt>long</span> <span class=kt>long</span><span class=p>,</span><span class=kt>long</span> <span class=kt>long</span><span class=o>&gt;</span> <span class=n>fib_pair</span><span class=p>(</span><span class=kt>long</span> <span class=kt>long</span> <span class=n>n</span><span class=p>,</span> <span class=kt>long</span> <span class=kt>long</span> <span class=n>mod</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>n</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span> <span class=k>return</span> <span class=p>{</span><span class=mi>0</span><span class=p>,</span> <span class=mi>1</span><span class=p>};</span>
-</span></span><span class=line><span class=cl>    <span class=k>auto</span> <span class=p>[</span><span class=n>a</span><span class=p>,</span> <span class=n>b</span><span class=p>]</span> <span class=o>=</span> <span class=n>fib_pair</span><span class=p>(</span><span class=n>n</span> <span class=o>&gt;&gt;</span> <span class=mi>1</span><span class=p>,</span> <span class=n>mod</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=kt>long</span> <span class=kt>long</span> <span class=n>c</span> <span class=o>=</span> <span class=p>(</span><span class=n>__int128</span><span class=p>)</span><span class=n>a</span> <span class=o>*</span> <span class=p>((</span><span class=mi>2</span><span class=o>*</span><span class=n>b</span> <span class=o>-</span> <span class=n>a</span> <span class=o>%</span> <span class=n>mod</span> <span class=o>+</span> <span class=n>mod</span><span class=p>)</span> <span class=o>%</span> <span class=n>mod</span><span class=p>)</span> <span class=o>%</span> <span class=n>mod</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>long</span> <span class=kt>long</span> <span class=n>d</span> <span class=o>=</span> <span class=p>((</span><span class=n>__int128</span><span class=p>)</span><span class=n>a</span><span class=o>*</span><span class=n>a</span> <span class=o>+</span> <span class=p>(</span><span class=n>__int128</span><span class=p>)</span><span class=n>b</span><span class=o>*</span><span class=n>b</span><span class=p>)</span> <span class=o>%</span> <span class=n>mod</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=n>n</span> <span class=o>&amp;</span> <span class=mi>1</span><span class=p>)</span> <span class=o>?</span> <span class=n>make_pair</span><span class=p>(</span><span class=n>d</span><span class=p>,</span> <span class=p>(</span><span class=n>c</span> <span class=o>+</span> <span class=n>d</span><span class=p>)</span> <span class=o>%</span> <span class=n>mod</span><span class=p>)</span> <span class=o>:</span> <span class=n>make_pair</span><span class=p>(</span><span class=n>c</span><span class=p>,</span> <span class=n>d</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl><span class=c1>// Usage: sum F(1)+...+F(n) = F(n+2) - 1
-</span></span></span><span class=line><span class=cl><span class=kt>long</span> <span class=kt>long</span> <span class=nf>fibSum</span><span class=p>(</span><span class=kt>long</span> <span class=kt>long</span> <span class=n>n</span><span class=p>,</span> <span class=kt>long</span> <span class=kt>long</span> <span class=n>MOD</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>auto</span> <span class=p>[</span><span class=n>f</span><span class=p>,</span> <span class=n>_</span><span class=p>]</span> <span class=o>=</span> <span class=n>fib_pair</span><span class=p>(</span><span class=n>n</span> <span class=o>+</span> <span class=mi>2</span><span class=p>,</span> <span class=n>MOD</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=n>f</span> <span class=o>-</span> <span class=mi>1</span> <span class=o>+</span> <span class=n>MOD</span><span class=p>)</span> <span class=o>%</span> <span class=n>MOD</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><h2 id=42-number-of-digits-of-fibonacci-numbers>4.2 Number of digits of Fibonacci numbers</h2>$$\text{digits}(F_n) = \left\lfloor n \log_{10} \varphi - \tfrac{1}{2}\log_{10} 5 \right\rfloor + 1$$<div class=highlight><pre tabindex=0 class=chroma><code class=language-cpp data-lang=cpp><span class=line><span class=cl><span class=kt>long</span> <span class=kt>long</span> <span class=nf>fib_digits</span><span class=p>(</span><span class=kt>long</span> <span class=kt>long</span> <span class=n>n</span><span class=p>,</span> <span class=kt>double</span> <span class=n>base</span> <span class=o>=</span> <span class=mf>10.0</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>n</span> <span class=o>&lt;=</span> <span class=mi>1</span><span class=p>)</span> <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>const</span> <span class=kt>double</span> <span class=n>phi</span> <span class=o>=</span> <span class=p>(</span><span class=mf>1.0</span> <span class=o>+</span> <span class=n>sqrt</span><span class=p>(</span><span class=mf>5.0</span><span class=p>))</span> <span class=o>/</span> <span class=mf>2.0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=kt>long</span> <span class=kt>long</span><span class=p>)</span><span class=n>floor</span><span class=p>(</span><span class=n>n</span> <span class=o>*</span> <span class=n>log</span><span class=p>(</span><span class=n>phi</span><span class=p>)</span><span class=o>/</span><span class=n>log</span><span class=p>(</span><span class=n>base</span><span class=p>)</span> <span class=o>-</span> <span class=n>log</span><span class=p>(</span><span class=n>sqrt</span><span class=p>(</span><span class=mf>5.0</span><span class=p>))</span><span class=o>/</span><span class=n>log</span><span class=p>(</span><span class=n>base</span><span class=p>))</span> <span class=o>+</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><h2 id=43-closed-form-binets-formula>4.3 Closed form (Binet&rsquo;s formula)</h2>$$F_n = \frac{1}{\sqrt{5}}\left[\left(\frac{1+\sqrt{5}}{2}\right)^n - \left(\frac{1-\sqrt{5}}{2}\right)^n\right]$$<hr><h1 id=5-perfect-squares>5 Perfect Squares</h1><h2 id=51-fast-detection>5.1 Fast detection</h2><p>For integer $x \geq 0$:</p><ol><li><strong>Modular pruning</strong> (eliminates most non-squares instantly):<ul><li>$x \bmod 4 \in \{0,1\}$</li><li>$x \bmod 8 \in \{0,1,4\}$</li><li>$x \bmod 16 \in \{0,1,4,9\}$ (stronger)</li><li>$x \bmod 3 \in \{0,1\}$</li><li>Last decimal digit $\in \{0,1,4,5,6,9\}$</li></ul></li><li>Integer square root: <code>r = (ll)sqrt(x)</code>, check <code>r*r == x</code> (also try <code>r±1</code> for float precision).</li></ol><h2 id=52-two-elements-sum-to-a-perfect-square>5.2 Two elements sum to a perfect square</h2><h3 id=521-existence-check>5.2.1 Existence check</h3><p>Let <code>Amax</code> = max value, <code>Smax = 2*Amax</code>.</p><ol><li>Precompute all squares up to <code>Smax</code>: <code>sq = {0, 1, 4, 9, ..., ⌊√Smax⌋²}</code></li><li>Maintain count table <code>cnt</code> of values seen so far.</li><li>For each <code>x = a[i]</code>: check <code>for t in sq: if cnt[t - x] > 0</code>.</li></ol><p>Complexity: $O(n \sqrt{S_{\max}})$.</p><h3 id=522-count-all-such-pairs>5.2.2 Count all such pairs</h3><p>Same as above — accumulate <code>cnt[t - x]</code> instead of just checking existence. Scan left-to-right so each unordered pair is counted once.</p><h3 id=523-small-value-range>5.2.3 Small value range</h3><p>If <code>Amax</code> is small (e.g. $\leq 2 \times 10^5$): use frequency array <code>freq[v]</code>. For each square <code>t</code>, enumerate <code>v</code>, pair <code>u = t - v</code>, add <code>freq[v]*freq[u]</code>. Handle <code>v == u</code> with $\binom{\text{freq}[v]}{2}$.</p><p>Complexity: $O(\sqrt{S_{\max}} \cdot A_{\max})$, small constant.</p><h2 id=53-consecutive-integers-summing-to-a-perfect-square>5.3 Consecutive integers summing to a perfect square</h2><p>Find $l..r$ such that $l + (l+1) + \cdots + r = \dfrac{(l+r)(r-l+1)}{2} = k^2$.</p><p>With length $m = r - l + 1$: sum $= \dfrac{m(2l + m - 1)}{2}$, which becomes a number-theory equation.</p><p><strong>Algorithms:</strong></p><ol><li><strong>Two pointers / sliding window</strong> (when all values positive): expand right if <code>sum &lt; target</code>, shrink left if <code>sum > target</code>. When target isn&rsquo;t fixed, check if <code>sum</code> is a perfect square at each step.</li><li><strong>Enumerate square root</strong>: if sum&rsquo;s upper bound is $M$, enumerate $k$, set $S = k^2$, solve for $m$ or $l$.</li></ol><h2 id=54-prefix-difference-is-a-perfect-square>5.4 Prefix difference is a perfect square</h2><p>Many problems reduce to: $\text{prefix}[j] - \text{prefix}[i]$ is a perfect square.</p><ul><li>Enumerate right endpoint $j$; maintain hashmap <code>cnt[prefix[i]]</code>.</li><li>Precompute square set <code>sq</code> (up to max possible interval sum).</li><li>For each $j$, add:</li></ul>$$\sum_{t \in \text{sq}} \texttt{cnt}[\text{prefix}[j] - t]$$<p>Complexity: $O(n \sqrt{\text{MaxSum}})$. Very stable pattern.</p></div><aside class=article-toc><div class=toc-card><span class=eyebrow>On this page</span><nav id=TableOfContents><ul><li><a href=#1-geometric-series-sum>1 Geometric Series Sum</a></li><li><a href=#2-floor-sum-algorithm-euclidean-like-类欧几里得>2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</a><ul><li><a href=#basic-form>Basic form</a></li><li><a href=#general-form>General form</a></li><li><a href=#21-template-problem--luogu-p5170>2.1 Template problem — Luogu P5170</a></li><li><a href=#22-example--2025-icpc-wuhan-a-planting-trees>2.2 Example — 2025 ICPC Wuhan A. Planting Trees</a></li></ul></li><li><a href=#3-xor-kingdom>3 XOR Kingdom</a><ul><li><a href=#31-xor--addition>3.1 XOR ↔ Addition</a></li><li><a href=#32-basic-properties>3.2 Basic Properties</a></li><li><a href=#33-common-conclusions>3.3 Common Conclusions</a></li><li><a href=#34-linear-basis-merge>3.4 Linear Basis Merge</a></li></ul></li><li><a href=#4-fibonacci>4 Fibonacci</a><ul><li><a href=#sum-formula>Sum formula</a></li><li><a href=#41-fast-doubling>4.1 Fast Doubling</a></li><li><a href=#42-number-of-digits-of-fibonacci-numbers>4.2 Number of digits of Fibonacci numbers</a></li><li><a href=#43-closed-form-binets-formula>4.3 Closed form (Binet&rsquo;s formula)</a></li></ul></li><li><a href=#5-perfect-squares>5 Perfect Squares</a><ul><li><a href=#51-fast-detection>5.1 Fast detection</a></li><li><a href=#52-two-elements-sum-to-a-perfect-square>5.2 Two elements sum to a perfect square</a></li><li><a href=#53-consecutive-integers-summing-to-a-perfect-square>5.3 Consecutive integers summing to a perfect square</a></li><li><a href=#54-prefix-difference-is-a-perfect-square>5.4 Prefix difference is a perfect square</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const t=document.querySelectorAll(".toc-card a"),e=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(e.length===0||t.length===0)return;function s(e){let t=0;for(;e;)t+=e.offsetTop,e=e.offsetParent;return t}function n(){const s=window.scrollY+140;let n=e[0];for(let t=0;t<e.length;t++){const o=e[t].getBoundingClientRect().top+window.scrollY;if(s>=o)n=e[t];else break}if(t.forEach(e=>e.classList.remove("active")),n){const t=n.getAttribute("id"),e=document.querySelector(`.toc-card a[href="#${t}"]`);if(e){e.classList.add("active");const t=document.querySelector(".toc-card"),n=e.offsetTop,s=n+e.offsetHeight,o=t.scrollTop,i=t.clientHeight;n<o?t.scrollTo({top:n-20,behavior:"smooth"}):s>o+i&&t.scrollTo({top:s-i+20,behavior:"smooth"})}}}window.addEventListener("scroll",n,{passive:!0}),setTimeout(n,50)})</script></main><footer class="site-footer container"><div><strong>CP Notes</strong><p>A personal notebook for algorithms, technical write-ups, implementation details, and things worth remembering.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combinatorics #0: Common Formulae &amp; Conclusions | CP Notes</title>
+    <meta name="description" content="A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns.">
+    <link rel="canonical" href="https://jmaaa32.github.io/posts/combinatorics-0-common-formulae-conclusions/">
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="page-glow page-glow-a"></div>
+      <div class="page-glow page-glow-b"></div>
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>CP Notes</strong>
+              <small>Notes on code, systems, and ideas</small>
+            </span>
+          </a>
+          <nav class="site-nav">
+            
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              <a class="nav-link" href="/posts/">Posts</a>
+            
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Combinatorics #0: Common Formulae &amp; Conclusions</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-20">Apr 20, 2026</time>
+          
+            <span>·</span>
+            <span>Combinatorics</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/combinatorics/">#combinatorics</a>
+            
+              <a class="chip" href="/tags/floor-sum/">#floor-sum</a>
+            
+              <a class="chip" href="/tags/xor/">#xor</a>
+            
+              <a class="chip" href="/tags/fibonacci/">#fibonacci</a>
+            
+              <a class="chip" href="/tags/perfect-squares/">#perfect-squares</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      <div class="article-content prose">
+        <h1 id="1-geometric-series-sum">1 Geometric Series Sum</h1>
+<p>First term $a_1$, common ratio $q$, sum of first $n$ terms $S_n$:</p>
+<ul>
+<li>$q = 1$: $S_n = n a_1$</li>
+<li>$q \neq 1$: $S_n = \dfrac{a_1(1 - q^n)}{1 - q}$</li>
+</ul>
+<hr>
+<h1 id="2-floor-sum-algorithm-euclidean-like-类欧几里得">2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</h1>
+<h2 id="basic-form">Basic form</h2>
+$$\sum_{i=0}^{n-1}\left\lfloor\frac{a \cdot i+b}{m}\right\rfloor, \quad n,m,a,b > 0$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">LL</span> <span class="nf">F</span><span class="p">(</span><span class="n">LL</span> <span class="n">n</span><span class="p">,</span> <span class="n">LL</span> <span class="n">m</span><span class="p">,</span> <span class="n">LL</span> <span class="n">a</span><span class="p">,</span> <span class="n">LL</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">/</span> <span class="n">m</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">b</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="k">return</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">/</span> <span class="n">m</span><span class="p">)</span> <span class="o">+</span> <span class="n">F</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">%</span> <span class="n">m</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="k">return</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">a</span> <span class="o">/</span> <span class="n">m</span><span class="p">)</span> <span class="o">+</span> <span class="n">F</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">a</span> <span class="o">%</span> <span class="n">m</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">F</span><span class="p">((</span><span class="n">a</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">/</span> <span class="n">m</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">%</span> <span class="n">m</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="general-form">General form</h2>
+<p>Allows negative $a, b$; requires $n \geq 0, m > 0$.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">ll</span> <span class="nf">F_all</span><span class="p">(</span><span class="n">ll</span> <span class="n">n</span><span class="p">,</span> <span class="n">ll</span> <span class="n">m</span><span class="p">,</span> <span class="n">ll</span> <span class="n">a</span><span class="p">,</span> <span class="n">ll</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">floordiv</span> <span class="o">=</span> <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="n">ll</span> <span class="n">x</span><span class="p">,</span> <span class="n">ll</span> <span class="n">m</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="o">-</span><span class="p">(</span> <span class="p">(</span><span class="o">-</span><span class="n">x</span> <span class="o">+</span> <span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">m</span> <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">};</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ll</span> <span class="n">ans</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">a</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="p">{</span> <span class="n">ll</span> <span class="n">q</span> <span class="o">=</span> <span class="n">floordiv</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span> <span class="n">ans</span> <span class="o">+=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span> <span class="n">a</span> <span class="o">-=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">m</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">b</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">b</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="p">{</span> <span class="n">ll</span> <span class="n">q</span> <span class="o">=</span> <span class="n">floordiv</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span> <span class="n">ans</span> <span class="o">+=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">n</span><span class="p">;</span> <span class="n">b</span> <span class="o">-=</span> <span class="n">q</span> <span class="o">*</span> <span class="n">m</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// now 0 &lt;= a, b &lt; m — use non-negative version
+</span></span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="p">{</span> <span class="n">ans</span> <span class="o">+=</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">a</span> <span class="o">/</span> <span class="n">m</span><span class="p">);</span> <span class="n">a</span> <span class="o">%=</span> <span class="n">m</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">b</span> <span class="o">&gt;=</span> <span class="n">m</span><span class="p">)</span> <span class="p">{</span> <span class="n">ans</span> <span class="o">+=</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">/</span> <span class="n">m</span><span class="p">);</span> <span class="n">b</span> <span class="o">%=</span> <span class="n">m</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ll</span> <span class="n">y_max</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="n">b</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">y_max</span> <span class="o">&lt;</span> <span class="n">m</span><span class="p">)</span> <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">n</span> <span class="o">=</span> <span class="n">y_max</span> <span class="o">/</span> <span class="n">m</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">y_max</span> <span class="o">%</span> <span class="n">m</span><span class="p">;</span> <span class="n">swap</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">ans</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="21-template-problem--luogu-p5170">2.1 Template problem — <a href="https://www.luogu.com.cn/problem/P5170">Luogu P5170</a></h2>
+<p>Given $n, a, b, c$, compute $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor$, $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor^2$, $\sum_{i=0}^{n} i\lfloor\frac{ai+b}{c}\rfloor$ mod $998244353$.</p>
+<p><strong>Universal Euclidean algorithm:</strong></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span> <span class="n">T</span> <span class="n">pow</span><span class="p">(</span><span class="n">T</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">T</span> <span class="n">res</span><span class="p">;</span> <span class="k">for</span> <span class="p">(;</span> <span class="n">b</span><span class="p">;</span> <span class="n">b</span> <span class="o">&gt;&gt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="k">if</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="n">res</span> <span class="o">=</span> <span class="n">res</span> <span class="o">*</span> <span class="n">a</span><span class="p">;</span> <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">a</span><span class="p">;</span> <span class="p">}</span> <span class="k">return</span> <span class="n">res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span> <span class="n">T</span> <span class="n">euclid</span><span class="p">(</span><span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">,</span> <span class="kt">int</span> <span class="n">c</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">,</span> <span class="n">T</span> <span class="n">U</span><span class="p">,</span> <span class="n">T</span> <span class="n">R</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">b</span> <span class="o">&gt;=</span> <span class="n">c</span><span class="p">)</span> <span class="k">return</span> <span class="n">pow</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">b</span> <span class="o">/</span> <span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="n">euclid</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">%</span> <span class="n">c</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">U</span><span class="p">,</span> <span class="n">R</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">&gt;=</span> <span class="n">c</span><span class="p">)</span> <span class="k">return</span> <span class="n">euclid</span><span class="p">(</span><span class="n">a</span> <span class="o">%</span> <span class="n">c</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">U</span><span class="p">,</span> <span class="n">pow</span><span class="p">(</span><span class="n">U</span><span class="p">,</span> <span class="n">a</span> <span class="o">/</span> <span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="n">R</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">m</span> <span class="o">=</span> <span class="p">((</span><span class="kt">long</span> <span class="kt">long</span><span class="p">)</span><span class="n">a</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="n">b</span><span class="p">)</span> <span class="o">/</span> <span class="n">c</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">m</span><span class="p">)</span> <span class="k">return</span> <span class="n">pow</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">pow</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="p">(</span><span class="n">c</span> <span class="o">-</span> <span class="n">b</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">a</span><span class="p">)</span> <span class="o">*</span> <span class="n">U</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl">           <span class="n">euclid</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">(</span><span class="n">c</span> <span class="o">-</span> <span class="n">b</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">m</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="n">U</span><span class="p">)</span> <span class="o">*</span>
+</span></span><span class="line"><span class="cl">           <span class="n">pow</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">n</span> <span class="o">-</span> <span class="p">(</span><span class="n">c</span> <span class="o">*</span> <span class="n">m</span> <span class="o">-</span> <span class="n">b</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="k">constexpr</span> <span class="kt">int</span> <span class="n">M</span> <span class="o">=</span> <span class="mi">998244353</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="nc">Info</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="kt">long</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">u</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Info</span><span class="p">()</span> <span class="o">:</span> <span class="n">x</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">y</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">s</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">t</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">u</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Info</span> <span class="k">operator</span><span class="o">*</span><span class="p">(</span><span class="k">const</span> <span class="n">Info</span><span class="o">&amp;</span> <span class="n">rhs</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">Info</span> <span class="n">res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">res</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">rhs</span><span class="p">.</span><span class="n">x</span><span class="p">)</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">res</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">rhs</span><span class="p">.</span><span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">res</span><span class="p">.</span><span class="n">s</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span> <span class="o">+</span> <span class="n">rhs</span><span class="p">.</span><span class="n">s</span> <span class="o">+</span> <span class="n">rhs</span><span class="p">.</span><span class="n">x</span> <span class="o">*</span> <span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">auto</span> <span class="n">tmp</span> <span class="o">=</span> <span class="p">(</span><span class="n">rhs</span><span class="p">.</span><span class="n">x</span> <span class="o">*</span> <span class="p">(</span><span class="n">rhs</span><span class="p">.</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">x</span> <span class="o">*</span> <span class="n">rhs</span><span class="p">.</span><span class="n">x</span><span class="p">)</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">res</span><span class="p">.</span><span class="n">t</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">+</span> <span class="n">rhs</span><span class="p">.</span><span class="n">t</span> <span class="o">+</span> <span class="n">x</span> <span class="o">*</span> <span class="n">rhs</span><span class="p">.</span><span class="n">s</span> <span class="o">+</span> <span class="n">tmp</span> <span class="o">*</span> <span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">res</span><span class="p">.</span><span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">u</span> <span class="o">+</span> <span class="n">rhs</span><span class="p">.</span><span class="n">u</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">y</span> <span class="o">*</span> <span class="n">rhs</span><span class="p">.</span><span class="n">s</span> <span class="o">+</span> <span class="n">rhs</span><span class="p">.</span><span class="n">x</span> <span class="o">*</span> <span class="n">y</span> <span class="o">%</span> <span class="n">M</span> <span class="o">*</span> <span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">solve</span><span class="p">(</span><span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">,</span> <span class="kt">int</span> <span class="n">c</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">Info</span> <span class="n">U</span><span class="p">,</span> <span class="n">R</span><span class="p">;</span> <span class="n">U</span><span class="p">.</span><span class="n">y</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">R</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="n">res</span> <span class="o">=</span> <span class="n">euclid</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">U</span><span class="p">,</span> <span class="n">R</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">res</span><span class="p">.</span><span class="n">s</span> <span class="o">+</span> <span class="n">b</span> <span class="o">/</span> <span class="n">c</span><span class="p">)</span> <span class="o">%</span> <span class="n">M</span> <span class="o">&lt;&lt;</span> <span class="sc">&#39; &#39;</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">res</span><span class="p">.</span><span class="n">u</span> <span class="o">+</span> <span class="p">(</span><span class="kt">long</span> <span class="kt">long</span><span class="p">)(</span><span class="n">b</span><span class="o">/</span><span class="n">c</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">b</span><span class="o">/</span><span class="n">c</span><span class="p">))</span> <span class="o">%</span> <span class="n">M</span> <span class="o">&lt;&lt;</span> <span class="sc">&#39; &#39;</span> <span class="o">&lt;&lt;</span> <span class="n">res</span><span class="p">.</span><span class="n">t</span> <span class="o">&lt;&lt;</span> <span class="sc">&#39;\n&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">t</span><span class="p">;</span> <span class="n">std</span><span class="o">::</span><span class="n">cin</span> <span class="o">&gt;&gt;</span> <span class="n">t</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(;</span> <span class="n">t</span><span class="p">;</span> <span class="o">--</span><span class="n">t</span><span class="p">)</span> <span class="p">{</span> <span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">;</span> <span class="n">std</span><span class="o">::</span><span class="n">cin</span> <span class="o">&gt;&gt;</span> <span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="n">a</span> <span class="o">&gt;&gt;</span> <span class="n">b</span> <span class="o">&gt;&gt;</span> <span class="n">c</span><span class="p">;</span> <span class="n">solve</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="22-example--2025-icpc-wuhan-a-planting-trees">2.2 Example — <a href="https://qoj.ac/contest/2609/problem/14719">2025 ICPC Wuhan A. Planting Trees</a></h2>
+<p><strong>Problem:</strong> Two plants start at heights $x, y$. Each day they grow by $f$ and $g$ respectively, then height is taken mod $m$.<br>
+Count days where the first plant is shorter ($L_t < R_t$).</p>
+$$L_t = (x + ft) \bmod m, \quad R_t = (y + gt) \bmod m, \quad \text{Ans} = \sum_{t=0}^{n-1} [L_t < R_t]$$<p><strong>Key trick — convert $[u < v]$ to a floor sum:</strong></p>
+<p>For any $0 \leq u, v < m$:</p>
+$$[u < v] = 1 + \left\lfloor\frac{(v-1) - u}{m}\right\rfloor \tag{1}$$<p><em>Proof:</em> $(v-1)-u \in [-m, m-1]$. If $u < v$: value $\in [0, m-1)$, floor = 0, RHS = 1. If $u \geq v$: value $\in [-m,-1]$, floor = $-1$, RHS = 0. ✓</p>
+<p>Apply (1) with $u = L_t,\ v = R_t$:</p>
+$$[L_t < R_t] = 1 + \left\lfloor\frac{R_t - 1 - L_t}{m}\right\rfloor \tag{2}$$<p>Expand $L_t, R_t$ by <strong>writing mod as &ldquo;original minus $m\lfloor\cdot\rfloor$&rdquo;:</strong></p>
+$$L_t = ft + x - m\left\lfloor\frac{ft+x}{m}\right\rfloor, \qquad R_t = gt + y - m\left\lfloor\frac{gt+y}{m}\right\rfloor$$<p>Substitute into the numerator of (2):</p>
+$$R_t - 1 - L_t = (g-f)t + (y-x-1) - m\left(\left\lfloor\frac{gt+y}{m}\right\rfloor - \left\lfloor\frac{ft+x}{m}\right\rfloor\right)$$<p>Divide by $m$ and take floor (the $m\lfloor\cdot\rfloor/m$ terms are already integers, so they pass through the floor unchanged):</p>
+$$\left\lfloor\frac{R_t-1-L_t}{m}\right\rfloor = \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor$$<p>So (2) becomes:</p>
+$$[L_t < R_t] = 1 + \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor \tag{3}$$<p>Sum (3) over $t = 0,\dots,n-1$, letting $F(n,m,a,b) = \sum_{t=0}^{n-1}\left\lfloor\frac{at+b}{m}\right\rfloor$:</p>
+$$\boxed{\text{Ans} = n + F(n,m,g-f,\,y-x-1) - F(n,m,g,\,y) + F(n,m,f,\,x)}$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">solve</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ll</span> <span class="n">f</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">M</span><span class="p">;</span> <span class="n">cin</span> <span class="o">&gt;&gt;</span> <span class="n">f</span> <span class="o">&gt;&gt;</span> <span class="n">x</span> <span class="o">&gt;&gt;</span> <span class="n">g</span> <span class="o">&gt;&gt;</span> <span class="n">y</span> <span class="o">&gt;&gt;</span> <span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="n">M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ll</span> <span class="n">ans</span> <span class="o">=</span> <span class="n">n</span> <span class="o">+</span> <span class="n">F_all</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">g</span><span class="o">-</span><span class="n">f</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">F_all</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">F_all</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">x</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">ans</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><hr>
+<h1 id="3-xor-kingdom">3 XOR Kingdom</h1>
+<h2 id="31-xor--addition">3.1 XOR ↔ Addition</h2>
+$$x + y = (x \oplus y) + 2 \cdot (x \mathbin{\&} y)$$<ul>
+<li><strong>XOR</strong> = addition without carry</li>
+<li><strong>AND</strong> = exactly which bits carry</li>
+</ul>
+<h2 id="32-basic-properties">3.2 Basic Properties</h2>
+<ol>
+<li>Commutative &amp; associative: <code>a^b = b^a</code>, <code>(a^b)^c = a^(b^c)</code> — bits are independent.</li>
+<li>Identity &amp; self-inverse: <code>a^0 = a</code>, <code>a^a = 0</code>.</li>
+<li>⭐ Invertible: if <code>a^b = c</code> then <code>a = b^c</code>.</li>
+<li>Each bit is $\bmod 2$ addition (no carry).</li>
+<li><strong>Prefix XOR of $1..n$</strong> has period 4:</li>
+</ol>
+<table>
+  <thead>
+      <tr>
+          <th>$n \bmod 4$</th>
+          <th><code>1^2^...^n</code></th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>0</td>
+          <td><code>n</code></td>
+      </tr>
+      <tr>
+          <td>1</td>
+          <td><code>1</code></td>
+      </tr>
+      <tr>
+          <td>2</td>
+          <td><code>n+1</code></td>
+      </tr>
+      <tr>
+          <td>3</td>
+          <td><code>0</code></td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="33-common-conclusions">3.3 Common Conclusions</h2>
+<ol>
+<li>
+<p><strong>Subarray XOR via prefix XOR</strong><br>
+Let <code>pref[i] = a[1]^...^a[i]</code>. Then XOR of <code>a[l..r]</code> = <code>pref[r] ^ pref[l-1]</code>.</p>
+<ul>
+<li><strong>Count subarrays with XOR = K:</strong> prefix XOR + hashmap.</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">ll</span> <span class="nf">countXorSubarrays</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">K</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">unordered_map</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">cnt</span><span class="p">;</span> <span class="n">cnt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">pref</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">ll</span> <span class="n">ans</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="nl">x</span> <span class="p">:</span> <span class="n">a</span><span class="p">)</span> <span class="p">{</span> <span class="n">pref</span> <span class="o">^=</span> <span class="n">x</span><span class="p">;</span> <span class="n">ans</span> <span class="o">+=</span> <span class="n">cnt</span><span class="p">[</span><span class="n">pref</span> <span class="o">^</span> <span class="n">K</span><span class="p">];</span> <span class="n">cnt</span><span class="p">[</span><span class="n">pref</span><span class="p">]</span><span class="o">++</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">ans</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div></li>
+<li>
+<p><strong>Subset XOR and linear algebra</strong><br>
+Each number is a bit-vector; XOR is vector addition over $GF(2)$. → <strong>Linear basis.</strong></p>
+</li>
+<li>
+<p><strong>Maximum XOR pair / maximum subset XOR</strong></p>
+<ul>
+<li>Max <code>ai ^ aj</code>: 01-Trie, greedy from highest bit. $O(n \log A)$.</li>
+<li>Max XOR of subset / linear combination: linear basis, greedy from high bit.</li>
+</ul>
+</li>
+<li>
+<p><strong>Count pairs with XOR &lt; K</strong><br>
+01-Trie with subtree sizes; for each prefix query how many stored prefixes $p$ satisfy <code>(pref[i]^p) &lt; K</code>. $O(n \log A)$.</p>
+</li>
+<li>
+<p><strong>XOR convolution</strong><br>
+FWT in $O(N \log N)$ on frequency vectors of size $N = 2^m$.</p>
+</li>
+<li>
+<p><strong>Bit divide-and-conquer</strong><br>
+For counting/minimisation, split on highest bit, recurse, count cross contributions.</p>
+</li>
+</ol>
+<h3 id="331-trie-templates">3.3.1 Trie Templates</h3>
+<p><strong>Max XOR pair:</strong></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="k">struct</span> <span class="nc">Trie</span> <span class="p">{</span> <span class="kt">int</span> <span class="n">ch</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span> <span class="n">Trie</span><span class="p">(){</span> <span class="n">ch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">=</span><span class="n">ch</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">=-</span><span class="mi">1</span><span class="p">;</span> <span class="p">}</span> <span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="n">vector</span><span class="o">&lt;</span><span class="n">Trie</span><span class="o">&gt;</span> <span class="n">T</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">insert</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">p</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">b</span> <span class="o">=</span> <span class="mi">30</span><span class="p">;</span> <span class="n">b</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="o">--</span><span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;&gt;</span> <span class="n">b</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">T</span><span class="p">[</span><span class="n">p</span><span class="p">].</span><span class="n">ch</span><span class="p">[</span><span class="n">bit</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="n">T</span><span class="p">[</span><span class="n">p</span><span class="p">].</span><span class="n">ch</span><span class="p">[</span><span class="n">bit</span><span class="p">]</span> <span class="o">=</span> <span class="n">T</span><span class="p">.</span><span class="n">size</span><span class="p">();</span> <span class="n">T</span><span class="p">.</span><span class="n">emplace_back</span><span class="p">();</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="n">p</span> <span class="o">=</span> <span class="n">T</span><span class="p">[</span><span class="n">p</span><span class="p">].</span><span class="n">ch</span><span class="p">[</span><span class="n">bit</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">queryMaxXor</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">p</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">res</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">b</span> <span class="o">=</span> <span class="mi">30</span><span class="p">;</span> <span class="n">b</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">;</span> <span class="o">--</span><span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;&gt;</span> <span class="n">b</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">,</span> <span class="n">want</span> <span class="o">=</span> <span class="n">bit</span> <span class="o">^</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">T</span><span class="p">[</span><span class="n">p</span><span class="p">].</span><span class="n">ch</span><span class="p">[</span><span class="n">want</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="n">res</span> <span class="o">|=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">b</span><span class="p">);</span> <span class="n">p</span> <span class="o">=</span> <span class="n">T</span><span class="p">[</span><span class="n">p</span><span class="p">].</span><span class="n">ch</span><span class="p">[</span><span class="n">want</span><span class="p">];</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">else</span> <span class="n">p</span> <span class="o">=</span> <span class="n">T</span><span class="p">[</span><span class="n">p</span><span class="p">].</span><span class="n">ch</span><span class="p">[</span><span class="n">bit</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><strong>Count XOR pairs &lt; K:</strong> maintain subtree size <code>sz</code> at each Trie node; at each bit, if taking the &ldquo;same&rdquo; branch keeps XOR smaller, add the whole opposite subtree count.</p>
+<h2 id="34-linear-basis-merge">3.4 Linear Basis Merge</h2>
+<ul>
+<li>Classic application: $k$-th minimum XOR value (use basis + greedy / divide-and-conquer + count).</li>
+</ul>
+<hr>
+<h1 id="4-fibonacci">4 Fibonacci</h1>
+<h2 id="sum-formula">Sum formula</h2>
+$$S(n) = \sum_{i=1}^{n} F_i = F_{n+2} - 1$$<p><em>Proof:</em> $F_k = F_{k+2} - F_{k+1}$; telescoping sum from $k=1$ to $n$ gives $F_{n+2} - F_2 = F_{n+2} - 1$.</p>
+<h2 id="41-fast-doubling">4.1 Fast Doubling</h2>
+<p>Given $a = F_k$, $b = F_{k+1}$:</p>
+$$F_{2k} = a(2b - a), \qquad F_{2k+1} = a^2 + b^2$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="n">pair</span><span class="o">&lt;</span><span class="kt">long</span> <span class="kt">long</span><span class="p">,</span><span class="kt">long</span> <span class="kt">long</span><span class="o">&gt;</span> <span class="n">fib_pair</span><span class="p">(</span><span class="kt">long</span> <span class="kt">long</span> <span class="n">n</span><span class="p">,</span> <span class="kt">long</span> <span class="kt">long</span> <span class="n">mod</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">]</span> <span class="o">=</span> <span class="n">fib_pair</span><span class="p">(</span><span class="n">n</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">,</span> <span class="n">mod</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="kt">long</span> <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">__int128</span><span class="p">)</span><span class="n">a</span> <span class="o">*</span> <span class="p">((</span><span class="mi">2</span><span class="o">*</span><span class="n">b</span> <span class="o">-</span> <span class="n">a</span> <span class="o">%</span> <span class="n">mod</span> <span class="o">+</span> <span class="n">mod</span><span class="p">)</span> <span class="o">%</span> <span class="n">mod</span><span class="p">)</span> <span class="o">%</span> <span class="n">mod</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="kt">long</span> <span class="n">d</span> <span class="o">=</span> <span class="p">((</span><span class="n">__int128</span><span class="p">)</span><span class="n">a</span><span class="o">*</span><span class="n">a</span> <span class="o">+</span> <span class="p">(</span><span class="n">__int128</span><span class="p">)</span><span class="n">b</span><span class="o">*</span><span class="n">b</span><span class="p">)</span> <span class="o">%</span> <span class="n">mod</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="n">n</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">?</span> <span class="n">make_pair</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="p">(</span><span class="n">c</span> <span class="o">+</span> <span class="n">d</span><span class="p">)</span> <span class="o">%</span> <span class="n">mod</span><span class="p">)</span> <span class="o">:</span> <span class="n">make_pair</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Usage: sum F(1)+...+F(n) = F(n+2) - 1
+</span></span></span><span class="line"><span class="cl"><span class="kt">long</span> <span class="kt">long</span> <span class="nf">fibSum</span><span class="p">(</span><span class="kt">long</span> <span class="kt">long</span> <span class="n">n</span><span class="p">,</span> <span class="kt">long</span> <span class="kt">long</span> <span class="n">MOD</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">auto</span> <span class="p">[</span><span class="n">f</span><span class="p">,</span> <span class="n">_</span><span class="p">]</span> <span class="o">=</span> <span class="n">fib_pair</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">MOD</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="n">f</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">MOD</span><span class="p">)</span> <span class="o">%</span> <span class="n">MOD</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="42-number-of-digits-of-fibonacci-numbers">4.2 Number of digits of Fibonacci numbers</h2>
+$$\text{digits}(F_n) = \left\lfloor n \log_{10} \varphi - \tfrac{1}{2}\log_{10} 5 \right\rfloor + 1$$<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="kt">long</span> <span class="kt">long</span> <span class="nf">fib_digits</span><span class="p">(</span><span class="kt">long</span> <span class="kt">long</span> <span class="n">n</span><span class="p">,</span> <span class="kt">double</span> <span class="n">base</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="kt">double</span> <span class="n">phi</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span><span class="p">))</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="kt">long</span> <span class="kt">long</span><span class="p">)</span><span class="n">floor</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">log</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">/</span><span class="n">log</span><span class="p">(</span><span class="n">base</span><span class="p">)</span> <span class="o">-</span> <span class="n">log</span><span class="p">(</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">5.0</span><span class="p">))</span><span class="o">/</span><span class="n">log</span><span class="p">(</span><span class="n">base</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h2 id="43-closed-form-binets-formula">4.3 Closed form (Binet&rsquo;s formula)</h2>
+$$F_n = \frac{1}{\sqrt{5}}\left[\left(\frac{1+\sqrt{5}}{2}\right)^n - \left(\frac{1-\sqrt{5}}{2}\right)^n\right]$$<hr>
+<h1 id="5-perfect-squares">5 Perfect Squares</h1>
+<h2 id="51-fast-detection">5.1 Fast detection</h2>
+<p>For integer $x \geq 0$:</p>
+<ol>
+<li><strong>Modular pruning</strong> (eliminates most non-squares instantly):
+<ul>
+<li>$x \bmod 4 \in \{0,1\}$</li>
+<li>$x \bmod 8 \in \{0,1,4\}$</li>
+<li>$x \bmod 16 \in \{0,1,4,9\}$ (stronger)</li>
+<li>$x \bmod 3 \in \{0,1\}$</li>
+<li>Last decimal digit $\in \{0,1,4,5,6,9\}$</li>
+</ul>
+</li>
+<li>Integer square root: <code>r = (ll)sqrt(x)</code>, check <code>r*r == x</code> (also try <code>r±1</code> for float precision).</li>
+</ol>
+<h2 id="52-two-elements-sum-to-a-perfect-square">5.2 Two elements sum to a perfect square</h2>
+<h3 id="521-existence-check">5.2.1 Existence check</h3>
+<p>Let <code>Amax</code> = max value, <code>Smax = 2*Amax</code>.</p>
+<ol>
+<li>Precompute all squares up to <code>Smax</code>: <code>sq = {0, 1, 4, 9, ..., ⌊√Smax⌋²}</code></li>
+<li>Maintain count table <code>cnt</code> of values seen so far.</li>
+<li>For each <code>x = a[i]</code>: check <code>for t in sq: if cnt[t - x] &gt; 0</code>.</li>
+</ol>
+<p>Complexity: $O(n \sqrt{S_{\max}})$.</p>
+<h3 id="522-count-all-such-pairs">5.2.2 Count all such pairs</h3>
+<p>Same as above — accumulate <code>cnt[t - x]</code> instead of just checking existence. Scan left-to-right so each unordered pair is counted once.</p>
+<h3 id="523-small-value-range">5.2.3 Small value range</h3>
+<p>If <code>Amax</code> is small (e.g. $\leq 2 \times 10^5$): use frequency array <code>freq[v]</code>. For each square <code>t</code>, enumerate <code>v</code>, pair <code>u = t - v</code>, add <code>freq[v]*freq[u]</code>. Handle <code>v == u</code> with $\binom{\text{freq}[v]}{2}$.</p>
+<p>Complexity: $O(\sqrt{S_{\max}} \cdot A_{\max})$, small constant.</p>
+<h2 id="53-consecutive-integers-summing-to-a-perfect-square">5.3 Consecutive integers summing to a perfect square</h2>
+<p>Find $l..r$ such that $l + (l+1) + \cdots + r = \dfrac{(l+r)(r-l+1)}{2} = k^2$.</p>
+<p>With length $m = r - l + 1$: sum $= \dfrac{m(2l + m - 1)}{2}$, which becomes a number-theory equation.</p>
+<p><strong>Algorithms:</strong></p>
+<ol>
+<li><strong>Two pointers / sliding window</strong> (when all values positive): expand right if <code>sum &lt; target</code>, shrink left if <code>sum &gt; target</code>. When target isn&rsquo;t fixed, check if <code>sum</code> is a perfect square at each step.</li>
+<li><strong>Enumerate square root</strong>: if sum&rsquo;s upper bound is $M$, enumerate $k$, set $S = k^2$, solve for $m$ or $l$.</li>
+</ol>
+<h2 id="54-prefix-difference-is-a-perfect-square">5.4 Prefix difference is a perfect square</h2>
+<p>Many problems reduce to: $\text{prefix}[j] - \text{prefix}[i]$ is a perfect square.</p>
+<ul>
+<li>Enumerate right endpoint $j$; maintain hashmap <code>cnt[prefix[i]]</code>.</li>
+<li>Precompute square set <code>sq</code> (up to max possible interval sum).</li>
+<li>For each $j$, add:</li>
+</ul>
+$$\sum_{t \in \text{sq}} \texttt{cnt}[\text{prefix}[j] - t]$$<p>Complexity: $O(n \sqrt{\text{MaxSum}})$. Very stable pattern.</p>
+
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span class="eyebrow">On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-geometric-series-sum">1 Geometric Series Sum</a></li>
+    <li><a href="#2-floor-sum-algorithm-euclidean-like-类欧几里得">2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</a>
+      <ul>
+        <li><a href="#basic-form">Basic form</a></li>
+        <li><a href="#general-form">General form</a></li>
+        <li><a href="#21-template-problem--luogu-p5170">2.1 Template problem — Luogu P5170</a></li>
+        <li><a href="#22-example--2025-icpc-wuhan-a-planting-trees">2.2 Example — 2025 ICPC Wuhan A. Planting Trees</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-xor-kingdom">3 XOR Kingdom</a>
+      <ul>
+        <li><a href="#31-xor--addition">3.1 XOR ↔ Addition</a></li>
+        <li><a href="#32-basic-properties">3.2 Basic Properties</a></li>
+        <li><a href="#33-common-conclusions">3.3 Common Conclusions</a></li>
+        <li><a href="#34-linear-basis-merge">3.4 Linear Basis Merge</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-fibonacci">4 Fibonacci</a>
+      <ul>
+        <li><a href="#sum-formula">Sum formula</a></li>
+        <li><a href="#41-fast-doubling">4.1 Fast Doubling</a></li>
+        <li><a href="#42-number-of-digits-of-fibonacci-numbers">4.2 Number of digits of Fibonacci numbers</a></li>
+        <li><a href="#43-closed-form-binets-formula">4.3 Closed form (Binet&rsquo;s formula)</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-perfect-squares">5 Perfect Squares</a>
+      <ul>
+        <li><a href="#51-fast-detection">5.1 Fast detection</a></li>
+        <li><a href="#52-two-elements-sum-to-a-perfect-square">5.2 Two elements sum to a perfect square</a></li>
+        <li><a href="#53-consecutive-integers-summing-to-a-perfect-square">5.3 Consecutive integers summing to a perfect square</a></li>
+        <li><a href="#54-prefix-difference-is-a-perfect-square">5.4 Prefix difference is a perfect square</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      function onScroll() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            
+            
+            const tocCard = document.querySelector('.toc-card');
+            const linkTop = activeLink.offsetTop;
+            const linkBottom = linkTop + activeLink.offsetHeight;
+            const cardScrollTop = tocCard.scrollTop;
+            const cardHeight = tocCard.clientHeight;
+            const padding = 18;
+
+            if (linkTop < cardScrollTop + padding) {
+              tocCard.scrollTop = Math.max(0, linkTop - padding);
+            } else if (linkBottom > cardScrollTop + cardHeight - padding) {
+              tocCard.scrollTop = linkBottom - cardHeight + padding;
+            }
+          }
+        }
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      
+      setTimeout(onScroll, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>CP Notes</strong>
+          <p>A personal notebook for algorithms, technical write-ups, implementation details, and things worth remembering.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,1 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Categories on CP Notes</title><link>https://jmaaa32.github.io/categories/</link><description>Recent content in Categories on CP Notes</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Mon, 20 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jmaaa32.github.io/categories/index.xml" rel="self" type="application/rss+xml"/><item><title>Combinatorics</title><link>https://jmaaa32.github.io/categories/combinatorics/</link><pubDate>Mon, 20 Apr 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/categories/combinatorics/</guid><description/></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Categories on CP Notes</title>
+    <link>https://jmaaa32.github.io/categories/</link>
+    <description>Recent content in Categories on CP Notes</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 20 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://jmaaa32.github.io/categories/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Combinatorics</title>
+      <link>https://jmaaa32.github.io/categories/combinatorics/</link>
+      <pubDate>Mon, 20 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>https://jmaaa32.github.io/categories/combinatorics/</guid>
+      <description></description>
+    </item>
+  </channel>
+</rss>
