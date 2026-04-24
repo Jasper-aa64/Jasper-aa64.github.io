@@ -74,7 +74,7 @@ $$\binom{n}{m}=\frac{n-m+1}{m}\binom{n}{m-1}$$
 
 # 5 Integer Solutions of Diophantine Equations
 
-Stars-and-bars basics ($x_i\ge0$, $x_i\ge1$, lower bounds, $\le n$) and bounded ranges (inclusion-exclusion, prefix-sum DP, D&C NTT) — see the dedicated note on Diophantine equations.
+Stars-and-bars basics ($x_i\ge0$, $x_i\ge1$, lower bounds, $\le n$) and bounded ranges (inclusion-exclusion, prefix-sum DP, D&C NTT) — see [Combinatorics D1: Diophantine Equations](/posts/combinatorics-d1-diophantine-equations/).
 
 ---
 

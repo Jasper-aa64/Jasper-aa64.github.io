@@ -104,6 +104,8 @@ $$N\!\left(\prod_{i=1}^n(1-A_i)\right) = \sum_{k=0}^{n}(-1)^k \binom{n}{k} \cdot
 
 # 4 Bounded Linear Diophantine Equations
 
+Stars-and-bars, bounded ranges, DP and polynomial methods — see [Combinatorics D1: Diophantine Equations](/posts/combinatorics-d1-diophantine-equations/).
+
 Count integer solutions of $x_1 + \cdots + x_k = n$, $l_i \le x_i \le r_i$.
 
 ## 4.1 Inclusion-exclusion formula
