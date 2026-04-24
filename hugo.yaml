@@ -62,7 +62,7 @@ markup:
   highlight:
     style: "github"
     lineNos: false
-    noClasses: false
+    noClasses: true
   tableOfContents:
     startLevel: 1
     endLevel: 2
