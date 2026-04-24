@@ -60,7 +60,7 @@ markup:
             - ["$", "$"]
             - ["\\(", "\\)"]
   highlight:
-    style: "github"
+    style: "dracula"
     lineNos: false
     noClasses: true
   tableOfContents:
