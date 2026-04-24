@@ -104,7 +104,7 @@ Stars-and-bars basics ($x_i\ge0$, $x_i\ge1$, lower bounds, $\le n$) and bounded 
 
 > **[Example — CF 300C](https://codeforces.com/contest/300/problem/C)**
 >
-> Given two distinct digits $a, b$ ($1\le a<b\le9$), call a positive integer *good* if all its digits are drawn from $\{a,b\}$, and *super-good* if additionally its digit-sum is also good. Count $n$-digit super-good integers mod $10^9+7$. ($1\le n\le10^6$)
+> Given two distinct digits $a, b$ ($1\le a\lt b\le9$), call a positive integer *good* if all its digits are drawn from $\{a,b\}$, and *super-good* if additionally its digit-sum is also good. Count $n$-digit super-good integers mod $10^9+7$. ($1\le n\le10^6$)
 >
 > ---
 >
