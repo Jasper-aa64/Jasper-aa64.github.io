@@ -1,0 +1,328 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics #3.1: Ordinary Generating Functions | Jasper's Technical Notebook</title><meta name=description content="Formal power series basics, ordinary generating functions, inversion identities, generalized binomial expansions, bounded counting examples, and recurrence-to-closed-form examples such as Fibonacci and Catalan."><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-3-1-ordinary-generating-functions/><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<span><strong>Jasper's Technical Notebook</strong>
+<small>Algorithms, systems, and engineering notes</small></span></a><nav class=site-nav><a class=nav-link href=/>Home</a>
+<a class=nav-link href=/posts/>Posts</a>
+<a class=nav-link href=/archives/>Archives</a>
+<a class=nav-link href=/categories/>Categories</a>
+<a class=nav-link href=/tags/>Tags</a>
+<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics #3.1: Ordinary Generating Functions</h1><div class=article-meta><time datetime=2026-04-25>Apr 25, 2026</time>
+<span>·</span>
+<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
+<a class=chip href=/tags/combinatorics/>#combinatorics</a>
+<a class=chip href=/tags/generating-function/>#generating-function</a>
+<a class=chip href=/tags/ogf/>#ogf</a>
+<a class=chip href=/tags/recurrence/>#recurrence</a>
+<a class=chip href=/tags/catalan/>#catalan</a>
+<a class=chip href=/tags/diophantine-equations/>#diophantine-equations</a></div></header><div class=article-layout><div class="article-content prose"><p>Reference: <a href=/posts/combinatorics-1-1-permutations-combinations/>Combinatorics #1.1: Permutations and Combinations</a></p><p>Suppose $f(n)$ is the number of positive integer solutions to</p>$$
+x+y+z\le n.
+$$<p>Then we get a sequence</p>$$
+f(0),f(1),f(2),\dots
+$$<p>To study a sequence $\{a_n\}$ efficiently, we often attach to it a <strong>generating function</strong>, or more precisely a formal power series:</p>$$
+G(x)=\sum_{n=0}^{\infty} a_n x^n.
+$$<p>By studying algebraic properties of $G(x)$, such as differentiation, multiplication by polynomials, or partial fraction decomposition, we can derive recurrence relations, summation formulas, and closed forms.</p><hr><h1 id=1-formal-power-series-and-ogf>1 Formal Power Series and OGF</h1><h2 id=11-polynomials-and-formal-power-series>1.1 Polynomials and formal power series</h2>$$
+\begin{array}{l}
+\bullet\ \text{Polynomial:}\ A(x)=\sum_{i=0}^{n} a_i x^i \\
+\bullet\ \text{Formal power series:}\ A(x)=\sum_{i\ge 0} a_i x^i
+\end{array}
+$$<p>Here $a_i$ lies in a field $K$, usually $\mathbb{R}$ or $\mathbb{Z}_p$.</p><p>The key point is that in a formal power series, $x$ is just a symbol. We do <strong>not</strong> care about convergence. We only use algebraic manipulation.</p><h2 id=12-operations>1.2 Operations</h2><p>Let</p>$$
+A(x)=\sum_{i\ge 0} a_i x^i,\qquad
+B(x)=\sum_{i\ge 0} b_i x^i.
+$$<p>Then:</p><ul><li>Addition:
+$$
+A(x)+B(x)=\sum_{i\ge 0}(a_i+b_i)x^i
+$$</li><li>Subtraction:
+$$
+A(x)-B(x)=\sum_{i\ge 0}(a_i-b_i)x^i
+$$</li><li>Multiplication:
+$$
+A(x)B(x)=\sum_{k\ge 0}\left(\sum_{i+j=k} a_i b_j\right)x^k
+$$</li></ul><p>So formal power series form a ring under $+$, $-$, and $\times$.</p><p>Written coefficient-wise,</p>$$
+A(x)B(x)
+=a_0b_0+(a_0b_1+a_1b_0)x+(a_0b_2+a_1b_1+a_2b_0)x^2+\cdots.
+$$<p>This is exactly the discrete convolution of the coefficient sequences. If</p>$$
+c_k=\sum_{i+j=k} a_i b_j,
+$$<p>then</p>$$
+A(x)B(x)=\sum_{k\ge 0} c_k x^k.
+$$<p>Notation:</p>$$
+[x^n]A(x)
+$$<p>means the coefficient of $x^n$ in $A(x)$.</p><h2 id=13-definition-of-ogf>1.3 Definition of OGF</h2><p>The <strong>ordinary generating function</strong> of a sequence $\{a_n\}$ is</p>$$
+A(x)=\sum_{n\ge 0} a_n x^n.
+$$<h2 id=14-example-counting-bounded-solutions>1.4 Example: counting bounded solutions</h2><p>Consider the number of integer solutions of</p>$$
+x_1+x_2+\cdots+x_k=n,
+\qquad
+l_i\le x_i\le r_i \quad (1\le i\le k).
+$$<p>The generating-function method is useful because it adapts easily. For example, if we want the number of positive integer solutions of</p>$$
+x_1+2x_2+3x_3=n,
+$$<p>then we can write</p>$$
+\begin{aligned}
+F_1(x) &= \sum_{i\ge 1}x^i=x+x^2+x^3+\cdots, \\
+F_2(x) &= \sum_{\substack{i\ge 1\\2\mid i}}x^i=x^2+x^4+x^6+\cdots, \\
+F_3(x) &= \sum_{\substack{i\ge 1\\3\mid i}}x^i=x^3+x^6+x^9+\cdots.
+\end{aligned}
+$$<p>Then the answer is obtained by extracting a coefficient from the product.</p><h2 id=15-standard-ogf-pattern>1.5 Standard OGF pattern</h2><p>Let $S=\{a_1,a_2,\dots,a_k\}$, and suppose the set of allowed multiplicities of $a_i$ is $M_i$.
+Define</p>$$
+F_i(x)=\sum_{u\in M_i}x^u.
+$$<p>If $g(n)$ is the number of ways to choose $n$ elements from $S$ to form a multiset, then</p>$$
+G(x)=\sum_{n\ge 0} g(n)x^n
+$$<p>satisfies</p>$$
+G(x)=F_1(x)F_2(x)\cdots F_k(x).
+$$<hr><h1 id=2-closed-forms-and-inversion>2 Closed Forms and Inversion</h1><p>The main philosophy is to turn a counting problem into an algebra problem on formal power series.</p><h2 id=21-identity-and-inverse>2.1 Identity and inverse</h2><p>The multiplicative identity is</p>$$
+e(x)=1.
+$$<p>Since we are working in a ring, not every nonzero series is invertible.</p><p>A multiplicative inverse of $A(x)$ is a series $B(x)$ such that</p>$$
+A(x)B(x)=1.
+$$<p>Such an inverse exists whenever the constant term is nonzero:</p>$$
+[x^0]A(x)\neq 0.
+$$<h3 id=brute-force-inverse-in>Brute-force inverse in $O(n^2)$</h3><p>Let</p>$$
+\begin{aligned}
+A(x)&=a_0+a_1x+a_2x^2+\cdots+a_nx^n+\cdots, \\
+B(x)&=b_0+b_1x+b_2x^2+\cdots+b_nx^n+\cdots.
+\end{aligned}
+$$<p>Then</p>$$
+A(x)B(x)=a_0b_0+(a_0b_1+a_1b_0)x+(a_0b_2+a_1b_1+a_2b_0)x^2+\cdots.
+$$<p>If we require</p>$$
+A(x)B(x)=1+0x+0x^2+\cdots,
+$$<p>then coefficient matching gives:</p><ul><li>constant term:
+$$
+a_0b_0=1 \Rightarrow b_0=a_0^{-1}
+$$</li><li>linear term:
+$$
+a_0b_1+a_1b_0=0 \Rightarrow b_1=-a_1b_0\cdot a_0^{-1}
+$$</li><li>quadratic term:
+$$
+a_0b_2+a_1b_1+a_2b_0=0
+$$</li><li>in general:
+$$
+b_n=-(a_1b_{n-1}+a_2b_{n-2}+\cdots+a_nb_0)\cdot a_0^{-1}.
+$$</li></ul><p>So the straightforward recurrence computes the inverse in $O(n^2)$ time.</p><h2 id=22-common-inverse-formulas>2.2 Common inverse formulas</h2><ol><li><p>Geometric series:</p>$$
+\frac{1}{1-x}=\sum_{i\ge 0}x^i
+$$</li><li><p>Scaled geometric series:</p>$$
+\frac{1}{1-ax}=\sum_{i\ge 0}a^i x^i
+$$</li><li><p>Higher-power version:</p>$$
+\frac{1}{(1-x)^k}=\sum_{i\ge 0}\binom{i+k-1}{i}x^i
+$$</li></ol><p>Also,</p>$$
+1+f(x)+f(x)^2+\cdots=\frac{1}{1-f(x)}.
+$$<p>And</p>$$
+(1+x+x^2+\cdots)^k=\sum_{n\ge 0}\binom{n+k-1}{k-1}x^n.
+$$<p>Its combinatorial meaning is</p>$$
+[x^n]\frac{1}{(1-x)^k}
+=\binom{n+k-1}{n}
+=\binom{n+k-1}{k-1},
+$$<p>which counts the number of nonnegative integer solutions of</p>$$
+x_1+x_2+\cdots+x_k=n,\qquad x_i\ge 0.
+$$<h2 id=23-a-compact-formula-list>2.3 A compact formula list</h2><ol><li><p>Period-$k$ ones:</p>$$
+\sum_{i\ge 0}x^{ki}=\frac{1}{1-x^k}
+\quad\Longrightarrow\quad
+\langle 1,0,\dots,0,1,0,\dots,0,1,0,\dots\rangle
+$$</li><li><p>Finite truncated version:</p>$$
+\sum_{i=0}^{n}x^{ki}=\frac{1-x^{k(n+1)}}{1-x^k}
+$$</li><li><p>Binomial theorem:</p>$$
+\sum_{i=0}^{n}\binom{n}{i}x^i=(1+x)^n
+$$</li><li><p>Weighted binomial theorem:</p>$$
+\sum_{i=0}^{n}\binom{n}{i}p^ix^i=(1+px)^n
+$$</li><li><p>Geometric progression:</p>$$
+\sum_{i\ge 0}p^ix^i=\frac{1}{1-px}
+\quad\Longrightarrow\quad
+\langle 1,p,p^2,p^3,\dots\rangle
+$$</li><li><p>Positive integers only:</p>$$
+\sum_{i\ge 1}x^i=\frac{x}{1-x}
+\quad\Longrightarrow\quad
+\langle 0,1,1,1,\dots\rangle
+$$</li><li><p>Arithmetic progression coefficients:</p>$$
+\sum_{i\ge 0}(i+1)x^i=\frac{1}{(1-x)^2}
+$$</li><li><p>Another standard expansion:</p>$$
+\sum_{i\ge 0}\binom{n+i}{i}x^i=\frac{1}{(1-x)^{n+1}}.
+$$</li></ol><h2 id=24-generalized-binomial-theorem>2.4 Generalized binomial theorem</h2><p>When a generating function simplifies to a numerator over a single denominator, we often need</p>$$
+(x+y)^\alpha=\sum_{i=0}^{\infty}\binom{\alpha}{i}x^{\alpha-i}y^i.
+$$<p>Here $\alpha$ can be any real number, including negative and fractional values, and</p>$$
+\binom{\alpha}{i}
+=\frac{\alpha^{\underline{i}}}{i!}
+=\frac{\alpha(\alpha-1)(\alpha-2)\cdots(\alpha-i+1)}{i!}.
+$$<p>For example, when $\alpha\lt 0$:</p>$$
+\begin{aligned}
+\frac{1}{(1-x)^k}
+&=(1-x)^{-k} \\
+&=\sum_{j=0}^{\infty}\binom{-k}{j}(-x)^j \\
+&=\sum_{j=0}^{\infty}\frac{k(k+1)(k+2)\cdots(k+j-1)}{j!}x^j \\
+&=\sum_{j=0}^{\infty}\binom{k+j-1}{j}x^j.
+\end{aligned}
+$$<h2 id=25-example-backpack>2.5 Example: Backpack</h2><p>There are 8 types of items. Under the following restrictions, count the number of ways to take <strong>exactly $N$ items</strong>, modulo $10^9+7$, where $1\le N\le 10^{18}$.</p><ul><li>cola: at most 1;</li><li>large chicken platter: at most 2;</li><li>beer chicken: at most 3;</li><li>chicken wings: an even number;</li><li>chicken soup: an odd number;</li><li>nuggets: a multiple of 4;</li><li>drumsticks: at most 1;</li><li>eggs: a multiple of 3.</li></ul><p>Each item contributes one factor:</p><ul><li>cola:
+$$
+1+x=\frac{1-x^2}{1-x}
+$$</li><li>large chicken platter:
+$$
+1+x+x^2=\frac{1-x^3}{1-x}
+$$</li><li>beer chicken:
+$$
+1+x+x^2+x^3=\frac{1-x^4}{1-x}
+$$</li><li>chicken wings:
+$$
+1+x^2+x^4+\cdots=\frac{1}{1-x^2}
+$$</li><li>chicken soup:
+$$
+x+x^3+x^5+\cdots=\frac{x}{1-x^2}
+$$</li><li>nuggets:
+$$
+1+x^4+x^8+\cdots=\frac{1}{1-x^4}
+$$</li><li>drumsticks:
+$$
+1+x=\frac{1-x^2}{1-x}
+$$</li><li>eggs:
+$$
+1+x^3+x^6+\cdots=\frac{1}{1-x^3}
+$$</li></ul><p>Multiplying them all together gives</p>$$
+G(x)=(1+x)^2(1+x+x^2)(1+x+x^2+x^3)\cdot\frac{x}{(1-x^2)^2(1-x^3)(1-x^4)}.
+$$<p>So the answer is</p>$$
+[x^N]G(x).
+$$<p>A useful trick here is that for a finite polynomial such as $1+x+x^2$, we can regard it as sharing the same denominator as the infinite geometric series:</p>$$
+(1+x+x^2)(1-x)=1-x^3,
+$$<p>so</p>$$
+1+x+x^2=\frac{1-x^3}{1-x}.
+$$<h2 id=26-example-cf-451e-devu-and-flowers>2.6 Example: <a href=https://codeforces.com/contest/451/problem/E>CF 451E Devu and Flowers</a></h2><p>There are $n$ types of flowers, with $f_1,f_2,\dots,f_n$ flowers of each type. Count the number of ways to choose exactly $s$ flowers.</p>$$
+1\le n\le 20,\qquad 0\le f_i\le 10^{12},\qquad 0\le s\le 10^{14}.
+$$<p>Start from the generating function, expand it, extract the coefficient, then enumerate subsets.</p><h3 id=step-1-single-type-generating-function>Step 1: single-type generating function</h3><p>For the $i$-th flower type,</p>$$
+F_i(x)=1+x+x^2+\cdots+x^{f_i}
+=\frac{1-x^{f_i+1}}{1-x}.
+$$<h3 id=step-2-factor-the-total-generating-function>Step 2: factor the total generating function</h3>$$
+\begin{aligned}
+F(x)
+&=\prod_{i=1}^{n}F_i(x) \\
+&=\prod_{i=1}^{n}\frac{1-x^{f_i+1}}{1-x} \\
+&=\underbrace{\Bigl(\prod_{i=1}^{n}(1-x^{f_i+1})\Bigr)}_{A(x)}\cdot(1-x)^{-n}.
+\end{aligned}
+$$<p>where</p>$$
+A(x)=\prod_{i=1}^{n}(1-x^{f_i+1}).
+$$<h3 id=step-3-expand>Step 3: expand $A(x)$</h3><p>Each factor $(1-x^{f_i+1})$ contributes either:</p><ul><li>$1$, with exponent $0$ and sign $+$;</li><li>$-x^{f_i+1}$, with exponent $f_i+1$ and sign $-$.</li></ul><p>Therefore</p>$$
+A(x)=\sum_{T\subseteq[n]}(-1)^{|T|}x^{\sum_{i\in T}(f_i+1)}.
+$$<p>So $A(x)$ has at most $2^n$ terms.</p><h3 id=step-4-extract>Step 4: extract $[x^s]F(x)$</h3>$$
+[x^s]F(x)
+=\sum_{i=0}^{s}[x^i]A(x)\cdot [x^{s-i}]\frac{1}{(1-x)^n}.
+$$<p>Since</p>$$
+[x^{s-i}]\frac{1}{(1-x)^n}=\binom{s-i+n-1}{s-i},
+$$<p>and $n$ is small, we can enumerate subsets directly to compute the contribution from $A(x)$.</p><h3 id=step-5-complexity>Step 5: complexity</h3><ul><li>subset enumeration: $2^n$ subsets;</li><li>combination query: $O(1)$ after preprocessing or $O(n)$ directly;</li><li>total complexity:
+$$
+O(n\cdot 2^n).
+$$</li></ul><p>This is completely feasible for $n\le 20$.</p><h2 id=27-example-luogu-p6078-ceoi2004-sweets>2.7 Example: <a href=https://www.luogu.com.cn/problem/P6078>Luogu P6078 |CEOI2004| Sweets</a></h2><p>This is almost the same as the previous problem.</p><p>There are $n$ types of candies, with $m_1,m_2,\dots,m_n$ candies of each type. Count the number of ways to choose between $a$ and $b$ candies inclusive.</p>$$
+1\le n\le 10,\qquad
+0\le a\le b\le 10^7,\qquad
+0\le m_i\le 10^6.
+$$<ul><li><p>The generating function for type $i$ is</p>$$
+F_i(x)=1+x+\cdots+x^{m_i}=\frac{1-x^{m_i+1}}{1-x}.
+$$</li><li><p>The total generating function is</p>$$
+\begin{aligned}
+F(x)
+&=\prod_{i=1}^{n}F_i(x) \\
+&=\prod_{i=1}^{n}\frac{1-x^{m_i+1}}{1-x} \\
+&=A(x)\cdot\frac{1}{(1-x)^n},
+\end{aligned}
+$$<p>where</p>$$
+A(x)=\prod_{i=1}^{n}(1-x^{m_i+1}).
+$$</li><li><p>The number of valid selections is</p>$$
+\sum_{s=a}^{b}[x^s]F(x)
+=\sum_{s=a}^{b}\sum_{i\ge 0}[x^i]A(x)\binom{s-i+n-1}{n-1}.
+$$</li><li><p>Since $A(x)$ has at most $2^n$ nonzero coefficients, the direct complexity is</p>$$
+O\bigl((b-a+1)\cdot n\cdot 2^n\bigr),
+$$<p>which is too slow.</p></li></ul><p>Rewrite it as</p>$$
+\sum_{j=0}^{\deg A}[x^j]A(x)\cdot \sum_{s=a}^{b}\binom{s-j+n-1}{n-1}.
+$$<p>Now the inner sum can be evaluated in $O(1)$ using the Hockey Stick identity, so the total complexity becomes</p>$$
+O(n\cdot 2^n).
+$$<hr><h1 id=3-from-recurrence-to-generating-function-to-closed-form>3 From Recurrence to Generating Function to Closed Form</h1><h2 id=31-typical-flow>3.1 Typical flow</h2><p>A typical workflow looks like this:</p><ul><li>recurrence:
+$$
+a_{n+2}+2a_{n+1}+a_n=n^2 2^n
+$$</li><li>generating function:
+$$
+G(x)=\frac{2x^3(2x+1)}{(x+1)^2(2x-1)^3}
+$$</li><li>then recover the closed form of $a_n$.</li></ul><h2 id=32-example-fibonacci-numbers>3.2 Example: Fibonacci numbers</h2><p>The Fibonacci sequence satisfies</p>$$
+a_0=0,\qquad a_1=1,\qquad a_n=a_{n-1}+a_{n-2}\quad (n\ge 2).
+$$<p>We want its ordinary generating function.</p><h3 id=step-1-obtain-the-generating-function>Step 1: obtain the generating function</h3>$$
+A(x)=\sum_{n=0}^{\infty}F_nx^n=\frac{x}{1-x-x^2}.
+$$<h3 id=step-2-derive-the-closed-form>Step 2: derive the closed form</h3>$$
+\begin{aligned}
+A(x)&=\frac{x}{1-x-x^2} \\
+&=x\left(\frac{c}{1-ax}+\frac{d}{1-bx}\right).
+\end{aligned}
+$$<p>Matching coefficients gives</p>$$
+a=\frac{1+\sqrt{5}}{2},\qquad
+b=\frac{1-\sqrt{5}}{2},\qquad
+c=\frac{1}{\sqrt{5}},\qquad
+d=-\frac{1}{\sqrt{5}}.
+$$<p>So the coefficient of $x^n$ is</p>$$
+c\cdot a^{n-1}+d\cdot b^{n-1},
+$$<p>which yields Binet&rsquo;s formula.</p><h2 id=33-general--th-order-linear-recurrence>3.3 General $k$-th order linear recurrence</h2><p>Suppose</p>$$
+a_n=c_1a_{n-1}+c_2a_{n-2}+\cdots+c_ka_{n-k}.
+$$<p>Let</p>$$
+A(x)=\sum_{n\ge 0} a_nx^n.
+$$<p>Then:</p><ol><li><p>Split the series:</p>$$
+A(x)=\sum_{n=0}^{k-1}a_nx^n+\sum_{n\ge k}a_nx^n.
+$$</li><li><p>Rewrite the tail:</p>$$
+\sum_{n\ge k}a_nx^n
+=\sum_{i=1}^{k}c_i\sum_{n\ge k}a_{n-i}x^n
+=\sum_{i=1}^{k}c_ix^i\sum_{m\ge 0}a_mx^m
+-\sum_{i=1}^{k}c_ix^i\sum_{m=0}^{k-1-i}a_mx^m.
+$$</li><li><p>Rearrange:</p>$$
+A(x)
+=\sum_{n=0}^{k-1}a_nx^n
++\sum_{i=1}^{k}c_ix^iA(x)
+-\sum_{i=1}^{k}c_ix^i\sum_{m=0}^{k-1-i}a_mx^m.
+$$</li><li><p>Factor out $A(x)$:</p>$$
+\bigl(1-c_1x-c_2x^2-\cdots-c_kx^k\bigr)A(x)
+=\sum_{n=0}^{k-1}\left(a_n-\sum_{i=1}^{n}c_ia_{n-i}\right)x^n
+\equiv B(x).
+$$</li><li><p>Final form:</p>$$
+A(x)=\frac{B(x)}{1-c_1x-c_2x^2-\cdots-c_kx^k},
+$$<p>where</p>$$
+B(x)
+=a_0+(a_1-c_1a_0)x+\cdots+\left(a_{k-1}-\sum_{i=1}^{k-1}c_ia_{k-1-i}\right)x^{k-1}.
+$$</li></ol><h2 id=34-example-catalan-numbers>3.4 Example: Catalan numbers</h2><p>The Catalan number</p>$$
+C_n=\frac{1}{n+1}\binom{2n}{n}
+$$<p>counts the number of valid parenthesizations of</p>$$
+x_0x_1x_2\cdots x_n.
+$$<p>For $n=3$, there are 5 ways:</p>$$
+\begin{aligned}
+&x_0\bigl(x_1(x_2x_3)\bigr), \\
+&x_0\bigl((x_1x_2)x_3\bigr), \\
+&\bigl(x_0x_1\bigr)\bigl(x_2x_3\bigr), \\
+&\bigl(x_0(x_1x_2)\bigr)x_3, \\
+&\bigl((x_0x_1)x_2\bigr)x_3.
+\end{aligned}
+$$<p>Let $c(n)$ be the number of ways to multiply $n+1$ numbers.
+Looking at the last multiplication,</p>$$
+\underbrace{(x_0\cdots x_i)}_{c(i)\text{ ways}}
+\underbrace{(x_{i+1}\cdots x_n)}_{c(n-i-1)\text{ ways}},
+$$<p>so</p>$$
+c(n)=\sum_{i=0}^{n-1}c(i)c(n-i-1).
+$$<p>Thus</p>$$
+c_0=1,\qquad c_1=1,\qquad
+c_n=c_0c_{n-1}+c_1c_{n-2}+\cdots+c_{n-1}c_0.
+$$<p>Let</p>$$
+c(x)=\sum_{n\ge 0}c_nx^n.
+$$<p>Then</p>$$
+\begin{aligned}
+c(x)
+&=1+x+\sum_{n\ge 2}\left(\sum_{i=0}^{n-1}c_ic_{n-1-i}\right)x^n \\
+&=1+x+x(c(x)^2-1) \\
+&=1+x\,c(x)^2.
+\end{aligned}
+$$<p>So</p>$$
+x\,c(x)^2-c(x)+1=0.
+$$<p>Hence</p>$$
+c(x)=\frac{1\pm\sqrt{1-4x}}{2x}.
+$$<p>Because $c(x)$ must be analytic at $x=0$ and have constant term $c_0=1$, we choose the minus branch:</p>$$
+\boxed{c(x)=\frac{1-\sqrt{1-4x}}{2x}}.
+$$<p>Now expand</p>$$
+\sqrt{1-4x}
+=\sum_{k=0}^{\infty}\binom{\tfrac12}{k}(-4x)^k
+=1-2x-2\sum_{k=2}^{\infty}\frac{(2k-3)!}{(k-2)!(k-1)!}x^k.
+$$<p>Substituting back,</p>$$
+\begin{aligned}
+c(x)
+&=\frac{1-(1-2x+\cdots)}{2x} \\
+&=\sum_{n=0}^{\infty}\underbrace{\frac{1}{n+1}\binom{2n}{n}}_{c_n}x^n.
+\end{aligned}
+$$<p>Therefore</p>$$
+\boxed{c_n=\frac{1}{n+1}\binom{2n}{n}}.
+$$<h2 id=35-why-the-minus-branch>3.5 Why the minus branch?</h2><p>Whenever solving an equation for a generating function gives</p>$$
+F(x)=\frac{A(x)\pm\sqrt{B(x)}}{C(x)},
+$$<p>we must test the branches at the origin.</p><p>The correct generating function must satisfy two properties:</p><ol><li>it is analytic at $x=0$;</li><li>its constant term matches the known initial value.</li></ol><p>Why does only one branch usually work?</p><ul><li>The &ldquo;$+$&rdquo; branch often leaves a nonzero constant term in the numerator, so the denominator&rsquo;s factor of $x$ cannot be canceled. The expansion then contains a term like $\frac{1}{x}$, so it diverges at the origin.</li><li>The &ldquo;$-$&rdquo; branch often makes the numerator vanish to at least first order in $x$, which cancels the denominator and leaves an honest power series with the correct constant term.</li></ul><p>So the practical procedure is:</p><ol><li>solve for both branches;</li><li>expand each near $x=0$, or evaluate the limit at $x=0$;</li><li>keep the branch that stays finite and matches the initial value.</li></ol></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-formal-power-series-and-ogf>1 Formal Power Series and OGF</a><ul><li><a href=#11-polynomials-and-formal-power-series>1.1 Polynomials and formal power series</a></li><li><a href=#12-operations>1.2 Operations</a></li><li><a href=#13-definition-of-ogf>1.3 Definition of OGF</a></li><li><a href=#14-example-counting-bounded-solutions>1.4 Example: counting bounded solutions</a></li><li><a href=#15-standard-ogf-pattern>1.5 Standard OGF pattern</a></li></ul></li><li><a href=#2-closed-forms-and-inversion>2 Closed Forms and Inversion</a><ul><li><a href=#21-identity-and-inverse>2.1 Identity and inverse</a></li><li><a href=#22-common-inverse-formulas>2.2 Common inverse formulas</a></li><li><a href=#23-a-compact-formula-list>2.3 A compact formula list</a></li><li><a href=#24-generalized-binomial-theorem>2.4 Generalized binomial theorem</a></li><li><a href=#25-example-backpack>2.5 Example: Backpack</a></li><li><a href=#26-example-cf-451e-devu-and-flowers>2.6 Example: CF 451E Devu and Flowers</a></li><li><a href=#27-example-luogu-p6078-ceoi2004-sweets>2.7 Example: Luogu P6078 |CEOI2004| Sweets</a></li></ul></li><li><a href=#3-from-recurrence-to-generating-function-to-closed-form>3 From Recurrence to Generating Function to Closed Form</a><ul><li><a href=#31-typical-flow>3.1 Typical flow</a></li><li><a href=#32-example-fibonacci-numbers>3.2 Example: Fibonacci numbers</a></li><li><a href=#33-general--th-order-linear-recurrence>3.3 General $k$-th order linear recurrence</a></li><li><a href=#34-example-catalan-numbers>3.4 Example: Catalan numbers</a></li><li><a href=#35-why-the-minus-branch>3.5 Why the minus branch?</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const t=document.querySelectorAll(".toc-card a"),e=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(e.length===0||t.length===0)return;function n(){const s=window.scrollY+140;let n=e[0];for(let t=0;t<e.length;t++){const o=e[t].getBoundingClientRect().top+window.scrollY;if(s>=o)n=e[t];else break}if(t.forEach(e=>e.classList.remove("active")),n){const t=n.getAttribute("id"),e=document.querySelector(`.toc-card a[href="#${t}"]`);e&&e.classList.add("active")}}window.addEventListener("scroll",n,{passive:!0}),setTimeout(n,50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+<a href=/posts/>Posts</a>
+<a href=/archives/>Archives</a>
+<a href=/tags/>Tags</a></div></footer></div></body></html>
