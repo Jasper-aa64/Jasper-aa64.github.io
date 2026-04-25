@@ -1,85 +1,360 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics #1.2：容斥原理、不定方程、错排 | Jasper's Technical Notebook</title><meta name=description content="容斥原理的集合与算子形式、有上下界不定方程计数（前缀和DP与分治NTT）、错排公式与第二类斯特林数。"><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-1-2-cn/><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small></span></a><nav class=site-nav><a class=nav-link href=/>Home</a>
-<a class=nav-link href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics #1.2：容斥原理、不定方程、错排</h1><div class=article-meta><time datetime=2026-04-20>Apr 20, 2026</time>
-<span>·</span>
-<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/%E6%95%B0%E5%AD%A6/>#数学</a>
-<a class=chip href=/tags/%E7%BB%84%E5%90%88%E6%95%B0%E5%AD%A6/>#组合数学</a>
-<a class=chip href=/tags/%E5%AE%B9%E6%96%A5%E5%8E%9F%E7%90%86/>#容斥原理</a>
-<a class=chip href=/tags/%E9%94%99%E6%8E%92/>#错排</a>
-<a class=chip href=/tags/%E4%B8%8D%E5%AE%9A%E6%96%B9%E7%A8%8B/>#不定方程</a>
-<a class=chip href=/tags/%E6%96%AF%E7%89%B9%E6%9E%97%E6%95%B0/>#斯特林数</a>
-<a class=chip href=/tags/%E8%AE%A1%E6%95%B0/>#计数</a>
-<a class=chip href=/tags/ntt/>#NTT</a>
-<a class=chip href=/tags/%E7%94%9F%E6%88%90%E5%87%BD%E6%95%B0/>#生成函数</a></div></header><div class=article-layout><div class="article-content prose"><h1 id=1-基础>1 基础</h1><p><strong>定理（容斥原理，两个子集）</strong><br>设 $S$ 是有限集，$A,B\subseteq S$，则</p>$$|S \setminus (A\cup B)| = |S| - |A| - |B| + |A\cap B|$$<p><strong>定理（容斥原理，三个子集）</strong><br>设 $A,B,C\subseteq S$，则</p>$$|S \setminus (A\cup B\cup C)| = |S| - |A| - |B| - |C| + |A\cap B| + |A\cap C| + |B\cap C| - |A\cap B\cap C|$$<p><strong>定理（容斥原理，一般形式）</strong><br>设 $A_1,A_2,\dots,A_n\subseteq S$，则</p>$$\left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{i=0}^{n} (-1)^i \sum_{1\le j_1<\cdots<j_i\le n} \left|\bigcap_{k=1}^{i} a_{j_k}\right|$$<p><strong>算子形式</strong><br>设 $A_i$ 为一种"坏性质"，$N(A_{i_1}\cdots A_{i_k})$ 为同时具备这些性质的元素个数，则</p>$$N\!\left(\prod_{i=1}^{n}(1-A_i)\right) = \sum_{T\subseteq[n]}(-1)^{|T|}\, N\!\left(\prod_{i\in T}A_i\right)$$<p>算子形式便于推导：将乘积展开后，对每一个交项 $N(\cdots)$ 做计数即可。</p><h1 id=2-例题>2 例题</h1><h2 id=21-euler-函数>2.1 Euler 函数</h2><p><strong>命题：</strong> $n=p_1^{\alpha_1}\cdots p_k^{\alpha_k}$，则</p>$$\varphi(n)=n\prod_{i=1}^{k}\left(1-\frac{1}{p_i}\right)$$<p><strong>证明：</strong> 令 $S=\{1,\dots,n\}$，$A_i=\{x\in S\mid p_i\mid x\}$。对任意 $T\subseteq\{1,\dots,k\}$，</p>$$\left|\bigcap_{i\in T}A_i\right|=\frac{n}{\prod_{i\in T}p_i}$$<p>（因为每个 $p_i$ 均整除 $n$）。将容斥展开后，恰好得到乘积公式。</p><hr><p><strong>例题（Nowcoder 19857）</strong></p><p>$N$ 对情侣共 $2N$ 人围成一个环，要求任意一对情侣不相邻。两方案若能通过旋转互相得到则视为相同（不考虑镜像翻转），求方案数。</p><p>设事件 $A_i$：第 $i$ 对情侣相邻。固定选中 $i$ 对相邻时：</p><ul><li>把每对合并为一个块，内部有 2 种次序，贡献 $2^i$；</li><li>环上共 $2N-i$ 个物体，圆排列数为 $(2N-i-1)!$。</li></ul>$$\boxed{\text{Ans}=\sum_{i=0}^{N}(-1)^i\binom{N}{i}2^i(2N-i-1)!}$$<hr><h2 id=22-满射每个人至少得到一件物品>2.2 满射：每个人至少得到一件物品</h2><p>$m$ 件有标号物品分给 $n$ 个有标号的人，每人至少得到一件，求方案数。</p><p>令 $A_i$：第 $i$ 个人空手。$|S|=n^m$；若固定 $t$ 个人空手，则每件物品有 $n-t$ 个去向：</p>$$\boxed{\sum_{t=0}^{n}(-1)^t\binom{n}{t}(n-t)^m}$$<p>等价写法（Stirling 数）：$n!\,S_2(m,n)$，即先将 $m$ 件物品分成 $n$ 个非空无标号组，再给组贴标签。</p><p>推广：恰好有 $r$ 个人得到物品的方案数为 $\displaystyle\binom{n}{r}r!\,S_2(m,r)$。</p><hr><p><strong>例题（无序分组）</strong></p><p>$2n$ 个元素 $a_1,\dots,a_n,b_1,\dots,b_n$ 的全排列中，无任意一对 $(a_i,b_i)$ 相邻，求排列数。</p><p>固定 $k$ 对必须相邻时，每对合并为一块（2 种内部次序），总块数 $2n-k$，排列数 $(2n-k)!$，故</p>$$N(A_{i_1}\cdots A_{i_k})=2^k(2n-k)!$$$$\boxed{\sum_{k=0}^{n}(-1)^k\binom{n}{k}2^k(2n-k)!}$$<h2 id=23-不定方程的解数量含上下界容斥式>2.3 不定方程的解数量（含上下界，容斥式）</h2><p>求整数解数：</p>$$x_1+x_2+\cdots+x_k=n,\qquad l_i\le x_i\le r_i$$<p><strong>去下界：</strong> 令 $y_i=x_i-l_i$，$U_i=r_i-l_i$，$N=n-\sum l_i$，化为 $\sum y_i=N$，$0\le y_i\le U_i$。若 $N<0$ 或 $N>\sum U_i$，答案为 0。</p><p><strong>容斥：</strong> 令 $A_i$：$y_i\ge U_i+1$（超上界）。</p>$$\boxed{\#=\sum_{T\subseteq[k]}(-1)^{|T|}\binom{N-\sum_{i\in T}(U_i+1)+(k-1)}{k-1}}$$<p>等价原变量形式：</p>$$\#=\sum_{T\subseteq[k]}(-1)^{|T|}\binom{n-\sum_{i=1}^k l_i-\sum_{i\in T}(r_i-l_i+1)+(k-1)}{k-1}$$<p>直接枚举子集复杂度 $O(k2^k)$，每项 $O(1)$（需预处理组合数）。</p><h2 id=24-前缀和优化-dp>2.4 前缀和优化 DP $O(kN)$</h2><p>设 $dp[i][s]$ 为"用前 $i$ 个变量凑出和 $s$ 的方案数"，初值 $dp[0][0]=1$。朴素转移：</p>$$dp[i][s]=\sum_{x=0}^{\min(U_i,s)}dp[i-1][s-x]$$<p>令 $\text{pref}[t]=\sum_{u=0}^{t}dp[i-1][u]$，则</p>$$dp[i][s]=\text{pref}[s]-\text{pref}[s-U_i-1]$$<p>（约定 $\text{pref}[-1]=0$），每个状态 $O(1)$，总复杂度 $O(kN)$，滚动数组空间 $O(N)$。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MOD <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1000000007</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>inline</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>add</span>(<span style=color:#8be9fd>int</span> a,<span style=color:#8be9fd>int</span> b){ a<span style=color:#ff79c6>+=</span>b; <span style=color:#ff79c6>if</span>(a<span style=color:#ff79c6>&gt;=</span>MOD) a<span style=color:#ff79c6>-=</span>MOD; <span style=color:#ff79c6>return</span> a; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> k; <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n; cin<span style=color:#ff79c6>&gt;&gt;</span>k<span style=color:#ff79c6>&gt;&gt;</span>n;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span><span style=color:#ff79c6>&gt;</span> L(k), R(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>k;<span style=color:#ff79c6>++</span>i) cin<span style=color:#ff79c6>&gt;&gt;</span>L[i]<span style=color:#ff79c6>&gt;&gt;</span>R[i];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> sumL<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>, sumU<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> U(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>k;<span style=color:#ff79c6>++</span>i){
-</span></span><span style=display:flex><span>        sumL<span style=color:#ff79c6>+=</span>L[i]; <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> ui<span style=color:#ff79c6>=</span>R[i]<span style=color:#ff79c6>-</span>L[i];
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(ui<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span>){ cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>        U[i]<span style=color:#ff79c6>=</span>(<span style=color:#8be9fd>int</span>)ui; sumU<span style=color:#ff79c6>+=</span>ui;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> N64<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>-</span>sumL;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(N64<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>||</span>N64<span style=color:#ff79c6>&gt;</span>sumU){ cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> N<span style=color:#ff79c6>=</span>(<span style=color:#8be9fd>int</span>)N64;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> prev(N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>), cur(N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>), pref(N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>    prev[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; <span style=color:#8be9fd>int</span> reach<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>k;<span style=color:#ff79c6>++</span>i){
-</span></span><span style=display:flex><span>        reach<span style=color:#ff79c6>=</span>min(N,reach<span style=color:#ff79c6>+</span>U[i]);
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> run<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> s<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;s<span style=color:#ff79c6>&lt;=</span>reach;<span style=color:#ff79c6>++</span>s){ run<span style=color:#ff79c6>=</span>add(run,prev[s]); pref[s]<span style=color:#ff79c6>=</span>run; }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> s<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;s<span style=color:#ff79c6>&lt;=</span>reach;<span style=color:#ff79c6>++</span>s){
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> left<span style=color:#ff79c6>=</span>s<span style=color:#ff79c6>-</span>U[i]<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> val<span style=color:#ff79c6>=</span>pref[s];
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(left<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>){ val<span style=color:#ff79c6>-=</span>pref[left]; <span style=color:#ff79c6>if</span>(val<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span>) val<span style=color:#ff79c6>+=</span>MOD; }
-</span></span><span style=display:flex><span>            cur[s]<span style=color:#ff79c6>=</span>val;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> s<span style=color:#ff79c6>=</span>reach<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>;s<span style=color:#ff79c6>&lt;=</span>N;<span style=color:#ff79c6>++</span>s) cur[s]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        swap(prev,cur);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    cout<span style=color:#ff79c6>&lt;&lt;</span>prev[N]<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=25-分治-ntt>2.5 分治 NTT $O(N\log N\log k)$</h2><p>每个变量 $y_i\in[0,U_i]$ 对应多项式 $P_i(x)=1+x+\cdots+x^{U_i}$，答案即</p>$$[x^N]\prod_{i=1}^{k}P_i(x)$$<p>将 $k$ 个多项式做分治合并，每次卷积后截断到 $x^N$，时间 $O(N\log N)$；树高 $\log k$，总复杂度 $O(N\log N\log k)$。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#6272a4>// 截断卷积：只保留到 x^lim
-</span></span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> conv_trunc(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> A, vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> B, <span style=color:#8be9fd>int</span> lim){
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(A.empty()<span style=color:#ff79c6>||</span>B.empty()) <span style=color:#ff79c6>return</span> {};
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>((<span style=color:#8be9fd>int</span>)A.size()<span style=color:#ff79c6>&gt;</span>lim<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>) A.resize(lim<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>((<span style=color:#8be9fd>int</span>)B.size()<span style=color:#ff79c6>&gt;</span>lim<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>) B.resize(lim<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> need<span style=color:#ff79c6>=</span>(<span style=color:#8be9fd>int</span>)A.size()<span style=color:#ff79c6>+</span>(<span style=color:#8be9fd>int</span>)B.size()<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>while</span>(n<span style=color:#ff79c6>&lt;</span>need) n<span style=color:#ff79c6>&lt;&lt;=</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    A.resize(n); B.resize(n);
-</span></span><span style=display:flex><span>    ntt(A,<span style=color:#8be9fd;font-style:italic>false</span>); ntt(B,<span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>n;<span style=color:#ff79c6>++</span>i) A[i]<span style=color:#ff79c6>=</span>(<span style=color:#8be9fd>int</span>)(<span style=color:#bd93f9>1LL</span><span style=color:#ff79c6>*</span>A[i]<span style=color:#ff79c6>*</span>B[i]<span style=color:#ff79c6>%</span>M);
-</span></span><span style=display:flex><span>    ntt(A,<span style=color:#8be9fd;font-style:italic>true</span>);
-</span></span><span style=display:flex><span>    A.resize(min(need,lim<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> A;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> multiply_range(vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;&amp;</span> polys, <span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r, <span style=color:#8be9fd>int</span> N){
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(r<span style=color:#ff79c6>-</span>l<span style=color:#ff79c6>==</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> polys[l];
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m<span style=color:#ff79c6>=</span>(l<span style=color:#ff79c6>+</span>r)<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> L<span style=color:#ff79c6>=</span>multiply_range(polys,l,m,N);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> R<span style=color:#ff79c6>=</span>multiply_range(polys,m,r,N);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#50fa7b>conv_trunc</span>(L,R,N);
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=26-等上界情形>2.6 等上界情形 $O(S/k)$</h2><p>$n$ 个变量各在 $[0,k]$ 内，之和为 $S$，求方案数。</p><p>无上界时答案为 $\binom{S+n-1}{n-1}$（隔板法）。设 $i$ 个变量违反上界（即 $>k$），对其做变量替换 $y=x-(k+1)\ge0$，总和变为 $S-i(k+1)$：</p>$$g(n,S,k)=\sum_{i=0}^{\lfloor S/(k+1)\rfloor}(-1)^i\binom{n}{i}\binom{S-i(k+1)+n-1}{n-1}$$<p>当 $i>\lfloor S/(k+1)\rfloor$ 时，$S-i(k+1)<0$ 使组合数为 0，故求和项数约为 $S/(k+1)$，即 $O(S/k)$。</p><p>若 $k\ge S$，上界无效，直接返回 $\binom{S+n-1}{n-1}$。</p><h1 id=3-错排>3 错排</h1><p>$p$ 是 $\{1,2,\dots,n\}$ 的排列，且 $\forall i,\ p_i\ne i$，记满足条件的排列数为 $D(n)$。</p><h2 id=31-递推式>3.1 递推式</h2>$$D(0)=1,\quad D(1)=0,\quad D(n)=(n-1)\bigl(D(n-1)+D(n-2)\bigr)\quad(n\ge2)$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>D[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; D[<span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>2</span>;i<span style=color:#ff79c6>&lt;=</span>MAXN;<span style=color:#ff79c6>++</span>i)
-</span></span><span style=display:flex><span>    D[i]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1LL</span><span style=color:#ff79c6>*</span>(i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>*</span>(D[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>+</span>D[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>2</span>])<span style=color:#ff79c6>%</span>MOD;
-</span></span></code></pre></div><h2 id=32-容斥公式>3.2 容斥公式</h2><p>令 $A_i$：位置 $i$ 被自己占据（$p_i=i$）。$|S|=n!$，固定 $k$ 个位置后剩余 $(n-k)!$ 种排列：</p>$$D(n)=\left|S\setminus\bigcup_{i=1}^{n}A_i\right|=\sum_{k=0}^{n}(-1)^k\binom{n}{k}(n-k)!$$$$\boxed{D(n)=n!\sum_{k=0}^{n}\frac{(-1)^k}{k!}},\qquad \frac{D(n)}{n!}\xrightarrow{n\to\infty}\frac{1}{e}$$<h2 id=33-指数型生成函数>3.3 指数型生成函数</h2><p>置换 = 若干置换环（圆排列）的无标号集合。环长 $k$ 的圆排列数 $(k-1)!$，在 EGF 中贡献 $\frac{(k-1)!}{k!}x^k=\frac{x^k}{k}$，故</p>$$\text{CYC}(x)=\sum_{k\ge1}\frac{x^k}{k}=-\ln(1-x)$$<p>错排禁止 1-环：</p>$$\text{CYC}_{\ge2}(x)=-\ln(1-x)-x$$$$\boxed{H(x)=\exp\bigl(\text{CYC}_{\ge2}(x)\bigr)=\frac{e^{-x}}{1-x}}$$<p>展开后提取 $[x^n]$ 即得容斥公式。</p><h2 id=34-二项式反演>3.4 二项式反演</h2><p>设 $f_n$：恰有 0 个不动点的排列数（即 $D(n)$），$g_n=n!$（至多 $n$ 个不动点）。由二项式反演：</p>$$f_n=\sum_{i=0}^{n}\binom{n}{i}(-1)^{n-i}i!$$<p>与容斥结果一致，$O(n)$。</p><h2 id=35-恰好有--个不动点>3.5 恰好有 $k$ 个不动点</h2><ol><li>选出哪 $k$ 个位置固定：$\binom{n}{k}$ 种。</li><li>在剩余 $n-k$ 个位置上做错排：$D(n-k)$ 种。</li></ol>$$\boxed{\binom{n}{k}D(n-k)}$$<p>展开即</p>$$\binom{n}{k}\sum_{i=0}^{n-k}(-1)^i\binom{n-k}{i}(n-k-i)!$$<h1 id=4-第二类斯特林数>4 第二类斯特林数 $S_2(n,k)$</h1><p>将 $n$ 个有标号球放入 $k$ 个<strong>无标号</strong>非空盒子的方案数，记作 $S_2(n,k)$ 或 $\left\{\begin{smallmatrix}n\\k\end{smallmatrix}\right\}$。</p><p><strong>递推关系：</strong></p>$$S_2(n,k)=k\cdot S_2(n-1,k)+S_2(n-1,k-1)$$<p>（第 $n$ 个球放入已有 $k$ 个盒之一，或独自开一个新盒）</p><p><strong>通项公式：</strong></p>$$S_2(n,k)=\frac{1}{k!}\sum_{i=0}^{k}(-1)^i\binom{k}{i}(k-i)^n$$<p><strong>重要公式（下降幂展开）：</strong></p>$$x^n=\sum_{k=0}^{n}S_2(n,k)\,x^{\underline{k}},\qquad x^{\underline{k}}=x(x-1)\cdots(x-k+1)$$<p>与满射的联系：将 $n$ 件物品放入 $k$ 个<strong>有标号</strong>非空盒子的方案数为 $k!\,S_2(n,k)$。</p><h1 id=5-例题>5 例题</h1><h2 id=51-区间内与素数集合互质的整数个数>5.1 区间内与素数集合互质的整数个数</h2><p><strong>题意（Nowcoder 16513）：</strong> 给定只含素数的集合 $A=\{a_1,\dots,a_k\}$（$k\le20$），统计 $[L,R]$ 内不被任何 $a_i$ 整除的正整数个数。</p><p>令</p>$$F(X)=\#\{1\le n\le X:\forall a\in A,\ a\nmid n\}$$<p>由容斥：</p>$$F(X)=\sum_{S\subseteq A}(-1)^{|S|}\left\lfloor\frac{X}{\prod_{a\in S}a}\right\rfloor$$<p>答案为 $F(R)-F(L-1)$，复杂度 $O(2^k)$（乘积超过 $X$ 时剪枝）。</p><blockquote><p><strong>补充：</strong> 区间 $[L,R]$ 内 $d$ 的倍数个数</p>$$\left\lfloor\frac{R}{d}\right\rfloor-\left\lfloor\frac{L-1}{d}\right\rfloor$$<p>是"$[L,R]$ 问题 → $(R)-(L-1)$ → $[1,n]$ 问题"的经典套路。</p></blockquote><h2 id=52-动态互质对计数>5.2 动态互质对计数</h2><p><strong>题意（CF 547C）：</strong> 动态维护一个集合 $S$（插入/删除），每次操作后输出 $S$ 中满足 $\gcd(a_i,a_j)=1$ 的对数。</p><p><strong>法一（容斥）：</strong> 维护 $\text{cnt}[d]$：$S$ 中被 $d$ 整除的元素个数。插入值 $v$（质因子集合 $\{p_1,\dots,p_m\}$）时，与现有元素互质的数目为</p>$$\sum_{S\subseteq\{p_1,\dots,p_m\}}(-1)^{|S|}\text{cnt}\!\left[\prod_{p\in S}p\right]$$<p>更新 $\text{cnt}[d]$ 对所有 $2^m$ 个无平方因子因数。删除时先更新 $\text{cnt}$ 再算差量。</p><p><strong>法二（Möbius 反演）：</strong></p>$$\sum_{y\in S}\mathbf{1}[\gcd(v,y)=1]=\sum_{d\mid v}\mu(d)\cdot\text{cnt}[d]$$<p>两种方法每次操作均为 $O(2^{\omega(v)})$，$v\le5\times10^5$ 时 $\omega(v)\le7$。</p></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-基础>1 基础</a></li><li><a href=#2-例题>2 例题</a><ul><li><a href=#21-euler-函数>2.1 Euler 函数</a></li><li><a href=#22-满射每个人至少得到一件物品>2.2 满射：每个人至少得到一件物品</a></li><li><a href=#23-不定方程的解数量含上下界容斥式>2.3 不定方程的解数量（含上下界，容斥式）</a></li><li><a href=#24-前缀和优化-dp>2.4 前缀和优化 DP $O(kN)$</a></li><li><a href=#25-分治-ntt>2.5 分治 NTT $O(N\log N\log k)$</a></li><li><a href=#26-等上界情形>2.6 等上界情形 $O(S/k)$</a></li></ul></li><li><a href=#3-错排>3 错排</a><ul><li><a href=#31-递推式>3.1 递推式</a></li><li><a href=#32-容斥公式>3.2 容斥公式</a></li><li><a href=#33-指数型生成函数>3.3 指数型生成函数</a></li><li><a href=#34-二项式反演>3.4 二项式反演</a></li><li><a href=#35-恰好有--个不动点>3.5 恰好有 $k$ 个不动点</a></li></ul></li><li><a href=#4-第二类斯特林数>4 第二类斯特林数 $S_2(n,k)$</a></li><li><a href=#5-例题>5 例题</a><ul><li><a href=#51-区间内与素数集合互质的整数个数>5.1 区间内与素数集合互质的整数个数</a></li><li><a href=#52-动态互质对计数>5.2 动态互质对计数</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const t=document.querySelectorAll(".toc-card a"),e=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(e.length===0||t.length===0)return;function n(){const s=window.scrollY+140;let n=e[0];for(let t=0;t<e.length;t++){const o=e[t].getBoundingClientRect().top+window.scrollY;if(s>=o)n=e[t];else break}if(t.forEach(e=>e.classList.remove("active")),n){const t=n.getAttribute("id"),e=document.querySelector(`.toc-card a[href="#${t}"]`);if(e){e.classList.add("active");const t=document.querySelector(".toc-card"),s=e.offsetTop,o=s+e.offsetHeight,i=t.scrollTop,a=t.clientHeight,n=18;s<i+n?t.scrollTop=Math.max(0,s-n):o>i+a-n&&(t.scrollTop=o-a+n)}}}window.addEventListener("scroll",n,{passive:!0}),setTimeout(n,50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combinatorics #1.2：容斥原理、不定方程、错排 | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="容斥原理的集合与算子形式、有上下界不定方程计数（前缀和DP与分治NTT）、错排公式与第二类斯特林数。">
+    <link rel="canonical" href="https://jmaaa32.github.io/posts/combinatorics-1-2-cn/">
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <nav class="site-nav">
+            
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              <a class="nav-link" href="/posts/">Posts</a>
+            
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Combinatorics #1.2：容斥原理、不定方程、错排</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-20">Apr 20, 2026</time>
+          
+            <span>·</span>
+            <span>Combinatorics</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/%E6%95%B0%E5%AD%A6/">#数学</a>
+            
+              <a class="chip" href="/tags/%E7%BB%84%E5%90%88%E6%95%B0%E5%AD%A6/">#组合数学</a>
+            
+              <a class="chip" href="/tags/%E5%AE%B9%E6%96%A5%E5%8E%9F%E7%90%86/">#容斥原理</a>
+            
+              <a class="chip" href="/tags/%E9%94%99%E6%8E%92/">#错排</a>
+            
+              <a class="chip" href="/tags/%E4%B8%8D%E5%AE%9A%E6%96%B9%E7%A8%8B/">#不定方程</a>
+            
+              <a class="chip" href="/tags/%E6%96%AF%E7%89%B9%E6%9E%97%E6%95%B0/">#斯特林数</a>
+            
+              <a class="chip" href="/tags/%E8%AE%A1%E6%95%B0/">#计数</a>
+            
+              <a class="chip" href="/tags/ntt/">#NTT</a>
+            
+              <a class="chip" href="/tags/%E7%94%9F%E6%88%90%E5%87%BD%E6%95%B0/">#生成函数</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      <div class="article-content prose">
+        <h1 id="1-基础">1 基础</h1>
+<p><strong>定理（容斥原理，两个子集）</strong><br>
+设 $S$ 是有限集，$A,B\subseteq S$，则</p>
+$$|S \setminus (A\cup B)| = |S| - |A| - |B| + |A\cap B|$$<p><strong>定理（容斥原理，三个子集）</strong><br>
+设 $A,B,C\subseteq S$，则</p>
+$$|S \setminus (A\cup B\cup C)| = |S| - |A| - |B| - |C| + |A\cap B| + |A\cap C| + |B\cap C| - |A\cap B\cap C|$$<p><strong>定理（容斥原理，一般形式）</strong><br>
+设 $A_1,A_2,\dots,A_n\subseteq S$，则</p>
+$$\left|S \setminus \bigcup_{i=1}^{n} A_i\right| = \sum_{i=0}^{n} (-1)^i \sum_{1\le j_1<\cdots<j_i\le n} \left|\bigcap_{k=1}^{i} A_{j_k}\right|$$<p><strong>算子形式</strong><br>
+设 $A_i$ 为一种&quot;坏性质&quot;，$N(A_{i_1}\cdots A_{i_k})$ 为同时具备这些性质的元素个数，则</p>
+$$N\!\left(\prod_{i=1}^{n}(1-A_i)\right) = \sum_{T\subseteq[n]}(-1)^{|T|}\, N\!\left(\prod_{i\in T}A_i\right)$$<p>算子形式便于推导：将乘积展开后，对每一个交项 $N(\cdots)$ 做计数即可。</p>
+<h1 id="2-例题">2 例题</h1>
+<h2 id="21-euler-函数">2.1 Euler 函数</h2>
+<p><strong>命题：</strong> $n=p_1^{\alpha_1}\cdots p_k^{\alpha_k}$，则</p>
+$$\varphi(n)=n\prod_{i=1}^{k}\left(1-\frac{1}{p_i}\right)$$<p><strong>证明：</strong> 令 $S=\{1,\dots,n\}$，$A_i=\{x\in S\mid p_i\mid x\}$。对任意 $T\subseteq\{1,\dots,k\}$，</p>
+$$\left|\bigcap_{i\in T}A_i\right|=\frac{n}{\prod_{i\in T}p_i}$$<p>（因为每个 $p_i$ 均整除 $n$）。将容斥展开后，恰好得到乘积公式。</p>
+<hr>
+<p><strong>例题（Nowcoder 19857）</strong></p>
+<p>$N$ 对情侣共 $2N$ 人围成一个环，要求任意一对情侣不相邻。两方案若能通过旋转互相得到则视为相同（不考虑镜像翻转），求方案数。</p>
+<p>设事件 $A_i$：第 $i$ 对情侣相邻。固定选中 $i$ 对相邻时：</p>
+<ul>
+<li>把每对合并为一个块，内部有 2 种次序，贡献 $2^i$；</li>
+<li>环上共 $2N-i$ 个物体，圆排列数为 $(2N-i-1)!$。</li>
+</ul>
+$$\boxed{\text{Ans}=\sum_{i=0}^{N}(-1)^i\binom{N}{i}2^i(2N-i-1)!}$$<hr>
+<h2 id="22-满射每个人至少得到一件物品">2.2 满射：每个人至少得到一件物品</h2>
+<p>$m$ 件有标号物品分给 $n$ 个有标号的人，每人至少得到一件，求方案数。</p>
+<p>令 $A_i$：第 $i$ 个人空手。$|S|=n^m$；若固定 $t$ 个人空手，则每件物品有 $n-t$ 个去向：</p>
+$$\boxed{\sum_{t=0}^{n}(-1)^t\binom{n}{t}(n-t)^m}$$<p>等价写法（Stirling 数）：$n!\,S_2(m,n)$，即先将 $m$ 件物品分成 $n$ 个非空无标号组，再给组贴标签。</p>
+<p>推广：恰好有 $r$ 个人得到物品的方案数为 $\displaystyle\binom{n}{r}r!\,S_2(m,r)$。</p>
+<hr>
+<p><strong>例题（无序分组）</strong></p>
+<p>$2n$ 个元素 $a_1,\dots,a_n,b_1,\dots,b_n$ 的全排列中，无任意一对 $(a_i,b_i)$ 相邻，求排列数。</p>
+<p>固定 $k$ 对必须相邻时，每对合并为一块（2 种内部次序），总块数 $2n-k$，排列数 $(2n-k)!$，故</p>
+$$N(A_{i_1}\cdots A_{i_k})=2^k(2n-k)!$$$$\boxed{\sum_{k=0}^{n}(-1)^k\binom{n}{k}2^k(2n-k)!}$$<h2 id="23-不定方程的解数量含上下界容斥式">2.3 不定方程的解数量（含上下界，容斥式）</h2>
+<p>求整数解数：</p>
+$$x_1+x_2+\cdots+x_k=n,\qquad l_i\le x_i\le r_i$$<p><strong>去下界：</strong> 令 $y_i=x_i-l_i$，$U_i=r_i-l_i$，$N=n-\sum l_i$，化为 $\sum y_i=N$，$0\le y_i\le U_i$。若 $N<0$ 或 $N>\sum U_i$，答案为 0。</p>
+<p><strong>容斥：</strong> 令 $A_i$：$y_i\ge U_i+1$（超上界）。</p>
+$$\boxed{\#=\sum_{T\subseteq[k]}(-1)^{|T|}\binom{N-\sum_{i\in T}(U_i+1)+(k-1)}{k-1}}$$<p>等价原变量形式：</p>
+$$\#=\sum_{T\subseteq[k]}(-1)^{|T|}\binom{n-\sum_{i=1}^k l_i-\sum_{i\in T}(r_i-l_i+1)+(k-1)}{k-1}$$<p>直接枚举子集复杂度 $O(k2^k)$，每项 $O(1)$（需预处理组合数）。</p>
+<h2 id="24-前缀和优化-dp">2.4 前缀和优化 DP $O(kN)$</h2>
+<p>设 $dp[i][s]$ 为&quot;用前 $i$ 个变量凑出和 $s$ 的方案数&quot;，初值 $dp[0][0]=1$。朴素转移：</p>
+$$dp[i][s]=\sum_{x=0}^{\min(U_i,s)}dp[i-1][s-x]$$<p>令 $\text{pref}[t]=\sum_{u=0}^{t}dp[i-1][u]$，则</p>
+$$dp[i][s]=\text{pref}[s]-\text{pref}[s-U_i-1]$$<p>（约定 $\text{pref}[-1]=0$），每个状态 $O(1)$，总复杂度 $O(kN)$，滚动数组空间 $O(N)$。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MOD <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1000000007</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">inline</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">add</span>(<span style="color:#8be9fd">int</span> a,<span style="color:#8be9fd">int</span> b){ a<span style="color:#ff79c6">+=</span>b; <span style="color:#ff79c6">if</span>(a<span style="color:#ff79c6">&gt;=</span>MOD) a<span style="color:#ff79c6">-=</span>MOD; <span style="color:#ff79c6">return</span> a; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> k; <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n; cin<span style="color:#ff79c6">&gt;&gt;</span>k<span style="color:#ff79c6">&gt;&gt;</span>n;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span><span style="color:#ff79c6">&gt;</span> L(k), R(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>k;<span style="color:#ff79c6">++</span>i) cin<span style="color:#ff79c6">&gt;&gt;</span>L[i]<span style="color:#ff79c6">&gt;&gt;</span>R[i];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> sumL<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>, sumU<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> U(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>k;<span style="color:#ff79c6">++</span>i){
+</span></span><span style="display:flex;"><span>        sumL<span style="color:#ff79c6">+=</span>L[i]; <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> ui<span style="color:#ff79c6">=</span>R[i]<span style="color:#ff79c6">-</span>L[i];
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(ui<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span>){ cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>        U[i]<span style="color:#ff79c6">=</span>(<span style="color:#8be9fd">int</span>)ui; sumU<span style="color:#ff79c6">+=</span>ui;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> N64<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">-</span>sumL;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(N64<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">||</span>N64<span style="color:#ff79c6">&gt;</span>sumU){ cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> N<span style="color:#ff79c6">=</span>(<span style="color:#8be9fd">int</span>)N64;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> prev(N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>), cur(N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>), pref(N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>    prev[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; <span style="color:#8be9fd">int</span> reach<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>k;<span style="color:#ff79c6">++</span>i){
+</span></span><span style="display:flex;"><span>        reach<span style="color:#ff79c6">=</span>min(N,reach<span style="color:#ff79c6">+</span>U[i]);
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> run<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> s<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;s<span style="color:#ff79c6">&lt;=</span>reach;<span style="color:#ff79c6">++</span>s){ run<span style="color:#ff79c6">=</span>add(run,prev[s]); pref[s]<span style="color:#ff79c6">=</span>run; }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> s<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;s<span style="color:#ff79c6">&lt;=</span>reach;<span style="color:#ff79c6">++</span>s){
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> left<span style="color:#ff79c6">=</span>s<span style="color:#ff79c6">-</span>U[i]<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> val<span style="color:#ff79c6">=</span>pref[s];
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(left<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>){ val<span style="color:#ff79c6">-=</span>pref[left]; <span style="color:#ff79c6">if</span>(val<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span>) val<span style="color:#ff79c6">+=</span>MOD; }
+</span></span><span style="display:flex;"><span>            cur[s]<span style="color:#ff79c6">=</span>val;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> s<span style="color:#ff79c6">=</span>reach<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>;s<span style="color:#ff79c6">&lt;=</span>N;<span style="color:#ff79c6">++</span>s) cur[s]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        swap(prev,cur);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    cout<span style="color:#ff79c6">&lt;&lt;</span>prev[N]<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="25-分治-ntt">2.5 分治 NTT $O(N\log N\log k)$</h2>
+<p>每个变量 $y_i\in[0,U_i]$ 对应多项式 $P_i(x)=1+x+\cdots+x^{U_i}$，答案即</p>
+$$[x^N]\prod_{i=1}^{k}P_i(x)$$<p>将 $k$ 个多项式做分治合并，每次卷积后截断到 $x^N$，时间 $O(N\log N)$；树高 $\log k$，总复杂度 $O(N\log N\log k)$。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#6272a4">// 截断卷积：只保留到 x^lim
+</span></span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> conv_trunc(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> A, vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> B, <span style="color:#8be9fd">int</span> lim){
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(A.empty()<span style="color:#ff79c6">||</span>B.empty()) <span style="color:#ff79c6">return</span> {};
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>((<span style="color:#8be9fd">int</span>)A.size()<span style="color:#ff79c6">&gt;</span>lim<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>) A.resize(lim<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>((<span style="color:#8be9fd">int</span>)B.size()<span style="color:#ff79c6">&gt;</span>lim<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>) B.resize(lim<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> need<span style="color:#ff79c6">=</span>(<span style="color:#8be9fd">int</span>)A.size()<span style="color:#ff79c6">+</span>(<span style="color:#8be9fd">int</span>)B.size()<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">while</span>(n<span style="color:#ff79c6">&lt;</span>need) n<span style="color:#ff79c6">&lt;&lt;=</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    A.resize(n); B.resize(n);
+</span></span><span style="display:flex;"><span>    ntt(A,<span style="color:#8be9fd;font-style:italic">false</span>); ntt(B,<span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>n;<span style="color:#ff79c6">++</span>i) A[i]<span style="color:#ff79c6">=</span>(<span style="color:#8be9fd">int</span>)(<span style="color:#bd93f9">1LL</span><span style="color:#ff79c6">*</span>A[i]<span style="color:#ff79c6">*</span>B[i]<span style="color:#ff79c6">%</span>M);
+</span></span><span style="display:flex;"><span>    ntt(A,<span style="color:#8be9fd;font-style:italic">true</span>);
+</span></span><span style="display:flex;"><span>    A.resize(min(need,lim<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> A;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> multiply_range(vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;&amp;</span> polys, <span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r, <span style="color:#8be9fd">int</span> N){
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(r<span style="color:#ff79c6">-</span>l<span style="color:#ff79c6">==</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> polys[l];
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m<span style="color:#ff79c6">=</span>(l<span style="color:#ff79c6">+</span>r)<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> L<span style="color:#ff79c6">=</span>multiply_range(polys,l,m,N);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> R<span style="color:#ff79c6">=</span>multiply_range(polys,m,r,N);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#50fa7b">conv_trunc</span>(L,R,N);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="26-等上界情形">2.6 等上界情形 $O(S/k)$</h2>
+<p>$n$ 个变量各在 $[0,k]$ 内，之和为 $S$，求方案数。</p>
+<p>无上界时答案为 $\binom{S+n-1}{n-1}$（隔板法）。设 $i$ 个变量违反上界（即 $>k$），对其做变量替换 $y=x-(k+1)\ge0$，总和变为 $S-i(k+1)$：</p>
+$$g(n,S,k)=\sum_{i=0}^{\lfloor S/(k+1)\rfloor}(-1)^i\binom{n}{i}\binom{S-i(k+1)+n-1}{n-1}$$<p>当 $i>\lfloor S/(k+1)\rfloor$ 时，$S-i(k+1)<0$ 使组合数为 0，故求和项数约为 $S/(k+1)$，即 $O(S/k)$。</p>
+<p>若 $k\ge S$，上界无效，直接返回 $\binom{S+n-1}{n-1}$。</p>
+<h1 id="3-错排">3 错排</h1>
+<p>$p$ 是 $\{1,2,\dots,n\}$ 的排列，且 $\forall i,\ p_i\ne i$，记满足条件的排列数为 $D(n)$。</p>
+<h2 id="31-递推式">3.1 递推式</h2>
+$$D(0)=1,\quad D(1)=0,\quad D(n)=(n-1)\bigl(D(n-1)+D(n-2)\bigr)\quad(n\ge2)$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>D[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; D[<span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">2</span>;i<span style="color:#ff79c6">&lt;=</span>MAXN;<span style="color:#ff79c6">++</span>i)
+</span></span><span style="display:flex;"><span>    D[i]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1LL</span><span style="color:#ff79c6">*</span>(i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">*</span>(D[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">+</span>D[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">2</span>])<span style="color:#ff79c6">%</span>MOD;
+</span></span></code></pre></div><h2 id="32-容斥公式">3.2 容斥公式</h2>
+<p>令 $A_i$：位置 $i$ 被自己占据（$p_i=i$）。$|S|=n!$，固定 $k$ 个位置后剩余 $(n-k)!$ 种排列：</p>
+$$D(n)=\left|S\setminus\bigcup_{i=1}^{n}A_i\right|=\sum_{k=0}^{n}(-1)^k\binom{n}{k}(n-k)!$$$$\boxed{D(n)=n!\sum_{k=0}^{n}\frac{(-1)^k}{k!}},\qquad \frac{D(n)}{n!}\xrightarrow{n\to\infty}\frac{1}{e}$$<h2 id="33-指数型生成函数">3.3 指数型生成函数</h2>
+<p>置换 = 若干置换环（圆排列）的无标号集合。环长 $k$ 的圆排列数 $(k-1)!$，在 EGF 中贡献 $\frac{(k-1)!}{k!}x^k=\frac{x^k}{k}$，故</p>
+$$\text{CYC}(x)=\sum_{k\ge1}\frac{x^k}{k}=-\ln(1-x)$$<p>错排禁止 1-环：</p>
+$$\text{CYC}_{\ge2}(x)=-\ln(1-x)-x$$$$\boxed{H(x)=\exp\bigl(\text{CYC}_{\ge2}(x)\bigr)=\frac{e^{-x}}{1-x}}$$<p>展开后提取 $[x^n]$ 即得容斥公式。</p>
+<h2 id="34-二项式反演">3.4 二项式反演</h2>
+<p>设 $f_n$：恰有 0 个不动点的排列数（即 $D(n)$），$g_n=n!$（至多 $n$ 个不动点）。由二项式反演：</p>
+$$f_n=\sum_{i=0}^{n}\binom{n}{i}(-1)^{n-i}i!$$<p>与容斥结果一致，$O(n)$。</p>
+<h2 id="35-恰好有--个不动点">3.5 恰好有 $k$ 个不动点</h2>
+<ol>
+<li>选出哪 $k$ 个位置固定：$\binom{n}{k}$ 种。</li>
+<li>在剩余 $n-k$ 个位置上做错排：$D(n-k)$ 种。</li>
+</ol>
+$$\boxed{\binom{n}{k}D(n-k)}$$<p>展开即</p>
+$$\binom{n}{k}\sum_{i=0}^{n-k}(-1)^i\binom{n-k}{i}(n-k-i)!$$<h1 id="4-第二类斯特林数">4 第二类斯特林数 $S_2(n,k)$</h1>
+<p>将 $n$ 个有标号球放入 $k$ 个<strong>无标号</strong>非空盒子的方案数，记作 $S_2(n,k)$ 或 $\left\{\begin{smallmatrix}n\\k\end{smallmatrix}\right\}$。</p>
+<p><strong>递推关系：</strong></p>
+$$S_2(n,k)=k\cdot S_2(n-1,k)+S_2(n-1,k-1)$$<p>（第 $n$ 个球放入已有 $k$ 个盒之一，或独自开一个新盒）</p>
+<p><strong>通项公式：</strong></p>
+$$S_2(n,k)=\frac{1}{k!}\sum_{i=0}^{k}(-1)^i\binom{k}{i}(k-i)^n$$<p><strong>重要公式（下降幂展开）：</strong></p>
+$$x^n=\sum_{k=0}^{n}S_2(n,k)\,x^{\underline{k}},\qquad x^{\underline{k}}=x(x-1)\cdots(x-k+1)$$<p>与满射的联系：将 $n$ 件物品放入 $k$ 个<strong>有标号</strong>非空盒子的方案数为 $k!\,S_2(n,k)$。</p>
+<h1 id="5-例题">5 例题</h1>
+<h2 id="51-区间内与素数集合互质的整数个数">5.1 区间内与素数集合互质的整数个数</h2>
+<p><strong>题意（Nowcoder 16513）：</strong> 给定只含素数的集合 $A=\{a_1,\dots,a_k\}$（$k\le20$），统计 $[L,R]$ 内不被任何 $a_i$ 整除的正整数个数。</p>
+<p>令</p>
+$$F(X)=\#\{1\le n\le X:\forall a\in A,\ a\nmid n\}$$<p>由容斥：</p>
+$$F(X)=\sum_{S\subseteq A}(-1)^{|S|}\left\lfloor\frac{X}{\prod_{a\in S}a}\right\rfloor$$<p>答案为 $F(R)-F(L-1)$，复杂度 $O(2^k)$（乘积超过 $X$ 时剪枝）。</p>
+<blockquote>
+<p><strong>补充：</strong> 区间 $[L,R]$ 内 $d$ 的倍数个数
+</p>
+$$\left\lfloor\frac{R}{d}\right\rfloor-\left\lfloor\frac{L-1}{d}\right\rfloor$$<p>
+是&quot;$[L,R]$ 问题 → $(R)-(L-1)$ → $[1,n]$ 问题&quot;的经典套路。</p>
+</blockquote>
+<h2 id="52-动态互质对计数">5.2 动态互质对计数</h2>
+<p><strong>题意（CF 547C）：</strong> 动态维护一个集合 $S$（插入/删除），每次操作后输出 $S$ 中满足 $\gcd(a_i,a_j)=1$ 的对数。</p>
+<p><strong>法一（容斥）：</strong> 维护 $\text{cnt}[d]$：$S$ 中被 $d$ 整除的元素个数。插入值 $v$（质因子集合 $\{p_1,\dots,p_m\}$）时，与现有元素互质的数目为</p>
+$$\sum_{S\subseteq\{p_1,\dots,p_m\}}(-1)^{|S|}\text{cnt}\!\left[\prod_{p\in S}p\right]$$<p>更新 $\text{cnt}[d]$ 对所有 $2^m$ 个无平方因子因数。删除时先更新 $\text{cnt}$ 再算差量。</p>
+<p><strong>法二（Möbius 反演）：</strong></p>
+$$\sum_{y\in S}\mathbf{1}[\gcd(v,y)=1]=\sum_{d\mid v}\mu(d)\cdot\text{cnt}[d]$$<p>两种方法每次操作均为 $O(2^{\omega(v)})$，$v\le5\times10^5$ 时 $\omega(v)\le7$。</p>
+
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-基础">1 基础</a></li>
+    <li><a href="#2-例题">2 例题</a>
+      <ul>
+        <li><a href="#21-euler-函数">2.1 Euler 函数</a></li>
+        <li><a href="#22-满射每个人至少得到一件物品">2.2 满射：每个人至少得到一件物品</a></li>
+        <li><a href="#23-不定方程的解数量含上下界容斥式">2.3 不定方程的解数量（含上下界，容斥式）</a></li>
+        <li><a href="#24-前缀和优化-dp">2.4 前缀和优化 DP $O(kN)$</a></li>
+        <li><a href="#25-分治-ntt">2.5 分治 NTT $O(N\log N\log k)$</a></li>
+        <li><a href="#26-等上界情形">2.6 等上界情形 $O(S/k)$</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-错排">3 错排</a>
+      <ul>
+        <li><a href="#31-递推式">3.1 递推式</a></li>
+        <li><a href="#32-容斥公式">3.2 容斥公式</a></li>
+        <li><a href="#33-指数型生成函数">3.3 指数型生成函数</a></li>
+        <li><a href="#34-二项式反演">3.4 二项式反演</a></li>
+        <li><a href="#35-恰好有--个不动点">3.5 恰好有 $k$ 个不动点</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-第二类斯特林数">4 第二类斯特林数 $S_2(n,k)$</a></li>
+    <li><a href="#5-例题">5 例题</a>
+      <ul>
+        <li><a href="#51-区间内与素数集合互质的整数个数">5.1 区间内与素数集合互质的整数个数</a></li>
+        <li><a href="#52-动态互质对计数">5.2 动态互质对计数</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      function onScroll() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+          }
+        }
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      
+      setTimeout(onScroll, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

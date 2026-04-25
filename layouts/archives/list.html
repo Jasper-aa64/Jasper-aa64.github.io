@@ -1,12 +1,11 @@
 {{ define "main" }}
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <span class="eyebrow">Timeline</span>
-        <h1>{{ .Title }}</h1>
-      </div>
-    </div>
+  <section class="page-heading">
+    <span class="eyebrow">Timeline</span>
+    <h1>{{ .Title }}</h1>
+    <p>Chronological index of published notes.</p>
+  </section>
 
+  <section class="content-panel">
     <div class="archive-list">
       {{ range (where site.RegularPages "Section" "posts").GroupByDate "2006" }}
         <section class="archive-year">

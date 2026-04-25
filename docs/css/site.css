@@ -743,6 +743,8 @@ code, pre { font-family: var(--mono); }
   }
   .site-nav {
     width: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
     padding-bottom: 1px;
   }
   .intro-copy h1,

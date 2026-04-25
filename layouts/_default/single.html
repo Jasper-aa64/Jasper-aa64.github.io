@@ -28,7 +28,7 @@
       {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
         <aside class="article-toc">
           <div class="toc-card">
-            <span class="eyebrow">On this page</span>
+            <span>On this page</span>
             {{ .TableOfContents }}
           </div>
         </aside>
@@ -65,20 +65,6 @@
           const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
           if (activeLink) {
             activeLink.classList.add('active');
-            
-            // Smoothly scroll TOC if needed
-            const tocCard = document.querySelector('.toc-card');
-            const linkTop = activeLink.offsetTop;
-            const linkBottom = linkTop + activeLink.offsetHeight;
-            const cardScrollTop = tocCard.scrollTop;
-            const cardHeight = tocCard.clientHeight;
-            const padding = 18;
-
-            if (linkTop < cardScrollTop + padding) {
-              tocCard.scrollTop = Math.max(0, linkTop - padding);
-            } else if (linkBottom > cardScrollTop + cardHeight - padding) {
-              tocCard.scrollTop = linkBottom - cardHeight + padding;
-            }
           }
         }
       }

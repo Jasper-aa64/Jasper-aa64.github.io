@@ -1,13 +1,24 @@
-<article class="post-card">
-  <div class="post-card-inner">
-    {{ with index .Params.categories 0 }}
-      <span class="post-kicker">{{ . }}</span>
-    {{ end }}
-    <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
-    <p>{{ with .Summary }}{{ . | plainify | truncate 180 }}{{ else }}{{ .Plain | truncate 180 }}{{ end }}</p>
-    <div class="post-card-meta">
-      <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format "Jan 2, 2006" }}</time>
+<article class="post-entry">
+  <div class="post-entry-date">
+    <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format "2006.01.02" }}</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      {{ with index .Params.categories 0 }}
+        <a href="/categories/{{ . | urlize }}/">{{ . }}</a>
+      {{ else }}
+        <span>Note</span>
+      {{ end }}
       <span>{{ .ReadingTime }} min read</span>
     </div>
+    <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+    <p>{{ with .Summary }}{{ . | plainify | truncate 220 }}{{ else }}{{ .Plain | truncate 220 }}{{ end }}</p>
+    {{ with .Params.tags }}
+      <div class="post-entry-tags">
+        {{ range first 5 . }}
+          <a href="/tags/{{ . | urlize }}/">#{{ . }}</a>
+        {{ end }}
+      </div>
+    {{ end }}
   </div>
 </article>

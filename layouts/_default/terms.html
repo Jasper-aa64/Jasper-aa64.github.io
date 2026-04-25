@@ -1,11 +1,11 @@
 {{ define "main" }}
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <span class="eyebrow">Taxonomy</span>
-        <h1>{{ .Title }}</h1>
-      </div>
-    </div>
+  <section class="page-heading">
+    <span class="eyebrow">Taxonomy</span>
+    <h1>{{ .Title }}</h1>
+    <p>Browse notes by topic and reuse path.</p>
+  </section>
+
+  <section class="content-panel">
     <div class="term-grid">
       {{ range .Data.Terms.Alphabetical }}
         <a class="term-card" href="{{ .Page.RelPermalink }}">

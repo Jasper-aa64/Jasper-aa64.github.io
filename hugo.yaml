@@ -1,6 +1,6 @@
 baseURL: "https://jmaaa32.github.io/"
 languageCode: "en-us"
-title: "CP Notes"
+title: "Jasper's Technical Notebook"
 defaultContentLanguage: "en"
 enableRobotsTXT: true
 publishDir: "docs"
@@ -39,10 +39,10 @@ menu:
 
 params:
   author: "Jasper32"
-  tagline: "Notes on code, systems, and ideas"
-  description: "A personal notebook for algorithms, technical write-ups, implementation details, and things worth remembering."
-  heroTitle: "Technical notes, kept usable."
-  heroText: "A light-weight Hugo notebook for algorithms today, broader engineering and technical notes over time."
+  tagline: "Algorithms, systems, and engineering notes"
+  description: "A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."
+  heroTitle: "A working index for technical notes."
+  heroText: "Algorithms now, engineering and systems notes over time. Written for lookup, review, and reuse."
   github: "https://github.com/JMaaa32"
 
 markup:

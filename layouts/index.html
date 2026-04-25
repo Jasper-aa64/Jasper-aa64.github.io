@@ -1,40 +1,64 @@
 {{ define "main" }}
-  <section class="hero">
-    <div class="hero-copy">
-      <span class="eyebrow">Hugo · Light Theme · Blue Accent</span>
+  {{ $posts := where site.RegularPages "Section" "posts" }}
+  <section class="home-intro">
+    <div class="intro-copy">
+      <span class="eyebrow">Technical notebook</span>
       <h1>{{ site.Params.heroTitle }}</h1>
       <p>{{ site.Params.heroText }}</p>
-      <div class="hero-actions">
-        <a class="button button-primary" href="/posts/">Browse posts</a>
-        <a class="button button-secondary" href="/about/">About this notebook</a>
+    </div>
+    <dl class="site-stats" aria-label="Site statistics">
+      <div>
+        <dt>Posts</dt>
+        <dd>{{ len $posts }}</dd>
+      </div>
+      <div>
+        <dt>Categories</dt>
+        <dd>{{ len site.Taxonomies.categories }}</dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>{{ len site.Taxonomies.tags }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="topic-index" aria-labelledby="topics-title">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Browse</span>
+        <h2 id="topics-title">Core areas</h2>
       </div>
     </div>
-    <div class="hero-panel">
-      <div class="metric-card">
-        <span class="metric-label">Posts</span>
-        <strong>{{ len (where site.RegularPages "Section" "posts") }}</strong>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">Categories</span>
-        <strong>{{ len site.Taxonomies.categories }}</strong>
-      </div>
-      <div class="metric-card">
-        <span class="metric-label">Tags</span>
-        <strong>{{ len site.Taxonomies.tags }}</strong>
-      </div>
+    <div class="topic-grid">
+      <a class="topic-card" href="/categories/combinatorics/">
+        <span>Algorithms</span>
+        <strong>Combinatorics, data structures, graph theory, number theory.</strong>
+      </a>
+      <a class="topic-card" href="/categories/engineering/">
+        <span>Engineering</span>
+        <strong>Implementation notes, project write-ups, tooling, and architecture.</strong>
+      </a>
+      <a class="topic-card" href="/categories/systems/">
+        <span>Systems</span>
+        <strong>Linux, networking, concurrency, C++, and runtime behavior.</strong>
+      </a>
+      <a class="topic-card" href="/posts/">
+        <span>Notes</span>
+        <strong>Everything published, ordered for quick lookup and review.</strong>
+      </a>
     </div>
   </section>
 
-  <section class="section-block">
+  <section class="content-panel">
     <div class="section-head">
       <div>
         <span class="eyebrow">Latest</span>
         <h2>Recent notes</h2>
       </div>
-      <a class="text-link" href="/archives/">See all</a>
+      <a class="text-link" href="/archives/">View archive</a>
     </div>
-    <div class="post-grid">
-      {{ range first 6 (where site.RegularPages "Section" "posts") }}
+    <div class="post-list">
+      {{ range first 8 $posts }}
         {{ partial "post-card.html" . }}
       {{ end }}
     </div>
