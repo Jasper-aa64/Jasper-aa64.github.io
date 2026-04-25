@@ -17,8 +17,9 @@
   --shadow-sm: 0 1px 2px rgba(15, 31, 58, .05), 0 8px 24px rgba(15, 31, 58, .04);
   --radius: 8px;
   --radius-sm: 6px;
-  --container: 1180px;
-  --font: Inter, "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --container: 1320px;
+  --font: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
   --mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
@@ -175,13 +176,14 @@ code, pre { font-family: var(--mono); }
   padding: 8px 0 0;
 }
 .intro-copy h1 {
-  max-width: 760px;
+  max-width: 720px;
   margin: 12px 0 12px;
   color: var(--text-strong);
-  font-size: clamp(2rem, 4.6vw, 4.05rem);
-  font-weight: 820;
+  font-family: var(--display);
+  font-size: clamp(2.25rem, 4.8vw, 4.35rem);
+  font-weight: 560;
   letter-spacing: 0;
-  line-height: .98;
+  line-height: 1.03;
 }
 .intro-copy p {
   max-width: 680px;
@@ -270,9 +272,10 @@ code, pre { font-family: var(--mono); }
 }
 .page-heading h1 {
   color: var(--text-strong);
+  font-family: var(--display);
   font-size: clamp(2rem, 4vw, 3.2rem);
-  font-weight: 820;
-  line-height: 1.05;
+  font-weight: 560;
+  line-height: 1.12;
   margin: 12px 0 10px;
 }
 .page-heading p {
@@ -434,16 +437,18 @@ code, pre { font-family: var(--mono); }
   max-width: none;
 }
 .article-header {
-  max-width: 850px;
+  max-width: 920px;
   margin-bottom: 34px;
   padding-bottom: 24px;
   border-bottom: 1px solid var(--line-soft);
+  padding-left: clamp(0px, 3vw, 56px);
 }
 .article-header h1 {
   color: var(--text-strong);
-  font-size: clamp(2rem, 4vw, 3.35rem);
-  font-weight: 820;
-  line-height: 1.08;
+  font-family: var(--display);
+  font-size: clamp(2.2rem, 4vw, 3.55rem);
+  font-weight: 560;
+  line-height: 1.12;
   margin: 12px 0 12px;
 }
 .article-meta {
@@ -462,9 +467,10 @@ code, pre { font-family: var(--mono); }
 }
 .article-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 56px;
+  grid-template-columns: minmax(0, 880px) 300px;
+  gap: 64px;
   align-items: start;
+  padding-left: clamp(0px, 3vw, 56px);
 }
 .article-content {
   min-width: 0;
@@ -477,7 +483,7 @@ code, pre { font-family: var(--mono); }
   top: 86px;
   max-height: calc(100vh - 108px);
   overflow-y: auto;
-  padding-left: 16px;
+  padding: 0 0 0 18px;
   border-left: 1px solid var(--line);
   scrollbar-width: none;
 }
@@ -513,7 +519,7 @@ code, pre { font-family: var(--mono); }
 }
 .toc-card nav > ul > li > a {
   color: var(--text);
-  font-weight: 700;
+  font-weight: 680;
 }
 .toc-card a:hover,
 .toc-card a.active {
@@ -526,10 +532,10 @@ code, pre { font-family: var(--mono); }
 
 /* Prose */
 .prose {
-  max-width: 78ch;
+  max-width: 88ch;
   color: #24364f;
-  font-size: 1.01rem;
-  line-height: 1.78;
+  font-size: 1.04rem;
+  line-height: 1.82;
 }
 .prose > *:first-child { margin-top: 0; }
 .prose h1,
@@ -537,27 +543,28 @@ code, pre { font-family: var(--mono); }
 .prose h3,
 .prose h4 {
   color: var(--text-strong);
-  font-weight: 780;
-  line-height: 1.28;
+  font-family: var(--display);
+  font-weight: 600;
+  line-height: 1.32;
 }
 .prose h1 {
-  margin: 2.25em 0 .75em;
+  margin: 2.15em 0 .75em;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line-soft);
-  font-size: 1.72rem;
+  font-size: 1.95rem;
 }
 .prose h2 {
   margin: 2em 0 .65em;
-  font-size: 1.34rem;
+  font-size: 1.52rem;
 }
 .prose h3 {
   margin: 1.7em 0 .55em;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
 }
 .prose h4 {
   margin: 1.45em 0 .45em;
   color: var(--muted-strong);
-  font-size: 1rem;
+  font-size: 1.04rem;
 }
 .prose p,
 .prose ul,
@@ -707,6 +714,17 @@ code, pre { font-family: var(--mono); }
   }
   .topic-card:nth-last-child(-n + 2) {
     border-bottom: 0;
+  }
+  .article-layout {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 44px;
+  }
+}
+
+@media (max-width: 900px) {
+  .article-header,
+  .article-layout {
+    padding-left: 0;
   }
   .article-layout {
     grid-template-columns: minmax(0, 1fr);
