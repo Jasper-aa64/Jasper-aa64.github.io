@@ -65,6 +65,7 @@
           const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
           if (activeLink) {
             activeLink.classList.add('active');
+            activeLink.scrollIntoView({ block: 'nearest' });
           }
         }
       }

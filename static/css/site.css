@@ -477,20 +477,20 @@ code, pre { font-family: var(--mono); }
 }
 .article-toc {
   min-width: 0;
-  align-self: start;
-}
-.toc-card {
   position: sticky;
   top: 86px;
   align-self: start;
   max-height: calc(100vh - 108px);
   overflow-y: auto;
+  scrollbar-width: none;
+}
+.article-toc::-webkit-scrollbar { display: none; }
+.toc-card {
+  position: static;
   padding: 0 0 0 18px;
   border-left: 1px solid var(--line);
   font-family: var(--font);
-  scrollbar-width: none;
 }
-.toc-card::-webkit-scrollbar { display: none; }
 .toc-card > span {
   display: block;
   color: var(--muted);
@@ -740,15 +740,19 @@ code, pre { font-family: var(--mono); }
     gap: 28px;
   }
   .article-toc {
+    position: sticky;
+    top: 76px;
     order: -1;
+    z-index: 30;
+    max-height: 42vh;
+    overflow-y: auto;
   }
   .toc-card {
-    position: static;
-    max-height: 260px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--surface);
     padding: 14px;
+    box-shadow: var(--shadow-sm);
   }
 }
 
