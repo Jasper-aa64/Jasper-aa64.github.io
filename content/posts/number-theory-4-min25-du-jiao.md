@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #4: Min_25 Sieve and Du Jiao Sieve"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-4-min25-du-jiao-sieve"
 description: "Min_25 for prime-power sums over floor(n/k) in O(n^{3/4}/log n), and Du Jiao Sieve for prefix sums of μ and φ in O(n^{2/3}) via convolution identities."
 summary: "Min_25 Sieve for Σ_{p≤x}f(p) in O(n^{3/4}/log n). Du Jiao Sieve for sub-linear prefix sums of multiplicative functions via convolution identities."

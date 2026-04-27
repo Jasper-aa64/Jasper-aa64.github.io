@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-1-elementary"
 description: "GCD/LCM properties, Bézout identity, Euler's theorem and power-tower reduction with φ-chain, CRT and congruence system merging, Legendre's formula for n!."
 summary: "GCD/LCM properties, Bézout/Frobenius coin problem, Euler's theorem with power-tower reduction, φ-chain, CRT, congruence system merging, n! prime factorisation."

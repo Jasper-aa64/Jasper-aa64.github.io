@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #2-ex: Möbius Inversion — 7 Core Techniques"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-2-ex-mobius-techniques"
 description: "Seven core Möbius inversion technique patterns: contracting loops by divisibility, breaking gcd, enumerating gcd explicitly, T=dk substitution, divisor symmetry, triangle/full-matrix conversion, and frequency-array inversion."
 summary: "Seven core Möbius inversion trick patterns with worked examples: gcd-enumerating, T=dk product substitution, divisor symmetry, and frequency-based简介 inversion."

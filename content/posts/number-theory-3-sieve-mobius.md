@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-3-sieve-mobius-inclusion-exclusion"
 description: "Eratosthenes to Möbius: computing μ via sieving, Möbius inclusion-exclusion via multiples/coprime counting, CF 803F Coprime Subsequences full tutorial."
 summary: "Computing μ via Eratosthenes, Möbius inclusion-exclusion (multiple-form), coprime counting, CF 803F Coprime Subsequences with both bottom-up and Möbius approaches."

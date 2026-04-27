@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #2-ex: Möbius Practice — LCM Sums, Divisor-Count, Omega Numbers"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-2-ex-mobius-practice"
 description: "Worked examples: SPOJ LCMSUM, Crash's Digital Table (two-layer blocking), HDU 4944 FSF's Game (offline difference), SDOI2015 divisor-count, and CF 2176F Omega Numbers."
 summary: "LCM-sum problems (LCMSUM, Crash's table, FSF's game), SDOI2015 divisor-count sum, CF 2176F Omega Numbers — all using Möbius/φ inversion."

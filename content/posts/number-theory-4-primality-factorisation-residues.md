@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #4: Primality, Factorisation & Residues (Miller-Rabin, Pollard Rho, Tonelli-Shanks)"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-4-primality-factorisation-residues"
 description: "Miller-Rabin deterministic for 64-bit, Pollard Rho factorisation, Tonelli-Shanks square roots, cubic roots via extension field, N-th residues over composite modulus."
 summary: "Miller-Rabin (64-bit deterministic), Pollard Rho factorisation, Tonelli-Shanks quadratic residues, cubic roots, quartic roots, and general k-th/N-th residues."

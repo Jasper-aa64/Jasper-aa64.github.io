@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #1.5: Number-Theoretic (Divisibility) Blocking"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-1-5-divisibility-blocking"
 description: "O(sqrt(n)) floor-sum evaluation using divisibility blocks, multi-variable generalisation, ceiling-division blocking, and CSES 1082 stress test."
 summary: "Divisibility blocking for O(sqrt(n)) floor-sum evaluation, single/multi-variable, ceiling-division blocking, with CSES 1082 tutorial."

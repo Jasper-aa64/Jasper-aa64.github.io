@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #0: Common Formulae — Legendre's Formula & Divisor Convolutions"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-0-common-formulae"
 description: "Legendre's formula for prime exponents in n!, divisor/multiple convolution templates, and offline difference for batch computation of H(n)=Σf(d)g(⌊n/d⌋)."
 summary: "Legendre's formula, divisor and multiple convolutions in O(n log n), offline-difference batch processing for H(n)=Σf(d)g(⌊n/d⌋)."

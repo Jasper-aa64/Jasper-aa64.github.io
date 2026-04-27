@@ -1,6 +1,6 @@
 ---
 title: "Number Theory #3~4: Sieve Problems — Coin System DP via Sieve"
-date: 2026-04-28
+date: 2026-04-28T00:00:00+08:00
 slug: "number-theory-3-4-sieve-problems"
 description: "Sieve+DP: coin systems with multiple constraints, greedy optimality proof, pencere-calculating savings via ⌊a_k/(i·j)⌋ counting, O(maxA · log maxA)226."
 summary: "Sieve+DP for coin systems with multiple constraints, greedy optimality, transition derived from divisor-level savings."
