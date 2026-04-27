@@ -482,6 +482,7 @@ code, pre { font-family: var(--mono); }
   width: 270px;
   right: max(20px, calc((100vw - var(--container)) / 2));
   top: 86px;
+  transform: translateY(var(--toc-shift, 0px));
   align-self: start;
   max-height: calc(100vh - 108px);
   overflow-y: auto;
