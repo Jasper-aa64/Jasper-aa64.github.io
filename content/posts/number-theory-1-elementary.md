@@ -18,7 +18,7 @@ toc: true
 
 > **[Identity]**
 > $$\frac{1}{\operatorname{lcm}(a_i,a_{i+1})} = \frac{\gcd(a_i,a_{i+1})}{a_i a_{i+1}}$$
-> When $a_i<a_{i+1}$: $\gcd(a_i,a_{i+1})\le a_{i+1}-a_i$.  
+> When $a_i\lt a_{i+1}$: $\gcd(a_i,a_{i+1})\le a_{i+1}-a_i$.
 > (Used in CF 2183's elegant telescoping solution.)
 
 ---
@@ -51,7 +51,7 @@ Templated: NC17190 (BIT range-add + $\varphi$-chain DFS for exponentiation).
 
 # 4 Congruence Systems & CRT
 
-**Pairwise merging** via exGCD: combine $x\equiv r\pmod m$ with $x\equiv b\pmod a$ usingeure `exgcd(m, a, x, y)` to find725 incremental shift $t_0$.
+**Pairwise merging** via exGCD: combine $x\equiv r\pmod m$ with $x\equiv b\pmod a$ using `exgcd(m, a, x, y)` to find the incremental shift $t_0$.
 
 **CRT** (pairwise coprime): $x = \sum a_i\cdot M_i\cdot M_i^{-1}\pmod{\prod m_i}$.
 

@@ -42,7 +42,7 @@ $g(x)=1$ for all $x\mid n!$ $\implies$ $h(n) = \sum_{d\mid n}\mu(d) = [n=1]$, i.
 
 Count non-empty subsets of $a_1,\dots,a_n$ whose GCD = 1.
 
-**Obstacle:** $\text{cnt}[d]$ = number of $a_i$ divisible by $d$, computed067 in $O(\max\ \log\ \max)$ via divisor sieving.
+**Obstacle:** $\text{cnt}[d]$ = number of $a_i$ divisible by $d$, computed in $O(\max\log\max)$ via divisor sieving.
 
 **holding Two equivalents:**
 
@@ -50,7 +50,7 @@ Count non-empty subsets of $a_1,\dots,a_n$ whose GCD = 1.
 2. **Möbius inversion:** $\text{Ans} = \sum_{d=1}^{\max\{\}} \mu(d)(2^{\text{cnt}[d]}-1)$.
 
 ```cpp
-// Möbius353 approach
+// Möbius approach
 for (int i = 1; i <= m; i++) {
     int term = (pow2[cnt[i]] - 1 + MOD) % MOD;
     ans = (ans + (ll)mu[i] * term) % MOD;
