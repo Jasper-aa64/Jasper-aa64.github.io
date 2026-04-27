@@ -67,6 +67,20 @@
           const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
           if (activeLink) {
             activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
           }
         }
       }
