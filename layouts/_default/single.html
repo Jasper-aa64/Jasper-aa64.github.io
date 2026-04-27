@@ -45,7 +45,9 @@
       
       if (headings.length === 0 || tocLinks.length === 0) return;
 
-      function onScroll() {
+      let ticking = false;
+
+      function updateActiveTocLink() {
         const scrollPosition = window.scrollY + 140; // offset for sticky header
         let currentHeading = headings[0];
 
@@ -65,14 +67,22 @@
           const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
           if (activeLink) {
             activeLink.classList.add('active');
-            activeLink.scrollIntoView({ block: 'nearest' });
           }
         }
       }
 
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
       window.addEventListener('scroll', onScroll, { passive: true });
       // trigger once on load
-      setTimeout(onScroll, 50);
+      setTimeout(updateActiveTocLink, 50);
     });
   </script>
   {{ end }}
