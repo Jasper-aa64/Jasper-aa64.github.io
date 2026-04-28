@@ -21,7 +21,7 @@
       </div>
     {{ else }}
       <div class="post-list">
-        {{ range .Paginator.Pages }}
+        {{ range .Pages }}
           {{ partial "post-card.html" . }}
         {{ end }}
       </div>
