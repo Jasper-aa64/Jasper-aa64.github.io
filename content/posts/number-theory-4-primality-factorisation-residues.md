@@ -14,7 +14,7 @@ toc: true
 
 The Miller-Rabin implementation is included in the Pollard Rho template below.
 
-**Deterministic for 64-bit integers** using witnesses $\{2,3,5,7,11,13,17,19,23\}$ — no false positives for $n\lt 3.3\times10^{24}$.
+**Deterministic for all 64-bit integers** ($n\lt 2^{64}\approx1.8\times10^{19}$) using witnesses $\{2,3,5,7,11,13,17,19,23\}$.
 
 # 2 Pollard Rho Factorisation
 

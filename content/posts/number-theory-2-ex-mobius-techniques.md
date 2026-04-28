@@ -151,8 +151,8 @@ $$g(T)=\sum_{d\mid T}f(d)\,\mu\!\left(\frac{T}{d}\right)$$
 
 $$\boxed{S=\sum_{T=1}^{\min(n,m)}g(T)\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor}$$
 
-> **General Formula 1.** Combining Tricks 3 and 4:
-> $$\sum_{i=1}^n\sum_{j=1}^m f(\gcd(i,j))=\sum_{T=1}^{n}g(T)\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor,\quad g=f*\mu$$
+> **General Formula 1.** Combining Tricks 3 and 4 (assuming $n\leq m$):
+> $$\sum_{i=1}^n\sum_{j=1}^m f(\gcd(i,j))=\sum_{T=1}^{\min(n,m)}g(T)\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor,\quad g=f*\mu$$
 > **Limitation:** the inner expression must depend only on $\gcd(i,j)$ (a univariate function). This formula does not generalise to expressions involving $i$ or $j$ independently.
 
 ### 4.1 Example: ZAP-Queries via General Formula 1

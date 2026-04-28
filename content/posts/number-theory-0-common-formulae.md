@@ -57,7 +57,7 @@ for (int d = 1; d <= Amax; d++)
 
 > **[Technique — Batch $H(n)=\sum_{d=1}^n f(d)\,g(\lfloor n/d\rfloor)$]**
 >
->揃 Single-point:分 block in $O(\sqrt{n})$.
+> **Single query:** use divisibility blocking in $O(\sqrt{n})$.
 >
 > **Batch** $O(N\log N)$: for each $d$ and $k$, on $n\in[dk,d(k+1)-1]$ the quotient $\lfloor n/d\rfloor = k$ is constant.
 >

@@ -190,7 +190,7 @@ int main(){
 > $$\begin{aligned}
 > \sum_{i=1}^n\gcd(i,n)
 > &=\sum_{d\mid n}d\cdot\sum_{i=1}^n[\gcd(i,n)=d]\\
-> &=\sum_{d\mid n}d\cdot\sum_{i=1}^{\lfloor n/d\rfloor}\!\left[\gcd\!\left(k,\Bigl\lfloor\tfrac{n}{d}\Bigr\rfloor\right)=1\right]\\
+> &=\sum_{d\mid n}d\cdot\sum_{i=1}^{\lfloor n/d\rfloor}\!\left[\gcd\!\left(i,\Bigl\lfloor\tfrac{n}{d}\Bigr\rfloor\right)=1\right]\\
 > &=\sum_{d\mid n}d\cdot\varphi\!\left(\Bigl\lfloor\tfrac{n}{d}\Bigr\rfloor\right)
 > \end{aligned}$$
 

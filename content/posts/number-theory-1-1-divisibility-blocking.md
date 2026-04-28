@@ -129,7 +129,9 @@ while (l <= min(n1, n2, ..., nk)) {
 
 For $\lceil n/i\rceil$, the block right endpoint differs slightly from the floor case.
 
-The block where $\lceil n/i\rceil=\lceil n/j\rceil$ for all $j\in[i,n]$ has its right endpoint at:
+For $1\leq i\leq n-1$, the largest $j$ with $\lceil n/j\rceil=\lceil n/i\rceil$ is:
 $$r=\left\lfloor\frac{n-1}{\lfloor(n-1)/i\rfloor}\right\rfloor$$
 
 That is, substitute $n\to n-1$ in the floor-division right-endpoint formula.
+
+> **Edge case $i=n$:** $\lfloor(n-1)/n\rfloor=0$, making the formula undefined. When $i=n$, $\lceil n/n\rceil=1$ and the block is the singleton $\{n\}$, so $r=n$ directly.
