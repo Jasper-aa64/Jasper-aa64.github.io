@@ -420,26 +420,14 @@ code, pre { font-family: var(--mono); }
 }
 /* light avatar: square chibi */
 .home-avatar-light {
-  width: 500px;
+  width: 560px;
   right: 0;
   bottom: -60px;
-  opacity: 1;
-  pointer-events: auto;
-  transition: opacity .35s ease;
 }
-/* theme switching — fade instead of display toggle */
-.home-avatar-dark {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .35s ease;
-}
-:root[data-theme="dark"] .home-avatar-light {
-  opacity: 0;
-  pointer-events: none;
-}
+.home-avatar-dark { display: none; }
+:root[data-theme="dark"] .home-avatar-light { display: none; }
 :root[data-theme="dark"] .home-avatar-dark {
-  opacity: 1;
-  pointer-events: auto;
+  display: block;
   filter: drop-shadow(0 20px 32px rgba(0, 0, 0, .34));
 }
 .hero-sketch-lines {
