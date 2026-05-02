@@ -1,24 +1,24 @@
-/* Design tokens */
+/* Design tokens — light theme: Varka (Genshin) — gold + teal + black on pearl */
 :root {
   color-scheme: light;
-  --bg: #f7f9fd;
-  --bg-top: #fbfdff;
-  --surface: #ffffff;
-  --surface-subtle: #f2f6fc;
-  --surface-code: #0f1b2d;
-  --header-bg: rgba(247, 249, 253, .9);
-  --line: #d9e2f1;
-  --line-soft: #e8eef7;
-  --text: #14213a;
-  --text-strong: #0c172b;
-  --muted: #64748b;
-  --muted-strong: #475569;
-  --accent: #315fd6;
-  --accent-deep: #21479f;
-  --accent-soft: #eaf1ff;
-  --accent-line: #b8ccff;
-  --shadow-sm: 0 1px 2px rgba(15, 31, 58, .05), 0 8px 24px rgba(15, 31, 58, .04);
-  --shadow-card: 0 10px 30px rgba(15, 31, 58, .08);
+  --bg: #f4f5f7;           /* 珍珠底，干净留白 */
+  --bg-top: #fafbfc;       /* 顶部近纯白 */
+  --surface: #ffffff;      /* 卡片纯白 */
+  --surface-subtle: #edeef2; /* 次级面：极浅冷灰 */
+  --surface-code: #17181e; /* 代码块：Varka 披风黑 */
+  --header-bg: rgba(244, 245, 247, .92);
+  --line: #c49024;         /* 格线主色：铠甲金 — 分隔线/边框用金 */
+  --line-soft: #e4cc7a;    /* 淡金 — 纸纹网格用此色，color-mix 稀释后是金色方格纸 */
+  --text: #17181e;         /* 正文：披风黑 */
+  --text-strong: #0c0d12;  /* 最深黑 */
+  --muted: #7888a0;        /* 辅助：石拱冷灰蓝 */
+  --muted-strong: #506070; /* 较强辅助 */
+  --accent: #10b2ba;       /* 主强调：飘带/宝石高饱和青 */
+  --accent-deep: #088890;  /* 深青 */
+  --accent-soft: #ddf5f7;  /* 极浅青底 */
+  --accent-line: #c49024;  /* 边线也用金色，与格线呼应 */
+  --shadow-sm: 0 1px 3px rgba(196, 144, 36, .10), 0 8px 24px rgba(23, 24, 30, .06);
+  --shadow-card: 0 10px 32px rgba(23, 24, 30, .09), 0 0 0 1px rgba(196, 144, 36, .07);
   --radius: 8px;
   --radius-sm: 6px;
   --container: 1320px;
@@ -356,7 +356,7 @@ code, pre { font-family: var(--mono); }
 .intro-copy h1 {
   max-width: 720px;
   margin: 12px 0 12px;
-  color: var(--text-strong);
+  color: var(--accent-deep);
   font-family: var(--display);
   font-size: clamp(2.25rem, 4.8vw, 4.35rem);
   font-weight: 560;
@@ -513,10 +513,10 @@ code, pre { font-family: var(--mono); }
   left: 4px;
   z-index: 4;
   width: 172px;
-  border-color: color-mix(in srgb, var(--accent-line) 55%, var(--line));
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
   backdrop-filter: blur(10px);
-  box-shadow: 0 12px 28px rgba(15, 31, 58, .08);
+  box-shadow: 0 12px 28px rgba(16, 178, 186, .14);
   transform: translate3d(var(--stats-x), var(--stats-y), 0) rotate(var(--stats-rotate));
   transform-origin: 34% 86%;
 }
@@ -541,6 +541,10 @@ code, pre { font-family: var(--mono); }
   border-bottom: 1px solid var(--line-soft);
 }
 .site-stats div:last-child { border-bottom: 0; }
+.site-stats div:hover {
+  background: color-mix(in srgb, var(--accent-soft) 80%, transparent);
+  transition: background .15s;
+}
 .site-stats dt {
   color: var(--muted);
   font-size: .78rem;
@@ -792,8 +796,8 @@ code, pre { font-family: var(--mono); }
 }
 .post-entry:hover,
 .post-entry:focus-within {
-  border-color: var(--line);
-  background: color-mix(in srgb, var(--surface) 82%, var(--surface-subtle));
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
   box-shadow: var(--shadow-card);
   transform: translateY(-1px);
 }
@@ -1148,14 +1152,16 @@ code, pre { font-family: var(--mono); }
   max-width: 100%;
   margin: 1.5em 0;
   overflow-x: auto;
-  border: 1px solid rgba(184, 204, 255, .18);
-  border-radius: var(--radius);
-  background: var(--surface-code);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
-  color: #d9e6ff;
+  border: none;
+  border-radius: 4px;
+  background: #1e1e1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+  color: #d4d4d4;
   font-size: .86rem;
   line-height: 1.7;
-  padding: 16px 18px;
+  padding: 16px 20px;
+  /* VS Code: thin top bar via border-top */
+  border-top: 2px solid #333;
 }
 .prose pre code {
   background: transparent;
