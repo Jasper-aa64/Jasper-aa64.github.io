@@ -1,856 +1,399 @@
-<!doctype html>
-<html lang="en-us">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Number Theory #4: Min_25 Sieve and Du Jiao Sieve | Jasper&#39;s Technical Notebook</title>
-    <meta name="description" content="Min_25 sieve for prefix sums of multiplicative functions in O(n^{3/4}/log n); Du Jiao sieve for μ and φ prefix sums in O(n^{2/3}) via convolution identities; worked examples including P3768 and 51Nod LCM/GCD sums.">
-    <link rel="canonical" href="http://localhost:1313/posts/number-theory-4-min25-du-jiao-sieve/">
-    <script>
-      (function() {
-        document.documentElement.classList.add("has-js");
-        try {
-          const stored = window.localStorage.getItem("theme");
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="/css/site.css">
-    
-      <script>
-        window.MathJax = {
-          tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']],
-            processEscapes: true
-          },
-          options: {
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-          }
-        };
-      </script>
-      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
-    
-  </head>
-  <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <div class="container header-inner">
-          <a class="brand" href="/">
-            <span class="brand-mark">J</span>
-            <span>
-              <strong>Jasper&#39;s Technical Notebook</strong>
-              <small>Algorithms, systems, and engineering notes</small>
-            </span>
-          </a>
-          <div class="header-actions">
-            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
-              <span class="theme-toggle-icon" aria-hidden="true"></span>
-              <span class="sr-only">Switch theme</span>
-            </button>
-            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <nav class="site-nav" id="site-navigation">
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/">Home</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link is-active" href="/posts/">Posts</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/archives/">Archives</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/categories/">Categories</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/tags/">Tags</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/about/">About</a>
-            
-          </nav>
-        </div>
-      </header>
-
-      <main class="container main-content">
-        
-  <article class="article-shell">
-    <header class="article-header">
-      <span class="eyebrow">Posts</span>
-      <h1>Number Theory #4: Min_25 Sieve and Du Jiao Sieve</h1>
-      
-        <div class="article-meta">
-          <time datetime="2026-04-28">Apr 28, 2026</time>
-          
-            <span>·</span>
-            <span>Number Theory</span>
-          
-        </div>
-        
-          <div class="chip-row">
-            
-              <a class="chip" href="/tags/math/">#math</a>
-            
-              <a class="chip" href="/tags/number-theory/">#number-theory</a>
-            
-              <a class="chip" href="/tags/min25-sieve/">#min25-sieve</a>
-            
-              <a class="chip" href="/tags/du-jiao-sieve/">#du-jiao-sieve</a>
-            
-              <a class="chip" href="/tags/multiplicative-functions/">#multiplicative-functions</a>
-            
-              <a class="chip" href="/tags/prefix-sum/">#prefix-sum</a>
-            
-          </div>
-        
-      
-    </header>
-
-    <div class="article-layout">
-      
-        <details class="mobile-toc">
-          <summary>On this page</summary>
-          <div class="mobile-toc-panel">
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#1-min_25-sieve">1 Min_25 Sieve</a>
-      <ul>
-        <li><a href="#11-problem">1.1 Problem</a></li>
-        <li><a href="#12-algorithm-overview">1.2 Algorithm Overview</a></li>
-        <li><a href="#13-min_25-core-computing">1.3 Min_25 Core: Computing $h(x)$</a></li>
-        <li><a href="#14-dfs-to-compute">1.4 DFS to compute $g(n,m)$</a></li>
-        <li><a href="#15-example-loj-6053--a-simple-function">1.5 Example: LOJ #6053 — A Simple Function</a></li>
-        <li><a href="#16-example-luogu-p5325--min_25-template">1.6 Example: Luogu P5325 — Min_25 Template</a></li>
-        <li><a href="#17-variants--and">1.7 Variants: $\pi(n)$ and $\sum_{p\leq n}p$</a></li>
-      </ul>
-    </li>
-    <li><a href="#2-du-jiao-sieve">2 Du Jiao Sieve</a>
-      <ul>
-        <li><a href="#21-overview">2.1 Overview</a></li>
-        <li><a href="#22-template--and">2.2 Template: $S_\mu(n)$ and $S_\varphi(n)$</a></li>
-        <li><a href="#23-useful-identities">2.3 Useful Identities</a></li>
-        <li><a href="#24-example-luogu-p3768--simple-math-problem">2.4 Example: Luogu P3768 — Simple Math Problem</a></li>
-        <li><a href="#25--prefix-sum-with-modular-arithmetic">2.5 $\varphi$ Prefix Sum with Modular Arithmetic</a></li>
-        <li><a href="#26-sum-of-gcds--51nod-1237">2.6 Sum of GCDs — 51Nod 1237</a></li>
-        <li><a href="#27-sum-of-lcms--51nod-1237-variant">2.7 Sum of LCMs — 51Nod 1237 (variant)</a></li>
-      </ul>
-    </li>
-  </ul>
-</nav>
-          </div>
-        </details>
-      
-      <div class="article-content prose">
-        <h1 id="1-min_25-sieve">1 Min_25 Sieve</h1>
-<h2 id="11-problem">1.1 Problem</h2>
-<p>Compute the prefix sum $\sum_{i=1}^n f(i)$ of a multiplicative function $f$.</p>
-<h2 id="12-algorithm-overview">1.2 Algorithm Overview</h2>
-<blockquote>
-<p><strong>Checklist before starting:</strong></p>
-<ol>
-<li>Verify $f$ is multiplicative.</li>
-<li>$h(x)=\sum_{\substack{2\leq p\leq x\\p\text{ prime}}}f(p)$ — fast prime-sum query (computed by Min_25 first phase).</li>
-<li>Initialise: the &ldquo;pre-sieve&rdquo; raw prefix sums over two channels. If $f(p)$ is a polynomial of degree $\leq4$ use closed-form formulas; otherwise use Lagrange interpolation.</li>
-<li>Implement $f(p^e)$ (usually a closed form).</li>
-</ol>
-</blockquote>
-<h3 id="lagrange-interpolation-for-power-sums">Lagrange interpolation for power sums</h3>
-<p>$F_k(n)=\sum_{i=1}^n i^k\pmod{M}$: preprocess once per $k$, then answer in $O(k)$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#6272a4">// F_k(n) = sum_{i=1}^n i^k  (mod M)
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">// First call for a given k: O(k) preprocessing; subsequent calls: O(k)
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">inline</span> ll <span style="color:#50fa7b">qp</span>(ll a, ll e){ ll r<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">%</span>M; a<span style="color:#ff79c6">%=</span>M; <span style="color:#ff79c6">while</span>(e){ <span style="color:#ff79c6">if</span>(e<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>) r<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M; a<span style="color:#ff79c6">=</span>a<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M; e<span style="color:#ff79c6">&gt;&gt;=</span><span style="color:#bd93f9">1</span>; } <span style="color:#ff79c6">return</span> r; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">sum_pow</span>(ll n, <span style="color:#8be9fd">int</span> k){
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(n <span style="color:#ff79c6">&lt;=</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">static</span> <span style="color:#8be9fd">int</span> cached_k <span style="color:#ff79c6">=</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>, d <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">static</span> vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> y, fact, ifac;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (k <span style="color:#ff79c6">!=</span> cached_k){
-</span></span><span style="display:flex;"><span>        cached_k <span style="color:#ff79c6">=</span> k;
-</span></span><span style="display:flex;"><span>        d <span style="color:#ff79c6">=</span> k <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">2</span>;                      <span style="color:#6272a4">// d = k+2 nodes suffice
-</span></span></span><span style="display:flex;"><span>        y.assign(d<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>);               <span style="color:#6272a4">// y[i] = prefix sum of i^k
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>d; <span style="color:#ff79c6">++</span>i) y[i] <span style="color:#ff79c6">=</span> (y[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">+</span> qp(i, k)) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        fact.assign(d<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>d; <span style="color:#ff79c6">++</span>i) fact[i] <span style="color:#ff79c6">=</span> fact[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>        ifac.assign(d<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>        ifac[d] <span style="color:#ff79c6">=</span> qp(fact[d], M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">2</span>);
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span>d; i<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">--</span>i) ifac[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> ifac[i] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> d) <span style="color:#ff79c6">return</span> y[(<span style="color:#8be9fd">int</span>)n];
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    ll nm <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> pre(d<span style="color:#ff79c6">+</span><span style="color:#bd93f9">2</span>, <span style="color:#bd93f9">1</span>), suf(d<span style="color:#ff79c6">+</span><span style="color:#bd93f9">3</span>, <span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>d; <span style="color:#ff79c6">++</span>i)  pre[i] <span style="color:#ff79c6">=</span> pre[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">*</span> ((nm <span style="color:#ff79c6">-</span> i <span style="color:#ff79c6">+</span> M) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span>d; i<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">--</span>i)  suf[i] <span style="color:#ff79c6">=</span> suf[i<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">*</span> ((nm <span style="color:#ff79c6">-</span> i <span style="color:#ff79c6">+</span> M) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>d; <span style="color:#ff79c6">++</span>i){
-</span></span><span style="display:flex;"><span>        ll num     <span style="color:#ff79c6">=</span> pre[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">*</span> suf[i<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">%</span> M;              <span style="color:#6272a4">// product without (n-i)
-</span></span></span><span style="display:flex;"><span>        ll den_inv <span style="color:#ff79c6">=</span> ifac[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">*</span> ifac[d<span style="color:#ff79c6">-</span>i] <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>        ll term    <span style="color:#ff79c6">=</span> y[i] <span style="color:#ff79c6">*</span> num <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">*</span> den_inv <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> ( (d <span style="color:#ff79c6">-</span> i) <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span> ) term <span style="color:#ff79c6">=</span> (M <span style="color:#ff79c6">-</span> term) <span style="color:#ff79c6">%</span> M;          <span style="color:#6272a4">// sign (-1)^{d-i}
-</span></span></span><span style="display:flex;"><span>        ans <span style="color:#ff79c6">+=</span> term; ans <span style="color:#ff79c6">%=</span> M;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> ans;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#6272a4">// Usage: compute separate passes for each needed exponent k
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">// Pass 1: all s5 values
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> s; <span style="color:#ff79c6">++</span>i) s5[i] <span style="color:#ff79c6">=</span> sum_pow(d[i], <span style="color:#bd93f9">5</span>);
-</span></span><span style="display:flex;"><span><span style="color:#6272a4">// Pass 2: all s6 values
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> s; <span style="color:#ff79c6">++</span>i) s6[i] <span style="color:#ff79c6">=</span> sum_pow(d[i], <span style="color:#bd93f9">6</span>);
-</span></span></code></pre></div><h2 id="13-min_25-core-computing">1.3 Min_25 Core: Computing $h(x)$</h2>
-<p>The key observation is that all queried arguments of $h$ are of the form $i=\lfloor n/m\rfloor$.</p>
-<p>In most problems $f(p)$ is a low-degree polynomial in $p$: $f(p)=\sum_t a_t p^t$. Each term $p^t$ is handled independently, so it suffices to solve the case $f(p)=p^t$.</p>
-<p><strong>Goal:</strong> for all $i=\lfloor n/m\rfloor$, compute $h(i)=\sum_{\substack{p\leq i\\p\text{ prime}}}p^t$.</p>
-<p><strong>Idea:</strong> simulate the Sieve of Eratosthenes, but instead of sieving primality, sieve a <em>weighted sum</em> $x^t$.</p>
-<p>Define:
-</p>
-$$h'_{i,j}=\sum_{1\leq x\leq j}\bigl[x\text{ is 1, prime, or has no prime factor }\leq p_i\bigr]\cdot x^t$$<p>Intuitively: starting from all integers $1..j$, successively remove those whose smallest prime factor is $p_1,p_2,\ldots,p_i$. After all removals, only 1 and the primes remain.</p>
-<p><strong>Transition:</strong></p>
-$$\boxed{\begin{aligned}
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Number Theory #4: Min_25 Sieve and Du Jiao Sieve | Jasper's Technical Notebook</title><meta name=description content="Min_25 sieve for prefix sums of multiplicative functions in O(n^{3/4}/log n); Du Jiao sieve for μ and φ prefix sums in O(n^{2/3}) via convolution identities; worked examples including P3768 and 51Nod LCM/GCD sums."><link rel=canonical href=https://jmaaa32.github.io/posts/number-theory-4-min25-du-jiao-sieve/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<span><strong>Jasper's Technical Notebook</strong>
+<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
+<span class=theme-toggle-icon aria-hidden=true></span>
+<span class=sr-only>Switch theme</span>
+</button>
+<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
+<span></span>
+<span></span>
+<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
+<a class="nav-link is-active" href=/posts/>Posts</a>
+<a class=nav-link href=/archives/>Archives</a>
+<a class=nav-link href=/categories/>Categories</a>
+<a class=nav-link href=/tags/>Tags</a>
+<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Number Theory #4: Min_25 Sieve and Du Jiao Sieve</h1><div class=article-meta><time datetime=2026-04-28>Apr 28, 2026</time>
+<span>·</span>
+<span>Number Theory</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
+<a class=chip href=/tags/number-theory/>#number-theory</a>
+<a class=chip href=/tags/min25-sieve/>#min25-sieve</a>
+<a class=chip href=/tags/du-jiao-sieve/>#du-jiao-sieve</a>
+<a class=chip href=/tags/multiplicative-functions/>#multiplicative-functions</a>
+<a class=chip href=/tags/prefix-sum/>#prefix-sum</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#1-min_25-sieve>1 Min_25 Sieve</a><ul><li><a href=#11-problem>1.1 Problem</a></li><li><a href=#12-algorithm-overview>1.2 Algorithm Overview</a></li><li><a href=#13-min_25-core-computing>1.3 Min_25 Core: Computing $h(x)$</a></li><li><a href=#14-dfs-to-compute>1.4 DFS to compute $g(n,m)$</a></li><li><a href=#15-example-loj-6053--a-simple-function>1.5 Example: LOJ #6053 — A Simple Function</a></li><li><a href=#16-example-luogu-p5325--min_25-template>1.6 Example: Luogu P5325 — Min_25 Template</a></li><li><a href=#17-variants--and>1.7 Variants: $\pi(n)$ and $\sum_{p\leq n}p$</a></li></ul></li><li><a href=#2-du-jiao-sieve>2 Du Jiao Sieve</a><ul><li><a href=#21-overview>2.1 Overview</a></li><li><a href=#22-template--and>2.2 Template: $S_\mu(n)$ and $S_\varphi(n)$</a></li><li><a href=#23-useful-identities>2.3 Useful Identities</a></li><li><a href=#24-example-luogu-p3768--simple-math-problem>2.4 Example: Luogu P3768 — Simple Math Problem</a></li><li><a href=#25--prefix-sum-with-modular-arithmetic>2.5 $\varphi$ Prefix Sum with Modular Arithmetic</a></li><li><a href=#26-sum-of-gcds--51nod-1237>2.6 Sum of GCDs — 51Nod 1237</a></li><li><a href=#27-sum-of-lcms--51nod-1237-variant>2.7 Sum of LCMs — 51Nod 1237 (variant)</a></li></ul></li></ul></nav></div></details><div class="article-content prose"><h1 id=1-min_25-sieve>1 Min_25 Sieve</h1><h2 id=11-problem>1.1 Problem</h2><p>Compute the prefix sum $\sum_{i=1}^n f(i)$ of a multiplicative function $f$.</p><h2 id=12-algorithm-overview>1.2 Algorithm Overview</h2><blockquote><p><strong>Checklist before starting:</strong></p><ol><li>Verify $f$ is multiplicative.</li><li>$h(x)=\sum_{\substack{2\leq p\leq x\\p\text{ prime}}}f(p)$ — fast prime-sum query (computed by Min_25 first phase).</li><li>Initialise: the &ldquo;pre-sieve&rdquo; raw prefix sums over two channels. If $f(p)$ is a polynomial of degree $\leq4$ use closed-form formulas; otherwise use Lagrange interpolation.</li><li>Implement $f(p^e)$ (usually a closed form).</li></ol></blockquote><h3 id=lagrange-interpolation-for-power-sums>Lagrange interpolation for power sums</h3><p>$F_k(n)=\sum_{i=1}^n i^k\pmod{M}$: preprocess once per $k$, then answer in $O(k)$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#6272a4>// F_k(n) = sum_{i=1}^n i^k  (mod M)
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>// First call for a given k: O(k) preprocessing; subsequent calls: O(k)
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>inline</span> ll <span style=color:#50fa7b>qp</span>(ll a, ll e){ ll r<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>%</span>M; a<span style=color:#ff79c6>%=</span>M; <span style=color:#ff79c6>while</span>(e){ <span style=color:#ff79c6>if</span>(e<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>) r<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M; a<span style=color:#ff79c6>=</span>a<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M; e<span style=color:#ff79c6>&gt;&gt;=</span><span style=color:#bd93f9>1</span>; } <span style=color:#ff79c6>return</span> r; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>sum_pow</span>(ll n, <span style=color:#8be9fd>int</span> k){
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(n <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>static</span> <span style=color:#8be9fd>int</span> cached_k <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>, d <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>static</span> vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> y, fact, ifac;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (k <span style=color:#ff79c6>!=</span> cached_k){
+</span></span><span style=display:flex><span>        cached_k <span style=color:#ff79c6>=</span> k;
+</span></span><span style=display:flex><span>        d <span style=color:#ff79c6>=</span> k <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>2</span>;                      <span style=color:#6272a4>// d = k+2 nodes suffice
+</span></span></span><span style=display:flex><span>        y.assign(d<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>);               <span style=color:#6272a4>// y[i] = prefix sum of i^k
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>d; <span style=color:#ff79c6>++</span>i) y[i] <span style=color:#ff79c6>=</span> (y[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>+</span> qp(i, k)) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        fact.assign(d<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>d; <span style=color:#ff79c6>++</span>i) fact[i] <span style=color:#ff79c6>=</span> fact[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>        ifac.assign(d<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>        ifac[d] <span style=color:#ff79c6>=</span> qp(fact[d], M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>2</span>);
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span>d; i<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>--</span>i) ifac[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> ifac[i] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> d) <span style=color:#ff79c6>return</span> y[(<span style=color:#8be9fd>int</span>)n];
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    ll nm <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> pre(d<span style=color:#ff79c6>+</span><span style=color:#bd93f9>2</span>, <span style=color:#bd93f9>1</span>), suf(d<span style=color:#ff79c6>+</span><span style=color:#bd93f9>3</span>, <span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>d; <span style=color:#ff79c6>++</span>i)  pre[i] <span style=color:#ff79c6>=</span> pre[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>*</span> ((nm <span style=color:#ff79c6>-</span> i <span style=color:#ff79c6>+</span> M) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span>d; i<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>--</span>i)  suf[i] <span style=color:#ff79c6>=</span> suf[i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>*</span> ((nm <span style=color:#ff79c6>-</span> i <span style=color:#ff79c6>+</span> M) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>d; <span style=color:#ff79c6>++</span>i){
+</span></span><span style=display:flex><span>        ll num     <span style=color:#ff79c6>=</span> pre[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>*</span> suf[i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>%</span> M;              <span style=color:#6272a4>// product without (n-i)
+</span></span></span><span style=display:flex><span>        ll den_inv <span style=color:#ff79c6>=</span> ifac[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>*</span> ifac[d<span style=color:#ff79c6>-</span>i] <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>        ll term    <span style=color:#ff79c6>=</span> y[i] <span style=color:#ff79c6>*</span> num <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>*</span> den_inv <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> ( (d <span style=color:#ff79c6>-</span> i) <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span> ) term <span style=color:#ff79c6>=</span> (M <span style=color:#ff79c6>-</span> term) <span style=color:#ff79c6>%</span> M;          <span style=color:#6272a4>// sign (-1)^{d-i}
+</span></span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>+=</span> term; ans <span style=color:#ff79c6>%=</span> M;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> ans;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#6272a4>// Usage: compute separate passes for each needed exponent k
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>// Pass 1: all s5 values
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> s; <span style=color:#ff79c6>++</span>i) s5[i] <span style=color:#ff79c6>=</span> sum_pow(d[i], <span style=color:#bd93f9>5</span>);
+</span></span><span style=display:flex><span><span style=color:#6272a4>// Pass 2: all s6 values
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> s; <span style=color:#ff79c6>++</span>i) s6[i] <span style=color:#ff79c6>=</span> sum_pow(d[i], <span style=color:#bd93f9>6</span>);
+</span></span></code></pre></div><h2 id=13-min_25-core-computing>1.3 Min_25 Core: Computing $h(x)$</h2><p>The key observation is that all queried arguments of $h$ are of the form $i=\lfloor n/m\rfloor$.</p><p>In most problems $f(p)$ is a low-degree polynomial in $p$: $f(p)=\sum_t a_t p^t$. Each term $p^t$ is handled independently, so it suffices to solve the case $f(p)=p^t$.</p><p><strong>Goal:</strong> for all $i=\lfloor n/m\rfloor$, compute $h(i)=\sum_{\substack{p\leq i\\p\text{ prime}}}p^t$.</p><p><strong>Idea:</strong> simulate the Sieve of Eratosthenes, but instead of sieving primality, sieve a <em>weighted sum</em> $x^t$.</p><p>Define:</p>$$h'_{i,j}=\sum_{1\leq x\leq j}\bigl[x\text{ is 1, prime, or has no prime factor }\leq p_i\bigr]\cdot x^t$$<p>Intuitively: starting from all integers $1..j$, successively remove those whose smallest prime factor is $p_1,p_2,\ldots,p_i$. After all removals, only 1 and the primes remain.</p><p><strong>Transition:</strong></p>$$\boxed{\begin{aligned}
 j\geq p_i^2:\quad &h'_{i,j}=h'_{i-1,j}-p_i^t\Bigl(h'_{i-1,\lfloor j/p_i\rfloor}-h'_{i-1,p_i-1}\Bigr)\\
 j\lt p_i^2:\quad &h'_{i,j}=h'_{i-1,j}
-\end{aligned}}$$<p><strong>Derivation:</strong> going from $h'_{i-1}$ to $h'_{i}$, subtract the weights of numbers <strong>first hit</strong> by $p_i$. These are $y=p_i x$ where $x$ has no prime factor $\lt p_i$. Since $y\leq j\iff x\leq\lfloor j/p_i\rfloor$, and the sieve starts at $p_i^2$ (smaller $y$ would already be prime or handled earlier):</p>
-$$\text{removed weight}=\sum_{\substack{x\leq\lfloor j/p_i\rfloor\\x\text{ no factor }\lt p_i}}(p_i x)^t
-=p_i^t\underbrace{\Bigl(h'_{i-1,\lfloor j/p_i\rfloor}-h'_{i-1,p_i-1}\Bigr)}_{\text{weight of }x\in[p_i,\lfloor j/p_i\rfloor]\text{ surviving sieve}}$$<p>When $j\lt p_i^2$ there is nothing to remove, so $h'_{i,j}=h'_{i-1,j}$.</p>
-<p><strong>Why only the $\lfloor n/k\rfloor$ points?</strong></p>
-<p>Min_25 maintains $h'$ only at the $s\approx2\sqrt{n}$ distinct values:
-</p>
-$$d[1..s]=\bigl(1,2,\ldots,m,\;\lfloor n/m\rfloor,\ldots,\lfloor n/2\rfloor,\lfloor n/1\rfloor\bigr),\quad m=\lfloor\sqrt{n}\rfloor$$<ul>
-<li>Small half: $1,\ldots,m$ (covers all values $\leq m$).</li>
-<li>Large half: $\lfloor n/1\rfloor,\lfloor n/2\rfloor,\ldots,\lfloor n/m\rfloor$ (covers all large distinct floor values, strictly decreasing).</li>
-<li>When $n$ is a perfect square, $m$ appears in both halves — subtract 1: $s=2m-(m^2=n)$.</li>
-</ul>
-<p><strong>O(1) index mapping:</strong>
-</p>
-$$\text{id}(x)=\begin{cases}x,&x\leq m\\s-\lfloor n/x\rfloor+1,&x>m\end{cases}$$<p><strong>Complexity:</strong> $O(n^{3/4}/\log n)$ time, $O(\sqrt{n})$ space.</p>
-<p><strong>Code alignment</strong> (two channels $k=0$ and $k=1$):</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#6272a4">// initialisation
-</span></span></span><span style="display:flex;"><span>g[i][<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> d[i] <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;                         <span style="color:#6272a4">// sum_{x=2}^{d[i]} 1
-</span></span></span><span style="display:flex;"><span>g[i][<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> d[i]<span style="color:#ff79c6">*</span>(d[i]<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span> <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;              <span style="color:#6272a4">// sum_{x=2}^{d[i]} x
-</span></span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#6272a4">// sieve step
-</span></span></span><span style="display:flex;"><span>g[j][k] <span style="color:#ff79c6">-=</span> (g[id(d[j]<span style="color:#ff79c6">/</span>p[i])][k] <span style="color:#ff79c6">-</span> g[id(p[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>])][k]) <span style="color:#ff79c6">*</span> (k<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span> <span style="color:#ff79c6">?</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">:</span> p[i]);
-</span></span></code></pre></div><p>After sieving, <code>g[*][0]</code> = $\pi(d[*])$ and <code>g[*][1]</code> = $\sum_{p\leq d[*]}p$.</p>
-<h2 id="14-dfs-to-compute">1.4 DFS to compute $g(n,m)$</h2>
-<p>Define $g(n,m)=\sum_{\substack{2\leq x\leq n\\P^-(x)>m}}f(x)$, where $P^-(x)$ is the smallest prime factor of $x$. Then $\text{Ans}=f(1)+g(n,0)$.</p>
-$$g(n,m)=\underbrace{\sum_{\substack{m\lt p\leq n\\p\text{ prime}}}f(p)}_{h(n)-h(m)}+\sum_{\substack{m\lt p\leq n\\p\text{ prime}}}\sum_{\substack{e\geq1\\p^e\leq n}}f(p^e)\bigl([e>1]+g(\lfloor n/p^e\rfloor,p)\bigr)$$<p>Once $h$ is available (from the first phase), this DFS runs in $O(n^{3/4}/\log n)$.</p>
-<h2 id="15-example-loj-6053--a-simple-function">1.5 Example: LOJ #6053 — A Simple Function</h2>
-$$f(1)=1,\quad f(p^c)=p\oplus c,\quad f(ab)=f(a)f(b)\ (\gcd(a,b)=1). \quad\text{Compute }\sum_{i=1}^n f(i).$$<p>For odd primes $p$: $f(p)=p\oplus1=p-1$. For $p=2$: $f(2)=2\oplus1=3$.</p>
-$$h(x)=\sum_{p\leq x}(p\oplus1)=\underbrace{\Bigl(\sum_{p\leq x}p\Bigr)}_{S_1(x)}-\pi(x)+2$$<p>Run Min_25 with two channels ($t=0$ for $\pi$, $t=1$ for $\sum p$), combine as $h(i)=(s_1(i)-s_0(i)+2)\bmod M$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">#define N 300005
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">#define M 1000000007
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">typedef</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> ll;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">constexpr</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">qp</span>(ll a,ll x<span style="color:#ff79c6">=</span>M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">2</span>){<span style="color:#8be9fd">int</span> res<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;<span style="color:#ff79c6">for</span>(;x;x<span style="color:#ff79c6">&gt;&gt;=</span><span style="color:#bd93f9">1</span>,a<span style="color:#ff79c6">=</span>a<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M)(x<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">&amp;&amp;</span>(res<span style="color:#ff79c6">=</span>a<span style="color:#ff79c6">*</span>res<span style="color:#ff79c6">%</span>M);<span style="color:#ff79c6">return</span> res;}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">min25</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> vis[N];
-</span></span><span style="display:flex;"><span>    ll n, d[N], g[N][<span style="color:#bd93f9">2</span>], h[N];
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m, s, cnt, p[N];
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">id</span>(ll x){ <span style="color:#ff79c6">return</span> x <span style="color:#ff79c6">&lt;=</span> m <span style="color:#ff79c6">?</span> <span style="color:#8be9fd;font-style:italic">x</span> : s <span style="color:#ff79c6">-</span> n<span style="color:#ff79c6">/</span>x <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">calc</span>(ll nn) {
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> i, j, k;
-</span></span><span style="display:flex;"><span>        m <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)sqrt(n <span style="color:#ff79c6">=</span> nn);
-</span></span><span style="display:flex;"><span>        s <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span><span style="color:#ff79c6">*</span>m <span style="color:#ff79c6">-</span> (<span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>m<span style="color:#ff79c6">*</span>m <span style="color:#ff79c6">==</span> n);
-</span></span><span style="display:flex;"><span>        cnt <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>        memset(vis, <span style="color:#bd93f9">0</span>, (m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">*</span><span style="color:#ff79c6">sizeof</span>(<span style="color:#8be9fd">bool</span>));
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#6272a4">// linear sieve: primes up to m
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>vis[i]) p[<span style="color:#ff79c6">++</span>cnt] <span style="color:#ff79c6">=</span> i;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; j <span style="color:#ff79c6">&lt;=</span> cnt <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>p[j]<span style="color:#ff79c6">*</span>i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>j) {
-</span></span><span style="display:flex;"><span>                vis[p[j]<span style="color:#ff79c6">*</span>i] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">%</span> p[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">break</span>;
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        p[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;  <span style="color:#6272a4">// sentinel for id(p[i-1]) when i=1
-</span></span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#6272a4">// collect all distinct floor(n/i) values
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>i) d[i] <span style="color:#ff79c6">=</span> i;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>i) d[s<span style="color:#ff79c6">-</span>i<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> n<span style="color:#ff79c6">/</span>i;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#6272a4">// initialise: sum_{x=2}^{d[i]} 1  and  sum_{x=2}^{d[i]} x
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> s; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>            g[i][<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> (d[i] <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>            g[i][<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> (d[i]<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">*</span> ((d[i]<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">*</span> ((M<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#6272a4">// Min_25 sieve (first phase): remove composites
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> cnt; <span style="color:#ff79c6">++</span>i)
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (j <span style="color:#ff79c6">=</span> s; d[j] <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>p[i]<span style="color:#ff79c6">*</span>p[i]; <span style="color:#ff79c6">--</span>j)
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">for</span> (k <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; k <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">2</span>; <span style="color:#ff79c6">++</span>k)
-</span></span><span style="display:flex;"><span>                    (g[j][k] <span style="color:#ff79c6">-=</span> (g[id(d[j]<span style="color:#ff79c6">/</span>p[i])][k] <span style="color:#ff79c6">-</span> g[id(p[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>])][k]) <span style="color:#ff79c6">*</span> (k<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span> <span style="color:#ff79c6">?</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">:</span> p[i]) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">%=</span> M;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#6272a4">// combine into h[i] = S_1(d[i]) - pi(d[i]) + 2  (for d[i] &gt;= 2)
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> s; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>            h[i] <span style="color:#ff79c6">=</span> (g[i][<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">-</span> g[i][<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">+</span> (d[i] <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">?</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">:</span> <span style="color:#bd93f9">0</span>)) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (h[i] <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) h[i] <span style="color:#ff79c6">+=</span> M;
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> (S(n, <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">%</span> M;  <span style="color:#6272a4">// f(1)=1
-</span></span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// S(n, j) = g(n, p_j): DFS over smallest prime factor &gt; p_j
-</span></span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">S</span>(ll n, <span style="color:#8be9fd">int</span> j) {
-</span></span><span style="display:flex;"><span>        ll ans <span style="color:#ff79c6">=</span> (h[id(n)] <span style="color:#ff79c6">-</span> h[id(p[j])] <span style="color:#ff79c6">+</span> M) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> p[j]) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> j<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>; k <span style="color:#ff79c6">&lt;=</span> cnt <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>p[k]<span style="color:#ff79c6">*</span>p[k] <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>k) {
-</span></span><span style="display:flex;"><span>            ll ml <span style="color:#ff79c6">=</span> p[k];
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> e <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; ; <span style="color:#ff79c6">++</span>e, ml <span style="color:#ff79c6">*=</span> p[k]) {
-</span></span><span style="display:flex;"><span>                <span style="color:#6272a4">// f(p^e) = p xor e
-</span></span></span><span style="display:flex;"><span>                ll add <span style="color:#ff79c6">=</span> (ll)(p[k]<span style="color:#ff79c6">^</span>e) <span style="color:#ff79c6">*</span> ((e<span style="color:#ff79c6">&gt;</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">+</span> S(n<span style="color:#ff79c6">/</span>ml, k) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>                ans <span style="color:#ff79c6">+=</span> add; ans <span style="color:#ff79c6">%=</span> M;
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> (ml <span style="color:#ff79c6">&gt;</span> n<span style="color:#ff79c6">/</span>p[k]) <span style="color:#ff79c6">break</span>;
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> ans;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>} A;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
-</span></span><span style="display:flex;"><span>    ll n;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (scanf(<span style="color:#f1fa8c">&#34;%lld&#34;</span>, <span style="color:#ff79c6">&amp;</span>n) <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    printf(<span style="color:#f1fa8c">&#34;%lld</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>, A.calc(n));
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="16-example-luogu-p5325--min_25-template">1.6 Example: Luogu P5325 — Min_25 Template</h2>
-$$f(p^k)=p^k(p^k-1),\quad\text{compute }\sum_{i=1}^n f(i)\pmod{10^9+7}.$$$$h(x)=\sum_{p\leq x}p(p-1)=\Bigl(\sum_{p\leq x}p^2\Bigr)-\Bigl(\sum_{p\leq x}p\Bigr)$$<p>Requires two channels: $t=2$ (sum of $p^2$) and $t=1$ (sum of $p$).</p>
-<p>Initialise: $g[i][0]=\sum_{x=2}^{d[i]}x^2-1$ (use closed form $\frac{n(n+1)(2n+1)}{6}-1$), $g[i][1]=\sum_{x=2}^{d[i]}x-1$.</p>
-<p>Sieve step for $k=0$ (channel for $p^2$): multiply by $p[i]^2$ instead of $p[i]$.</p>
-<blockquote>
-<p><strong>Common pitfall:</strong> multiplications of two <code>int</code> values produce <code>int</code> overflow. Always cast to <code>ll</code> or use <code>(ll)p[i]*p[i]%M</code>.</p>
-</blockquote>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">#define N 300005
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">#define M 1000000007
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">typedef</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> ll;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">constexpr</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">qp</span>(ll a,ll x<span style="color:#ff79c6">=</span>M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">2</span>){<span style="color:#8be9fd">int</span> res<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;<span style="color:#ff79c6">for</span>(;x;x<span style="color:#ff79c6">&gt;&gt;=</span><span style="color:#bd93f9">1</span>,a<span style="color:#ff79c6">=</span>a<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M)(x<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">&amp;&amp;</span>(res<span style="color:#ff79c6">=</span>a<span style="color:#ff79c6">*</span>res<span style="color:#ff79c6">%</span>M);<span style="color:#ff79c6">return</span> res;}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">min25</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> vis[N];
-</span></span><span style="display:flex;"><span>    ll n, d[N], g[N][<span style="color:#bd93f9">2</span>], h[N];
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m, s, cnt, p[N];
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">id</span>(ll x){ <span style="color:#ff79c6">return</span> x <span style="color:#ff79c6">&lt;=</span> m <span style="color:#ff79c6">?</span> <span style="color:#8be9fd;font-style:italic">x</span> : s <span style="color:#ff79c6">-</span> n<span style="color:#ff79c6">/</span>x <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">calc</span>(ll nn) {
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> i, j, k;
-</span></span><span style="display:flex;"><span>        m <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)sqrt(n <span style="color:#ff79c6">=</span> nn);
-</span></span><span style="display:flex;"><span>        s <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span><span style="color:#ff79c6">*</span>m <span style="color:#ff79c6">-</span> (<span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>m<span style="color:#ff79c6">*</span>m <span style="color:#ff79c6">==</span> n);
-</span></span><span style="display:flex;"><span>        cnt <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>        memset(vis, <span style="color:#bd93f9">0</span>, (m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">*</span><span style="color:#ff79c6">sizeof</span>(<span style="color:#8be9fd">bool</span>));
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>vis[i]) p[<span style="color:#ff79c6">++</span>cnt] <span style="color:#ff79c6">=</span> i;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; j <span style="color:#ff79c6">&lt;=</span> cnt <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>p[j]<span style="color:#ff79c6">*</span>i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>j) {
-</span></span><span style="display:flex;"><span>                vis[p[j]<span style="color:#ff79c6">*</span>i] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">%</span> p[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">break</span>;
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        p[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>i) d[i] <span style="color:#ff79c6">=</span> i;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>i) d[s<span style="color:#ff79c6">-</span>i<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> n<span style="color:#ff79c6">/</span>i;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> s; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> inv6 <span style="color:#ff79c6">=</span> qp(<span style="color:#bd93f9">6</span>);
-</span></span><span style="display:flex;"><span>            ll s2 <span style="color:#ff79c6">=</span> (d[i]<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">*</span> ((d[i]<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">*</span> ((<span style="color:#bd93f9">2</span><span style="color:#ff79c6">*</span>d[i]<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">*</span> inv6 <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>            g[i][<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> (s2 <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">+</span> M) <span style="color:#ff79c6">%</span> M;           <span style="color:#6272a4">// sum of x^2 for x=2..d[i]
-</span></span></span><span style="display:flex;"><span>            g[i][<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> (d[i]<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">*</span> ((d[i]<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">*</span> ((M<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;  <span style="color:#6272a4">// sum of x
-</span></span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> cnt; <span style="color:#ff79c6">++</span>i)
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (j <span style="color:#ff79c6">=</span> s; d[j] <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>p[i]<span style="color:#ff79c6">*</span>p[i]; <span style="color:#ff79c6">--</span>j)
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">for</span> (k <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; k <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">2</span>; <span style="color:#ff79c6">++</span>k)
-</span></span><span style="display:flex;"><span>                    (g[j][k] <span style="color:#ff79c6">-=</span> (g[id(d[j]<span style="color:#ff79c6">/</span>p[i])][k] <span style="color:#ff79c6">-</span> g[id(p[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>])][k])
-</span></span><span style="display:flex;"><span>                        <span style="color:#ff79c6">*</span> (k<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span> <span style="color:#ff79c6">?</span> (ll)p[i]<span style="color:#ff79c6">*</span>p[i]<span style="color:#ff79c6">%</span><span style="color:#8be9fd;font-style:italic">M</span> : p[i]) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">%=</span> M;  <span style="color:#6272a4">// cast: avoid int overflow
-</span></span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> s; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>            h[i] <span style="color:#ff79c6">=</span> (g[i][<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">-</span> g[i][<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">+</span> M) <span style="color:#ff79c6">%</span> M;   <span style="color:#6272a4">// sum p^2 - sum p = sum p(p-1)
-</span></span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (h[i] <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) h[i] <span style="color:#ff79c6">+=</span> M;
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> (S(n, <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">S</span>(ll n, <span style="color:#8be9fd">int</span> j) {
-</span></span><span style="display:flex;"><span>        ll ans <span style="color:#ff79c6">=</span> (h[id(n)] <span style="color:#ff79c6">-</span> h[id(p[j])]) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (ans <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) ans <span style="color:#ff79c6">+=</span> M;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> p[j]) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> j<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>; k <span style="color:#ff79c6">&lt;=</span> cnt <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#bd93f9">1ll</span><span style="color:#ff79c6">*</span>p[k]<span style="color:#ff79c6">*</span>p[k] <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>k) {
-</span></span><span style="display:flex;"><span>            ll ml <span style="color:#ff79c6">=</span> p[k];
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> e <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; ; <span style="color:#ff79c6">++</span>e, ml <span style="color:#ff79c6">*=</span> p[k]) {
-</span></span><span style="display:flex;"><span>                <span style="color:#6272a4">// f(p^e) = p^e * (p^e - 1); use __int128 to avoid ll overflow
-</span></span></span><span style="display:flex;"><span>                ll add <span style="color:#ff79c6">=</span> ((__int128_t)ml <span style="color:#ff79c6">*</span> (ml<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">*</span> ((S(n<span style="color:#ff79c6">/</span>ml, k) <span style="color:#ff79c6">+</span> (e<span style="color:#ff79c6">&gt;</span><span style="color:#bd93f9">1</span>)) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>                ans <span style="color:#ff79c6">+=</span> add; ans <span style="color:#ff79c6">%=</span> M;
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> (ml <span style="color:#ff79c6">&gt;</span> n<span style="color:#ff79c6">/</span>p[k]) <span style="color:#ff79c6">break</span>;
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> ans;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>} A;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
-</span></span><span style="display:flex;"><span>    ll n;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (scanf(<span style="color:#f1fa8c">&#34;%lld&#34;</span>, <span style="color:#ff79c6">&amp;</span>n) <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    printf(<span style="color:#f1fa8c">&#34;%lld</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>, A.calc(n));
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="17-variants--and">1.7 Variants: $\pi(n)$ and $\sum_{p\leq n}p$</h2>
-<p>After the first phase (sieve), before the DFS:</p>
-<ul>
-<li><strong>$\pi(n)$:</strong> return <code>(g[id(n)][0] % M + M) % M</code>.</li>
-<li><strong>$\sum_{p\leq n}p$:</strong> return <code>(g[id(n)][1] % M + M) % M</code>.</li>
-</ul>
-<h3 id="example-count--with">Example: count $x\in[2,N]$ with $\text{spf}(x)=K$</h3>
-<p>$(2\leq N,K\leq10^9)$</p>
-<p><strong>Transform:</strong> set $m=\lfloor N/K\rfloor$. The condition $\text{spf}(x)=K$ with $x=Km$ is equivalent to $\text{spf}(m)\geq K$. So we count integers in $[1,m]$ with all prime factors $\geq K$ — exactly the Legendre $\phi$ function:
-</p>
-$$\phi(m,\pi(K-1))=1+g(m,p_{\pi(K-1)})$$<p><strong>Special cases:</strong></p>
-<ol>
-<li>$K>N$: answer 0.</li>
-<li>$K$ not prime: answer 0.</li>
-<li>$K^2>N$: answer 1 (only $x=K$).</li>
-<li>$K-1>\sqrt{m}$: all composites $\leq m$ have a prime factor $\leq\sqrt{m}\lt K-1$, so $g(m,p_{\pi(K-1)})=\pi(m)-\pi(K-1)$; answer $=\pi(m)-\pi(K-1)+1$.</li>
-</ol>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#6272a4">// pi(x) from sieved prime table
-</span></span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">pi</span>(<span style="color:#8be9fd">int</span> x){ <span style="color:#ff79c6">return</span> (<span style="color:#8be9fd">int</span>)(upper_bound(p<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, p<span style="color:#ff79c6">+</span>cnt<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, x) <span style="color:#ff79c6">-</span> p) <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>; }
-</span></span></code></pre></div><p>For case 4, the sieve must extend at least to $K-1$: <code>int limit = max(m, K-1)</code>.</p>
-<hr>
-<h1 id="2-du-jiao-sieve">2 Du Jiao Sieve</h1>
-<h2 id="21-overview">2.1 Overview</h2>
-<p><strong>Goal:</strong> compute prefix sums $S(n)=\sum_{i=1}^n f(i)$ of a multiplicative function $f$ for large $n$.</p>
-<p><strong>Core idea:</strong> find two easy-to-sum multiplicative functions $g$ and $h$ with $h=f*g$, then use:</p>
-<blockquote>
-$$S(n)=\sum_{i=1}^n h(i)-\sum_{d=2}^n g(d)\,S\!\left(\Bigl\lfloor\frac{n}{d}\Bigr\rfloor\right)$$</blockquote>
-<p><strong>Convolution–swap identity:</strong>
-</p>
-$$\sum_{i\leq n}f(i)\Bigl\lfloor\frac{n}{i}\Bigr\rfloor=\sum_{m\leq n}(f*1)(m)$$<h2 id="22-template--and">2.2 Template: $S_\mu(n)$ and $S_\varphi(n)$</h2>
-<p>Key identities:
-</p>
-$$\sum_{i\leq n}\mu(i)\Bigl\lfloor\frac{n}{i}\Bigr\rfloor=1,\qquad
-\sum_{i\leq n}\varphi(i)\Bigl\lfloor\frac{n}{i}\Bigr\rfloor=\frac{n(n+1)}{2}$$<p>Convolution identities used: $\varepsilon=\mu*1$, $\mathrm{id}=\varphi*1$, $\varphi=\mu*\mathrm{id}$.</p>
-<p><code>MAXN</code> threshold: empirically $n^{2/3}$, default $5\times10^6$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">namespace</span> Prime {
-</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> spf, prime, mu, phi;
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">initp</span>(<span style="color:#8be9fd">int</span> n) {
-</span></span><span style="display:flex;"><span>        spf.resize(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>); mu.resize(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>); phi.resize(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>);
-</span></span><span style="display:flex;"><span>        mu[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; phi[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;                                            <span style="color:#6272a4">// base
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>spf[i]) { spf[i]<span style="color:#ff79c6">=</span>i; prime.push_back(i); mu[i]<span style="color:#ff79c6">=-</span><span style="color:#bd93f9">1</span>; phi[i]<span style="color:#ff79c6">=</span>i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>; } <span style="color:#6272a4">// prime
-</span></span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; j<span style="color:#ff79c6">&lt;</span>(<span style="color:#8be9fd">int</span>)prime.size()<span style="color:#ff79c6">&amp;&amp;</span>prime[j]<span style="color:#ff79c6">&lt;=</span>spf[i]<span style="color:#ff79c6">&amp;&amp;</span>i<span style="color:#ff79c6">*</span>prime[j]<span style="color:#ff79c6">&lt;=</span>n; <span style="color:#ff79c6">++</span>j) {
-</span></span><span style="display:flex;"><span>                <span style="color:#8be9fd">int</span> x <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">*</span> prime[j]; spf[x] <span style="color:#ff79c6">=</span> prime[j];
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">%</span> prime[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) { mu[x]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; phi[x]<span style="color:#ff79c6">=</span>phi[i]<span style="color:#ff79c6">*</span>prime[j]; <span style="color:#ff79c6">break</span>; }   <span style="color:#6272a4">// p^2 | x
-</span></span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">else</span>                   { mu[x]<span style="color:#ff79c6">=-</span>mu[i]; phi[x]<span style="color:#ff79c6">=</span>phi[i]<span style="color:#ff79c6">*</span>(prime[j]<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>); }  <span style="color:#6272a4">// new prime
-</span></span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>} <span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> Prime;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MAXN <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">5000000</span>;
-</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> sumMu, sumPhi;
-</span></span><span style="display:flex;"><span>unordered_map<span style="color:#ff79c6">&lt;</span>ll,ll<span style="color:#ff79c6">&gt;</span> cacheMu, cachePhi;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">getMu</span>(ll n){
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> MAXN) <span style="color:#ff79c6">return</span> sumMu[n];        <span style="color:#6272a4">// small n: table lookup
-</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (cacheMu.count(n)) <span style="color:#ff79c6">return</span> cacheMu[n];
-</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (ll l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">2</span>,r; l<span style="color:#ff79c6">&lt;=</span>n; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){ ll t<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>l; r<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>t; ans <span style="color:#ff79c6">-=</span> (r<span style="color:#ff79c6">-</span>l<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">*</span>getMu(t); }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> cacheMu[n] <span style="color:#ff79c6">=</span> ans;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">getPhi</span>(ll n){
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> MAXN) <span style="color:#ff79c6">return</span> sumPhi[n];       <span style="color:#6272a4">// small n: table lookup
-</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (cachePhi.count(n)) <span style="color:#ff79c6">return</span> cachePhi[n];
-</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> n<span style="color:#ff79c6">*</span>(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (ll l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">2</span>,r; l<span style="color:#ff79c6">&lt;=</span>n; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){ ll t<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>l; r<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>t; ans <span style="color:#ff79c6">-=</span> (r<span style="color:#ff79c6">-</span>l<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">*</span>getPhi(t); }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> cachePhi[n] <span style="color:#ff79c6">=</span> ans;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
-</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
-</span></span><span style="display:flex;"><span>    Prime<span style="color:#ff79c6">::</span>initp(MAXN);
-</span></span><span style="display:flex;"><span>    sumMu.resize(MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>); sumPhi.resize(MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>    sumMu[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; sumPhi[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>MAXN; <span style="color:#ff79c6">++</span>i){ sumMu[i]<span style="color:#ff79c6">=</span>sumMu[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">+</span>mu[i]; sumPhi[i]<span style="color:#ff79c6">=</span>sumPhi[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">+</span>phi[i]; }
-</span></span><span style="display:flex;"><span>    cacheMu.reserve(<span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">20</span>); cachePhi.reserve(<span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">20</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> q; cin<span style="color:#ff79c6">&gt;&gt;</span>q;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span>(q<span style="color:#ff79c6">--</span>){ ll n; cin<span style="color:#ff79c6">&gt;&gt;</span>n; cout<span style="color:#ff79c6">&lt;&lt;</span>getPhi(n)<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34; &#34;</span><span style="color:#ff79c6">&lt;&lt;</span>getMu(n)<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="23-useful-identities">2.3 Useful Identities</h2>
-$$\sum_{i=1}^n i=\frac{n(n+1)}{2},\quad
+\end{aligned}}$$<p><strong>Derivation:</strong> going from $h'_{i-1}$ to $h'_{i}$, subtract the weights of numbers <strong>first hit</strong> by $p_i$. These are $y=p_i x$ where $x$ has no prime factor $\lt p_i$. Since $y\leq j\iff x\leq\lfloor j/p_i\rfloor$, and the sieve starts at $p_i^2$ (smaller $y$ would already be prime or handled earlier):</p>$$\text{removed weight}=\sum_{\substack{x\leq\lfloor j/p_i\rfloor\\x\text{ no factor }\lt p_i}}(p_i x)^t
+=p_i^t\underbrace{\Bigl(h'_{i-1,\lfloor j/p_i\rfloor}-h'_{i-1,p_i-1}\Bigr)}_{\text{weight of }x\in[p_i,\lfloor j/p_i\rfloor]\text{ surviving sieve}}$$<p>When $j\lt p_i^2$ there is nothing to remove, so $h'_{i,j}=h'_{i-1,j}$.</p><p><strong>Why only the $\lfloor n/k\rfloor$ points?</strong></p><p>Min_25 maintains $h'$ only at the $s\approx2\sqrt{n}$ distinct values:</p>$$d[1..s]=\bigl(1,2,\ldots,m,\;\lfloor n/m\rfloor,\ldots,\lfloor n/2\rfloor,\lfloor n/1\rfloor\bigr),\quad m=\lfloor\sqrt{n}\rfloor$$<ul><li>Small half: $1,\ldots,m$ (covers all values $\leq m$).</li><li>Large half: $\lfloor n/1\rfloor,\lfloor n/2\rfloor,\ldots,\lfloor n/m\rfloor$ (covers all large distinct floor values, strictly decreasing).</li><li>When $n$ is a perfect square, $m$ appears in both halves — subtract 1: $s=2m-(m^2=n)$.</li></ul><p><strong>O(1) index mapping:</strong></p>$$\text{id}(x)=\begin{cases}x,&x\leq m\\s-\lfloor n/x\rfloor+1,&x>m\end{cases}$$<p><strong>Complexity:</strong> $O(n^{3/4}/\log n)$ time, $O(\sqrt{n})$ space.</p><p><strong>Code alignment</strong> (two channels $k=0$ and $k=1$):</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#6272a4>// initialisation
+</span></span></span><span style=display:flex><span>g[i][<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> d[i] <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;                         <span style=color:#6272a4>// sum_{x=2}^{d[i]} 1
+</span></span></span><span style=display:flex><span>g[i][<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> d[i]<span style=color:#ff79c6>*</span>(d[i]<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span> <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;              <span style=color:#6272a4>// sum_{x=2}^{d[i]} x
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#6272a4>// sieve step
+</span></span></span><span style=display:flex><span>g[j][k] <span style=color:#ff79c6>-=</span> (g[id(d[j]<span style=color:#ff79c6>/</span>p[i])][k] <span style=color:#ff79c6>-</span> g[id(p[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>])][k]) <span style=color:#ff79c6>*</span> (k<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span> <span style=color:#ff79c6>?</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>:</span> p[i]);
+</span></span></code></pre></div><p>After sieving, <code>g[*][0]</code> = $\pi(d[*])$ and <code>g[*][1]</code> = $\sum_{p\leq d[*]}p$.</p><h2 id=14-dfs-to-compute>1.4 DFS to compute $g(n,m)$</h2><p>Define $g(n,m)=\sum_{\substack{2\leq x\leq n\\P^-(x)>m}}f(x)$, where $P^-(x)$ is the smallest prime factor of $x$. Then $\text{Ans}=f(1)+g(n,0)$.</p>$$g(n,m)=\underbrace{\sum_{\substack{m\lt p\leq n\\p\text{ prime}}}f(p)}_{h(n)-h(m)}+\sum_{\substack{m\lt p\leq n\\p\text{ prime}}}\sum_{\substack{e\geq1\\p^e\leq n}}f(p^e)\bigl([e>1]+g(\lfloor n/p^e\rfloor,p)\bigr)$$<p>Once $h$ is available (from the first phase), this DFS runs in $O(n^{3/4}/\log n)$.</p><h2 id=15-example-loj-6053--a-simple-function>1.5 Example: LOJ #6053 — A Simple Function</h2>$$f(1)=1,\quad f(p^c)=p\oplus c,\quad f(ab)=f(a)f(b)\ (\gcd(a,b)=1). \quad\text{Compute }\sum_{i=1}^n f(i).$$<p>For odd primes $p$: $f(p)=p\oplus1=p-1$. For $p=2$: $f(2)=2\oplus1=3$.</p>$$h(x)=\sum_{p\leq x}(p\oplus1)=\underbrace{\Bigl(\sum_{p\leq x}p\Bigr)}_{S_1(x)}-\pi(x)+2$$<p>Run Min_25 with two channels ($t=0$ for $\pi$, $t=1$ for $\sum p$), combine as $h(i)=(s_1(i)-s_0(i)+2)\bmod M$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>#define N 300005
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>#define M 1000000007
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>typedef</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> ll;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>constexpr</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>qp</span>(ll a,ll x<span style=color:#ff79c6>=</span>M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>2</span>){<span style=color:#8be9fd>int</span> res<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;<span style=color:#ff79c6>for</span>(;x;x<span style=color:#ff79c6>&gt;&gt;=</span><span style=color:#bd93f9>1</span>,a<span style=color:#ff79c6>=</span>a<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M)(x<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>&amp;&amp;</span>(res<span style=color:#ff79c6>=</span>a<span style=color:#ff79c6>*</span>res<span style=color:#ff79c6>%</span>M);<span style=color:#ff79c6>return</span> res;}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>min25</span> {
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> vis[N];
+</span></span><span style=display:flex><span>    ll n, d[N], g[N][<span style=color:#bd93f9>2</span>], h[N];
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m, s, cnt, p[N];
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>id</span>(ll x){ <span style=color:#ff79c6>return</span> x <span style=color:#ff79c6>&lt;=</span> m <span style=color:#ff79c6>?</span> <span style=color:#8be9fd;font-style:italic>x</span> : s <span style=color:#ff79c6>-</span> n<span style=color:#ff79c6>/</span>x <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>calc</span>(ll nn) {
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> i, j, k;
+</span></span><span style=display:flex><span>        m <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)sqrt(n <span style=color:#ff79c6>=</span> nn);
+</span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span><span style=color:#ff79c6>*</span>m <span style=color:#ff79c6>-</span> (<span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>m<span style=color:#ff79c6>*</span>m <span style=color:#ff79c6>==</span> n);
+</span></span><span style=display:flex><span>        cnt <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>        memset(vis, <span style=color:#bd93f9>0</span>, (m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>*</span><span style=color:#ff79c6>sizeof</span>(<span style=color:#8be9fd>bool</span>));
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4>// linear sieve: primes up to m
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>vis[i]) p[<span style=color:#ff79c6>++</span>cnt] <span style=color:#ff79c6>=</span> i;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; j <span style=color:#ff79c6>&lt;=</span> cnt <span style=color:#ff79c6>&amp;&amp;</span> <span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>p[j]<span style=color:#ff79c6>*</span>i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>j) {
+</span></span><span style=display:flex><span>                vis[p[j]<span style=color:#ff79c6>*</span>i] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> p[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>break</span>;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        p[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;  <span style=color:#6272a4>// sentinel for id(p[i-1]) when i=1
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4>// collect all distinct floor(n/i) values
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>i) d[i] <span style=color:#ff79c6>=</span> i;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>i) d[s<span style=color:#ff79c6>-</span>i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> n<span style=color:#ff79c6>/</span>i;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4>// initialise: sum_{x=2}^{d[i]} 1  and  sum_{x=2}^{d[i]} x
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> s; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>            g[i][<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> (d[i] <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>            g[i][<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> (d[i]<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>*</span> ((d[i]<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>*</span> ((M<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4>// Min_25 sieve (first phase): remove composites
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> cnt; <span style=color:#ff79c6>++</span>i)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (j <span style=color:#ff79c6>=</span> s; d[j] <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>p[i]<span style=color:#ff79c6>*</span>p[i]; <span style=color:#ff79c6>--</span>j)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> (k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; k <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>2</span>; <span style=color:#ff79c6>++</span>k)
+</span></span><span style=display:flex><span>                    (g[j][k] <span style=color:#ff79c6>-=</span> (g[id(d[j]<span style=color:#ff79c6>/</span>p[i])][k] <span style=color:#ff79c6>-</span> g[id(p[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>])][k]) <span style=color:#ff79c6>*</span> (k<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span> <span style=color:#ff79c6>?</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>:</span> p[i]) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>%=</span> M;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4>// combine into h[i] = S_1(d[i]) - pi(d[i]) + 2  (for d[i] &gt;= 2)
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> s; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>            h[i] <span style=color:#ff79c6>=</span> (g[i][<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>-</span> g[i][<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>+</span> (d[i] <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>?</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>:</span> <span style=color:#bd93f9>0</span>)) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (h[i] <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) h[i] <span style=color:#ff79c6>+=</span> M;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> (S(n, <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>%</span> M;  <span style=color:#6272a4>// f(1)=1
+</span></span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// S(n, j) = g(n, p_j): DFS over smallest prime factor &gt; p_j
+</span></span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>S</span>(ll n, <span style=color:#8be9fd>int</span> j) {
+</span></span><span style=display:flex><span>        ll ans <span style=color:#ff79c6>=</span> (h[id(n)] <span style=color:#ff79c6>-</span> h[id(p[j])] <span style=color:#ff79c6>+</span> M) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> p[j]) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> j<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>; k <span style=color:#ff79c6>&lt;=</span> cnt <span style=color:#ff79c6>&amp;&amp;</span> <span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>p[k]<span style=color:#ff79c6>*</span>p[k] <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>k) {
+</span></span><span style=display:flex><span>            ll ml <span style=color:#ff79c6>=</span> p[k];
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> e <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; ; <span style=color:#ff79c6>++</span>e, ml <span style=color:#ff79c6>*=</span> p[k]) {
+</span></span><span style=display:flex><span>                <span style=color:#6272a4>// f(p^e) = p xor e
+</span></span></span><span style=display:flex><span>                ll add <span style=color:#ff79c6>=</span> (ll)(p[k]<span style=color:#ff79c6>^</span>e) <span style=color:#ff79c6>*</span> ((e<span style=color:#ff79c6>&gt;</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> S(n<span style=color:#ff79c6>/</span>ml, k) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>                ans <span style=color:#ff79c6>+=</span> add; ans <span style=color:#ff79c6>%=</span> M;
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> (ml <span style=color:#ff79c6>&gt;</span> n<span style=color:#ff79c6>/</span>p[k]) <span style=color:#ff79c6>break</span>;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> ans;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>} A;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
+</span></span><span style=display:flex><span>    ll n;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (scanf(<span style=color:#f1fa8c>&#34;%lld&#34;</span>, <span style=color:#ff79c6>&amp;</span>n) <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    printf(<span style=color:#f1fa8c>&#34;%lld</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>, A.calc(n));
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=16-example-luogu-p5325--min_25-template>1.6 Example: Luogu P5325 — Min_25 Template</h2>$$f(p^k)=p^k(p^k-1),\quad\text{compute }\sum_{i=1}^n f(i)\pmod{10^9+7}.$$$$h(x)=\sum_{p\leq x}p(p-1)=\Bigl(\sum_{p\leq x}p^2\Bigr)-\Bigl(\sum_{p\leq x}p\Bigr)$$<p>Requires two channels: $t=2$ (sum of $p^2$) and $t=1$ (sum of $p$).</p><p>Initialise: $g[i][0]=\sum_{x=2}^{d[i]}x^2-1$ (use closed form $\frac{n(n+1)(2n+1)}{6}-1$), $g[i][1]=\sum_{x=2}^{d[i]}x-1$.</p><p>Sieve step for $k=0$ (channel for $p^2$): multiply by $p[i]^2$ instead of $p[i]$.</p><blockquote><p><strong>Common pitfall:</strong> multiplications of two <code>int</code> values produce <code>int</code> overflow. Always cast to <code>ll</code> or use <code>(ll)p[i]*p[i]%M</code>.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>#define N 300005
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>#define M 1000000007
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>typedef</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> ll;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>constexpr</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>qp</span>(ll a,ll x<span style=color:#ff79c6>=</span>M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>2</span>){<span style=color:#8be9fd>int</span> res<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;<span style=color:#ff79c6>for</span>(;x;x<span style=color:#ff79c6>&gt;&gt;=</span><span style=color:#bd93f9>1</span>,a<span style=color:#ff79c6>=</span>a<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M)(x<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>&amp;&amp;</span>(res<span style=color:#ff79c6>=</span>a<span style=color:#ff79c6>*</span>res<span style=color:#ff79c6>%</span>M);<span style=color:#ff79c6>return</span> res;}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>min25</span> {
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> vis[N];
+</span></span><span style=display:flex><span>    ll n, d[N], g[N][<span style=color:#bd93f9>2</span>], h[N];
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m, s, cnt, p[N];
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>id</span>(ll x){ <span style=color:#ff79c6>return</span> x <span style=color:#ff79c6>&lt;=</span> m <span style=color:#ff79c6>?</span> <span style=color:#8be9fd;font-style:italic>x</span> : s <span style=color:#ff79c6>-</span> n<span style=color:#ff79c6>/</span>x <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>calc</span>(ll nn) {
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> i, j, k;
+</span></span><span style=display:flex><span>        m <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)sqrt(n <span style=color:#ff79c6>=</span> nn);
+</span></span><span style=display:flex><span>        s <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span><span style=color:#ff79c6>*</span>m <span style=color:#ff79c6>-</span> (<span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>m<span style=color:#ff79c6>*</span>m <span style=color:#ff79c6>==</span> n);
+</span></span><span style=display:flex><span>        cnt <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>        memset(vis, <span style=color:#bd93f9>0</span>, (m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>*</span><span style=color:#ff79c6>sizeof</span>(<span style=color:#8be9fd>bool</span>));
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>vis[i]) p[<span style=color:#ff79c6>++</span>cnt] <span style=color:#ff79c6>=</span> i;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; j <span style=color:#ff79c6>&lt;=</span> cnt <span style=color:#ff79c6>&amp;&amp;</span> <span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>p[j]<span style=color:#ff79c6>*</span>i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>j) {
+</span></span><span style=display:flex><span>                vis[p[j]<span style=color:#ff79c6>*</span>i] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> p[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>break</span>;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        p[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>i) d[i] <span style=color:#ff79c6>=</span> i;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>i) d[s<span style=color:#ff79c6>-</span>i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> n<span style=color:#ff79c6>/</span>i;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> s; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> inv6 <span style=color:#ff79c6>=</span> qp(<span style=color:#bd93f9>6</span>);
+</span></span><span style=display:flex><span>            ll s2 <span style=color:#ff79c6>=</span> (d[i]<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>*</span> ((d[i]<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>*</span> ((<span style=color:#bd93f9>2</span><span style=color:#ff79c6>*</span>d[i]<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>*</span> inv6 <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>            g[i][<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> (s2 <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>+</span> M) <span style=color:#ff79c6>%</span> M;           <span style=color:#6272a4>// sum of x^2 for x=2..d[i]
+</span></span></span><span style=display:flex><span>            g[i][<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> (d[i]<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>*</span> ((d[i]<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>*</span> ((M<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;  <span style=color:#6272a4>// sum of x
+</span></span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> cnt; <span style=color:#ff79c6>++</span>i)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (j <span style=color:#ff79c6>=</span> s; d[j] <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>p[i]<span style=color:#ff79c6>*</span>p[i]; <span style=color:#ff79c6>--</span>j)
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> (k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; k <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>2</span>; <span style=color:#ff79c6>++</span>k)
+</span></span><span style=display:flex><span>                    (g[j][k] <span style=color:#ff79c6>-=</span> (g[id(d[j]<span style=color:#ff79c6>/</span>p[i])][k] <span style=color:#ff79c6>-</span> g[id(p[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>])][k])
+</span></span><span style=display:flex><span>                        <span style=color:#ff79c6>*</span> (k<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span> <span style=color:#ff79c6>?</span> (ll)p[i]<span style=color:#ff79c6>*</span>p[i]<span style=color:#ff79c6>%</span><span style=color:#8be9fd;font-style:italic>M</span> : p[i]) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>%=</span> M;  <span style=color:#6272a4>// cast: avoid int overflow
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> s; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>            h[i] <span style=color:#ff79c6>=</span> (g[i][<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>-</span> g[i][<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>+</span> M) <span style=color:#ff79c6>%</span> M;   <span style=color:#6272a4>// sum p^2 - sum p = sum p(p-1)
+</span></span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (h[i] <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) h[i] <span style=color:#ff79c6>+=</span> M;
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> (S(n, <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>S</span>(ll n, <span style=color:#8be9fd>int</span> j) {
+</span></span><span style=display:flex><span>        ll ans <span style=color:#ff79c6>=</span> (h[id(n)] <span style=color:#ff79c6>-</span> h[id(p[j])]) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (ans <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) ans <span style=color:#ff79c6>+=</span> M;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> p[j]) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> j<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>; k <span style=color:#ff79c6>&lt;=</span> cnt <span style=color:#ff79c6>&amp;&amp;</span> <span style=color:#bd93f9>1ll</span><span style=color:#ff79c6>*</span>p[k]<span style=color:#ff79c6>*</span>p[k] <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>k) {
+</span></span><span style=display:flex><span>            ll ml <span style=color:#ff79c6>=</span> p[k];
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> e <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; ; <span style=color:#ff79c6>++</span>e, ml <span style=color:#ff79c6>*=</span> p[k]) {
+</span></span><span style=display:flex><span>                <span style=color:#6272a4>// f(p^e) = p^e * (p^e - 1); use __int128 to avoid ll overflow
+</span></span></span><span style=display:flex><span>                ll add <span style=color:#ff79c6>=</span> ((__int128_t)ml <span style=color:#ff79c6>*</span> (ml<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>*</span> ((S(n<span style=color:#ff79c6>/</span>ml, k) <span style=color:#ff79c6>+</span> (e<span style=color:#ff79c6>&gt;</span><span style=color:#bd93f9>1</span>)) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>                ans <span style=color:#ff79c6>+=</span> add; ans <span style=color:#ff79c6>%=</span> M;
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> (ml <span style=color:#ff79c6>&gt;</span> n<span style=color:#ff79c6>/</span>p[k]) <span style=color:#ff79c6>break</span>;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> ans;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>} A;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
+</span></span><span style=display:flex><span>    ll n;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (scanf(<span style=color:#f1fa8c>&#34;%lld&#34;</span>, <span style=color:#ff79c6>&amp;</span>n) <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    printf(<span style=color:#f1fa8c>&#34;%lld</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>, A.calc(n));
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=17-variants--and>1.7 Variants: $\pi(n)$ and $\sum_{p\leq n}p$</h2><p>After the first phase (sieve), before the DFS:</p><ul><li><strong>$\pi(n)$:</strong> return <code>(g[id(n)][0] % M + M) % M</code>.</li><li><strong>$\sum_{p\leq n}p$:</strong> return <code>(g[id(n)][1] % M + M) % M</code>.</li></ul><h3 id=example-count--with>Example: count $x\in[2,N]$ with $\text{spf}(x)=K$</h3><p>$(2\leq N,K\leq10^9)$</p><p><strong>Transform:</strong> set $m=\lfloor N/K\rfloor$. The condition $\text{spf}(x)=K$ with $x=Km$ is equivalent to $\text{spf}(m)\geq K$. So we count integers in $[1,m]$ with all prime factors $\geq K$ — exactly the Legendre $\phi$ function:</p>$$\phi(m,\pi(K-1))=1+g(m,p_{\pi(K-1)})$$<p><strong>Special cases:</strong></p><ol><li>$K>N$: answer 0.</li><li>$K$ not prime: answer 0.</li><li>$K^2>N$: answer 1 (only $x=K$).</li><li>$K-1>\sqrt{m}$: all composites $\leq m$ have a prime factor $\leq\sqrt{m}\lt K-1$, so $g(m,p_{\pi(K-1)})=\pi(m)-\pi(K-1)$; answer $=\pi(m)-\pi(K-1)+1$.</li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#6272a4>// pi(x) from sieved prime table
+</span></span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>pi</span>(<span style=color:#8be9fd>int</span> x){ <span style=color:#ff79c6>return</span> (<span style=color:#8be9fd>int</span>)(upper_bound(p<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, p<span style=color:#ff79c6>+</span>cnt<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, x) <span style=color:#ff79c6>-</span> p) <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>; }
+</span></span></code></pre></div><p>For case 4, the sieve must extend at least to $K-1$: <code>int limit = max(m, K-1)</code>.</p><hr><h1 id=2-du-jiao-sieve>2 Du Jiao Sieve</h1><h2 id=21-overview>2.1 Overview</h2><p><strong>Goal:</strong> compute prefix sums $S(n)=\sum_{i=1}^n f(i)$ of a multiplicative function $f$ for large $n$.</p><p><strong>Core idea:</strong> find two easy-to-sum multiplicative functions $g$ and $h$ with $h=f*g$, then use:</p><blockquote>$$S(n)=\sum_{i=1}^n h(i)-\sum_{d=2}^n g(d)\,S\!\left(\Bigl\lfloor\frac{n}{d}\Bigr\rfloor\right)$$</blockquote><p><strong>Convolution–swap identity:</strong></p>$$\sum_{i\leq n}f(i)\Bigl\lfloor\frac{n}{i}\Bigr\rfloor=\sum_{m\leq n}(f*1)(m)$$<h2 id=22-template--and>2.2 Template: $S_\mu(n)$ and $S_\varphi(n)$</h2><p>Key identities:</p>$$\sum_{i\leq n}\mu(i)\Bigl\lfloor\frac{n}{i}\Bigr\rfloor=1,\qquad
+\sum_{i\leq n}\varphi(i)\Bigl\lfloor\frac{n}{i}\Bigr\rfloor=\frac{n(n+1)}{2}$$<p>Convolution identities used: $\varepsilon=\mu*1$, $\mathrm{id}=\varphi*1$, $\varphi=\mu*\mathrm{id}$.</p><p><code>MAXN</code> threshold: empirically $n^{2/3}$, default $5\times10^6$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>namespace</span> Prime {
+</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> spf, prime, mu, phi;
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>initp</span>(<span style=color:#8be9fd>int</span> n) {
+</span></span><span style=display:flex><span>        spf.resize(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>); mu.resize(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>); phi.resize(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>);
+</span></span><span style=display:flex><span>        mu[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; phi[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;                                            <span style=color:#6272a4>// base
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>spf[i]) { spf[i]<span style=color:#ff79c6>=</span>i; prime.push_back(i); mu[i]<span style=color:#ff79c6>=-</span><span style=color:#bd93f9>1</span>; phi[i]<span style=color:#ff79c6>=</span>i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>; } <span style=color:#6272a4>// prime
+</span></span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; j<span style=color:#ff79c6>&lt;</span>(<span style=color:#8be9fd>int</span>)prime.size()<span style=color:#ff79c6>&amp;&amp;</span>prime[j]<span style=color:#ff79c6>&lt;=</span>spf[i]<span style=color:#ff79c6>&amp;&amp;</span>i<span style=color:#ff79c6>*</span>prime[j]<span style=color:#ff79c6>&lt;=</span>n; <span style=color:#ff79c6>++</span>j) {
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd>int</span> x <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>*</span> prime[j]; spf[x] <span style=color:#ff79c6>=</span> prime[j];
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> prime[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) { mu[x]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; phi[x]<span style=color:#ff79c6>=</span>phi[i]<span style=color:#ff79c6>*</span>prime[j]; <span style=color:#ff79c6>break</span>; }   <span style=color:#6272a4>// p^2 | x
+</span></span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span>                   { mu[x]<span style=color:#ff79c6>=-</span>mu[i]; phi[x]<span style=color:#ff79c6>=</span>phi[i]<span style=color:#ff79c6>*</span>(prime[j]<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>); }  <span style=color:#6272a4>// new prime
+</span></span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>} <span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> Prime;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MAXN <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>5000000</span>;
+</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> sumMu, sumPhi;
+</span></span><span style=display:flex><span>unordered_map<span style=color:#ff79c6>&lt;</span>ll,ll<span style=color:#ff79c6>&gt;</span> cacheMu, cachePhi;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>getMu</span>(ll n){
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> MAXN) <span style=color:#ff79c6>return</span> sumMu[n];        <span style=color:#6272a4>// small n: table lookup
+</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (cacheMu.count(n)) <span style=color:#ff79c6>return</span> cacheMu[n];
+</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (ll l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>2</span>,r; l<span style=color:#ff79c6>&lt;=</span>n; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){ ll t<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>l; r<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>t; ans <span style=color:#ff79c6>-=</span> (r<span style=color:#ff79c6>-</span>l<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>*</span>getMu(t); }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> cacheMu[n] <span style=color:#ff79c6>=</span> ans;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>getPhi</span>(ll n){
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> MAXN) <span style=color:#ff79c6>return</span> sumPhi[n];       <span style=color:#6272a4>// small n: table lookup
+</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (cachePhi.count(n)) <span style=color:#ff79c6>return</span> cachePhi[n];
+</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> n<span style=color:#ff79c6>*</span>(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (ll l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>2</span>,r; l<span style=color:#ff79c6>&lt;=</span>n; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){ ll t<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>l; r<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>t; ans <span style=color:#ff79c6>-=</span> (r<span style=color:#ff79c6>-</span>l<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>*</span>getPhi(t); }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> cachePhi[n] <span style=color:#ff79c6>=</span> ans;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
+</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
+</span></span><span style=display:flex><span>    Prime<span style=color:#ff79c6>::</span>initp(MAXN);
+</span></span><span style=display:flex><span>    sumMu.resize(MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>); sumPhi.resize(MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>    sumMu[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; sumPhi[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>MAXN; <span style=color:#ff79c6>++</span>i){ sumMu[i]<span style=color:#ff79c6>=</span>sumMu[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>+</span>mu[i]; sumPhi[i]<span style=color:#ff79c6>=</span>sumPhi[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>+</span>phi[i]; }
+</span></span><span style=display:flex><span>    cacheMu.reserve(<span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>20</span>); cachePhi.reserve(<span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>20</span>);
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> q; cin<span style=color:#ff79c6>&gt;&gt;</span>q;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span>(q<span style=color:#ff79c6>--</span>){ ll n; cin<span style=color:#ff79c6>&gt;&gt;</span>n; cout<span style=color:#ff79c6>&lt;&lt;</span>getPhi(n)<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34; &#34;</span><span style=color:#ff79c6>&lt;&lt;</span>getMu(n)<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=23-useful-identities>2.3 Useful Identities</h2>$$\sum_{i=1}^n i=\frac{n(n+1)}{2},\quad
 \sum_{i=1}^n i^2=\frac{n(n+1)(2n+1)}{6},\quad
 \sum_{i=1}^n i^3=\left(\frac{n(n+1)}{2}\right)^2$$$$\Bigl(\sum_{i=1}^n a_i\Bigr)^2=\sum_{i=1}^n a_i^2+2\sum_{1\leq i\lt j\leq n}a_ia_j$$$$\sum_{k=0}^n\binom{n}{k}=2^n,\quad
 \sum_{k=0}^n k\binom{n}{k}=n\cdot2^{n-1},\quad
-\sum_{k=r}^n\binom{k}{r}=\binom{n+1}{r+1}\ (\text{hockey stick})$$<h2 id="24-example-luogu-p3768--simple-math-problem">2.4 Example: Luogu P3768 — Simple Math Problem</h2>
-$$\text{Compute }\sum_{i=1}^n\sum_{j=1}^n ij\,\gcd(i,j)\pmod{p}$$<p><strong>Derivation:</strong> use $\gcd(i,j)=\sum_{d\mid\gcd(i,j)}\varphi(d)$, swap sums, substitute $i=id$, $j=jd$:</p>
-$$\sum_{d=1}^n\varphi(d)\cdot d^2\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor n/d\rfloor}ij
-=\sum_{d=1}^n\varphi(d)\cdot d^2\left(\sum_{i=1}^{\lfloor n/d\rfloor}i\right)^2$$<p>Let $F(n)=\sum_{d=1}^n\varphi(d)d^2$. Then:
-</p>
-$$\text{Ans}=\sum_{d=1}^n F(\lfloor n/d\rfloor)\cdot\left(\sum_{i=1}^{\lfloor n/d\rfloor}i\right)^2$$<p>To compute $F$ via Du Jiao sieve, choose $f=\varphi\cdot\mathrm{id}^2$ and $g=\mathrm{id}^2$:
-</p>
-$$(f*g)(n)=\sum_{d\mid n}\varphi(d)d^2\cdot(n/d)^2=n^2\sum_{d\mid n}\varphi(d)=n^3$$<p>So $\sum_{i\leq n}(f*g)(i)=\sum_{i\leq n}i^3=\frac{n^2(n+1)^2}{4}$ and $\sum_{i\leq n}g(i)=\sum_{i\leq n}i^2=\frac{n(n+1)(2n+1)}{6}$.</p>
-<p>Both computable in $O(1)$. Du Jiao sieve gives $F(n)$ in $O(n^{2/3})$.</p>
-<blockquote>
-<p><strong>Performance tip:</strong> precompute <code>inv6 = qp(6)</code> once. Calling <code>qp(6)</code> inside every <code>sumg(n)</code> evaluation causes many redundant exponentiations.</p>
-</blockquote>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MAXN <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">5000000</span>;
-</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> sumf, sumPhi;
-</span></span><span style="display:flex;"><span>unordered_map<span style="color:#ff79c6">&lt;</span>ll,ll<span style="color:#ff79c6">&gt;</span> cachef;
-</span></span><span style="display:flex;"><span>ll inv6;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">sumg</span>(ll n){
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> ((ll)(n<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">*</span>((n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>((<span style="color:#bd93f9">2</span><span style="color:#ff79c6">*</span>n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>inv6)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">getf</span>(ll n){
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> MAXN) <span style="color:#ff79c6">return</span> sumf[n];
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (cachef.count(n)) <span style="color:#ff79c6">return</span> cachef[n];
-</span></span><span style="display:flex;"><span>    ll s1 <span style="color:#ff79c6">=</span> (ll)(n<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">*</span>((n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>((M<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> s1<span style="color:#ff79c6">*</span>s1<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (ll l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">2</span>,r; l<span style="color:#ff79c6">&lt;=</span>n; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){
-</span></span><span style="display:flex;"><span>        ll t<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>l; r<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>t;
-</span></span><span style="display:flex;"><span>        ans <span style="color:#ff79c6">-=</span> (ll)(sumg(r)<span style="color:#ff79c6">-</span>sumg(l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">+</span>M)<span style="color:#ff79c6">%</span>M <span style="color:#ff79c6">*</span> getf(t) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>        ans <span style="color:#ff79c6">=</span> (ans<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">+</span>M)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> cachef[n] <span style="color:#ff79c6">=</span> ans;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">signed</span> <span style="color:#50fa7b">main</span>() {
-</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
-</span></span><span style="display:flex;"><span>    ll n; cin<span style="color:#ff79c6">&gt;&gt;</span>M<span style="color:#ff79c6">&gt;&gt;</span>n;
-</span></span><span style="display:flex;"><span>    inv6 <span style="color:#ff79c6">=</span> qp(<span style="color:#bd93f9">6</span>);
-</span></span><span style="display:flex;"><span>    Prime<span style="color:#ff79c6">::</span>initp(MAXN);
-</span></span><span style="display:flex;"><span>    sumf.resize(MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>); sumPhi.resize(MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>    sumf[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; sumPhi[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>MAXN; <span style="color:#ff79c6">++</span>i){
-</span></span><span style="display:flex;"><span>        sumPhi[i]<span style="color:#ff79c6">=</span>(sumPhi[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">+</span>phi[i])<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>        sumf[i]<span style="color:#ff79c6">=</span>(sumf[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">+</span>(ll)phi[i]<span style="color:#ff79c6">*</span>i<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>i<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    cachef.reserve(<span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">20</span>);
-</span></span><span style="display:flex;"><span>    ll ans<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (ll l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>,r; l<span style="color:#ff79c6">&lt;=</span>n; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){
-</span></span><span style="display:flex;"><span>        ll v<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>l; r<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>v;
-</span></span><span style="display:flex;"><span>        ll dF<span style="color:#ff79c6">=</span>(getf(r)<span style="color:#ff79c6">-</span>getf(l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">+</span>M)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>        ll vv<span style="color:#ff79c6">=</span>v<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>        ll S<span style="color:#ff79c6">=</span>vv<span style="color:#ff79c6">*</span>((v<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>qp(<span style="color:#bd93f9">2</span>)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>        ans<span style="color:#ff79c6">=</span>(ans<span style="color:#ff79c6">+</span>dF<span style="color:#ff79c6">*</span>S<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>S)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(ans<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span>) ans<span style="color:#ff79c6">+=</span>M;
-</span></span><span style="display:flex;"><span>    cout<span style="color:#ff79c6">&lt;&lt;</span>ans<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="25--prefix-sum-with-modular-arithmetic">2.5 $\varphi$ Prefix Sum with Modular Arithmetic</h2>
-<p>When $n$ is in the <code>ll</code> range and the modulus $M$ is variable, overflow is the main hazard:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">int</span> M <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1e9</span><span style="color:#ff79c6">+</span><span style="color:#bd93f9">7</span>;
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">qp</span>(ll a,ll x<span style="color:#ff79c6">=</span>M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">2</span>){<span style="color:#8be9fd">int</span> res<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;<span style="color:#ff79c6">for</span>(;x;x<span style="color:#ff79c6">&gt;&gt;=</span><span style="color:#bd93f9">1</span>,a<span style="color:#ff79c6">=</span>a<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M)(x<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">&amp;&amp;</span>(res<span style="color:#ff79c6">=</span>a<span style="color:#ff79c6">*</span>res<span style="color:#ff79c6">%</span>M);<span style="color:#ff79c6">return</span> res;}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MAXN <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2000000</span>;
-</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> sumf;
-</span></span><span style="display:flex;"><span>unordered_map<span style="color:#ff79c6">&lt;</span>ll,ll<span style="color:#ff79c6">&gt;</span> cachef;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">inline</span> ll <span style="color:#50fa7b">sumH</span>(ll n){
-</span></span><span style="display:flex;"><span>    n <span style="color:#ff79c6">%=</span> M;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> (n <span style="color:#ff79c6">*</span> ((n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M) <span style="color:#ff79c6">%</span> M) <span style="color:#ff79c6">*</span> qp(<span style="color:#bd93f9">2</span>) <span style="color:#ff79c6">%</span> M;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">inline</span> ll <span style="color:#50fa7b">norm</span>(ll x){ x<span style="color:#ff79c6">%=</span>M; <span style="color:#ff79c6">if</span>(x<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span>) x<span style="color:#ff79c6">+=</span>M; <span style="color:#ff79c6">return</span> x; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">getf</span>(ll n){
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> MAXN) <span style="color:#ff79c6">return</span> sumf[n];
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> it <span style="color:#ff79c6">=</span> cachef.find(n); <span style="color:#ff79c6">if</span> (it <span style="color:#ff79c6">!=</span> cachef.end()) <span style="color:#ff79c6">return</span> it<span style="color:#ff79c6">-&gt;</span>second;
-</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> sumH(n);   <span style="color:#6272a4">// G(n) = sum_{k&lt;=n} k  — use sumH to avoid ll*ll overflow
-</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (ll l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">2</span>,r; l<span style="color:#ff79c6">&lt;=</span>n; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){
-</span></span><span style="display:flex;"><span>        ll t<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>l; r<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>t;
-</span></span><span style="display:flex;"><span>        ll cnt<span style="color:#ff79c6">=</span>(r<span style="color:#ff79c6">-</span>l<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>        ans<span style="color:#ff79c6">=</span>norm(ans<span style="color:#ff79c6">-</span>cnt<span style="color:#ff79c6">*</span>getf(t)<span style="color:#ff79c6">%</span>M);
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> cachef[n]<span style="color:#ff79c6">=</span>ans;
-</span></span><span style="display:flex;"><span>}
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
-</span></span><span style="display:flex;"><span>    ll n; cin<span style="color:#ff79c6">&gt;&gt;</span>n;
-</span></span><span style="display:flex;"><span>    Prime<span style="color:#ff79c6">::</span>initp(MAXN);
-</span></span><span style="display:flex;"><span>    sumf.assign(MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>MAXN; <span style="color:#ff79c6">++</span>i) sumf[i]<span style="color:#ff79c6">=</span>(sumf[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">+</span>(ll)phi[i])<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    cachef.reserve(<span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">19</span>);
-</span></span><span style="display:flex;"><span>    cout<span style="color:#ff79c6">&lt;&lt;</span>getf(n)<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="26-sum-of-gcds--51nod-1237">2.6 Sum of GCDs — 51Nod 1237</h2>
-$$\sum_{i=1}^n\sum_{j=1}^n\gcd(i,j)=\sum_{d=1}^n\varphi(d)\Bigl\lfloor\frac{n}{d}\Bigr\rfloor^2$$<p>Apply divisibility blocking; compute $F(n)=\sum_{d\leq n}\varphi(d)$ via Du Jiao sieve.</p>
-<blockquote>
-<p><strong>Pitfall:</strong> $t=\lfloor n/l\rfloor$ is <code>ll</code>, and $t^2$ overflows <code>ll</code>. Use <code>__int128</code> multiplication.</p>
-</blockquote>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (ll l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>,r; l<span style="color:#ff79c6">&lt;=</span>n; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){
-</span></span><span style="display:flex;"><span>    ll t<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>l; r<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>t;
-</span></span><span style="display:flex;"><span>    ans <span style="color:#ff79c6">+=</span> (__int128)(getf(r)<span style="color:#ff79c6">-</span>getf(l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">+</span>M)<span style="color:#ff79c6">%</span>M <span style="color:#ff79c6">*</span> t<span style="color:#ff79c6">%</span>M <span style="color:#ff79c6">*</span> t<span style="color:#ff79c6">%</span>M; ans<span style="color:#ff79c6">%=</span>M;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="27-sum-of-lcms--51nod-1237-variant">2.7 Sum of LCMs — 51Nod 1237 (variant)</h2>
-$$\sum_{i=1}^n\sum_{j=1}^n\text{lcm}(i,j),\quad 1\leq n\leq10^{10}$$<p><strong>Useful identity:</strong>
-</p>
-$$\sum_{i=1}^n i\cdot[\gcd(n,i)=1]=\frac{\varphi(n)\cdot n+[n=1]}{2}$$<p><strong>Derivation:</strong>
-</p>
-$$\sum_{i,j}\text{lcm}(i,j)=\sum_{d=1}^n d\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor n/d\rfloor}ij\cdot[\gcd(i,j)=1]$$<p>By symmetry and the identity above, the inner double sum equals $\sum_{i=1}^{\lfloor n/d\rfloor}\varphi(i)\cdot i^2$.</p>
-<p>Let $F(n)=\sum_{i=1}^n\varphi(i)\cdot i^2$. Then:
-</p>
-$$\text{Ans}=\sum_{d=1}^n d\cdot F\!\left(\Bigl\lfloor\frac{n}{d}\Bigr\rfloor\right)$$<p>$F$ uses the same Du Jiao sieve as P3768 (same $f=\varphi\cdot\mathrm{id}^2$).</p>
-$$F(n)=\frac{n^2(n+1)^2}{4}-\sum_{i=2}^n i^2\,F\!\left(\Bigl\lfloor\frac{n}{i}\Bigr\rfloor\right)$$<p>Final answer with one layer of divisibility blocking over $d$, total $O(n^{2/3})$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>ll <span style="color:#50fa7b">s1</span>(ll n){ <span style="color:#ff79c6">return</span> ((ll)(n<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">*</span>((n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>qp(<span style="color:#bd93f9">2</span>))<span style="color:#ff79c6">%</span>M; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">signed</span> <span style="color:#50fa7b">main</span>() {
-</span></span><span style="display:flex;"><span>    ll n; cin<span style="color:#ff79c6">&gt;&gt;</span>n;
-</span></span><span style="display:flex;"><span>    inv6 <span style="color:#ff79c6">=</span> qp(<span style="color:#bd93f9">6</span>);
-</span></span><span style="display:flex;"><span>    initp(MAXN);
-</span></span><span style="display:flex;"><span>    sumf.resize(MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>); sumf[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">&lt;=</span>MAXN; <span style="color:#ff79c6">++</span>i) sumf[i]<span style="color:#ff79c6">=</span>(sumf[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">+</span>(ll)phi[i]<span style="color:#ff79c6">*</span>i<span style="color:#ff79c6">%</span>M<span style="color:#ff79c6">*</span>i<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    cachef.reserve(<span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">20</span>);
-</span></span><span style="display:flex;"><span>    ll ans<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (ll l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>,r; l<span style="color:#ff79c6">&lt;=</span>n; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){
-</span></span><span style="display:flex;"><span>        ll t<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>l; r<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">/</span>t;
-</span></span><span style="display:flex;"><span>        ll dd<span style="color:#ff79c6">=</span>(s1(r)<span style="color:#ff79c6">-</span>s1(l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">+</span>M)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>        ans<span style="color:#ff79c6">=</span>(ans<span style="color:#ff79c6">+</span>(ll)dd<span style="color:#ff79c6">*</span>getf(t)<span style="color:#ff79c6">%</span>M)<span style="color:#ff79c6">%</span>M;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(ans<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span>) ans<span style="color:#ff79c6">+=</span>M;
-</span></span><span style="display:flex;"><span>    cout<span style="color:#ff79c6">&lt;&lt;</span>ans<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h3 id="alternative-derivation-möbius-approach">Alternative derivation (Möbius approach)</h3>
-$$\text{Ans}=\sum_{d=1}^n d\sum_{k=1}^{\lfloor n/d\rfloor}\mu(k)\Bigl(k\cdot S\!\Bigl(\Bigl\lfloor\frac{n}{kd}\Bigr\rfloor\Bigr)\Bigr)^2$$<p>Let $F(m)=\sum_{k=1}^m\mu(k)\Bigl(k\,S\!\bigl(\lfloor m/k\rfloor\bigr)\Bigr)^2$, then $\text{Ans}=\sum_{d=1}^n d\cdot F(\lfloor n/d\rfloor)$.</p>
-
-      </div>
-      
-        <aside class="article-toc">
-          <div class="toc-card">
-            <span>On this page</span>
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#1-min_25-sieve">1 Min_25 Sieve</a>
-      <ul>
-        <li><a href="#11-problem">1.1 Problem</a></li>
-        <li><a href="#12-algorithm-overview">1.2 Algorithm Overview</a></li>
-        <li><a href="#13-min_25-core-computing">1.3 Min_25 Core: Computing $h(x)$</a></li>
-        <li><a href="#14-dfs-to-compute">1.4 DFS to compute $g(n,m)$</a></li>
-        <li><a href="#15-example-loj-6053--a-simple-function">1.5 Example: LOJ #6053 — A Simple Function</a></li>
-        <li><a href="#16-example-luogu-p5325--min_25-template">1.6 Example: Luogu P5325 — Min_25 Template</a></li>
-        <li><a href="#17-variants--and">1.7 Variants: $\pi(n)$ and $\sum_{p\leq n}p$</a></li>
-      </ul>
-    </li>
-    <li><a href="#2-du-jiao-sieve">2 Du Jiao Sieve</a>
-      <ul>
-        <li><a href="#21-overview">2.1 Overview</a></li>
-        <li><a href="#22-template--and">2.2 Template: $S_\mu(n)$ and $S_\varphi(n)$</a></li>
-        <li><a href="#23-useful-identities">2.3 Useful Identities</a></li>
-        <li><a href="#24-example-luogu-p3768--simple-math-problem">2.4 Example: Luogu P3768 — Simple Math Problem</a></li>
-        <li><a href="#25--prefix-sum-with-modular-arithmetic">2.5 $\varphi$ Prefix Sum with Modular Arithmetic</a></li>
-        <li><a href="#26-sum-of-gcds--51nod-1237">2.6 Sum of GCDs — 51Nod 1237</a></li>
-        <li><a href="#27-sum-of-lcms--51nod-1237-variant">2.7 Sum of LCMs — 51Nod 1237 (variant)</a></li>
-      </ul>
-    </li>
-  </ul>
-</nav>
-          </div>
-        </aside>
-      
-    </div>
-  </article>
-
-  
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const tocLinks = document.querySelectorAll('.toc-card a');
-      const tocPanel = document.querySelector('.article-toc');
-      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
-                            .filter(h => h.id);
-      
-      if (headings.length === 0 || tocLinks.length === 0) return;
-
-      let ticking = false;
-
-      function updateActiveTocLink() {
-        const scrollPosition = window.scrollY + 140; 
-        let currentHeading = headings[0];
-
-        for (let i = 0; i < headings.length; i++) {
-          
-          const top = headings[i].getBoundingClientRect().top + window.scrollY;
-          if (scrollPosition >= top) {
-            currentHeading = headings[i];
-          } else {
-            break;
-          }
-        }
-
-        tocLinks.forEach(link => link.classList.remove('active'));
-        if (currentHeading) {
-          const id = currentHeading.getAttribute('id');
-          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
-          if (activeLink) {
-            activeLink.classList.add('active');
-            const toc = activeLink.closest('.article-toc');
-            if (toc) {
-              const padding = 14;
-              const linkTop = activeLink.offsetTop;
-              const linkBottom = linkTop + activeLink.offsetHeight;
-              const viewTop = toc.scrollTop;
-              const viewBottom = viewTop + toc.clientHeight;
-
-              if (linkTop < viewTop + padding) {
-                toc.scrollTop = Math.max(0, linkTop - padding);
-              } else if (linkBottom > viewBottom - padding) {
-                toc.scrollTop = linkBottom - toc.clientHeight + padding;
-              }
-            }
-          }
-        }
-      }
-
-      function updateTocBoundary() {
-        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
-          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
-          return;
-        }
-
-        const footer = document.querySelector('.site-footer');
-        if (!footer) return;
-
-        const bottomGap = 24;
-        const tocBottom = 86 + tocPanel.offsetHeight;
-        const footerTop = footer.getBoundingClientRect().top;
-        const overlap = tocBottom + bottomGap - footerTop;
-
-        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
-      }
-
-      function onScroll() {
-        if (ticking) return;
-        ticking = true;
-        window.requestAnimationFrame(function() {
-          updateTocBoundary();
-          updateActiveTocLink();
-          ticking = false;
-        });
-      }
-
-      window.addEventListener('scroll', onScroll, { passive: true });
-      window.addEventListener('resize', onScroll, { passive: true });
-      
-      setTimeout(function() {
-        updateTocBoundary();
-        updateActiveTocLink();
-      }, 50);
-    });
-  </script>
-  
-
-      </main>
-
-      <footer class="site-footer container">
-        <div>
-          <strong>Jasper&#39;s Technical Notebook</strong>
-          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
-        </div>
-        <div class="footer-links">
-          <a href="https://github.com/JMaaa32">GitHub</a>
-          <a href="/posts/">Posts</a>
-          <a href="/archives/">Archives</a>
-          <a href="/tags/">Tags</a>
-        </div>
-      </footer>
-    </div>
-    <script>
-      (function() {
-        const toggle = document.querySelector(".nav-toggle");
-        const nav = document.querySelector("#site-navigation");
-        if (!toggle || !nav) return;
-
-        function setOpen(open) {
-          document.documentElement.classList.toggle("nav-open", open);
-          toggle.setAttribute("aria-expanded", String(open));
-        }
-
-        toggle.addEventListener("click", function() {
-          setOpen(!document.documentElement.classList.contains("nav-open"));
-        });
-
-        nav.addEventListener("click", function(event) {
-          if (event.target.closest("a")) setOpen(false);
-        });
-
-        window.addEventListener("keydown", function(event) {
-          if (event.key === "Escape") setOpen(false);
-        });
-
-        window.addEventListener("resize", function() {
-          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
-        }, { passive: true });
-
-        const themeToggle = document.querySelector(".theme-toggle");
-        if (!themeToggle) return;
-
-        function applyTheme(theme, persist) {
-          document.documentElement.dataset.theme = theme;
-          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
-          if (persist) {
-            try {
-              window.localStorage.setItem("theme", theme);
-            } catch (error) {}
-          }
-        }
-
-        applyTheme(document.documentElement.dataset.theme || "light", false);
-        themeToggle.addEventListener("click", function() {
-          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-          applyTheme(next, true);
-        });
-      })();
-    </script>
-  </body>
-</html>
+\sum_{k=r}^n\binom{k}{r}=\binom{n+1}{r+1}\ (\text{hockey stick})$$<h2 id=24-example-luogu-p3768--simple-math-problem>2.4 Example: Luogu P3768 — Simple Math Problem</h2>$$\text{Compute }\sum_{i=1}^n\sum_{j=1}^n ij\,\gcd(i,j)\pmod{p}$$<p><strong>Derivation:</strong> use $\gcd(i,j)=\sum_{d\mid\gcd(i,j)}\varphi(d)$, swap sums, substitute $i=id$, $j=jd$:</p>$$\sum_{d=1}^n\varphi(d)\cdot d^2\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor n/d\rfloor}ij
+=\sum_{d=1}^n\varphi(d)\cdot d^2\left(\sum_{i=1}^{\lfloor n/d\rfloor}i\right)^2$$<p>Let $F(n)=\sum_{d=1}^n\varphi(d)d^2$. Then:</p>$$\text{Ans}=\sum_{d=1}^n F(\lfloor n/d\rfloor)\cdot\left(\sum_{i=1}^{\lfloor n/d\rfloor}i\right)^2$$<p>To compute $F$ via Du Jiao sieve, choose $f=\varphi\cdot\mathrm{id}^2$ and $g=\mathrm{id}^2$:</p>$$(f*g)(n)=\sum_{d\mid n}\varphi(d)d^2\cdot(n/d)^2=n^2\sum_{d\mid n}\varphi(d)=n^3$$<p>So $\sum_{i\leq n}(f*g)(i)=\sum_{i\leq n}i^3=\frac{n^2(n+1)^2}{4}$ and $\sum_{i\leq n}g(i)=\sum_{i\leq n}i^2=\frac{n(n+1)(2n+1)}{6}$.</p><p>Both computable in $O(1)$. Du Jiao sieve gives $F(n)$ in $O(n^{2/3})$.</p><blockquote><p><strong>Performance tip:</strong> precompute <code>inv6 = qp(6)</code> once. Calling <code>qp(6)</code> inside every <code>sumg(n)</code> evaluation causes many redundant exponentiations.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MAXN <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>5000000</span>;
+</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> sumf, sumPhi;
+</span></span><span style=display:flex><span>unordered_map<span style=color:#ff79c6>&lt;</span>ll,ll<span style=color:#ff79c6>&gt;</span> cachef;
+</span></span><span style=display:flex><span>ll inv6;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>sumg</span>(ll n){
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> ((ll)(n<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>*</span>((n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>((<span style=color:#bd93f9>2</span><span style=color:#ff79c6>*</span>n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>inv6)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>getf</span>(ll n){
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> MAXN) <span style=color:#ff79c6>return</span> sumf[n];
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (cachef.count(n)) <span style=color:#ff79c6>return</span> cachef[n];
+</span></span><span style=display:flex><span>    ll s1 <span style=color:#ff79c6>=</span> (ll)(n<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>*</span>((n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>((M<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> s1<span style=color:#ff79c6>*</span>s1<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (ll l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>2</span>,r; l<span style=color:#ff79c6>&lt;=</span>n; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){
+</span></span><span style=display:flex><span>        ll t<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>l; r<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>t;
+</span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>-=</span> (ll)(sumg(r)<span style=color:#ff79c6>-</span>sumg(l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>+</span>M)<span style=color:#ff79c6>%</span>M <span style=color:#ff79c6>*</span> getf(t) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>=</span> (ans<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>+</span>M)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> cachef[n] <span style=color:#ff79c6>=</span> ans;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>signed</span> <span style=color:#50fa7b>main</span>() {
+</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
+</span></span><span style=display:flex><span>    ll n; cin<span style=color:#ff79c6>&gt;&gt;</span>M<span style=color:#ff79c6>&gt;&gt;</span>n;
+</span></span><span style=display:flex><span>    inv6 <span style=color:#ff79c6>=</span> qp(<span style=color:#bd93f9>6</span>);
+</span></span><span style=display:flex><span>    Prime<span style=color:#ff79c6>::</span>initp(MAXN);
+</span></span><span style=display:flex><span>    sumf.resize(MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>); sumPhi.resize(MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>    sumf[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; sumPhi[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>MAXN; <span style=color:#ff79c6>++</span>i){
+</span></span><span style=display:flex><span>        sumPhi[i]<span style=color:#ff79c6>=</span>(sumPhi[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>+</span>phi[i])<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>        sumf[i]<span style=color:#ff79c6>=</span>(sumf[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>+</span>(ll)phi[i]<span style=color:#ff79c6>*</span>i<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>i<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    cachef.reserve(<span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>20</span>);
+</span></span><span style=display:flex><span>    ll ans<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (ll l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>,r; l<span style=color:#ff79c6>&lt;=</span>n; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){
+</span></span><span style=display:flex><span>        ll v<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>l; r<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>v;
+</span></span><span style=display:flex><span>        ll dF<span style=color:#ff79c6>=</span>(getf(r)<span style=color:#ff79c6>-</span>getf(l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>+</span>M)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>        ll vv<span style=color:#ff79c6>=</span>v<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>        ll S<span style=color:#ff79c6>=</span>vv<span style=color:#ff79c6>*</span>((v<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>qp(<span style=color:#bd93f9>2</span>)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>        ans<span style=color:#ff79c6>=</span>(ans<span style=color:#ff79c6>+</span>dF<span style=color:#ff79c6>*</span>S<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>S)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(ans<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span>) ans<span style=color:#ff79c6>+=</span>M;
+</span></span><span style=display:flex><span>    cout<span style=color:#ff79c6>&lt;&lt;</span>ans<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=25--prefix-sum-with-modular-arithmetic>2.5 $\varphi$ Prefix Sum with Modular Arithmetic</h2><p>When $n$ is in the <code>ll</code> range and the modulus $M$ is variable, overflow is the main hazard:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>int</span> M <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1e9</span><span style=color:#ff79c6>+</span><span style=color:#bd93f9>7</span>;
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>qp</span>(ll a,ll x<span style=color:#ff79c6>=</span>M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>2</span>){<span style=color:#8be9fd>int</span> res<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;<span style=color:#ff79c6>for</span>(;x;x<span style=color:#ff79c6>&gt;&gt;=</span><span style=color:#bd93f9>1</span>,a<span style=color:#ff79c6>=</span>a<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M)(x<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>&amp;&amp;</span>(res<span style=color:#ff79c6>=</span>a<span style=color:#ff79c6>*</span>res<span style=color:#ff79c6>%</span>M);<span style=color:#ff79c6>return</span> res;}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MAXN <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2000000</span>;
+</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> sumf;
+</span></span><span style=display:flex><span>unordered_map<span style=color:#ff79c6>&lt;</span>ll,ll<span style=color:#ff79c6>&gt;</span> cachef;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>inline</span> ll <span style=color:#50fa7b>sumH</span>(ll n){
+</span></span><span style=display:flex><span>    n <span style=color:#ff79c6>%=</span> M;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> (n <span style=color:#ff79c6>*</span> ((n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M) <span style=color:#ff79c6>%</span> M) <span style=color:#ff79c6>*</span> qp(<span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>%</span> M;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#ff79c6>inline</span> ll <span style=color:#50fa7b>norm</span>(ll x){ x<span style=color:#ff79c6>%=</span>M; <span style=color:#ff79c6>if</span>(x<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span>) x<span style=color:#ff79c6>+=</span>M; <span style=color:#ff79c6>return</span> x; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>getf</span>(ll n){
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> MAXN) <span style=color:#ff79c6>return</span> sumf[n];
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> it <span style=color:#ff79c6>=</span> cachef.find(n); <span style=color:#ff79c6>if</span> (it <span style=color:#ff79c6>!=</span> cachef.end()) <span style=color:#ff79c6>return</span> it<span style=color:#ff79c6>-&gt;</span>second;
+</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> sumH(n);   <span style=color:#6272a4>// G(n) = sum_{k&lt;=n} k  — use sumH to avoid ll*ll overflow
+</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (ll l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>2</span>,r; l<span style=color:#ff79c6>&lt;=</span>n; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){
+</span></span><span style=display:flex><span>        ll t<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>l; r<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>t;
+</span></span><span style=display:flex><span>        ll cnt<span style=color:#ff79c6>=</span>(r<span style=color:#ff79c6>-</span>l<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>        ans<span style=color:#ff79c6>=</span>norm(ans<span style=color:#ff79c6>-</span>cnt<span style=color:#ff79c6>*</span>getf(t)<span style=color:#ff79c6>%</span>M);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> cachef[n]<span style=color:#ff79c6>=</span>ans;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
+</span></span><span style=display:flex><span>    ll n; cin<span style=color:#ff79c6>&gt;&gt;</span>n;
+</span></span><span style=display:flex><span>    Prime<span style=color:#ff79c6>::</span>initp(MAXN);
+</span></span><span style=display:flex><span>    sumf.assign(MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>MAXN; <span style=color:#ff79c6>++</span>i) sumf[i]<span style=color:#ff79c6>=</span>(sumf[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>+</span>(ll)phi[i])<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    cachef.reserve(<span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>19</span>);
+</span></span><span style=display:flex><span>    cout<span style=color:#ff79c6>&lt;&lt;</span>getf(n)<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=26-sum-of-gcds--51nod-1237>2.6 Sum of GCDs — 51Nod 1237</h2>$$\sum_{i=1}^n\sum_{j=1}^n\gcd(i,j)=\sum_{d=1}^n\varphi(d)\Bigl\lfloor\frac{n}{d}\Bigr\rfloor^2$$<p>Apply divisibility blocking; compute $F(n)=\sum_{d\leq n}\varphi(d)$ via Du Jiao sieve.</p><blockquote><p><strong>Pitfall:</strong> $t=\lfloor n/l\rfloor$ is <code>ll</code>, and $t^2$ overflows <code>ll</code>. Use <code>__int128</code> multiplication.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (ll l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>,r; l<span style=color:#ff79c6>&lt;=</span>n; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){
+</span></span><span style=display:flex><span>    ll t<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>l; r<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>t;
+</span></span><span style=display:flex><span>    ans <span style=color:#ff79c6>+=</span> (__int128)(getf(r)<span style=color:#ff79c6>-</span>getf(l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>+</span>M)<span style=color:#ff79c6>%</span>M <span style=color:#ff79c6>*</span> t<span style=color:#ff79c6>%</span>M <span style=color:#ff79c6>*</span> t<span style=color:#ff79c6>%</span>M; ans<span style=color:#ff79c6>%=</span>M;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=27-sum-of-lcms--51nod-1237-variant>2.7 Sum of LCMs — 51Nod 1237 (variant)</h2>$$\sum_{i=1}^n\sum_{j=1}^n\text{lcm}(i,j),\quad 1\leq n\leq10^{10}$$<p><strong>Useful identity:</strong></p>$$\sum_{i=1}^n i\cdot[\gcd(n,i)=1]=\frac{\varphi(n)\cdot n+[n=1]}{2}$$<p><strong>Derivation:</strong></p>$$\sum_{i,j}\text{lcm}(i,j)=\sum_{d=1}^n d\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor n/d\rfloor}ij\cdot[\gcd(i,j)=1]$$<p>By symmetry and the identity above, the inner double sum equals $\sum_{i=1}^{\lfloor n/d\rfloor}\varphi(i)\cdot i^2$.</p><p>Let $F(n)=\sum_{i=1}^n\varphi(i)\cdot i^2$. Then:</p>$$\text{Ans}=\sum_{d=1}^n d\cdot F\!\left(\Bigl\lfloor\frac{n}{d}\Bigr\rfloor\right)$$<p>$F$ uses the same Du Jiao sieve as P3768 (same $f=\varphi\cdot\mathrm{id}^2$).</p>$$F(n)=\frac{n^2(n+1)^2}{4}-\sum_{i=2}^n i^2\,F\!\left(\Bigl\lfloor\frac{n}{i}\Bigr\rfloor\right)$$<p>Final answer with one layer of divisibility blocking over $d$, total $O(n^{2/3})$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>ll <span style=color:#50fa7b>s1</span>(ll n){ <span style=color:#ff79c6>return</span> ((ll)(n<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>*</span>((n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>qp(<span style=color:#bd93f9>2</span>))<span style=color:#ff79c6>%</span>M; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>signed</span> <span style=color:#50fa7b>main</span>() {
+</span></span><span style=display:flex><span>    ll n; cin<span style=color:#ff79c6>&gt;&gt;</span>n;
+</span></span><span style=display:flex><span>    inv6 <span style=color:#ff79c6>=</span> qp(<span style=color:#bd93f9>6</span>);
+</span></span><span style=display:flex><span>    initp(MAXN);
+</span></span><span style=display:flex><span>    sumf.resize(MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>); sumf[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>&lt;=</span>MAXN; <span style=color:#ff79c6>++</span>i) sumf[i]<span style=color:#ff79c6>=</span>(sumf[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>+</span>(ll)phi[i]<span style=color:#ff79c6>*</span>i<span style=color:#ff79c6>%</span>M<span style=color:#ff79c6>*</span>i<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    cachef.reserve(<span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>20</span>);
+</span></span><span style=display:flex><span>    ll ans<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (ll l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>,r; l<span style=color:#ff79c6>&lt;=</span>n; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){
+</span></span><span style=display:flex><span>        ll t<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>l; r<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>/</span>t;
+</span></span><span style=display:flex><span>        ll dd<span style=color:#ff79c6>=</span>(s1(r)<span style=color:#ff79c6>-</span>s1(l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>+</span>M)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>        ans<span style=color:#ff79c6>=</span>(ans<span style=color:#ff79c6>+</span>(ll)dd<span style=color:#ff79c6>*</span>getf(t)<span style=color:#ff79c6>%</span>M)<span style=color:#ff79c6>%</span>M;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(ans<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span>) ans<span style=color:#ff79c6>+=</span>M;
+</span></span><span style=display:flex><span>    cout<span style=color:#ff79c6>&lt;&lt;</span>ans<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h3 id=alternative-derivation-möbius-approach>Alternative derivation (Möbius approach)</h3>$$\text{Ans}=\sum_{d=1}^n d\sum_{k=1}^{\lfloor n/d\rfloor}\mu(k)\Bigl(k\cdot S\!\Bigl(\Bigl\lfloor\frac{n}{kd}\Bigr\rfloor\Bigr)\Bigr)^2$$<p>Let $F(m)=\sum_{k=1}^m\mu(k)\Bigl(k\,S\!\bigl(\lfloor m/k\rfloor\bigr)\Bigr)^2$, then $\text{Ans}=\sum_{d=1}^n d\cdot F(\lfloor n/d\rfloor)$.</p></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-min_25-sieve>1 Min_25 Sieve</a><ul><li><a href=#11-problem>1.1 Problem</a></li><li><a href=#12-algorithm-overview>1.2 Algorithm Overview</a></li><li><a href=#13-min_25-core-computing>1.3 Min_25 Core: Computing $h(x)$</a></li><li><a href=#14-dfs-to-compute>1.4 DFS to compute $g(n,m)$</a></li><li><a href=#15-example-loj-6053--a-simple-function>1.5 Example: LOJ #6053 — A Simple Function</a></li><li><a href=#16-example-luogu-p5325--min_25-template>1.6 Example: Luogu P5325 — Min_25 Template</a></li><li><a href=#17-variants--and>1.7 Variants: $\pi(n)$ and $\sum_{p\leq n}p$</a></li></ul></li><li><a href=#2-du-jiao-sieve>2 Du Jiao Sieve</a><ul><li><a href=#21-overview>2.1 Overview</a></li><li><a href=#22-template--and>2.2 Template: $S_\mu(n)$ and $S_\varphi(n)$</a></li><li><a href=#23-useful-identities>2.3 Useful Identities</a></li><li><a href=#24-example-luogu-p3768--simple-math-problem>2.4 Example: Luogu P3768 — Simple Math Problem</a></li><li><a href=#25--prefix-sum-with-modular-arithmetic>2.5 $\varphi$ Prefix Sum with Modular Arithmetic</a></li><li><a href=#26-sum-of-gcds--51nod-1237>2.6 Sum of GCDs — 51Nod 1237</a></li><li><a href=#27-sum-of-lcms--51nod-1237-variant>2.7 Sum of LCMs — 51Nod 1237 (variant)</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+<a href=/posts/>Posts</a>
+<a href=/archives/>Archives</a>
+<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";o(e,!0)})})()</script></body></html>

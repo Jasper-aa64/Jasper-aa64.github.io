@@ -6,21 +6,47 @@
       <h1>{{ site.Params.heroTitle }}</h1>
       <p>{{ site.Params.heroText }}</p>
     </div>
-    <dl class="site-stats" aria-label="Site statistics">
-      <div>
-        <dt>Posts</dt>
-        <dd>{{ len $posts }}</dd>
+    <div class="home-hero-panel" aria-label="Notebook profile illustration">
+      <div class="hero-sketch-lines" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
       </div>
-      <div>
-        <dt>Categories</dt>
-        <dd>{{ len site.Taxonomies.categories }}</dd>
-      </div>
-      <div>
-        <dt>Tags</dt>
-        <dd>{{ len site.Taxonomies.tags }}</dd>
-      </div>
-    </dl>
+      <img class="home-avatar" src="/images/site/avatar-technical-notebook.png" alt="Hand-drawn technical notebook avatar" width="1254" height="1254">
+      <dl class="site-stats" aria-label="Site statistics">
+        <div>
+          <dt>Posts</dt>
+          <dd>{{ len $posts }}</dd>
+        </div>
+        <div>
+          <dt>Categories</dt>
+          <dd>{{ len site.Taxonomies.categories }}</dd>
+        </div>
+        <div>
+          <dt>Tags</dt>
+          <dd>{{ len site.Taxonomies.tags }}</dd>
+        </div>
+      </dl>
+    </div>
   </section>
+
+  <script>
+    (function() {
+      const intro = document.querySelector(".home-intro");
+      if (!intro) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      try {
+        if (window.sessionStorage.getItem("homeIntroPlayed")) return;
+        window.sessionStorage.setItem("homeIntroPlayed", "true");
+      } catch (error) {}
+
+      intro.classList.add("is-entering");
+      window.setTimeout(function() {
+        intro.classList.remove("is-entering");
+      }, 1800);
+    })();
+  </script>
 
   <section class="topic-index" aria-labelledby="topics-title">
     <div class="section-head">

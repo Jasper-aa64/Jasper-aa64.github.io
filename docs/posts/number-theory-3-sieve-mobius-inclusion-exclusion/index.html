@@ -1,700 +1,90 @@
-<!doctype html>
-<html lang="en-us">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion | Jasper&#39;s Technical Notebook</title>
-    <meta name="description" content="Computing μ via Eratosthenes sieving; the three-function framework (multiples count g, exact count f, coprime count h); Möbius inclusion-exclusion conclusions with worked examples and CF 803F full solution.">
-    <link rel="canonical" href="http://localhost:1313/posts/number-theory-3-sieve-mobius-inclusion-exclusion/">
-    <script>
-      (function() {
-        document.documentElement.classList.add("has-js");
-        try {
-          const stored = window.localStorage.getItem("theme");
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="/css/site.css">
-    
-      <script>
-        window.MathJax = {
-          tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']],
-            processEscapes: true
-          },
-          options: {
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-          }
-        };
-      </script>
-      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
-    
-  </head>
-  <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <div class="container header-inner">
-          <a class="brand" href="/">
-            <span class="brand-mark">J</span>
-            <span>
-              <strong>Jasper&#39;s Technical Notebook</strong>
-              <small>Algorithms, systems, and engineering notes</small>
-            </span>
-          </a>
-          <div class="header-actions">
-            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
-              <span class="theme-toggle-icon" aria-hidden="true"></span>
-              <span class="sr-only">Switch theme</span>
-            </button>
-            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <nav class="site-nav" id="site-navigation">
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/">Home</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link is-active" href="/posts/">Posts</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/archives/">Archives</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/categories/">Categories</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/tags/">Tags</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/about/">About</a>
-            
-          </nav>
-        </div>
-      </header>
-
-      <main class="container main-content">
-        
-  <article class="article-shell">
-    <header class="article-header">
-      <span class="eyebrow">Posts</span>
-      <h1>Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion</h1>
-      
-        <div class="article-meta">
-          <time datetime="2026-04-28">Apr 28, 2026</time>
-          
-            <span>·</span>
-            <span>Number Theory</span>
-          
-        </div>
-        
-          <div class="chip-row">
-            
-              <a class="chip" href="/tags/math/">#math</a>
-            
-              <a class="chip" href="/tags/number-theory/">#number-theory</a>
-            
-              <a class="chip" href="/tags/mobius/">#mobius</a>
-            
-              <a class="chip" href="/tags/sieve/">#sieve</a>
-            
-              <a class="chip" href="/tags/inclusion-exclusion/">#inclusion-exclusion</a>
-            
-              <a class="chip" href="/tags/coprime/">#coprime</a>
-            
-          </div>
-        
-      
-    </header>
-
-    <div class="article-layout">
-      
-        <details class="mobile-toc">
-          <summary>On this page</summary>
-          <div class="mobile-toc-panel">
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#overview">Overview</a></li>
-    <li><a href="#1-computing--via-eratosthenes-sieve">1 Computing $\mu$ via Eratosthenes Sieve</a></li>
-    <li><a href="#2-core-framework-conclusions-1-and-2">2 Core Framework: Conclusions 1 and 2</a>
-      <ul>
-        <li><a href="#conclusion-1-multiple-form">Conclusion 1 (Multiple Form)</a></li>
-        <li><a href="#conclusion-2-coprime-count-via-divisor-sum">Conclusion 2 (Coprime Count via Divisor Sum)</a></li>
-      </ul>
-    </li>
-    <li><a href="#3-worked-table-computing--with">3 Worked Table: Computing $f(1) = \text{cnt}(1)$ with $N=10$</a></li>
-    <li><a href="#4-gcd-table-intuition-for">4 GCD Table Intuition for $g(x)=\lfloor n/x\rfloor\lfloor m/x\rfloor$</a></li>
-    <li><a href="#5-conclusion-2-via-eratosthenes">5 Conclusion 2 via Eratosthenes</a></li>
-    <li><a href="#6-example-cf-803f--coprime-subsequences">6 Example: CF 803F — Coprime Subsequences</a></li>
-  </ul>
-</nav>
-          </div>
-        </details>
-      
-      <div class="article-content prose">
-        <p>(Continues from <a href="../number-theory-2-multiplicative-functions">Number Theory #2</a>)</p>
-<h1 id="overview">Overview</h1>
-<blockquote>
-<p><strong>Three functions over set $S=\{1,\ldots,n\}$:</strong></p>
-<ul>
-<li>$g(x)$ = number of elements in $S$ divisible by $x$ (the &ldquo;multiples count&rdquo;).</li>
-<li>$f(x)$ = number of elements in $S$ equal to $x$ exactly (the &ldquo;exact count&rdquo;).</li>
-<li>$h(x)$ = number of elements in $S$ coprime to $x$ (the &ldquo;coprime count&rdquo;).</li>
-</ul>
-<p><strong>Key result:</strong> if $g(x)$ can be evaluated in $O(1)$, then all values $f(x)$ and $h(x)$ for $1\leq x\leq n$ can be computed in $O(n\log\log n)$ time.</p>
-</blockquote>
-<h1 id="1-computing--via-eratosthenes-sieve">1 Computing $\mu$ via Eratosthenes Sieve</h1>
-<p>The Möbius function can be computed with a simple sieve without needing the linear sieve:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>mu[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> MAXN; <span style="color:#ff79c6">++</span>i) {
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">+</span> i; j <span style="color:#ff79c6">&lt;=</span> MAXN; j <span style="color:#ff79c6">+=</span> i) {
-</span></span><span style="display:flex;"><span>        mu[j] <span style="color:#ff79c6">-=</span> mu[i];
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p>This works because the Möbius inversion identity $\sum_{d\mid n}\mu(d)=[n=1]$ directly gives the recurrence: $\mu(n)=-\sum_{d\mid n,d\lt n}\mu(d)$.</p>
-<blockquote>
-<p><strong>When to prefer Eratosthenes over linear sieve for μ:</strong>
-The linear sieve requires the function being computed to be multiplicative. Eratosthenes-style sieving works for any function defined via divisor-sum recurrences, including cases that are not strictly multiplicative.</p>
-</blockquote>
-<hr>
-<h1 id="2-core-framework-conclusions-1-and-2">2 Core Framework: Conclusions 1 and 2</h1>
-<h2 id="conclusion-1-multiple-form">Conclusion 1 (Multiple Form)</h2>
-$$\boxed{f(x)=\sum_{i=1}^{\lfloor n/x\rfloor}g(i\cdot x)\cdot\mu(i)}$$<p><strong>Derivation:</strong> the Möbius inversion multiple form. If $g(x)=\sum_{i=1}^{\lfloor n/x\rfloor}f(i\cdot x)$ (the multiples transform), then by Möbius inversion $f$ is recovered as above.</p>
-<h2 id="conclusion-2-coprime-count-via-divisor-sum">Conclusion 2 (Coprime Count via Divisor Sum)</h2>
-$$\boxed{h(n)=\sum_{d\mid n}g(d)\cdot\mu(d)}$$<p><strong>Intuition</strong> (example with $n=6$, $S=\{1,\ldots,10\}$):</p>
-<p>$h(6)$ = count of elements in $\{1,\ldots,10\}$ coprime to 6.
-By inclusion-exclusion over prime factors of 6 ($p=2$ and $p=3$):
-</p>
-$$h(6)=g(1)-g(2)-g(3)+g(6)=10-5-3+1=3\qquad(\text{elements: }1,5,7)$$<p>The divisors of 6 are $1,2,3,6$ with $\mu$ values $1,-1,-1,1$ — exactly matching the inclusion-exclusion signs.</p>
-<p><strong>Big picture:</strong>
-</p>
-$$\underbrace{\text{exact count }f}_{\text{hard}}\xrightarrow{\text{Möbius transform}}\underbrace{\text{multiples count }g}_{\text{easy}}\xrightarrow{\text{inversion}}\underbrace{\text{exact answer}}_{\text{recover }f}$$<hr>
-<h1 id="3-worked-table-computing--with">3 Worked Table: Computing $f(1) = \text{cnt}(1)$ with $N=10$</h1>
-<p>We want: how many times does 1 appear in $S=\{1,\ldots,10\}$? (Answer is obviously 1.)</p>
-<p>Using Conclusion 1: $f(1)=\sum_{i=1}^{10}g(i)\cdot\mu(i)$ where $g(i)=\lfloor10/i\rfloor$.</p>
-<table>
-  <thead>
-      <tr>
-          <th style="text-align: right">$i$</th>
-          <th style="text-align: right">$\mu(i)$</th>
-          <th style="text-align: right">$g(i)=\lfloor10/i\rfloor$</th>
-          <th style="text-align: right">$\mu(i)\cdot g(i)$</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">10</td>
-          <td style="text-align: right">10</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">−1</td>
-          <td style="text-align: right">5</td>
-          <td style="text-align: right">−5</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">−1</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">−3</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">4</td>
-          <td style="text-align: right">0</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">0</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">5</td>
-          <td style="text-align: right">−1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">−2</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">6</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">7</td>
-          <td style="text-align: right">−1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">−1</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">8</td>
-          <td style="text-align: right">0</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">0</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">9</td>
-          <td style="text-align: right">0</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">0</td>
-      </tr>
-      <tr>
-          <td style="text-align: right">10</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-      </tr>
-  </tbody>
-</table>
-$$f(1)=10-5-3+0-2+1-1+0+0+1=1\quad\checkmark$$<hr>
-<h1 id="4-gcd-table-intuition-for">4 GCD Table Intuition for $g(x)=\lfloor n/x\rfloor\lfloor m/x\rfloor$</h1>
-<p><strong>Question:</strong> for $i\in[1,n]$, $j\in[1,m]$, let $g(x)$ = number of pairs with $x\mid\gcd(i,j)$. How many such pairs are there?</p>
-<p>The pairs with $x\mid\gcd(i,j)$ are exactly those where $x\mid i$ and $x\mid j$. There are $\lfloor n/x\rfloor$ choices for $i$ and $\lfloor m/x\rfloor$ choices for $j$, so:
-</p>
-$$g(x)=\left\lfloor\frac{n}{x}\right\rfloor\cdot\left\lfloor\frac{m}{x}\right\rfloor$$<p><strong>GCD table for $i,j\in[1,10]$</strong> (scan visually to verify $g(x)=\lfloor10/x\rfloor^2$):</p>
-<table>
-  <thead>
-      <tr>
-          <th style="text-align: right"></th>
-          <th style="text-align: right">1</th>
-          <th style="text-align: right">2</th>
-          <th style="text-align: right">3</th>
-          <th style="text-align: right">4</th>
-          <th style="text-align: right">5</th>
-          <th style="text-align: right">6</th>
-          <th style="text-align: right">7</th>
-          <th style="text-align: right">8</th>
-          <th style="text-align: right">9</th>
-          <th style="text-align: right">10</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td style="text-align: right"><strong>1</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>2</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>3</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">1</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>4</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">4</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">4</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>5</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">5</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">5</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>6</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">6</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">2</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>7</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">7</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>8</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">4</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">8</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>9</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">3</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">9</td>
-          <td style="text-align: right">1</td>
-      </tr>
-      <tr>
-          <td style="text-align: right"><strong>10</strong></td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">5</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">2</td>
-          <td style="text-align: right">1</td>
-          <td style="text-align: right">10</td>
-      </tr>
-  </tbody>
-</table>
-<hr>
-<h1 id="5-conclusion-2-via-eratosthenes">5 Conclusion 2 via Eratosthenes</h1>
-<p>The formula $h(n)=\sum_{d\mid n}g(d)\mu(d)$ can also be computed sieve-style:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>mu[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;</span> MAXN; <span style="color:#ff79c6">++</span>i)
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">+</span> i; j <span style="color:#ff79c6">&lt;</span> MAXN; j <span style="color:#ff79c6">+=</span> i)
-</span></span><span style="display:flex;"><span>        mu[j] <span style="color:#ff79c6">-=</span> mu[i];
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#6272a4">// compute h[j] = sum_{d|j} g[d] * mu[d]
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>i)
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> i; j <span style="color:#ff79c6">&lt;=</span> n; j <span style="color:#ff79c6">+=</span> i)
-</span></span><span style="display:flex;"><span>        h[j] <span style="color:#ff79c6">+=</span> mu[i] <span style="color:#ff79c6">*</span> g[i];
-</span></span></code></pre></div><p><strong>Special case</strong> ($S=\{n!\}$, singleton):</p>
-<ul>
-<li>$g(x)=1$ for all $x$ (since $n!$ is divisible by every $x\leq n$).</li>
-<li>$h(x)=\sum_{d\mid x}\mu(d)=[x=1]$ — only 1 is coprime to $n!$, as expected.</li>
-</ul>
-<hr>
-<h1 id="6-example-cf-803f--coprime-subsequences">6 Example: CF 803F — Coprime Subsequences</h1>
-<blockquote>
-<p>Given array $a_1,\ldots,a_n$, count non-empty subsets whose GCD equals 1.</p>
-</blockquote>
-<p><strong>Setup:</strong></p>
-<ul>
-<li>$f(x)$ = number of non-empty subsets with $\gcd=x$ exactly.</li>
-<li>$g(x)$ = number of non-empty subsets with $x\mid\gcd$ (GCD is a multiple of $x$) = $2^{\text{cnt}[x]}-1$, where $\text{cnt}[x]$ = count of $a_i$ divisible by $x$.</li>
-</ul>
-<p>We want $f(1)$. By Conclusion 1:
-</p>
-$$f(1)=\sum_{d=1}^{\max}\mu(d)\,g(d)=\sum_{d=1}^{\max}\mu(d)\,(2^{\text{cnt}[d]}-1)$$<p><strong>Computing $\text{cnt}[x]$</strong> (count of $a_i$ divisible by $x$):</p>
-<ol>
-<li>Build frequency array $\text{freq}[v]$ = count of $v$ in $a[]$.</li>
-<li>For each $x$, sum $\text{freq}[x]+\text{freq}[2x]+\text{freq}[3x]+\cdots$ — harmonic series, $O(M\log M)$.</li>
-</ol>
-<p><strong>Two equivalent implementations:</strong></p>
-<p><strong>Approach 1 — bottom-up exclusion</strong> (equivalent to Möbius but computed top-down from multiples):
-Start with $f[x]=2^{\text{cnt}[x]}-1$ for all $x$. Then for $x$ from $M$ down to 1, subtract $f[j]$ for each multiple $j=2x,3x,\ldots$ of $x$. At the end $f[x]$ = count of subsets with GCD exactly $x$.</p>
-<p><strong>Approach 2 — direct Möbius:</strong>
-</p>
-$$\text{Ans}=\sum_{d=1}^M\mu(d)\,(2^{\text{cnt}[d]}-1)$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MOD <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1e9</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">7</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">add</span>(<span style="color:#8be9fd">int</span> a, <span style="color:#8be9fd">int</span> b){ a <span style="color:#ff79c6">+=</span> b; <span style="color:#ff79c6">if</span>(a <span style="color:#ff79c6">&gt;=</span> MOD) a <span style="color:#ff79c6">-=</span> MOD; <span style="color:#ff79c6">return</span> a; }
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">sub</span>(<span style="color:#8be9fd">int</span> a, <span style="color:#8be9fd">int</span> b){ a <span style="color:#ff79c6">-=</span> b; <span style="color:#ff79c6">if</span>(a <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) a <span style="color:#ff79c6">+=</span> MOD; <span style="color:#ff79c6">return</span> a; }
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">mul</span>(ll a, ll b){ <span style="color:#ff79c6">return</span> <span style="color:#8be9fd">int</span>(a <span style="color:#ff79c6">*</span> b <span style="color:#ff79c6">%</span> MOD); }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
-</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n; cin <span style="color:#ff79c6">&gt;&gt;</span> n;
-</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> a(n);
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; i<span style="color:#ff79c6">++</span>){ cin <span style="color:#ff79c6">&gt;&gt;</span> a[i]; m <span style="color:#ff79c6">=</span> max(m, a[i]); }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// precompute pow2[k] = 2^k % MOD
-</span></span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> pow2(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> n; i<span style="color:#ff79c6">++</span>) pow2[i] <span style="color:#ff79c6">=</span> add(pow2[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>], pow2[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]);
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// cnt[x] = number of a[i] divisible by x
-</span></span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> cnt(m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">v</span> : a) cnt[v]<span style="color:#ff79c6">++</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> m; i<span style="color:#ff79c6">++</span>)
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> i<span style="color:#ff79c6">*</span><span style="color:#bd93f9">2</span>; j <span style="color:#ff79c6">&lt;=</span> m; j <span style="color:#ff79c6">+=</span> i)
-</span></span><span style="display:flex;"><span>            cnt[i] <span style="color:#ff79c6">+=</span> cnt[j];
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Approach 1: bottom-up exclusion
-</span></span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> f(m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> m; i <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">1</span>; i<span style="color:#ff79c6">--</span>){
-</span></span><span style="display:flex;"><span>        f[i] <span style="color:#ff79c6">=</span> sub(pow2[cnt[i]], <span style="color:#bd93f9">1</span>);   <span style="color:#6272a4">// subsets with all elements divisible by i
-</span></span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> i<span style="color:#ff79c6">*</span><span style="color:#bd93f9">2</span>; j <span style="color:#ff79c6">&lt;=</span> m; j <span style="color:#ff79c6">+=</span> i)
-</span></span><span style="display:flex;"><span>            f[i] <span style="color:#ff79c6">=</span> sub(f[i], f[j]);     <span style="color:#6272a4">// subtract those with GCD = multiple of i
-</span></span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> f[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">/* Approach 2: direct Möbius inversion
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">    vector&lt;int&gt; f(m+1, 0);
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">    for(int i = 1; i &lt;= m; i++) f[i] = sub(pow2[cnt[i]], 1);
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">    int ans = 0;
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">    for(int i = 1; i &lt;= m; i++){
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">        ans = (ans + (ll)mu[i] * f[i] % MOD + MOD) % MOD;
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">    }
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">    cout &lt;&lt; ans &lt;&lt; &#34;\n&#34;;
-</span></span></span><span style="display:flex;"><span><span style="color:#6272a4">    */</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div>
-      </div>
-      
-        <aside class="article-toc">
-          <div class="toc-card">
-            <span>On this page</span>
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#overview">Overview</a></li>
-    <li><a href="#1-computing--via-eratosthenes-sieve">1 Computing $\mu$ via Eratosthenes Sieve</a></li>
-    <li><a href="#2-core-framework-conclusions-1-and-2">2 Core Framework: Conclusions 1 and 2</a>
-      <ul>
-        <li><a href="#conclusion-1-multiple-form">Conclusion 1 (Multiple Form)</a></li>
-        <li><a href="#conclusion-2-coprime-count-via-divisor-sum">Conclusion 2 (Coprime Count via Divisor Sum)</a></li>
-      </ul>
-    </li>
-    <li><a href="#3-worked-table-computing--with">3 Worked Table: Computing $f(1) = \text{cnt}(1)$ with $N=10$</a></li>
-    <li><a href="#4-gcd-table-intuition-for">4 GCD Table Intuition for $g(x)=\lfloor n/x\rfloor\lfloor m/x\rfloor$</a></li>
-    <li><a href="#5-conclusion-2-via-eratosthenes">5 Conclusion 2 via Eratosthenes</a></li>
-    <li><a href="#6-example-cf-803f--coprime-subsequences">6 Example: CF 803F — Coprime Subsequences</a></li>
-  </ul>
-</nav>
-          </div>
-        </aside>
-      
-    </div>
-  </article>
-
-  
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const tocLinks = document.querySelectorAll('.toc-card a');
-      const tocPanel = document.querySelector('.article-toc');
-      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
-                            .filter(h => h.id);
-      
-      if (headings.length === 0 || tocLinks.length === 0) return;
-
-      let ticking = false;
-
-      function updateActiveTocLink() {
-        const scrollPosition = window.scrollY + 140; 
-        let currentHeading = headings[0];
-
-        for (let i = 0; i < headings.length; i++) {
-          
-          const top = headings[i].getBoundingClientRect().top + window.scrollY;
-          if (scrollPosition >= top) {
-            currentHeading = headings[i];
-          } else {
-            break;
-          }
-        }
-
-        tocLinks.forEach(link => link.classList.remove('active'));
-        if (currentHeading) {
-          const id = currentHeading.getAttribute('id');
-          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
-          if (activeLink) {
-            activeLink.classList.add('active');
-            const toc = activeLink.closest('.article-toc');
-            if (toc) {
-              const padding = 14;
-              const linkTop = activeLink.offsetTop;
-              const linkBottom = linkTop + activeLink.offsetHeight;
-              const viewTop = toc.scrollTop;
-              const viewBottom = viewTop + toc.clientHeight;
-
-              if (linkTop < viewTop + padding) {
-                toc.scrollTop = Math.max(0, linkTop - padding);
-              } else if (linkBottom > viewBottom - padding) {
-                toc.scrollTop = linkBottom - toc.clientHeight + padding;
-              }
-            }
-          }
-        }
-      }
-
-      function updateTocBoundary() {
-        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
-          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
-          return;
-        }
-
-        const footer = document.querySelector('.site-footer');
-        if (!footer) return;
-
-        const bottomGap = 24;
-        const tocBottom = 86 + tocPanel.offsetHeight;
-        const footerTop = footer.getBoundingClientRect().top;
-        const overlap = tocBottom + bottomGap - footerTop;
-
-        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
-      }
-
-      function onScroll() {
-        if (ticking) return;
-        ticking = true;
-        window.requestAnimationFrame(function() {
-          updateTocBoundary();
-          updateActiveTocLink();
-          ticking = false;
-        });
-      }
-
-      window.addEventListener('scroll', onScroll, { passive: true });
-      window.addEventListener('resize', onScroll, { passive: true });
-      
-      setTimeout(function() {
-        updateTocBoundary();
-        updateActiveTocLink();
-      }, 50);
-    });
-  </script>
-  
-
-      </main>
-
-      <footer class="site-footer container">
-        <div>
-          <strong>Jasper&#39;s Technical Notebook</strong>
-          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
-        </div>
-        <div class="footer-links">
-          <a href="https://github.com/JMaaa32">GitHub</a>
-          <a href="/posts/">Posts</a>
-          <a href="/archives/">Archives</a>
-          <a href="/tags/">Tags</a>
-        </div>
-      </footer>
-    </div>
-    <script>
-      (function() {
-        const toggle = document.querySelector(".nav-toggle");
-        const nav = document.querySelector("#site-navigation");
-        if (!toggle || !nav) return;
-
-        function setOpen(open) {
-          document.documentElement.classList.toggle("nav-open", open);
-          toggle.setAttribute("aria-expanded", String(open));
-        }
-
-        toggle.addEventListener("click", function() {
-          setOpen(!document.documentElement.classList.contains("nav-open"));
-        });
-
-        nav.addEventListener("click", function(event) {
-          if (event.target.closest("a")) setOpen(false);
-        });
-
-        window.addEventListener("keydown", function(event) {
-          if (event.key === "Escape") setOpen(false);
-        });
-
-        window.addEventListener("resize", function() {
-          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
-        }, { passive: true });
-
-        const themeToggle = document.querySelector(".theme-toggle");
-        if (!themeToggle) return;
-
-        function applyTheme(theme, persist) {
-          document.documentElement.dataset.theme = theme;
-          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
-          if (persist) {
-            try {
-              window.localStorage.setItem("theme", theme);
-            } catch (error) {}
-          }
-        }
-
-        applyTheme(document.documentElement.dataset.theme || "light", false);
-        themeToggle.addEventListener("click", function() {
-          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-          applyTheme(next, true);
-        });
-      })();
-    </script>
-  </body>
-</html>
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion | Jasper's Technical Notebook</title><meta name=description content="Computing μ via Eratosthenes sieving; the three-function framework (multiples count g, exact count f, coprime count h); Möbius inclusion-exclusion conclusions with worked examples and CF 803F full solution."><link rel=canonical href=https://jmaaa32.github.io/posts/number-theory-3-sieve-mobius-inclusion-exclusion/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<span><strong>Jasper's Technical Notebook</strong>
+<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
+<span class=theme-toggle-icon aria-hidden=true></span>
+<span class=sr-only>Switch theme</span>
+</button>
+<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
+<span></span>
+<span></span>
+<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
+<a class="nav-link is-active" href=/posts/>Posts</a>
+<a class=nav-link href=/archives/>Archives</a>
+<a class=nav-link href=/categories/>Categories</a>
+<a class=nav-link href=/tags/>Tags</a>
+<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion</h1><div class=article-meta><time datetime=2026-04-28>Apr 28, 2026</time>
+<span>·</span>
+<span>Number Theory</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
+<a class=chip href=/tags/number-theory/>#number-theory</a>
+<a class=chip href=/tags/mobius/>#mobius</a>
+<a class=chip href=/tags/sieve/>#sieve</a>
+<a class=chip href=/tags/inclusion-exclusion/>#inclusion-exclusion</a>
+<a class=chip href=/tags/coprime/>#coprime</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#overview>Overview</a></li><li><a href=#1-computing--via-eratosthenes-sieve>1 Computing $\mu$ via Eratosthenes Sieve</a></li><li><a href=#2-core-framework-conclusions-1-and-2>2 Core Framework: Conclusions 1 and 2</a><ul><li><a href=#conclusion-1-multiple-form>Conclusion 1 (Multiple Form)</a></li><li><a href=#conclusion-2-coprime-count-via-divisor-sum>Conclusion 2 (Coprime Count via Divisor Sum)</a></li></ul></li><li><a href=#3-worked-table-computing--with>3 Worked Table: Computing $f(1) = \text{cnt}(1)$ with $N=10$</a></li><li><a href=#4-gcd-table-intuition-for>4 GCD Table Intuition for $g(x)=\lfloor n/x\rfloor\lfloor m/x\rfloor$</a></li><li><a href=#5-conclusion-2-via-eratosthenes>5 Conclusion 2 via Eratosthenes</a></li><li><a href=#6-example-cf-803f--coprime-subsequences>6 Example: CF 803F — Coprime Subsequences</a></li></ul></nav></div></details><div class="article-content prose"><p>(Continues from <a href=../number-theory-2-multiplicative-functions>Number Theory #2</a>)</p><h1 id=overview>Overview</h1><blockquote><p><strong>Three functions over set $S=\{1,\ldots,n\}$:</strong></p><ul><li>$g(x)$ = number of elements in $S$ divisible by $x$ (the &ldquo;multiples count&rdquo;).</li><li>$f(x)$ = number of elements in $S$ equal to $x$ exactly (the &ldquo;exact count&rdquo;).</li><li>$h(x)$ = number of elements in $S$ coprime to $x$ (the &ldquo;coprime count&rdquo;).</li></ul><p><strong>Key result:</strong> if $g(x)$ can be evaluated in $O(1)$, then all values $f(x)$ and $h(x)$ for $1\leq x\leq n$ can be computed in $O(n\log\log n)$ time.</p></blockquote><h1 id=1-computing--via-eratosthenes-sieve>1 Computing $\mu$ via Eratosthenes Sieve</h1><p>The Möbius function can be computed with a simple sieve without needing the linear sieve:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>mu[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> MAXN; <span style=color:#ff79c6>++</span>i) {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>+</span> i; j <span style=color:#ff79c6>&lt;=</span> MAXN; j <span style=color:#ff79c6>+=</span> i) {
+</span></span><span style=display:flex><span>        mu[j] <span style=color:#ff79c6>-=</span> mu[i];
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>This works because the Möbius inversion identity $\sum_{d\mid n}\mu(d)=[n=1]$ directly gives the recurrence: $\mu(n)=-\sum_{d\mid n,d\lt n}\mu(d)$.</p><blockquote><p><strong>When to prefer Eratosthenes over linear sieve for μ:</strong>
+The linear sieve requires the function being computed to be multiplicative. Eratosthenes-style sieving works for any function defined via divisor-sum recurrences, including cases that are not strictly multiplicative.</p></blockquote><hr><h1 id=2-core-framework-conclusions-1-and-2>2 Core Framework: Conclusions 1 and 2</h1><h2 id=conclusion-1-multiple-form>Conclusion 1 (Multiple Form)</h2>$$\boxed{f(x)=\sum_{i=1}^{\lfloor n/x\rfloor}g(i\cdot x)\cdot\mu(i)}$$<p><strong>Derivation:</strong> the Möbius inversion multiple form. If $g(x)=\sum_{i=1}^{\lfloor n/x\rfloor}f(i\cdot x)$ (the multiples transform), then by Möbius inversion $f$ is recovered as above.</p><h2 id=conclusion-2-coprime-count-via-divisor-sum>Conclusion 2 (Coprime Count via Divisor Sum)</h2>$$\boxed{h(n)=\sum_{d\mid n}g(d)\cdot\mu(d)}$$<p><strong>Intuition</strong> (example with $n=6$, $S=\{1,\ldots,10\}$):</p><p>$h(6)$ = count of elements in $\{1,\ldots,10\}$ coprime to 6.
+By inclusion-exclusion over prime factors of 6 ($p=2$ and $p=3$):</p>$$h(6)=g(1)-g(2)-g(3)+g(6)=10-5-3+1=3\qquad(\text{elements: }1,5,7)$$<p>The divisors of 6 are $1,2,3,6$ with $\mu$ values $1,-1,-1,1$ — exactly matching the inclusion-exclusion signs.</p><p><strong>Big picture:</strong></p>$$\underbrace{\text{exact count }f}_{\text{hard}}\xrightarrow{\text{Möbius transform}}\underbrace{\text{multiples count }g}_{\text{easy}}\xrightarrow{\text{inversion}}\underbrace{\text{exact answer}}_{\text{recover }f}$$<hr><h1 id=3-worked-table-computing--with>3 Worked Table: Computing $f(1) = \text{cnt}(1)$ with $N=10$</h1><p>We want: how many times does 1 appear in $S=\{1,\ldots,10\}$? (Answer is obviously 1.)</p><p>Using Conclusion 1: $f(1)=\sum_{i=1}^{10}g(i)\cdot\mu(i)$ where $g(i)=\lfloor10/i\rfloor$.</p><table><thead><tr><th style=text-align:right>$i$</th><th style=text-align:right>$\mu(i)$</th><th style=text-align:right>$g(i)=\lfloor10/i\rfloor$</th><th style=text-align:right>$\mu(i)\cdot g(i)$</th></tr></thead><tbody><tr><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>10</td><td style=text-align:right>10</td></tr><tr><td style=text-align:right>2</td><td style=text-align:right>−1</td><td style=text-align:right>5</td><td style=text-align:right>−5</td></tr><tr><td style=text-align:right>3</td><td style=text-align:right>−1</td><td style=text-align:right>3</td><td style=text-align:right>−3</td></tr><tr><td style=text-align:right>4</td><td style=text-align:right>0</td><td style=text-align:right>2</td><td style=text-align:right>0</td></tr><tr><td style=text-align:right>5</td><td style=text-align:right>−1</td><td style=text-align:right>2</td><td style=text-align:right>−2</td></tr><tr><td style=text-align:right>6</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td></tr><tr><td style=text-align:right>7</td><td style=text-align:right>−1</td><td style=text-align:right>1</td><td style=text-align:right>−1</td></tr><tr><td style=text-align:right>8</td><td style=text-align:right>0</td><td style=text-align:right>1</td><td style=text-align:right>0</td></tr><tr><td style=text-align:right>9</td><td style=text-align:right>0</td><td style=text-align:right>1</td><td style=text-align:right>0</td></tr><tr><td style=text-align:right>10</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td></tr></tbody></table>$$f(1)=10-5-3+0-2+1-1+0+0+1=1\quad\checkmark$$<hr><h1 id=4-gcd-table-intuition-for>4 GCD Table Intuition for $g(x)=\lfloor n/x\rfloor\lfloor m/x\rfloor$</h1><p><strong>Question:</strong> for $i\in[1,n]$, $j\in[1,m]$, let $g(x)$ = number of pairs with $x\mid\gcd(i,j)$. How many such pairs are there?</p><p>The pairs with $x\mid\gcd(i,j)$ are exactly those where $x\mid i$ and $x\mid j$. There are $\lfloor n/x\rfloor$ choices for $i$ and $\lfloor m/x\rfloor$ choices for $j$, so:</p>$$g(x)=\left\lfloor\frac{n}{x}\right\rfloor\cdot\left\lfloor\frac{m}{x}\right\rfloor$$<p><strong>GCD table for $i,j\in[1,10]$</strong> (scan visually to verify $g(x)=\lfloor10/x\rfloor^2$):</p><table><thead><tr><th style=text-align:right></th><th style=text-align:right>1</th><th style=text-align:right>2</th><th style=text-align:right>3</th><th style=text-align:right>4</th><th style=text-align:right>5</th><th style=text-align:right>6</th><th style=text-align:right>7</th><th style=text-align:right>8</th><th style=text-align:right>9</th><th style=text-align:right>10</th></tr></thead><tbody><tr><td style=text-align:right><strong>1</strong></td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td></tr><tr><td style=text-align:right><strong>2</strong></td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>2</td></tr><tr><td style=text-align:right><strong>3</strong></td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>3</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>3</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>3</td><td style=text-align:right>1</td></tr><tr><td style=text-align:right><strong>4</strong></td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>4</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>4</td><td style=text-align:right>1</td><td style=text-align:right>2</td></tr><tr><td style=text-align:right><strong>5</strong></td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>5</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>5</td></tr><tr><td style=text-align:right><strong>6</strong></td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>3</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>6</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>3</td><td style=text-align:right>2</td></tr><tr><td style=text-align:right><strong>7</strong></td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>7</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>1</td></tr><tr><td style=text-align:right><strong>8</strong></td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>4</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>8</td><td style=text-align:right>1</td><td style=text-align:right>2</td></tr><tr><td style=text-align:right><strong>9</strong></td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>3</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>3</td><td style=text-align:right>1</td><td style=text-align:right>1</td><td style=text-align:right>9</td><td style=text-align:right>1</td></tr><tr><td style=text-align:right><strong>10</strong></td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>5</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>2</td><td style=text-align:right>1</td><td style=text-align:right>10</td></tr></tbody></table><hr><h1 id=5-conclusion-2-via-eratosthenes>5 Conclusion 2 via Eratosthenes</h1><p>The formula $h(n)=\sum_{d\mid n}g(d)\mu(d)$ can also be computed sieve-style:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>mu[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;</span> MAXN; <span style=color:#ff79c6>++</span>i)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>+</span> i; j <span style=color:#ff79c6>&lt;</span> MAXN; j <span style=color:#ff79c6>+=</span> i)
+</span></span><span style=display:flex><span>        mu[j] <span style=color:#ff79c6>-=</span> mu[i];
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#6272a4>// compute h[j] = sum_{d|j} g[d] * mu[d]
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>i)
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> i; j <span style=color:#ff79c6>&lt;=</span> n; j <span style=color:#ff79c6>+=</span> i)
+</span></span><span style=display:flex><span>        h[j] <span style=color:#ff79c6>+=</span> mu[i] <span style=color:#ff79c6>*</span> g[i];
+</span></span></code></pre></div><p><strong>Special case</strong> ($S=\{n!\}$, singleton):</p><ul><li>$g(x)=1$ for all $x$ (since $n!$ is divisible by every $x\leq n$).</li><li>$h(x)=\sum_{d\mid x}\mu(d)=[x=1]$ — only 1 is coprime to $n!$, as expected.</li></ul><hr><h1 id=6-example-cf-803f--coprime-subsequences>6 Example: CF 803F — Coprime Subsequences</h1><blockquote><p>Given array $a_1,\ldots,a_n$, count non-empty subsets whose GCD equals 1.</p></blockquote><p><strong>Setup:</strong></p><ul><li>$f(x)$ = number of non-empty subsets with $\gcd=x$ exactly.</li><li>$g(x)$ = number of non-empty subsets with $x\mid\gcd$ (GCD is a multiple of $x$) = $2^{\text{cnt}[x]}-1$, where $\text{cnt}[x]$ = count of $a_i$ divisible by $x$.</li></ul><p>We want $f(1)$. By Conclusion 1:</p>$$f(1)=\sum_{d=1}^{\max}\mu(d)\,g(d)=\sum_{d=1}^{\max}\mu(d)\,(2^{\text{cnt}[d]}-1)$$<p><strong>Computing $\text{cnt}[x]$</strong> (count of $a_i$ divisible by $x$):</p><ol><li>Build frequency array $\text{freq}[v]$ = count of $v$ in $a[]$.</li><li>For each $x$, sum $\text{freq}[x]+\text{freq}[2x]+\text{freq}[3x]+\cdots$ — harmonic series, $O(M\log M)$.</li></ol><p><strong>Two equivalent implementations:</strong></p><p><strong>Approach 1 — bottom-up exclusion</strong> (equivalent to Möbius but computed top-down from multiples):
+Start with $f[x]=2^{\text{cnt}[x]}-1$ for all $x$. Then for $x$ from $M$ down to 1, subtract $f[j]$ for each multiple $j=2x,3x,\ldots$ of $x$. At the end $f[x]$ = count of subsets with GCD exactly $x$.</p><p><strong>Approach 2 — direct Möbius:</strong></p>$$\text{Ans}=\sum_{d=1}^M\mu(d)\,(2^{\text{cnt}[d]}-1)$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MOD <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1e9</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>7</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>add</span>(<span style=color:#8be9fd>int</span> a, <span style=color:#8be9fd>int</span> b){ a <span style=color:#ff79c6>+=</span> b; <span style=color:#ff79c6>if</span>(a <span style=color:#ff79c6>&gt;=</span> MOD) a <span style=color:#ff79c6>-=</span> MOD; <span style=color:#ff79c6>return</span> a; }
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>sub</span>(<span style=color:#8be9fd>int</span> a, <span style=color:#8be9fd>int</span> b){ a <span style=color:#ff79c6>-=</span> b; <span style=color:#ff79c6>if</span>(a <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) a <span style=color:#ff79c6>+=</span> MOD; <span style=color:#ff79c6>return</span> a; }
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>mul</span>(ll a, ll b){ <span style=color:#ff79c6>return</span> <span style=color:#8be9fd>int</span>(a <span style=color:#ff79c6>*</span> b <span style=color:#ff79c6>%</span> MOD); }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
+</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n; cin <span style=color:#ff79c6>&gt;&gt;</span> n;
+</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> a(n);
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; i<span style=color:#ff79c6>++</span>){ cin <span style=color:#ff79c6>&gt;&gt;</span> a[i]; m <span style=color:#ff79c6>=</span> max(m, a[i]); }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// precompute pow2[k] = 2^k % MOD
+</span></span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> pow2(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; i<span style=color:#ff79c6>++</span>) pow2[i] <span style=color:#ff79c6>=</span> add(pow2[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>], pow2[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// cnt[x] = number of a[i] divisible by x
+</span></span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> cnt(m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>v</span> : a) cnt[v]<span style=color:#ff79c6>++</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> m; i<span style=color:#ff79c6>++</span>)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> i<span style=color:#ff79c6>*</span><span style=color:#bd93f9>2</span>; j <span style=color:#ff79c6>&lt;=</span> m; j <span style=color:#ff79c6>+=</span> i)
+</span></span><span style=display:flex><span>            cnt[i] <span style=color:#ff79c6>+=</span> cnt[j];
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Approach 1: bottom-up exclusion
+</span></span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> f(m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> m; i <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>1</span>; i<span style=color:#ff79c6>--</span>){
+</span></span><span style=display:flex><span>        f[i] <span style=color:#ff79c6>=</span> sub(pow2[cnt[i]], <span style=color:#bd93f9>1</span>);   <span style=color:#6272a4>// subsets with all elements divisible by i
+</span></span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> i<span style=color:#ff79c6>*</span><span style=color:#bd93f9>2</span>; j <span style=color:#ff79c6>&lt;=</span> m; j <span style=color:#ff79c6>+=</span> i)
+</span></span><span style=display:flex><span>            f[i] <span style=color:#ff79c6>=</span> sub(f[i], f[j]);     <span style=color:#6272a4>// subtract those with GCD = multiple of i
+</span></span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> f[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>/* Approach 2: direct Möbius inversion
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>    vector&lt;int&gt; f(m+1, 0);
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>    for(int i = 1; i &lt;= m; i++) f[i] = sub(pow2[cnt[i]], 1);
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>    int ans = 0;
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>    for(int i = 1; i &lt;= m; i++){
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>        ans = (ans + (ll)mu[i] * f[i] % MOD + MOD) % MOD;
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>    }
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>    cout &lt;&lt; ans &lt;&lt; &#34;\n&#34;;
+</span></span></span><span style=display:flex><span><span style=color:#6272a4>    */</span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#overview>Overview</a></li><li><a href=#1-computing--via-eratosthenes-sieve>1 Computing $\mu$ via Eratosthenes Sieve</a></li><li><a href=#2-core-framework-conclusions-1-and-2>2 Core Framework: Conclusions 1 and 2</a><ul><li><a href=#conclusion-1-multiple-form>Conclusion 1 (Multiple Form)</a></li><li><a href=#conclusion-2-coprime-count-via-divisor-sum>Conclusion 2 (Coprime Count via Divisor Sum)</a></li></ul></li><li><a href=#3-worked-table-computing--with>3 Worked Table: Computing $f(1) = \text{cnt}(1)$ with $N=10$</a></li><li><a href=#4-gcd-table-intuition-for>4 GCD Table Intuition for $g(x)=\lfloor n/x\rfloor\lfloor m/x\rfloor$</a></li><li><a href=#5-conclusion-2-via-eratosthenes>5 Conclusion 2 via Eratosthenes</a></li><li><a href=#6-example-cf-803f--coprime-subsequences>6 Example: CF 803F — Coprime Subsequences</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+<a href=/posts/>Posts</a>
+<a href=/archives/>Archives</a>
+<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";o(e,!0)})})()</script></body></html>

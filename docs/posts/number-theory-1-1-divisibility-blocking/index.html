@@ -1,432 +1,58 @@
-<!doctype html>
-<html lang="en-us">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition) | Jasper&#39;s Technical Notebook</title>
-    <meta name="description" content="O(sqrt n) evaluation of floor-division sums by blocking; single-variable, two-variable, and multi-variable cases; ceiling-division variant; CSES 1082 example.">
-    <link rel="canonical" href="http://localhost:1313/posts/number-theory-1-1-divisibility-blocking/">
-    <script>
-      (function() {
-        document.documentElement.classList.add("has-js");
-        try {
-          const stored = window.localStorage.getItem("theme");
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="/css/site.css">
-    
-      <script>
-        window.MathJax = {
-          tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']],
-            processEscapes: true
-          },
-          options: {
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-          }
-        };
-      </script>
-      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
-    
-  </head>
-  <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <div class="container header-inner">
-          <a class="brand" href="/">
-            <span class="brand-mark">J</span>
-            <span>
-              <strong>Jasper&#39;s Technical Notebook</strong>
-              <small>Algorithms, systems, and engineering notes</small>
-            </span>
-          </a>
-          <div class="header-actions">
-            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
-              <span class="theme-toggle-icon" aria-hidden="true"></span>
-              <span class="sr-only">Switch theme</span>
-            </button>
-            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <nav class="site-nav" id="site-navigation">
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/">Home</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link is-active" href="/posts/">Posts</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/archives/">Archives</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/categories/">Categories</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/tags/">Tags</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/about/">About</a>
-            
-          </nav>
-        </div>
-      </header>
-
-      <main class="container main-content">
-        
-  <article class="article-shell">
-    <header class="article-header">
-      <span class="eyebrow">Posts</span>
-      <h1>Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)</h1>
-      
-        <div class="article-meta">
-          <time datetime="2026-04-28">Apr 28, 2026</time>
-          
-            <span>·</span>
-            <span>Number Theory</span>
-          
-        </div>
-        
-          <div class="chip-row">
-            
-              <a class="chip" href="/tags/math/">#math</a>
-            
-              <a class="chip" href="/tags/number-theory/">#number-theory</a>
-            
-              <a class="chip" href="/tags/blocking/">#blocking</a>
-            
-              <a class="chip" href="/tags/sqrt-decomposition/">#sqrt-decomposition</a>
-            
-              <a class="chip" href="/tags/floor-sum/">#floor-sum</a>
-            
-          </div>
-        
-      
-    </header>
-
-    <div class="article-layout">
-      
-        <details class="mobile-toc">
-          <summary>On this page</summary>
-          <div class="mobile-toc-panel">
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#divisibility-blocking-number-theoretic-blocking">Divisibility Blocking (Number-Theoretic Blocking)</a>
-      <ul>
-        <li><a href="#problem-setting">Problem Setting</a></li>
-        <li><a href="#lemma-1">Lemma 1</a></li>
-        <li><a href="#core-loop">Core Loop</a></li>
-        <li><a href="#o1-interval-sum-requirement">O(1) Interval Sum Requirement</a></li>
-        <li><a href="#example-cses-1082--sum-of-all-divisors">Example: CSES 1082 — Sum of All Divisors</a></li>
-      </ul>
-    </li>
-    <li><a href="#two-variable-blocking">Two-Variable Blocking</a></li>
-    <li><a href="#multi-variable-blocking">Multi-Variable Blocking</a></li>
-    <li><a href="#ceiling-division-blocking">Ceiling-Division Blocking</a></li>
-  </ul>
-</nav>
-          </div>
-        </details>
-      
-      <div class="article-content prose">
-        <h1 id="divisibility-blocking-number-theoretic-blocking">Divisibility Blocking (Number-Theoretic Blocking)</h1>
-<h2 id="problem-setting">Problem Setting</h2>
-<p>Evaluate sums of the form:
-</p>
-$$\sum_{i=1}^{n}\underbrace{f(i)}_{O(1)}\cdot g\!\left(\left\lfloor\frac{n}{i}\right\rfloor\right)$$<p>If $f(i)$&rsquo;s prefix sum is computable in $O(1)$, the whole sum can be evaluated in $O(\sqrt{n})$.</p>
-<h2 id="lemma-1">Lemma 1</h2>
-<blockquote>
-<p>For $n,i\in\mathbb{N}^+$, $\lfloor n/i\rfloor$ takes at most $2\sqrt{n}$ distinct values.</p>
-</blockquote>
-<p>We enumerate $k=\lfloor n/i\rfloor$ and for each $k$ compute:
-</p>
-$$\sum_{k}\;g(k)\cdot\underbrace{\bigl(f(l)+\cdots+f(r)\bigr)}_{\text{need }O(1)\text{ interval sum}}$$<h2 id="core-loop">Core Loop</h2>
-<p>The key observation: given left endpoint $l$, the right endpoint of the block where $\lfloor n/i\rfloor$ is constant equals:
-</p>
-$$r=\left\lfloor\frac{n}{\lfloor n/l\rfloor}\right\rfloor$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (ll l <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>, r; l <span style="color:#ff79c6">&lt;=</span> n; l <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) {
-</span></span><span style="display:flex;"><span>    ll t <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">/</span> l;   <span style="color:#6272a4">// constant value of floor(n/i) in this block
-</span></span></span><span style="display:flex;"><span>    r <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">/</span> t;      <span style="color:#6272a4">// right endpoint of the block
-</span></span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// process block [l, r] with quotient t
-</span></span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="o1-interval-sum-requirement">O(1) Interval Sum Requirement</h2>
-<p>In each block $[l,r]$, we need $\sum_{i=l}^r f(i)$ in $O(1)$. If we compute $f(i)$ one by one, the loop runs $r-l+1$ times per block and the total reverts to $O(n)$.</p>
-<p>Two correct approaches:</p>
-<ul>
-<li><strong>Closed-form formula</strong> (e.g. $f(i)=1$, $f(i)=i$, $f(i)=i^2$, …)</li>
-<li><strong>Prefix-sum array</strong> — only valid when $O(n)$ preprocessing is acceptable; it does <strong>not</strong> break the $O(\sqrt{n})$ query time but does require $O(n)$ memory and preprocessing.</li>
-</ul>
-<blockquote>
-<p>Storing a prefix-sum array of size $n$ is fine for most problems, but the preprocessing cost is $O(n)$, not $O(\sqrt{n})$.</p>
-</blockquote>
-<h2 id="example-cses-1082--sum-of-all-divisors">Example: CSES 1082 — Sum of All Divisors</h2>
-$$\sum_{i=1}^n\sigma(i)=\sum_{i=1}^n\sum_{d\mid i}d=\sum_{d=1}^n d\cdot\left\lfloor\frac{n}{d}\right\rfloor$$<p>Here $f(d)=d$ and $g(\lfloor n/d\rfloor)=\lfloor n/d\rfloor$. The sum of $f$ over $[l,r]$ is an arithmetic series: $\sum_{d=l}^r d=\frac{(l+r)(r-l+1)}{2}$, computable in $O(1)$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;iostream&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n; cin <span style="color:#ff79c6">&gt;&gt;</span> n;
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> sum <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, l, r;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (l <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; l <span style="color:#ff79c6">&lt;=</span> n; l <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) {
-</span></span><span style="display:flex;"><span>        r <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">/</span> (n <span style="color:#ff79c6">/</span> l);
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> k <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">/</span> l;                 <span style="color:#6272a4">// constant quotient in this block
-</span></span></span><span style="display:flex;"><span>        sum <span style="color:#ff79c6">+=</span> k <span style="color:#ff79c6">*</span> (l <span style="color:#ff79c6">+</span> r) <span style="color:#ff79c6">*</span> (r <span style="color:#ff79c6">-</span> l <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span>;  <span style="color:#6272a4">// closed-form interval sum
-</span></span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> sum;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><hr>
-<h1 id="two-variable-blocking">Two-Variable Blocking</h1>
-$$\sum_{i=1}^{n}f(i)\cdot g\!\left(\left\lfloor\frac{n}{i}\right\rfloor\right)\cdot h\!\left(\left\lfloor\frac{m}{i}\right\rfloor\right)$$<p>$\lfloor n/i\rfloor$ has $O(\sqrt{n})$ distinct values; $\lfloor m/i\rfloor$ has $O(\sqrt{m})$ distinct values. We need a block where <strong>both</strong> are simultaneously constant.</p>
-<p><strong>Algorithm:</strong></p>
-<ol>
-<li>Start with $l=1$.</li>
-<li>Compute $q_n=\lfloor n/l\rfloor$, $q_m=\lfloor m/l\rfloor$.</li>
-<li>Compute right endpoints $r_1=\lfloor n/q_n\rfloor$, $r_2=\lfloor m/q_m\rfloor$.</li>
-<li>Take $r=\min(r_1,r_2)$: within $[l,r]$, both quotients are constant.</li>
-<li>Add block contribution: $\text{ans}\mathrel{+}=\bigl(\sum_{i=l}^r f(i)\bigr)\cdot g(q_n)\cdot h(q_m)$.</li>
-<li>Set $l=r+1$.</li>
-</ol>
-<p><strong>Termination:</strong> stop when $l>\min(n,m)$ (beyond that, at least one quotient is 0).</p>
-<p><strong>Complexity:</strong> $O(\sqrt{n}+\sqrt{m})$ blocks total (each step advances to the next distinct value of at least one variable).</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>l <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">while</span> (l <span style="color:#ff79c6">&lt;=</span> min(n, m)) {
-</span></span><span style="display:flex;"><span>    ll qn <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">/</span> l, qm <span style="color:#ff79c6">=</span> m <span style="color:#ff79c6">/</span> l;
-</span></span><span style="display:flex;"><span>    ll r <span style="color:#ff79c6">=</span> min(n <span style="color:#ff79c6">/</span> qn, m <span style="color:#ff79c6">/</span> qm);
-</span></span><span style="display:flex;"><span>    ans <span style="color:#ff79c6">+=</span> (prefixF[r] <span style="color:#ff79c6">-</span> prefixF[l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]) <span style="color:#ff79c6">*</span> g(qn) <span style="color:#ff79c6">*</span> h(qm);
-</span></span><span style="display:flex;"><span>    l <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><hr>
-<h1 id="multi-variable-blocking">Multi-Variable Blocking</h1>
-$$\sum_{i=1}^{N}F\!\left(i,\;\left\lfloor\frac{n_1}{i}\right\rfloor,\;\left\lfloor\frac{n_2}{i}\right\rfloor,\;\ldots,\;\left\lfloor\frac{n_k}{i}\right\rfloor\right)$$<p>Each floor function is piecewise constant with $O(\sqrt{n_j})$ breakpoints. The joint block where all $k$ quotients are simultaneously constant is found by taking $r=\min_j\lfloor n_j/\lfloor n_j/l\rfloor\rfloor$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>l <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">while</span> (l <span style="color:#ff79c6">&lt;=</span> min(n1, n2, ..., nk)) {
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1.</span>.k) {
-</span></span><span style="display:flex;"><span>        t[j] <span style="color:#ff79c6">=</span> n[j] <span style="color:#ff79c6">/</span> l;          <span style="color:#6272a4">// current quotient for variable j
-</span></span></span><span style="display:flex;"><span>        r[j] <span style="color:#ff79c6">=</span> n[j] <span style="color:#ff79c6">/</span> t[j];       <span style="color:#6272a4">// right endpoint for variable j alone
-</span></span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    r <span style="color:#ff79c6">=</span> min(r[<span style="color:#bd93f9">1</span>], r[<span style="color:#bd93f9">2</span>], ..., r[k]);
-</span></span><span style="display:flex;"><span>    ans <span style="color:#ff79c6">+=</span> block_contribution([l, r], t[<span style="color:#bd93f9">1</span>], t[<span style="color:#bd93f9">2</span>], ..., t[k]);
-</span></span><span style="display:flex;"><span>    l <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p><strong>Complexity:</strong> each step advances past the closest breakpoint of any variable; total steps $\leq\sum_{j=1}^k O(\sqrt{n_j})$. With $O(1)$ block contribution: total $O\!\bigl(\sqrt{n_1}+\cdots+\sqrt{n_k}\bigr)$.</p>
-<hr>
-<h1 id="ceiling-division-blocking">Ceiling-Division Blocking</h1>
-<p>For $\lceil n/i\rceil$, the block right endpoint differs slightly from the floor case.</p>
-<p>For $1\leq i\leq n-1$, the largest $j$ with $\lceil n/j\rceil=\lceil n/i\rceil$ is:
-</p>
-$$r=\left\lfloor\frac{n-1}{\lfloor(n-1)/i\rfloor}\right\rfloor$$<p>That is, substitute $n\to n-1$ in the floor-division right-endpoint formula.</p>
-<blockquote>
-<p><strong>Edge case $i=n$:</strong> $\lfloor(n-1)/n\rfloor=0$, making the formula undefined. When $i=n$, $\lceil n/n\rceil=1$ and the block is the singleton $\{n\}$, so $r=n$ directly.</p>
-</blockquote>
-
-      </div>
-      
-        <aside class="article-toc">
-          <div class="toc-card">
-            <span>On this page</span>
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#divisibility-blocking-number-theoretic-blocking">Divisibility Blocking (Number-Theoretic Blocking)</a>
-      <ul>
-        <li><a href="#problem-setting">Problem Setting</a></li>
-        <li><a href="#lemma-1">Lemma 1</a></li>
-        <li><a href="#core-loop">Core Loop</a></li>
-        <li><a href="#o1-interval-sum-requirement">O(1) Interval Sum Requirement</a></li>
-        <li><a href="#example-cses-1082--sum-of-all-divisors">Example: CSES 1082 — Sum of All Divisors</a></li>
-      </ul>
-    </li>
-    <li><a href="#two-variable-blocking">Two-Variable Blocking</a></li>
-    <li><a href="#multi-variable-blocking">Multi-Variable Blocking</a></li>
-    <li><a href="#ceiling-division-blocking">Ceiling-Division Blocking</a></li>
-  </ul>
-</nav>
-          </div>
-        </aside>
-      
-    </div>
-  </article>
-
-  
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const tocLinks = document.querySelectorAll('.toc-card a');
-      const tocPanel = document.querySelector('.article-toc');
-      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
-                            .filter(h => h.id);
-      
-      if (headings.length === 0 || tocLinks.length === 0) return;
-
-      let ticking = false;
-
-      function updateActiveTocLink() {
-        const scrollPosition = window.scrollY + 140; 
-        let currentHeading = headings[0];
-
-        for (let i = 0; i < headings.length; i++) {
-          
-          const top = headings[i].getBoundingClientRect().top + window.scrollY;
-          if (scrollPosition >= top) {
-            currentHeading = headings[i];
-          } else {
-            break;
-          }
-        }
-
-        tocLinks.forEach(link => link.classList.remove('active'));
-        if (currentHeading) {
-          const id = currentHeading.getAttribute('id');
-          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
-          if (activeLink) {
-            activeLink.classList.add('active');
-            const toc = activeLink.closest('.article-toc');
-            if (toc) {
-              const padding = 14;
-              const linkTop = activeLink.offsetTop;
-              const linkBottom = linkTop + activeLink.offsetHeight;
-              const viewTop = toc.scrollTop;
-              const viewBottom = viewTop + toc.clientHeight;
-
-              if (linkTop < viewTop + padding) {
-                toc.scrollTop = Math.max(0, linkTop - padding);
-              } else if (linkBottom > viewBottom - padding) {
-                toc.scrollTop = linkBottom - toc.clientHeight + padding;
-              }
-            }
-          }
-        }
-      }
-
-      function updateTocBoundary() {
-        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
-          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
-          return;
-        }
-
-        const footer = document.querySelector('.site-footer');
-        if (!footer) return;
-
-        const bottomGap = 24;
-        const tocBottom = 86 + tocPanel.offsetHeight;
-        const footerTop = footer.getBoundingClientRect().top;
-        const overlap = tocBottom + bottomGap - footerTop;
-
-        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
-      }
-
-      function onScroll() {
-        if (ticking) return;
-        ticking = true;
-        window.requestAnimationFrame(function() {
-          updateTocBoundary();
-          updateActiveTocLink();
-          ticking = false;
-        });
-      }
-
-      window.addEventListener('scroll', onScroll, { passive: true });
-      window.addEventListener('resize', onScroll, { passive: true });
-      
-      setTimeout(function() {
-        updateTocBoundary();
-        updateActiveTocLink();
-      }, 50);
-    });
-  </script>
-  
-
-      </main>
-
-      <footer class="site-footer container">
-        <div>
-          <strong>Jasper&#39;s Technical Notebook</strong>
-          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
-        </div>
-        <div class="footer-links">
-          <a href="https://github.com/JMaaa32">GitHub</a>
-          <a href="/posts/">Posts</a>
-          <a href="/archives/">Archives</a>
-          <a href="/tags/">Tags</a>
-        </div>
-      </footer>
-    </div>
-    <script>
-      (function() {
-        const toggle = document.querySelector(".nav-toggle");
-        const nav = document.querySelector("#site-navigation");
-        if (!toggle || !nav) return;
-
-        function setOpen(open) {
-          document.documentElement.classList.toggle("nav-open", open);
-          toggle.setAttribute("aria-expanded", String(open));
-        }
-
-        toggle.addEventListener("click", function() {
-          setOpen(!document.documentElement.classList.contains("nav-open"));
-        });
-
-        nav.addEventListener("click", function(event) {
-          if (event.target.closest("a")) setOpen(false);
-        });
-
-        window.addEventListener("keydown", function(event) {
-          if (event.key === "Escape") setOpen(false);
-        });
-
-        window.addEventListener("resize", function() {
-          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
-        }, { passive: true });
-
-        const themeToggle = document.querySelector(".theme-toggle");
-        if (!themeToggle) return;
-
-        function applyTheme(theme, persist) {
-          document.documentElement.dataset.theme = theme;
-          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
-          if (persist) {
-            try {
-              window.localStorage.setItem("theme", theme);
-            } catch (error) {}
-          }
-        }
-
-        applyTheme(document.documentElement.dataset.theme || "light", false);
-        themeToggle.addEventListener("click", function() {
-          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-          applyTheme(next, true);
-        });
-      })();
-    </script>
-  </body>
-</html>
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition) | Jasper's Technical Notebook</title><meta name=description content="O(sqrt n) evaluation of floor-division sums by blocking; single-variable, two-variable, and multi-variable cases; ceiling-division variant; CSES 1082 example."><link rel=canonical href=https://jmaaa32.github.io/posts/number-theory-1-1-divisibility-blocking/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<span><strong>Jasper's Technical Notebook</strong>
+<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
+<span class=theme-toggle-icon aria-hidden=true></span>
+<span class=sr-only>Switch theme</span>
+</button>
+<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
+<span></span>
+<span></span>
+<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
+<a class="nav-link is-active" href=/posts/>Posts</a>
+<a class=nav-link href=/archives/>Archives</a>
+<a class=nav-link href=/categories/>Categories</a>
+<a class=nav-link href=/tags/>Tags</a>
+<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)</h1><div class=article-meta><time datetime=2026-04-28>Apr 28, 2026</time>
+<span>·</span>
+<span>Number Theory</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
+<a class=chip href=/tags/number-theory/>#number-theory</a>
+<a class=chip href=/tags/blocking/>#blocking</a>
+<a class=chip href=/tags/sqrt-decomposition/>#sqrt-decomposition</a>
+<a class=chip href=/tags/floor-sum/>#floor-sum</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#divisibility-blocking-number-theoretic-blocking>Divisibility Blocking (Number-Theoretic Blocking)</a><ul><li><a href=#problem-setting>Problem Setting</a></li><li><a href=#lemma-1>Lemma 1</a></li><li><a href=#core-loop>Core Loop</a></li><li><a href=#o1-interval-sum-requirement>O(1) Interval Sum Requirement</a></li><li><a href=#example-cses-1082--sum-of-all-divisors>Example: CSES 1082 — Sum of All Divisors</a></li></ul></li><li><a href=#two-variable-blocking>Two-Variable Blocking</a></li><li><a href=#multi-variable-blocking>Multi-Variable Blocking</a></li><li><a href=#ceiling-division-blocking>Ceiling-Division Blocking</a></li></ul></nav></div></details><div class="article-content prose"><h1 id=divisibility-blocking-number-theoretic-blocking>Divisibility Blocking (Number-Theoretic Blocking)</h1><h2 id=problem-setting>Problem Setting</h2><p>Evaluate sums of the form:</p>$$\sum_{i=1}^{n}\underbrace{f(i)}_{O(1)}\cdot g\!\left(\left\lfloor\frac{n}{i}\right\rfloor\right)$$<p>If $f(i)$&rsquo;s prefix sum is computable in $O(1)$, the whole sum can be evaluated in $O(\sqrt{n})$.</p><h2 id=lemma-1>Lemma 1</h2><blockquote><p>For $n,i\in\mathbb{N}^+$, $\lfloor n/i\rfloor$ takes at most $2\sqrt{n}$ distinct values.</p></blockquote><p>We enumerate $k=\lfloor n/i\rfloor$ and for each $k$ compute:</p>$$\sum_{k}\;g(k)\cdot\underbrace{\bigl(f(l)+\cdots+f(r)\bigr)}_{\text{need }O(1)\text{ interval sum}}$$<h2 id=core-loop>Core Loop</h2><p>The key observation: given left endpoint $l$, the right endpoint of the block where $\lfloor n/i\rfloor$ is constant equals:</p>$$r=\left\lfloor\frac{n}{\lfloor n/l\rfloor}\right\rfloor$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>for</span> (ll l <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, r; l <span style=color:#ff79c6>&lt;=</span> n; l <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) {
+</span></span><span style=display:flex><span>    ll t <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>/</span> l;   <span style=color:#6272a4>// constant value of floor(n/i) in this block
+</span></span></span><span style=display:flex><span>    r <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>/</span> t;      <span style=color:#6272a4>// right endpoint of the block
+</span></span></span><span style=display:flex><span>    <span style=color:#6272a4>// process block [l, r] with quotient t
+</span></span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=o1-interval-sum-requirement>O(1) Interval Sum Requirement</h2><p>In each block $[l,r]$, we need $\sum_{i=l}^r f(i)$ in $O(1)$. If we compute $f(i)$ one by one, the loop runs $r-l+1$ times per block and the total reverts to $O(n)$.</p><p>Two correct approaches:</p><ul><li><strong>Closed-form formula</strong> (e.g. $f(i)=1$, $f(i)=i$, $f(i)=i^2$, …)</li><li><strong>Prefix-sum array</strong> — only valid when $O(n)$ preprocessing is acceptable; it does <strong>not</strong> break the $O(\sqrt{n})$ query time but does require $O(n)$ memory and preprocessing.</li></ul><blockquote><p>Storing a prefix-sum array of size $n$ is fine for most problems, but the preprocessing cost is $O(n)$, not $O(\sqrt{n})$.</p></blockquote><h2 id=example-cses-1082--sum-of-all-divisors>Example: CSES 1082 — Sum of All Divisors</h2>$$\sum_{i=1}^n\sigma(i)=\sum_{i=1}^n\sum_{d\mid i}d=\sum_{d=1}^n d\cdot\left\lfloor\frac{n}{d}\right\rfloor$$<p>Here $f(d)=d$ and $g(\lfloor n/d\rfloor)=\lfloor n/d\rfloor$. The sum of $f$ over $[l,r]$ is an arithmetic series: $\sum_{d=l}^r d=\frac{(l+r)(r-l+1)}{2}$, computable in $O(1)$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;iostream&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n; cin <span style=color:#ff79c6>&gt;&gt;</span> n;
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> sum <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, l, r;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (l <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; l <span style=color:#ff79c6>&lt;=</span> n; l <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) {
+</span></span><span style=display:flex><span>        r <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>/</span> (n <span style=color:#ff79c6>/</span> l);
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> k <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>/</span> l;                 <span style=color:#6272a4>// constant quotient in this block
+</span></span></span><span style=display:flex><span>        sum <span style=color:#ff79c6>+=</span> k <span style=color:#ff79c6>*</span> (l <span style=color:#ff79c6>+</span> r) <span style=color:#ff79c6>*</span> (r <span style=color:#ff79c6>-</span> l <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span>;  <span style=color:#6272a4>// closed-form interval sum
+</span></span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> sum;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><h1 id=two-variable-blocking>Two-Variable Blocking</h1>$$\sum_{i=1}^{n}f(i)\cdot g\!\left(\left\lfloor\frac{n}{i}\right\rfloor\right)\cdot h\!\left(\left\lfloor\frac{m}{i}\right\rfloor\right)$$<p>$\lfloor n/i\rfloor$ has $O(\sqrt{n})$ distinct values; $\lfloor m/i\rfloor$ has $O(\sqrt{m})$ distinct values. We need a block where <strong>both</strong> are simultaneously constant.</p><p><strong>Algorithm:</strong></p><ol><li>Start with $l=1$.</li><li>Compute $q_n=\lfloor n/l\rfloor$, $q_m=\lfloor m/l\rfloor$.</li><li>Compute right endpoints $r_1=\lfloor n/q_n\rfloor$, $r_2=\lfloor m/q_m\rfloor$.</li><li>Take $r=\min(r_1,r_2)$: within $[l,r]$, both quotients are constant.</li><li>Add block contribution: $\text{ans}\mathrel{+}=\bigl(\sum_{i=l}^r f(i)\bigr)\cdot g(q_n)\cdot h(q_m)$.</li><li>Set $l=r+1$.</li></ol><p><strong>Termination:</strong> stop when $l>\min(n,m)$ (beyond that, at least one quotient is 0).</p><p><strong>Complexity:</strong> $O(\sqrt{n}+\sqrt{m})$ blocks total (each step advances to the next distinct value of at least one variable).</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>l <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>while</span> (l <span style=color:#ff79c6>&lt;=</span> min(n, m)) {
+</span></span><span style=display:flex><span>    ll qn <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>/</span> l, qm <span style=color:#ff79c6>=</span> m <span style=color:#ff79c6>/</span> l;
+</span></span><span style=display:flex><span>    ll r <span style=color:#ff79c6>=</span> min(n <span style=color:#ff79c6>/</span> qn, m <span style=color:#ff79c6>/</span> qm);
+</span></span><span style=display:flex><span>    ans <span style=color:#ff79c6>+=</span> (prefixF[r] <span style=color:#ff79c6>-</span> prefixF[l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]) <span style=color:#ff79c6>*</span> g(qn) <span style=color:#ff79c6>*</span> h(qm);
+</span></span><span style=display:flex><span>    l <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><h1 id=multi-variable-blocking>Multi-Variable Blocking</h1>$$\sum_{i=1}^{N}F\!\left(i,\;\left\lfloor\frac{n_1}{i}\right\rfloor,\;\left\lfloor\frac{n_2}{i}\right\rfloor,\;\ldots,\;\left\lfloor\frac{n_k}{i}\right\rfloor\right)$$<p>Each floor function is piecewise constant with $O(\sqrt{n_j})$ breakpoints. The joint block where all $k$ quotients are simultaneously constant is found by taking $r=\min_j\lfloor n_j/\lfloor n_j/l\rfloor\rfloor$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>l <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>while</span> (l <span style=color:#ff79c6>&lt;=</span> min(n1, n2, ..., nk)) {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1.</span>.k) {
+</span></span><span style=display:flex><span>        t[j] <span style=color:#ff79c6>=</span> n[j] <span style=color:#ff79c6>/</span> l;          <span style=color:#6272a4>// current quotient for variable j
+</span></span></span><span style=display:flex><span>        r[j] <span style=color:#ff79c6>=</span> n[j] <span style=color:#ff79c6>/</span> t[j];       <span style=color:#6272a4>// right endpoint for variable j alone
+</span></span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    r <span style=color:#ff79c6>=</span> min(r[<span style=color:#bd93f9>1</span>], r[<span style=color:#bd93f9>2</span>], ..., r[k]);
+</span></span><span style=display:flex><span>    ans <span style=color:#ff79c6>+=</span> block_contribution([l, r], t[<span style=color:#bd93f9>1</span>], t[<span style=color:#bd93f9>2</span>], ..., t[k]);
+</span></span><span style=display:flex><span>    l <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p><strong>Complexity:</strong> each step advances past the closest breakpoint of any variable; total steps $\leq\sum_{j=1}^k O(\sqrt{n_j})$. With $O(1)$ block contribution: total $O\!\bigl(\sqrt{n_1}+\cdots+\sqrt{n_k}\bigr)$.</p><hr><h1 id=ceiling-division-blocking>Ceiling-Division Blocking</h1><p>For $\lceil n/i\rceil$, the block right endpoint differs slightly from the floor case.</p><p>For $1\leq i\leq n-1$, the largest $j$ with $\lceil n/j\rceil=\lceil n/i\rceil$ is:</p>$$r=\left\lfloor\frac{n-1}{\lfloor(n-1)/i\rfloor}\right\rfloor$$<p>That is, substitute $n\to n-1$ in the floor-division right-endpoint formula.</p><blockquote><p><strong>Edge case $i=n$:</strong> $\lfloor(n-1)/n\rfloor=0$, making the formula undefined. When $i=n$, $\lceil n/n\rceil=1$ and the block is the singleton $\{n\}$, so $r=n$ directly.</p></blockquote></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#divisibility-blocking-number-theoretic-blocking>Divisibility Blocking (Number-Theoretic Blocking)</a><ul><li><a href=#problem-setting>Problem Setting</a></li><li><a href=#lemma-1>Lemma 1</a></li><li><a href=#core-loop>Core Loop</a></li><li><a href=#o1-interval-sum-requirement>O(1) Interval Sum Requirement</a></li><li><a href=#example-cses-1082--sum-of-all-divisors>Example: CSES 1082 — Sum of All Divisors</a></li></ul></li><li><a href=#two-variable-blocking>Two-Variable Blocking</a></li><li><a href=#multi-variable-blocking>Multi-Variable Blocking</a></li><li><a href=#ceiling-division-blocking>Ceiling-Division Blocking</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+<a href=/posts/>Posts</a>
+<a href=/archives/>Archives</a>
+<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";o(e,!0)})})()</script></body></html>
