@@ -6,6 +6,9 @@
     <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
     <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
     <link rel="canonical" href="{{ .Permalink }}">
+    <script>
+      document.documentElement.classList.add("has-js");
+    </script>
     <link rel="stylesheet" href="/css/site.css">
     {{ if .Params.math }}
       <script>
@@ -34,9 +37,18 @@
               <small>{{ site.Params.tagline }}</small>
             </span>
           </a>
-          <nav class="site-nav">
+          <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+          <nav class="site-nav" id="site-navigation">
             {{ range site.Menus.main }}
               {{ $active := or ($.IsMenuCurrent "main" .) ($.HasMenuCurrent "main" .) (eq $.RelPermalink .URL) }}
+              {{ $active = or $active (and (eq .URL "/posts/") (eq $.Section "posts")) }}
+              {{ $active = or $active (and (eq .URL "/archives/") (eq $.Section "archives")) }}
+              {{ $active = or $active (and (eq .URL "/categories/") (eq $.Data.Plural "categories")) }}
+              {{ $active = or $active (and (eq .URL "/tags/") (eq $.Data.Plural "tags")) }}
               <a class="nav-link{{ if $active }} is-active{{ end }}" href="{{ .URL }}">{{ .Name }}</a>
             {{ end }}
           </nav>
@@ -60,5 +72,33 @@
         </div>
       </footer>
     </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+      })();
+    </script>
   </body>
 </html>
