@@ -12,7 +12,10 @@
         <span></span>
         <span></span>
       </div>
-      <img class="home-avatar" src="/images/site/avatar-technical-notebook.png" alt="Hand-drawn technical notebook avatar" width="1254" height="1254">
+      <picture>
+        <source srcset="/images/site/avatar-technical-notebook-860.webp" type="image/webp">
+        <img class="home-avatar" src="/images/site/avatar-technical-notebook-860.png" alt="Hand-drawn technical notebook avatar" width="736" height="860">
+      </picture>
       <dl class="site-stats" aria-label="Site statistics">
         <div>
           <dt>Posts</dt>
@@ -36,15 +39,12 @@
       if (!intro) return;
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      try {
-        if (window.sessionStorage.getItem("homeIntroPlayed")) return;
-        window.sessionStorage.setItem("homeIntroPlayed", "true");
-      } catch (error) {}
-
-      intro.classList.add("is-entering");
-      window.setTimeout(function() {
-        intro.classList.remove("is-entering");
-      }, 1800);
+      window.requestAnimationFrame(function() {
+        intro.classList.add("is-entering");
+        window.setTimeout(function() {
+          intro.classList.remove("is-entering");
+        }, 2300);
+      });
     })();
   </script>
 

@@ -1,1043 +1,148 @@
-<!doctype html>
-<html lang="en-us">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Math | Jasper&#39;s Technical Notebook</title>
-    <meta name="description" content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.">
-    <link rel="canonical" href="http://localhost:1313/tags/math/">
-    <script>
-      (function() {
-        document.documentElement.classList.add("has-js");
-        try {
-          const stored = window.localStorage.getItem("theme");
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="/css/site.css">
-    
-  </head>
-  <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <div class="container header-inner">
-          <a class="brand" href="/">
-            <span class="brand-mark">J</span>
-            <span>
-              <strong>Jasper&#39;s Technical Notebook</strong>
-              <small>Algorithms, systems, and engineering notes</small>
-            </span>
-          </a>
-          <div class="header-actions">
-            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
-              <span class="theme-toggle-icon" aria-hidden="true"></span>
-              <span class="sr-only">Switch theme</span>
-            </button>
-            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <nav class="site-nav" id="site-navigation">
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/">Home</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/posts/">Posts</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/archives/">Archives</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/categories/">Categories</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link is-active" href="/tags/">Tags</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/about/">About</a>
-            
-          </nav>
-        </div>
-      </header>
-
-      <main class="container main-content">
-        
-  <section class="page-heading">
-    <span class="eyebrow">Term</span>
-    <h1>Math</h1>
-    
-  </section>
-
-  <section class="content-panel">
-    <div class="section-head">
-      <div>
-        <span class="eyebrow">Index</span>
-        <h2>All notes</h2>
-      </div>
-    </div>
-
-    
-      <div class="post-list">
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/matrix-1-fast-exponentiation/" aria-label="Read Matrix #1: Matrix Fast Power — Linear Recurrence, DP Semirings &amp; Kitamasa"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/matrix/">Matrix</a>
-      
-      <span>17 min read</span>
-    </div>
-    <h3><a href="/posts/matrix-1-fast-exponentiation/">Matrix #1: Matrix Fast Power — Linear Recurrence, DP Semirings &amp; Kitamasa</a></h3>
-    <p>Matrix fast power for linear recurrences (4 patterns), 4 semiring templates (count/bool/min-plus/max-plus), matrix+segment tree for range-add Fibonacci queries, Kitamasa O(k²logn) and NTT O(k log²k logn).</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/matrix/">#matrix</a>
-        
-          <a href="/tags/fast-power/">#fast-power</a>
-        
-          <a href="/tags/linear-recurrence/">#linear-recurrence</a>
-        
-          <a href="/tags/dp/">#dp</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/matrix-2-gaussian-elimination/" aria-label="Read Matrix #2: Gaussian Elimination — Real, Mod, Mod-2, Incremental"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/matrix/">Matrix</a>
-      
-      <span>15 min read</span>
-    </div>
-    <h3><a href="/posts/matrix-2-gaussian-elimination/">Matrix #2: Gaussian Elimination — Real, Mod, Mod-2, Incremental</a></h3>
-    <p>Gauss elimination: real/mod/mod-2 templates (solve, det, inv, rank); incremental online RREF; Extended Lights Out, CF 1344F abstract GF(2) modelling, 2024 ICPC Kunming interactive tree queries.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/matrix/">#matrix</a>
-        
-          <a href="/tags/gaussian-elimination/">#gaussian-elimination</a>
-        
-          <a href="/tags/linear-algebra/">#linear-algebra</a>
-        
-          <a href="/tags/gf2/">#gf2</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/matrix-3-linear-basis/" aria-label="Read Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/matrix/">Matrix</a>
-      
-      <span>8 min read</span>
-    </div>
-    <h3><a href="/posts/matrix-3-linear-basis/">Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method</a></h3>
-    <p>XOR linear basis: full template with kth, range basis, normalisation; Nowcoder median example; CF 1101G prefix-XOR rank; gym 104768 C XOR-divisibility; Simplex LP solver.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/matrix/">#matrix</a>
-        
-          <a href="/tags/linear-basis/">#linear-basis</a>
-        
-          <a href="/tags/xor/">#xor</a>
-        
-          <a href="/tags/gf2/">#gf2</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/matrix-4-problems/" aria-label="Read Matrix #4: Matrix Problems — Fibonacci Subarray Sums, Gaussian Elimination &amp; Expected Value"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/matrix/">Matrix</a>
-      
-      <span>6 min read</span>
-    </div>
-    <h3><a href="/posts/matrix-4-problems/">Matrix #4: Matrix Problems — Fibonacci Subarray Sums, Gaussian Elimination &amp; Expected Value</a></h3>
-    <p>Hard matrix problems: Fibonacci squared subarray sum with segment-tree 4-tuple and companion matrix; cycle-decomposition partition state space for random-swap sorting, first-step analysis, and Gaussian elimination.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/matrix/">#matrix</a>
-        
-          <a href="/tags/segment-tree/">#segment-tree</a>
-        
-          <a href="/tags/gaussian-elimination/">#gaussian-elimination</a>
-        
-          <a href="/tags/expected-value/">#expected-value</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-0-common-formulae/" aria-label="Read Number Theory #0: Common Formulae — Legendre&#39;s Formula &amp; Divisor Convolutions"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>2 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-0-common-formulae/">Number Theory #0: Common Formulae — Legendre&#39;s Formula &amp; Divisor Convolutions</a></h3>
-    <p>Legendre&rsquo;s formula, divisor and multiple convolutions in O(n log n), offline-difference batch processing for H(n)=Σf(d)g(⌊n/d⌋).</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/convolution/">#convolution</a>
-        
-          <a href="/tags/divisor/">#divisor</a>
-        
-          <a href="/tags/legendre/">#legendre</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-1-elementary/" aria-label="Read Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>9 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-1-elementary/">Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT</a></h3>
-    <p>GCD/LCM properties, Bézout/Frobenius, Euler&rsquo;s theorem with power-tower reduction and φ-chain technique, congruence system merging via exGCD, CRT, and n! prime factorisation via Legendre&rsquo;s formula.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/gcd/">#gcd</a>
-        
-          <a href="/tags/lcm/">#lcm</a>
-        
-          <a href="/tags/euler/">#euler</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-1-1-divisibility-blocking/" aria-label="Read Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>3 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-1-1-divisibility-blocking/">Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)</a></h3>
-    <p>Divisibility blocking for O(sqrt n) floor-sum evaluation: lemma, single-variable loop, O(1) interval sum requirements, two-variable min-trick, multi-variable pseudocode, and ceiling-division blocking.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/blocking/">#blocking</a>
-        
-          <a href="/tags/sqrt-decomposition/">#sqrt-decomposition</a>
-        
-          <a href="/tags/floor-sum/">#floor-sum</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-2-ex-mobius-practice/" aria-label="Read Number Theory #2-ex: Möbius Practice — LCM Sums, Divisor-Count, Omega Numbers"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>9 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-2-ex-mobius-practice/">Number Theory #2-ex: Möbius Practice — LCM Sums, Divisor-Count, Omega Numbers</a></h3>
-    <p>Practice problems for Möbius inversion: LCMSUM, two-variable lcm sum (O(n^3/4)), FSF&rsquo;s game with offline difference, divisor-count sum d(ij), Omega Numbers with Dirichlet suffix sum.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/mobius-inversion/">#mobius-inversion</a>
-        
-          <a href="/tags/lcm/">#lcm</a>
-        
-          <a href="/tags/divisor-count/">#divisor-count</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-2-ex-mobius-techniques/" aria-label="Read Number Theory #2-ex: Möbius Techniques"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>6 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-2-ex-mobius-techniques/">Number Theory #2-ex: Möbius Techniques</a></h3>
-    <p>Seven core techniques for Möbius inversion problems: loop shortening, gcd indicator expansion, coprimality reduction, Dirichlet convolution via T=dk, divisor symmetry, diagonal symmetry, and value-domain cnt[] tricks.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/mobius-inversion/">#mobius-inversion</a>
-        
-          <a href="/tags/dirichlet-convolution/">#dirichlet-convolution</a>
-        
-          <a href="/tags/techniques/">#techniques</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-2-multiplicative-functions/" aria-label="Read Number Theory #2: Multiplicative Functions, Möbius Inversion &amp; Dirichlet Convolution"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>15 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-2-multiplicative-functions/">Number Theory #2: Multiplicative Functions, Möbius Inversion &amp; Dirichlet Convolution</a></h3>
-    <p>Multiplicative functions, single-point and linear-sieve evaluation; Möbius function, both forms of Möbius inversion with full derivations and examples; Dirichlet convolution, key identities, Du Jiao sieve; generalized …</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/multiplicative-functions/">#multiplicative-functions</a>
-        
-          <a href="/tags/mobius-inversion/">#mobius-inversion</a>
-        
-          <a href="/tags/dirichlet-convolution/">#dirichlet-convolution</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-3-sieve-mobius-inclusion-exclusion/" aria-label="Read Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>5 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-3-sieve-mobius-inclusion-exclusion/">Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion</a></h3>
-    <p>Eratosthenes sieve for μ; g/f/h framework; Conclusions 1 and 2 with derivations and tables; GCD table intuition; CF 803F Coprime Subsequences with bottom-up and Möbius approaches.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/mobius/">#mobius</a>
-        
-          <a href="/tags/sieve/">#sieve</a>
-        
-          <a href="/tags/inclusion-exclusion/">#inclusion-exclusion</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-3-1-sieve-problems/" aria-label="Read Number Theory #3.1: Sieve Problems — Coin System DP via Sieve"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>6 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-3-1-sieve-problems/">Number Theory #3.1: Sieve Problems — Coin System DP via Sieve</a></h3>
-    <p>Greedy optimality for divisibility-chain coin systems, DP over the maximum denomination, and a sieve-style transition by adding one larger coin.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/sieve/">#sieve</a>
-        
-          <a href="/tags/dp/">#dp</a>
-        
-          <a href="/tags/coin-system/">#coin-system</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-4-min25-du-jiao-sieve/" aria-label="Read Number Theory #4: Min_25 Sieve and Du Jiao Sieve"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>13 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-4-min25-du-jiao-sieve/">Number Theory #4: Min_25 Sieve and Du Jiao Sieve</a></h3>
-    <p>Min_25 sieve: theory, two complete examples, Lagrange interpolation for power sums. Du Jiao sieve: template, P3768, GCD sum, LCM sum.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/min25-sieve/">#min25-sieve</a>
-        
-          <a href="/tags/du-jiao-sieve/">#du-jiao-sieve</a>
-        
-          <a href="/tags/multiplicative-functions/">#multiplicative-functions</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/number-theory-4-primality-factorisation-residues/" aria-label="Read Number Theory #4: Primality, Factorisation &amp; Residues (Miller-Rabin, Pollard Rho, Tonelli-Shanks)"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-28">2026.04.28</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/number-theory/">Number Theory</a>
-      
-      <span>12 min read</span>
-    </div>
-    <h3><a href="/posts/number-theory-4-primality-factorisation-residues/">Number Theory #4: Primality, Factorisation &amp; Residues (Miller-Rabin, Pollard Rho, Tonelli-Shanks)</a></h3>
-    <p>Miller-Rabin primality test, Pollard Rho factorisation, Tonelli-Shanks for quadratic residues, cubic residues via F_p[t]/(t^3-a), quartic residues by double square root, and general k-th residues via primitive root + …</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/number-theory/">#number-theory</a>
-        
-          <a href="/tags/miller-rabin/">#miller-rabin</a>
-        
-          <a href="/tags/pollard-rho/">#pollard-rho</a>
-        
-          <a href="/tags/quadratic-residue/">#quadratic-residue</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-order-theory/" aria-label="Read Combinatorics: Order Theory — Chromatic Polynomials, Chordal Graphs, Order Polynomials, Dilworth &amp; Hall"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-26">2026.04.26</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>7 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-order-theory/">Combinatorics: Order Theory — Chromatic Polynomials, Chordal Graphs, Order Polynomials, Dilworth &amp; Hall</a></h3>
-    <p>Chromatic polynomial, chordal/interval graphs, PEO product formula, order polynomials (chain/antichain/tree/DAG/divisor lattice), MacMahon formula, Dilworth, Mirsky, Hall&rsquo;s marriage theorem, Erdős–Szekeres, missile …</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/graph/">#graph</a>
-        
-          <a href="/tags/chromatic-polynomial/">#chromatic-polynomial</a>
-        
-          <a href="/tags/chordal-graph/">#chordal-graph</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-2-ex1-difference-convolution/" aria-label="Read Combinatorics #2-ex1: Difference (Correlation) Convolution"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-25">2026.04.25</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>2 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-2-ex1-difference-convolution/">Combinatorics #2-ex1: Difference (Correlation) Convolution</a></h3>
-    <p>Cross-correlation via ordinary convolution: reverse-A and reverse-B extraction methods, derivation, and Ring Trick II (cyclic shift score maximisation via difference convolution).</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/fft/">#fft</a>
-        
-          <a href="/tags/ntt/">#ntt</a>
-        
-          <a href="/tags/convolution/">#convolution</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-2-ex2-cyclic-convolution/" aria-label="Read Combinatorics #2-ex2: Cyclic Convolution"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-25">2026.04.25</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>5 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-2-ex2-cyclic-convolution/">Combinatorics #2-ex2: Cyclic Convolution</a></h3>
-    <p>Cyclic convolution definition, FFT/NTT implementation for n=2^k, zero-padding, why n must be a power of two, and the fold-back technique for arbitrary n.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/fft/">#fft</a>
-        
-          <a href="/tags/ntt/">#ntt</a>
-        
-          <a href="/tags/convolution/">#convolution</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-2-1-fft-lagrange-interpolation/" aria-label="Read Combinatorics #2.1: FFT and Lagrange Interpolation"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-25">2026.04.25</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>10 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-2-1-fft-lagrange-interpolation/">Combinatorics #2.1: FFT and Lagrange Interpolation</a></h3>
-    <p>Polynomial representations, FFT/DFT over complex numbers, Triple Sums, Fuzzy Search (difference convolution), FFT template, Lagrange interpolation (O(n²) and O(n) equidistant), sum of k-th powers, Assigning Prizes …</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/fft/">#fft</a>
-        
-          <a href="/tags/polynomial/">#polynomial</a>
-        
-          <a href="/tags/lagrange/">#lagrange</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-2-2-primitive-roots-ntt/" aria-label="Read Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-25">2026.04.25</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>12 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-2-2-primitive-roots-ntt/">Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT</a></h3>
-    <p>Order and primitive roots (Euler&rsquo;s theorem, BSGS, exBSGS), discrete index as logarithm analogue, SGU 261 Discrete Roots, NTT theory and templates, divide-and-conquer NTT (product tree), Wannafly D team selection, …</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/ntt/">#ntt</a>
-        
-          <a href="/tags/primitive-root/">#primitive-root</a>
-        
-          <a href="/tags/bsgs/">#bsgs</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-3-1-ordinary-generating-functions/" aria-label="Read Combinatorics #3.1: Ordinary Generating Functions"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-25">2026.04.25</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>8 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-3-1-ordinary-generating-functions/">Combinatorics #3.1: Ordinary Generating Functions</a></h3>
-    <p>Formal power series basics, ordinary generating functions, inversion identities, generalized binomial expansions, bounded counting examples, and recurrence-to-closed-form examples such as Fibonacci and Catalan.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/generating-function/">#generating-function</a>
-        
-          <a href="/tags/ogf/">#ogf</a>
-        
-          <a href="/tags/recurrence/">#recurrence</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-3-2-more-operations-on-formal-power-series/" aria-label="Read Combinatorics #3.2: More Operations on Formal Power Series"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-25">2026.04.25</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>15 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-3-2-more-operations-on-formal-power-series/">Combinatorics #3.2: More Operations on Formal Power Series</a></h3>
-    <p>Newton iteration for polynomial inverse and square root, derivative/integral/composition of formal power series, logarithm and exponential of series, and worked examples including CF438E and a bad-modulus …</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/generating-function/">#generating-function</a>
-        
-          <a href="/tags/formal-power-series/">#formal-power-series</a>
-        
-          <a href="/tags/ntt/">#ntt</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-1-1-permutations-combinations/" aria-label="Read Combinatorics #1.1: Permutations and Combinations"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-24">2026.04.24</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>9 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-1-1-permutations-combinations/">Combinatorics #1.1: Permutations and Combinations</a></h3>
-    <p>Hockey Stick identity, addition/multiplication principles, binomial identities, example problems: bitonic sequences, multiset permutations, multi-layer coloring DP, CCPC Subpermutation.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/permutation/">#permutation</a>
-        
-          <a href="/tags/combination/">#combination</a>
-        
-          <a href="/tags/hockey-stick/">#hockey-stick</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-d1-diophantine-equations/" aria-label="Read Combinatorics D1: Diophantine Equations"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-24">2026.04.24</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>13 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-d1-diophantine-equations/">Combinatorics D1: Diophantine Equations</a></h3>
-    <p>Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;C NTT, equal-cap formula, and a full worked example on CF 2127F.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/diophantine/">#diophantine</a>
-        
-          <a href="/tags/stars-and-bars/">#stars-and-bars</a>
-        
-          <a href="/tags/inclusion-exclusion/">#inclusion-exclusion</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-0-common-formulae-conclusions/" aria-label="Read Combinatorics #0: Common Formulae &amp; Conclusions"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-20">2026.04.20</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>10 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-0-common-formulae-conclusions/">Combinatorics #0: Common Formulae &amp; Conclusions</a></h3>
-    <p>A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/floor-sum/">#floor-sum</a>
-        
-          <a href="/tags/xor/">#xor</a>
-        
-          <a href="/tags/fibonacci/">#fibonacci</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-1-counting-conclusions/" aria-label="Read Combinatorics #0.1: 计数中常用的结论"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-20">2026.04.20</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>12 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-1-counting-conclusions/">Combinatorics #0.1: 计数中常用的结论</a></h3>
-    <p>常见计数结论、Lucas 定理、不定方程解计数、平面分拆、DAG 路径计数、多项式平移、XOR 均匀性与若干竞赛常用结论。</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/counting/">#counting</a>
-        
-          <a href="/tags/lucas/">#lucas</a>
-        
-          <a href="/tags/partition/">#partition</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-          <article class="post-entry">
-  <a class="post-entry-cover-link" href="/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/" aria-label="Read Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements"></a>
-  <div class="post-entry-date">
-    <time datetime="2026-04-20">2026.04.20</time>
-  </div>
-  <div class="post-entry-main">
-    <div class="post-entry-meta">
-      
-        <a href="/categories/combinatorics/">Combinatorics</a>
-      
-      <span>2 min read</span>
-    </div>
-    <h3><a href="/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/">Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements</a></h3>
-    <p>Inclusion-exclusion in set and operator form, equal-count subproblems, bounded Diophantine counting, derangements, Stirling numbers, and selected contest problems.</p>
-    
-      <div class="post-entry-tags">
-        
-          <a href="/tags/math/">#math</a>
-        
-          <a href="/tags/combinatorics/">#combinatorics</a>
-        
-          <a href="/tags/inclusion-exclusion/">#inclusion-exclusion</a>
-        
-          <a href="/tags/derangements/">#derangements</a>
-        
-          <a href="/tags/diophantine/">#diophantine</a>
-        
-      </div>
-    
-  </div>
-</article>
-
-        
-      </div>
-    
-  </section>
-
-      </main>
-
-      <footer class="site-footer container">
-        <div>
-          <strong>Jasper&#39;s Technical Notebook</strong>
-          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
-        </div>
-        <div class="footer-links">
-          <a href="https://github.com/JMaaa32">GitHub</a>
-          <a href="/posts/">Posts</a>
-          <a href="/archives/">Archives</a>
-          <a href="/tags/">Tags</a>
-        </div>
-      </footer>
-    </div>
-    <script>
-      (function() {
-        const toggle = document.querySelector(".nav-toggle");
-        const nav = document.querySelector("#site-navigation");
-        if (!toggle || !nav) return;
-
-        function setOpen(open) {
-          document.documentElement.classList.toggle("nav-open", open);
-          toggle.setAttribute("aria-expanded", String(open));
-        }
-
-        toggle.addEventListener("click", function() {
-          setOpen(!document.documentElement.classList.contains("nav-open"));
-        });
-
-        nav.addEventListener("click", function(event) {
-          if (event.target.closest("a")) setOpen(false);
-        });
-
-        window.addEventListener("keydown", function(event) {
-          if (event.key === "Escape") setOpen(false);
-        });
-
-        window.addEventListener("resize", function() {
-          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
-        }, { passive: true });
-
-        const themeToggle = document.querySelector(".theme-toggle");
-        if (!themeToggle) return;
-
-        function applyTheme(theme, persist) {
-          document.documentElement.dataset.theme = theme;
-          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
-          if (persist) {
-            try {
-              window.localStorage.setItem("theme", theme);
-            } catch (error) {}
-          }
-        }
-
-        applyTheme(document.documentElement.dataset.theme || "light", false);
-        themeToggle.addEventListener("click", function() {
-          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-          document.documentElement.classList.add("theme-switching");
-          applyTheme(next, true);
-          window.setTimeout(function() {
-            document.documentElement.classList.remove("theme-switching");
-          }, 620);
-        });
-      })();
-    </script>
-  </body>
-</html>
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Math | Jasper's Technical Notebook</title><meta name=description content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."><link rel=canonical href=https://jmaaa32.github.io/tags/math/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<span><strong>Jasper's Technical Notebook</strong>
+<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
+<span class=theme-toggle-icon aria-hidden=true></span>
+<span class=sr-only>Switch theme</span>
+</button>
+<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
+<span></span>
+<span></span>
+<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
+<a class=nav-link href=/posts/>Posts</a>
+<a class=nav-link href=/archives/>Archives</a>
+<a class=nav-link href=/categories/>Categories</a>
+<a class="nav-link is-active" href=/tags/>Tags</a>
+<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><section class=page-heading><span class=eyebrow>Term</span><h1>Math</h1></section><section class=content-panel><div class=section-head><div><span class=eyebrow>Index</span><h2>All notes</h2></div></div><div class=post-list><article class=post-entry><a class=post-entry-cover-link href=/posts/matrix-1-fast-exponentiation/ aria-label="Read Matrix #1: Matrix Fast Power — Linear Recurrence, DP Semirings & Kitamasa"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
+<span>17 min read</span></div><h3><a href=/posts/matrix-1-fast-exponentiation/>Matrix #1: Matrix Fast Power — Linear Recurrence, DP Semirings & Kitamasa</a></h3><p>Matrix fast power for linear recurrences (4 patterns), 4 semiring templates (count/bool/min-plus/max-plus), matrix+segment tree for range-add Fibonacci queries, Kitamasa O(k²logn) and NTT O(k log²k logn).</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/matrix/>#matrix</a>
+<a href=/tags/fast-power/>#fast-power</a>
+<a href=/tags/linear-recurrence/>#linear-recurrence</a>
+<a href=/tags/dp/>#dp</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/matrix-2-gaussian-elimination/ aria-label="Read Matrix #2: Gaussian Elimination — Real, Mod, Mod-2, Incremental"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
+<span>15 min read</span></div><h3><a href=/posts/matrix-2-gaussian-elimination/>Matrix #2: Gaussian Elimination — Real, Mod, Mod-2, Incremental</a></h3><p>Gauss elimination: real/mod/mod-2 templates (solve, det, inv, rank); incremental online RREF; Extended Lights Out, CF 1344F abstract GF(2) modelling, 2024 ICPC Kunming interactive tree queries.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/matrix/>#matrix</a>
+<a href=/tags/gaussian-elimination/>#gaussian-elimination</a>
+<a href=/tags/linear-algebra/>#linear-algebra</a>
+<a href=/tags/gf2/>#gf2</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/matrix-3-linear-basis/ aria-label="Read Matrix #3: Linear Basis (XOR Basis) & Simplex Method"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
+<span>8 min read</span></div><h3><a href=/posts/matrix-3-linear-basis/>Matrix #3: Linear Basis (XOR Basis) & Simplex Method</a></h3><p>XOR linear basis: full template with kth, range basis, normalisation; Nowcoder median example; CF 1101G prefix-XOR rank; gym 104768 C XOR-divisibility; Simplex LP solver.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/matrix/>#matrix</a>
+<a href=/tags/linear-basis/>#linear-basis</a>
+<a href=/tags/xor/>#xor</a>
+<a href=/tags/gf2/>#gf2</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/matrix-4-problems/ aria-label="Read Matrix #4: Matrix Problems — Fibonacci Subarray Sums, Gaussian Elimination & Expected Value"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
+<span>6 min read</span></div><h3><a href=/posts/matrix-4-problems/>Matrix #4: Matrix Problems — Fibonacci Subarray Sums, Gaussian Elimination & Expected Value</a></h3><p>Hard matrix problems: Fibonacci squared subarray sum with segment-tree 4-tuple and companion matrix; cycle-decomposition partition state space for random-swap sorting, first-step analysis, and Gaussian elimination.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/matrix/>#matrix</a>
+<a href=/tags/segment-tree/>#segment-tree</a>
+<a href=/tags/gaussian-elimination/>#gaussian-elimination</a>
+<a href=/tags/expected-value/>#expected-value</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-0-common-formulae/ aria-label="Read Number Theory #0: Common Formulae — Legendre's Formula & Divisor Convolutions"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>2 min read</span></div><h3><a href=/posts/number-theory-0-common-formulae/>Number Theory #0: Common Formulae — Legendre's Formula & Divisor Convolutions</a></h3><p>Legendre&rsquo;s formula, divisor and multiple convolutions in O(n log n), offline-difference batch processing for H(n)=Σf(d)g(⌊n/d⌋).</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/convolution/>#convolution</a>
+<a href=/tags/divisor/>#divisor</a>
+<a href=/tags/legendre/>#legendre</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-1-elementary/ aria-label="Read Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>9 min read</span></div><h3><a href=/posts/number-theory-1-elementary/>Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT</a></h3><p>GCD/LCM properties, Bézout/Frobenius, Euler&rsquo;s theorem with power-tower reduction and φ-chain technique, congruence system merging via exGCD, CRT, and n! prime factorisation via Legendre&rsquo;s formula.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/gcd/>#gcd</a>
+<a href=/tags/lcm/>#lcm</a>
+<a href=/tags/euler/>#euler</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-1-1-divisibility-blocking/ aria-label="Read Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>3 min read</span></div><h3><a href=/posts/number-theory-1-1-divisibility-blocking/>Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)</a></h3><p>Divisibility blocking for O(sqrt n) floor-sum evaluation: lemma, single-variable loop, O(1) interval sum requirements, two-variable min-trick, multi-variable pseudocode, and ceiling-division blocking.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/blocking/>#blocking</a>
+<a href=/tags/sqrt-decomposition/>#sqrt-decomposition</a>
+<a href=/tags/floor-sum/>#floor-sum</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-2-ex-mobius-practice/ aria-label="Read Number Theory #2-ex: Möbius Practice — LCM Sums, Divisor-Count, Omega Numbers"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>9 min read</span></div><h3><a href=/posts/number-theory-2-ex-mobius-practice/>Number Theory #2-ex: Möbius Practice — LCM Sums, Divisor-Count, Omega Numbers</a></h3><p>Practice problems for Möbius inversion: LCMSUM, two-variable lcm sum (O(n^3/4)), FSF&rsquo;s game with offline difference, divisor-count sum d(ij), Omega Numbers with Dirichlet suffix sum.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/mobius-inversion/>#mobius-inversion</a>
+<a href=/tags/lcm/>#lcm</a>
+<a href=/tags/divisor-count/>#divisor-count</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-2-ex-mobius-techniques/ aria-label="Read Number Theory #2-ex: Möbius Techniques"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>6 min read</span></div><h3><a href=/posts/number-theory-2-ex-mobius-techniques/>Number Theory #2-ex: Möbius Techniques</a></h3><p>Seven core techniques for Möbius inversion problems: loop shortening, gcd indicator expansion, coprimality reduction, Dirichlet convolution via T=dk, divisor symmetry, diagonal symmetry, and value-domain cnt[] tricks.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/mobius-inversion/>#mobius-inversion</a>
+<a href=/tags/dirichlet-convolution/>#dirichlet-convolution</a>
+<a href=/tags/techniques/>#techniques</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-2-multiplicative-functions/ aria-label="Read Number Theory #2: Multiplicative Functions, Möbius Inversion & Dirichlet Convolution"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>15 min read</span></div><h3><a href=/posts/number-theory-2-multiplicative-functions/>Number Theory #2: Multiplicative Functions, Möbius Inversion & Dirichlet Convolution</a></h3><p>Multiplicative functions, single-point and linear-sieve evaluation; Möbius function, both forms of Möbius inversion with full derivations and examples; Dirichlet convolution, key identities, Du Jiao sieve; generalized …</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/multiplicative-functions/>#multiplicative-functions</a>
+<a href=/tags/mobius-inversion/>#mobius-inversion</a>
+<a href=/tags/dirichlet-convolution/>#dirichlet-convolution</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-3-sieve-mobius-inclusion-exclusion/ aria-label="Read Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>5 min read</span></div><h3><a href=/posts/number-theory-3-sieve-mobius-inclusion-exclusion/>Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion</a></h3><p>Eratosthenes sieve for μ; g/f/h framework; Conclusions 1 and 2 with derivations and tables; GCD table intuition; CF 803F Coprime Subsequences with bottom-up and Möbius approaches.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/mobius/>#mobius</a>
+<a href=/tags/sieve/>#sieve</a>
+<a href=/tags/inclusion-exclusion/>#inclusion-exclusion</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-3-1-sieve-problems/ aria-label="Read Number Theory #3.1: Sieve Problems — Coin System DP via Sieve"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>6 min read</span></div><h3><a href=/posts/number-theory-3-1-sieve-problems/>Number Theory #3.1: Sieve Problems — Coin System DP via Sieve</a></h3><p>Greedy optimality for divisibility-chain coin systems, DP over the maximum denomination, and a sieve-style transition by adding one larger coin.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/sieve/>#sieve</a>
+<a href=/tags/dp/>#dp</a>
+<a href=/tags/coin-system/>#coin-system</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-4-min25-du-jiao-sieve/ aria-label="Read Number Theory #4: Min_25 Sieve and Du Jiao Sieve"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>13 min read</span></div><h3><a href=/posts/number-theory-4-min25-du-jiao-sieve/>Number Theory #4: Min_25 Sieve and Du Jiao Sieve</a></h3><p>Min_25 sieve: theory, two complete examples, Lagrange interpolation for power sums. Du Jiao sieve: template, P3768, GCD sum, LCM sum.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/min25-sieve/>#min25-sieve</a>
+<a href=/tags/du-jiao-sieve/>#du-jiao-sieve</a>
+<a href=/tags/multiplicative-functions/>#multiplicative-functions</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/number-theory-4-primality-factorisation-residues/ aria-label="Read Number Theory #4: Primality, Factorisation & Residues (Miller-Rabin, Pollard Rho, Tonelli-Shanks)"></a><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
+<span>12 min read</span></div><h3><a href=/posts/number-theory-4-primality-factorisation-residues/>Number Theory #4: Primality, Factorisation & Residues (Miller-Rabin, Pollard Rho, Tonelli-Shanks)</a></h3><p>Miller-Rabin primality test, Pollard Rho factorisation, Tonelli-Shanks for quadratic residues, cubic residues via F_p[t]/(t^3-a), quartic residues by double square root, and general k-th residues via primitive root + …</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/number-theory/>#number-theory</a>
+<a href=/tags/miller-rabin/>#miller-rabin</a>
+<a href=/tags/pollard-rho/>#pollard-rho</a>
+<a href=/tags/quadratic-residue/>#quadratic-residue</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-order-theory/ aria-label="Read Combinatorics: Order Theory — Chromatic Polynomials, Chordal Graphs, Order Polynomials, Dilworth & Hall"></a><div class=post-entry-date><time datetime=2026-04-26>2026.04.26</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>7 min read</span></div><h3><a href=/posts/combinatorics-order-theory/>Combinatorics: Order Theory — Chromatic Polynomials, Chordal Graphs, Order Polynomials, Dilworth & Hall</a></h3><p>Chromatic polynomial, chordal/interval graphs, PEO product formula, order polynomials (chain/antichain/tree/DAG/divisor lattice), MacMahon formula, Dilworth, Mirsky, Hall&rsquo;s marriage theorem, Erdős–Szekeres, missile …</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/graph/>#graph</a>
+<a href=/tags/chromatic-polynomial/>#chromatic-polynomial</a>
+<a href=/tags/chordal-graph/>#chordal-graph</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-2-ex1-difference-convolution/ aria-label="Read Combinatorics #2-ex1: Difference (Correlation) Convolution"></a><div class=post-entry-date><time datetime=2026-04-25>2026.04.25</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>2 min read</span></div><h3><a href=/posts/combinatorics-2-ex1-difference-convolution/>Combinatorics #2-ex1: Difference (Correlation) Convolution</a></h3><p>Cross-correlation via ordinary convolution: reverse-A and reverse-B extraction methods, derivation, and Ring Trick II (cyclic shift score maximisation via difference convolution).</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/fft/>#fft</a>
+<a href=/tags/ntt/>#ntt</a>
+<a href=/tags/convolution/>#convolution</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-2-ex2-cyclic-convolution/ aria-label="Read Combinatorics #2-ex2: Cyclic Convolution"></a><div class=post-entry-date><time datetime=2026-04-25>2026.04.25</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>5 min read</span></div><h3><a href=/posts/combinatorics-2-ex2-cyclic-convolution/>Combinatorics #2-ex2: Cyclic Convolution</a></h3><p>Cyclic convolution definition, FFT/NTT implementation for n=2^k, zero-padding, why n must be a power of two, and the fold-back technique for arbitrary n.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/fft/>#fft</a>
+<a href=/tags/ntt/>#ntt</a>
+<a href=/tags/convolution/>#convolution</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-2-1-fft-lagrange-interpolation/ aria-label="Read Combinatorics #2.1: FFT and Lagrange Interpolation"></a><div class=post-entry-date><time datetime=2026-04-25>2026.04.25</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>10 min read</span></div><h3><a href=/posts/combinatorics-2-1-fft-lagrange-interpolation/>Combinatorics #2.1: FFT and Lagrange Interpolation</a></h3><p>Polynomial representations, FFT/DFT over complex numbers, Triple Sums, Fuzzy Search (difference convolution), FFT template, Lagrange interpolation (O(n²) and O(n) equidistant), sum of k-th powers, Assigning Prizes …</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/fft/>#fft</a>
+<a href=/tags/polynomial/>#polynomial</a>
+<a href=/tags/lagrange/>#lagrange</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-2-2-primitive-roots-ntt/ aria-label="Read Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT"></a><div class=post-entry-date><time datetime=2026-04-25>2026.04.25</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>12 min read</span></div><h3><a href=/posts/combinatorics-2-2-primitive-roots-ntt/>Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT</a></h3><p>Order and primitive roots (Euler&rsquo;s theorem, BSGS, exBSGS), discrete index as logarithm analogue, SGU 261 Discrete Roots, NTT theory and templates, divide-and-conquer NTT (product tree), Wannafly D team selection, …</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/ntt/>#ntt</a>
+<a href=/tags/primitive-root/>#primitive-root</a>
+<a href=/tags/bsgs/>#bsgs</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-3-1-ordinary-generating-functions/ aria-label="Read Combinatorics #3.1: Ordinary Generating Functions"></a><div class=post-entry-date><time datetime=2026-04-25>2026.04.25</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>8 min read</span></div><h3><a href=/posts/combinatorics-3-1-ordinary-generating-functions/>Combinatorics #3.1: Ordinary Generating Functions</a></h3><p>Formal power series basics, ordinary generating functions, inversion identities, generalized binomial expansions, bounded counting examples, and recurrence-to-closed-form examples such as Fibonacci and Catalan.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/generating-function/>#generating-function</a>
+<a href=/tags/ogf/>#ogf</a>
+<a href=/tags/recurrence/>#recurrence</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-3-2-more-operations-on-formal-power-series/ aria-label="Read Combinatorics #3.2: More Operations on Formal Power Series"></a><div class=post-entry-date><time datetime=2026-04-25>2026.04.25</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>15 min read</span></div><h3><a href=/posts/combinatorics-3-2-more-operations-on-formal-power-series/>Combinatorics #3.2: More Operations on Formal Power Series</a></h3><p>Newton iteration for polynomial inverse and square root, derivative/integral/composition of formal power series, logarithm and exponential of series, and worked examples including CF438E and a bad-modulus …</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/generating-function/>#generating-function</a>
+<a href=/tags/formal-power-series/>#formal-power-series</a>
+<a href=/tags/ntt/>#ntt</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-1-1-permutations-combinations/ aria-label="Read Combinatorics #1.1: Permutations and Combinations"></a><div class=post-entry-date><time datetime=2026-04-24>2026.04.24</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>9 min read</span></div><h3><a href=/posts/combinatorics-1-1-permutations-combinations/>Combinatorics #1.1: Permutations and Combinations</a></h3><p>Hockey Stick identity, addition/multiplication principles, binomial identities, example problems: bitonic sequences, multiset permutations, multi-layer coloring DP, CCPC Subpermutation.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/permutation/>#permutation</a>
+<a href=/tags/combination/>#combination</a>
+<a href=/tags/hockey-stick/>#hockey-stick</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-d1-diophantine-equations/ aria-label="Read Combinatorics D1: Diophantine Equations"></a><div class=post-entry-date><time datetime=2026-04-24>2026.04.24</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>13 min read</span></div><h3><a href=/posts/combinatorics-d1-diophantine-equations/>Combinatorics D1: Diophantine Equations</a></h3><p>Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;C NTT, equal-cap formula, and a full worked example on CF 2127F.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/diophantine/>#diophantine</a>
+<a href=/tags/stars-and-bars/>#stars-and-bars</a>
+<a href=/tags/inclusion-exclusion/>#inclusion-exclusion</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-0-common-formulae-conclusions/ aria-label="Read Combinatorics #0: Common Formulae & Conclusions"></a><div class=post-entry-date><time datetime=2026-04-20>2026.04.20</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>10 min read</span></div><h3><a href=/posts/combinatorics-0-common-formulae-conclusions/>Combinatorics #0: Common Formulae & Conclusions</a></h3><p>A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/floor-sum/>#floor-sum</a>
+<a href=/tags/xor/>#xor</a>
+<a href=/tags/fibonacci/>#fibonacci</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-1-counting-conclusions/ aria-label="Read Combinatorics #0.1: 计数中常用的结论"></a><div class=post-entry-date><time datetime=2026-04-20>2026.04.20</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>12 min read</span></div><h3><a href=/posts/combinatorics-1-counting-conclusions/>Combinatorics #0.1: 计数中常用的结论</a></h3><p>常见计数结论、Lucas 定理、不定方程解计数、平面分拆、DAG 路径计数、多项式平移、XOR 均匀性与若干竞赛常用结论。</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/counting/>#counting</a>
+<a href=/tags/lucas/>#lucas</a>
+<a href=/tags/partition/>#partition</a></div></div></article><article class=post-entry><a class=post-entry-cover-link href=/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/ aria-label="Read Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements"></a><div class=post-entry-date><time datetime=2026-04-20>2026.04.20</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
+<span>2 min read</span></div><h3><a href=/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/>Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements</a></h3><p>Inclusion-exclusion in set and operator form, equal-count subproblems, bounded Diophantine counting, derangements, Stirling numbers, and selected contest problems.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
+<a href=/tags/combinatorics/>#combinatorics</a>
+<a href=/tags/inclusion-exclusion/>#inclusion-exclusion</a>
+<a href=/tags/derangements/>#derangements</a>
+<a href=/tags/diophantine/>#diophantine</a></div></div></article></div></section></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+<a href=/posts/>Posts</a>
+<a href=/archives/>Archives</a>
+<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";document.documentElement.classList.add("theme-switching"),o(e,!0),window.setTimeout(function(){document.documentElement.classList.remove("theme-switching")},620)})})()</script></body></html>
