@@ -1,4 +1,4 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Number Theory #3.1: Sieve Problems — Coin System DP via Sieve | Jasper's Technical Notebook</title><meta name=description content="A sieve-style dynamic programming problem on coin systems whose denominations form a divisibility chain, including the greedy optimality proof, transition derivation, and full implementation."><link rel=canonical href=https://jmaaa32.github.io/posts/number-theory-3-1-sieve-problems/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Number Theory #3.1: Sieve Problems — Coin System DP via Sieve | Jasper's Technical Notebook</title><meta name=description content="A sieve-style DP for a coin-system problem where every later denomination is a multiple of a previous one."><link rel=canonical href=https://jmaaa32.github.io/posts/number-theory-3-1-sieve-problems/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
 <span><strong>Jasper's Technical Notebook</strong>
 <small>Algorithms, systems, and engineering notes</small>
 </span></a><button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
@@ -16,31 +16,66 @@
 <a class=chip href=/tags/sieve/>#sieve</a>
 <a class=chip href=/tags/dp/>#dp</a>
 <a class=chip href=/tags/coin-system/>#coin-system</a>
-<a class=chip href=/tags/greedy/>#greedy</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#sieve-method-problems>Sieve-Method Problems</a></li><li><a href=#1-key-property>1 Key Property</a></li><li><a href=#2-state-design-and-optimal-substructure>2 State Design and Optimal Substructure</a></li><li><a href=#3-deriving-the-transition-how-much-does-one-new-coin-save>3 Deriving the Transition: How Much Does One New Coin Save?</a></li><li><a href=#ficdot-j>$$
-f[i\cdot j]</a></li><li><a href=#4-initialization-and-answer>4 Initialization and Answer</a></li></ul></nav></div></details><div class="article-content prose"><h1 id=sieve-method-problems>Sieve-Method Problems</h1><blockquote><p><strong>[Example — Nowcoder 19895: Sieve + DP]</strong></p><p>We need to create a sequence of coin denominations. Suppose the denominations are $x_1,x_2,x_3,\ldots$. Then $x_1$ must be $1$, and each later denomination must be a positive integer multiple of an earlier one: $x_b$ is a multiple of $x_a$ for $b>a$.</p><p>For example, $1,5,125,250$ is valid, while $1,5,100,125$ is not.</p><p>Given prices $w_1,w_2,\ldots,w_N$ of $N$ items, choose a valid coin system that minimizes the total number of coins needed to buy all items. No change is allowed.</p></blockquote><h1 id=1-key-property>1 Key Property</h1><p>For this kind of system, where each later denomination is a multiple of an earlier denomination, there is an important property:</p><blockquote><p><strong>Greedy is optimal.</strong> To pay an amount $A$, always use the largest current denomination not exceeding $A$, then the next largest, and so on.</p><p><strong>Reason.</strong> A larger denomination can always replace several smaller denominations because of the divisibility condition. Using one large coin is never worse than using the corresponding group of smaller coins.</p></blockquote><p>Therefore, if the maximum denomination is fixed at $M$, then for each price $a_k$, the optimal number of coins is obtained by greedy decomposition under this coin system.</p><h1 id=2-state-design-and-optimal-substructure>2 State Design and Optimal Substructure</h1><p>Let</p>$$
-f[i] := \text{minimum total number of coins needed when the maximum denomination is exactly } i.
-$$<p>Why does this have optimal substructure?</p><p>If an optimal sequence ends with maximum denomination $M$, then its previous denomination must be some $i$ with $i\mid M$. Removing $M$ leaves a valid coin system whose maximum denomination is $i$. That prefix must itself be optimal for the subproblem with maximum denomination $i$; otherwise replacing it by a better prefix would improve the whole solution, which is a contradiction.</p><p>Thus, any optimal sequence ending at $M$ can be viewed as taking an optimal sequence ending at some $i$ and then adding one new denomination</p>$$
-M=i\cdot j.
-$$<p>This is the basis of the transition from $f[i]$ to $f[M]$.</p><h1 id=3-deriving-the-transition-how-much-does-one-new-coin-save>3 Deriving the Transition: How Much Does One New Coin Save?</h1><p>Suppose we already have an optimal solution whose maximum denomination is $i$, and we want to add a larger denomination</p>$$
+<a class=chip href=/tags/greedy/>#greedy</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#problem>Problem</a></li><li><a href=#1-key-property-greedy-is-optimal>1 Key Property: Greedy Is Optimal</a></li><li><a href=#2-dp-state>2 DP State</a></li><li><a href=#fi>$$
+f[i]</a></li><li><a href=#3-transition-how-much-does-one-new-coin-save>3 Transition: How Much Does One New Coin Save?</a></li><li><a href=#textsave>$$
+\text{save}</a></li><li><a href=#ficdot-j>$$
+f[i\cdot j]</a></li><li><a href=#4-initialization-and-answer>4 Initialization and Answer</a></li><li><a href=#5-why-this-is-a-sieve-style-dp>5 Why This Is a Sieve-Style DP</a></li><li><a href=#sum_i1vleftlfloorfracvirightrfloor>$$
+\sum_{i=1}^{V}\left\lfloor\frac{V}{i}\right\rfloor</a></li><li><a href=#6-implementation>6 Implementation</a></li><li><a href=#7-optimized-counting-variant>7 Optimized Counting Variant</a></li><li><a href=#gt>$$
+g[t]</a></li></ul></nav></div></details><div class="article-content prose"><h1 id=problem>Problem</h1><blockquote><p><strong>[Example — Nowcoder 19895: Sieve + DP]</strong></p><p>We want to design a sequence of coin denominations</p>$$
+> x_1,x_2,x_3,\ldots
+> $$<p>satisfying the following rules:</p><ul><li>$x_1=1$.</li><li>The denominations form a divisibility chain: for every $a\lt b$, $x_b$ is a positive integer multiple of $x_a$. Equivalently, each newly appended denomination must be a multiple of the current largest denomination.</li></ul><p>For example, $1,5,125,250$ is a valid coin system, while $1,5,100,125$ is not.</p><p>Given $N$ item prices</p>$$
+> w_1,w_2,\ldots,w_N,
+> $$<p>choose a valid coin system that minimizes the total number of coins needed to buy all items. No change is allowed.</p></blockquote><p>This is a number-theory-flavored DP problem because the legal transitions between denominations are exactly divisibility transitions. Once the current largest denomination is $i$, the next denomination can be any multiple $i\cdot j$.</p><h1 id=1-key-property-greedy-is-optimal>1 Key Property: Greedy Is Optimal</h1><p>For a coin system where every new denomination is built as a multiple of the previous largest denomination, greedy payment is optimal.</p><p>That is, to pay an amount $A$, always use the largest coin not exceeding the remaining amount, then repeat.</p><p>The reason is the divisibility constraint. If a larger coin has value $M=i\cdot j$, then one $M$-coin can replace exactly $j$ coins of value $i$. Using the larger coin is never worse than using those smaller coins:</p>$$
+j\text{ coins of value }i
+\quad\Longrightarrow\quad
+1\text{ coin of value }i\cdot j.
+$$<p>So if the largest denomination is fixed, the best way to pay each price is determined by greedy decomposition.</p><h1 id=2-dp-state>2 DP State</h1><p>Let</p><h1 id=fi>$$
+f[i]</h1><p>\text{minimum total number of coins needed when the largest denomination is exactly }i.
+$$</p><p>The largest denomination matters because once it is fixed at $i$, the next coin we add must be a multiple of $i$:</p>$$
 M=i\cdot j,\qquad j\ge 2.
-$$<p>After adding $M$, what changes?</p><ul><li>For any price $a_k$, under the old system with maximum denomination $i$, the greedy decomposition contains some number of $i$-coins.</li><li>After adding $M=i\cdot j$, every group of $j$ coins of denomination $i$ can be replaced by one coin of denomination $M$.</li><li>Each such replacement reduces the coin count by $j-1$.</li></ul><p>For one item with price $a_k$, the number of such replaceable groups is</p>$$
-\left\lfloor\frac{a_k}{i\cdot j}\right\rfloor.
-$$<p>So this item saves</p>$$
-(j-1)\left\lfloor\frac{a_k}{i\cdot j}\right\rfloor
-$$<p>coins. Summing over all items, the total saving from adding $M=i\cdot j$ is</p>$$
-\text{cnt}=(j-1)\sum_{k=1}^{N}\left\lfloor\frac{a_k}{i\cdot j}\right\rfloor.
-$$<p>Therefore:</p><h1 id=ficdot-j>$$
+$$<p>This gives the optimal substructure.</p><p>Suppose an optimal coin system ends with maximum denomination $M$. The denomination right before $M$ must be some $i$ with</p>$$
+i\mid M.
+$$<p>After removing $M$, the remaining denominations are still valid. Moreover, that remaining prefix must be optimal among all systems whose maximum denomination is $i$; otherwise we could replace it by a better prefix and improve the whole system.</p><p>Therefore, every optimal system ending at $M$ can be seen as:</p><ol><li>take an optimal system ending at some divisor $i$;</li><li>add one new denomination $M=i\cdot j$.</li></ol><p>This is why the transition enumerates multiples, just like a sieve.</p><h1 id=3-transition-how-much-does-one-new-coin-save>3 Transition: How Much Does One New Coin Save?</h1><p>Assume we already have the best system whose maximum coin is $i$. Now add a larger coin</p>$$
+M=i\cdot j,\qquad j\ge 2.
+$$<p>For one price $w_k$, before adding $M$, greedy decomposition may contain several $i$-coins. After adding $M$, every group of $j$ such $i$-coins can be replaced by one $M$-coin.</p><p>For this one item, the number of replaceable groups is</p>$$
+\left\lfloor \frac{w_k}{i\cdot j}\right\rfloor.
+$$<p>Each replacement changes</p>$$
+j\text{ small coins}
+\quad\to\quad
+1\text{ large coin},
+$$<p>so it saves $j-1$ coins.</p><p>Thus, for this one item, the number of coins saved is</p>$$
+(j-1)\left\lfloor \frac{w_k}{i\cdot j}\right\rfloor.
+$$<p>Summing over all items, adding the coin $M=i\cdot j$ saves</p><h1 id=textsave>$$
+\text{save}</h1><p>(j-1)
+\sum_{k=1}^{N}
+\left\lfloor \frac{w_k}{i\cdot j}\right\rfloor.
+$$</p><p>So the DP transition is</p><h1 id=ficdot-j>$$
 f[i\cdot j]</h1><p>\min\left(
 f[i\cdot j],
-f[i]-\text{cnt}
+f[i]-\text{save}
 \right).
-$$</p><p><strong>Intuition.</strong> Start from the question &ldquo;how can adding a larger denomination reduce the number of coins?&rdquo; The only possible improvement is packing several adjacent smaller coins into one larger coin. The replacement rate is fixed: $j$ coins become $1$ coin, so each replacement saves $j-1$ coins. The number of replacements for price $a_k$ is exactly $\lfloor a_k/(i\cdot j)\rfloor$.</p><h1 id=4-initialization-and-answer>4 Initialization and Answer</h1><ul><li>With only the $1$-coin, buying item $a_k$ needs $a_k$ coins, so</li></ul>$$
-f[1]=\sum_{k=1}^{N}a_k.
-$$<ul><li>Denominations larger than $\max a_k$ are useless because no change is allowed.</li><li>The final answer is</li></ul>$$
-\min_{1\le i\le \max A} f[i].
-$$<p>The complexity is</p>$$
-O(\max A\log \max A),
-$$<p>from the harmonic-series style enumeration of multiples.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;iostream&gt;</span><span style=color:#ff79c6>
+$$</p><p>This is the core idea: adding a larger denomination is useful only because it packs several smaller coins into one coin. The packing ratio is fixed by divisibility, and the number of packs is counted by floor division.</p><h1 id=4-initialization-and-answer>4 Initialization and Answer</h1><p>If the only coin is $1$, then buying an item with price $w_k$ needs exactly $w_k$ coins. Therefore,</p>$$
+f[1]=\sum_{k=1}^{N}w_k.
+$$<p>There is no need to consider denominations larger than</p>$$
+\max w_k,
+$$<p>because no item can use such a coin when no change is allowed.</p><p>The answer is</p>$$
+\min_{1\le i\le \max w_k} f[i].
+$$<h1 id=5-why-this-is-a-sieve-style-dp>5 Why This Is a Sieve-Style DP</h1><p>The transition has the form</p>$$
+i \to i\cdot j.
+$$<p>So for every possible current maximum denomination $i$, we enumerate all larger denominations that are multiples of $i$:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> max_price; i<span style=color:#ff79c6>++</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>*</span> j <span style=color:#ff79c6>&lt;=</span> max_price; j<span style=color:#ff79c6>++</span>) {
+</span></span><span style=display:flex><span>        <span style=color:#6272a4>// transition from i to i * j
+</span></span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>This is the same enumeration pattern as a divisor/multiple sieve.</p><p>The number of pairs $(i,j)$ with $i\cdot j\le V$ is</p><h1 id=sum_i1vleftlfloorfracvirightrfloor>$$
+\sum_{i=1}^{V}\left\lfloor\frac{V}{i}\right\rfloor</h1><p>O(V\log V),
+$$</p><p>where $V=\max w_k$.</p><p>The direct implementation below recomputes</p>$$
+\sum_k \left\lfloor\frac{w_k}{i\cdot j}\right\rfloor
+$$<p>inside the transition, so its running time is</p>$$
+O(NV\log V).
+$$<p>If needed, this term can be precomputed by frequency counting:</p>$$
+g[t]=\sum_{k=1}^{N}\left\lfloor\frac{w_k}{t}\right\rfloor.
+$$<p>Then the DP itself becomes $O(V\log V)$.</p><h1 id=6-implementation>6 Implementation</h1><p>This is the direct version corresponding to the derivation above.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;iostream&gt;</span><span style=color:#ff79c6>
 </span></span></span><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;algorithm&gt;</span><span style=color:#ff79c6>
 </span></span></span><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;cstring&gt;</span><span style=color:#ff79c6>
 </span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
@@ -51,11 +86,11 @@ $$<p>from the harmonic-series style enumeration of multiples.</p><div class=high
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
 </span></span><span style=display:flex><span>    memset(f, <span style=color:#bd93f9>0x3f</span>, <span style=color:#ff79c6>sizeof</span> f);
-</span></span><span style=display:flex><span>    f[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n, max_price <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
 </span></span><span style=display:flex><span>    cin <span style=color:#ff79c6>&gt;&gt;</span> n;
 </span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    f[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; i<span style=color:#ff79c6>++</span>) {
 </span></span><span style=display:flex><span>        cin <span style=color:#ff79c6>&gt;&gt;</span> w[i];
 </span></span><span style=display:flex><span>        f[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>+=</span> w[i];
@@ -64,25 +99,58 @@ $$<p>from the harmonic-series style enumeration of multiples.</p><div class=high
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> max_price; i<span style=color:#ff79c6>++</span>) {
 </span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>*</span> j <span style=color:#ff79c6>&lt;=</span> max_price; j<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> cnt <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> save <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; k <span style=color:#ff79c6>&lt;=</span> n; k<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>                cnt <span style=color:#ff79c6>+=</span> w[k] <span style=color:#ff79c6>/</span> (i <span style=color:#ff79c6>*</span> j);
+</span></span><span style=display:flex><span>                save <span style=color:#ff79c6>+=</span> w[k] <span style=color:#ff79c6>/</span> (i <span style=color:#ff79c6>*</span> j);
 </span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>            cnt <span style=color:#ff79c6>=</span> cnt <span style=color:#ff79c6>*</span> (j <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>            f[i <span style=color:#ff79c6>*</span> j] <span style=color:#ff79c6>=</span> min(f[i <span style=color:#ff79c6>*</span> j], f[i] <span style=color:#ff79c6>-</span> cnt);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            save <span style=color:#ff79c6>*=</span> (j <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>            f[i <span style=color:#ff79c6>*</span> j] <span style=color:#ff79c6>=</span> min(f[i <span style=color:#ff79c6>*</span> j], f[i] <span style=color:#ff79c6>-</span> save);
 </span></span><span style=display:flex><span>        }
 </span></span><span style=display:flex><span>    }
 </span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> res <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1e9</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>10</span>;
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1e9</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>10</span>;
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> max_price; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        res <span style=color:#ff79c6>=</span> min(res, f[i]);
+</span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>=</span> min(ans, f[i]);
 </span></span><span style=display:flex><span>    }
 </span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> res <span style=color:#ff79c6>&lt;&lt;</span> endl;
+</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> ans <span style=color:#ff79c6>&lt;&lt;</span> endl;
 </span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
 </span></span><span style=display:flex><span>}
-</span></span></code></pre></div></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#sieve-method-problems>Sieve-Method Problems</a></li><li><a href=#1-key-property>1 Key Property</a></li><li><a href=#2-state-design-and-optimal-substructure>2 State Design and Optimal Substructure</a></li><li><a href=#3-deriving-the-transition-how-much-does-one-new-coin-save>3 Deriving the Transition: How Much Does One New Coin Save?</a></li><li><a href=#ficdot-j>$$
-f[i\cdot j]</a></li><li><a href=#4-initialization-and-answer>4 Initialization and Answer</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+</span></span></code></pre></div><h1 id=7-optimized-counting-variant>7 Optimized Counting Variant</h1><p>The expensive part of the direct code is the loop over all prices for every transition:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; k <span style=color:#ff79c6>&lt;=</span> n; k<span style=color:#ff79c6>++</span>) {
+</span></span><span style=display:flex><span>    save <span style=color:#ff79c6>+=</span> w[k] <span style=color:#ff79c6>/</span> (i <span style=color:#ff79c6>*</span> j);
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Since the transition only needs the value</p>$$
+\sum_k \left\lfloor\frac{w_k}{t}\right\rfloor,
+$$<p>where $t=i\cdot j$, we can precompute it for every $t$.</p><p>Let $\text{freq}[x]$ be the number of items with price $x$. Then</p><h1 id=gt>$$
+g[t]</h1><p>\sum_{x=1}^{V}\text{freq}[x]\left\lfloor\frac{x}{t}\right\rfloor.
+$$</p><p>Use a prefix count array and group prices by the value of $\lfloor x/t\rfloor$:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> freq(max_price <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>), pref(max_price <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>), g(max_price <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; i<span style=color:#ff79c6>++</span>) {
+</span></span><span style=display:flex><span>    freq[w[i]]<span style=color:#ff79c6>++</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> x <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; x <span style=color:#ff79c6>&lt;=</span> max_price; x<span style=color:#ff79c6>++</span>) {
+</span></span><span style=display:flex><span>    pref[x] <span style=color:#ff79c6>=</span> pref[x <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>+</span> freq[x];
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; t <span style=color:#ff79c6>&lt;=</span> max_price; t<span style=color:#ff79c6>++</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> q <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, l <span style=color:#ff79c6>=</span> t; l <span style=color:#ff79c6>&lt;=</span> max_price; q<span style=color:#ff79c6>++</span>, l <span style=color:#ff79c6>+=</span> t) {
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> r <span style=color:#ff79c6>=</span> min(max_price, l <span style=color:#ff79c6>+</span> t <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> cnt <span style=color:#ff79c6>=</span> pref[r] <span style=color:#ff79c6>-</span> pref[l <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>];
+</span></span><span style=display:flex><span>        g[t] <span style=color:#ff79c6>+=</span> q <span style=color:#ff79c6>*</span> cnt;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>Then the transition becomes:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>*</span> j;
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> save <span style=color:#ff79c6>=</span> (j <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>*</span> g[t];
+</span></span><span style=display:flex><span>f[t] <span style=color:#ff79c6>=</span> min(f[t], f[i] <span style=color:#ff79c6>-</span> save);
+</span></span></code></pre></div><p>The important point is not the implementation detail, but the modeling step:</p><p>the effect of adding denomination $i\cdot j$ depends only on how many complete blocks of size $i\cdot j$ appear across all item prices.</p></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#problem>Problem</a></li><li><a href=#1-key-property-greedy-is-optimal>1 Key Property: Greedy Is Optimal</a></li><li><a href=#2-dp-state>2 DP State</a></li><li><a href=#fi>$$
+f[i]</a></li><li><a href=#3-transition-how-much-does-one-new-coin-save>3 Transition: How Much Does One New Coin Save?</a></li><li><a href=#textsave>$$
+\text{save}</a></li><li><a href=#ficdot-j>$$
+f[i\cdot j]</a></li><li><a href=#4-initialization-and-answer>4 Initialization and Answer</a></li><li><a href=#5-why-this-is-a-sieve-style-dp>5 Why This Is a Sieve-Style DP</a></li><li><a href=#sum_i1vleftlfloorfracvirightrfloor>$$
+\sum_{i=1}^{V}\left\lfloor\frac{V}{i}\right\rfloor</a></li><li><a href=#6-implementation>6 Implementation</a></li><li><a href=#7-optimized-counting-variant>7 Optimized Counting Variant</a></li><li><a href=#gt>$$
+g[t]</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
 <a href=/posts/>Posts</a>
 <a href=/archives/>Archives</a>
 <a href=/tags/>Tags</a></div></footer></div><script>(function(){const t=document.querySelector(".nav-toggle"),n=document.querySelector("#site-navigation");if(!t||!n)return;function e(e){document.documentElement.classList.toggle("nav-open",e),t.setAttribute("aria-expanded",String(e))}t.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),n.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0})})()</script></body></html>
