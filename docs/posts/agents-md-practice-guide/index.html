@@ -1,117 +1,669 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>AGENTS.md Practice Guide — Map, Commands, and Verification Loops for AI Coding Agents | Jasper's Technical Notebook</title><meta name=description content="AGENTS.md as an AI-readable project map: hard rules, quick commands, verification loops, reference projects, and bad-case-driven maintenance for reliable agentic coding."><link rel=canonical href=https://jmaaa32.github.io/posts/agents-md-practice-guide/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small>
-</span></a><button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class="nav-link is-active" href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>AGENTS.md Practice Guide — Map, Commands, and Verification Loops for AI Coding Agents</h1><div class=article-meta><time datetime=2026-05-02>May 2, 2026</time>
-<span>·</span>
-<span>Engineering</span></div><div class=chip-row><a class=chip href=/tags/ai-coding/>#ai-coding</a>
-<a class=chip href=/tags/agents-md/>#agents-md</a>
-<a class=chip href=/tags/harness-engineering/>#harness-engineering</a>
-<a class=chip href=/tags/agent-workflow/>#agent-workflow</a>
-<a class=chip href=/tags/quality-assurance/>#quality-assurance</a>
-<a class=chip href=/tags/developer-tools/>#developer-tools</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><ul><li><a href=#summary>Summary</a></li><li><a href=#what-agentsmd-is>What AGENTS.md Is</a></li><li><a href=#the-problem-without-agentsmd>The Problem Without AGENTS.md</a></li><li><a href=#core-principle-map-not-manual>Core Principle: Map, Not Manual</a></li><li><a href=#five-key-practices>Five Key Practices</a></li><li><a href=#recommended-agentsmd-structure>Recommended AGENTS.md Structure</a></li><li><a href=#implementation-advice>Implementation Advice</a></li><li><a href=#relationship-to-quality-assurance--overclock-mode>Relationship To Quality Assurance / Overclock Mode</a></li><li><a href=#actionable-checklist>Actionable Checklist</a></li><li><a href=#takeaway>Takeaway</a></li><li><a href=#reference-blog>Reference Blog</a></li></ul></li></ul></nav></div></details><div class="article-content prose"><h2 id=summary>Summary</h2><p>AGENTS.md is a README for AI agents.</p><p>Its purpose is not to cram all project documentation into one file. Its purpose is to give an AI coding agent the smallest useful map of the project: what the project is, where the code lives, what rules must not be violated, how to build it, how to verify it, and where to find deeper documentation.</p><p>The target experience is:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>Agent opens the repo -&gt; understands the project
-</span></span><span style=display:flex><span>Agent changes code -&gt; knows how to verify it
-</span></span><span style=display:flex><span>Agent violates a rule -&gt; automation catches it
-</span></span></code></pre></div><p>This is directly aligned with Harness Engineering and agentic workflows. The human role moves from manually checking every step to designing a feedback loop that the agent can execute.</p><hr><h2 id=what-agentsmd-is>What AGENTS.md Is</h2><p>AGENTS.md is an open Markdown convention placed at the repository root to guide AI coding agents.</p><p>It usually contains:</p><ul><li>Project overview</li><li>Repository structure</li><li>Build, run, and test commands</li><li>Coding rules</li><li>Safety constraints</li><li>Verification workflow</li><li>Documentation map</li></ul><p>README.md is for humans. AGENTS.md is for AI first, humans second: its focus is project rules, commands, the verification loop, and forbidden actions—not a project intro.</p><p>Different AI coding tools used to have different context files: Claude Code uses <code>CLAUDE.md</code>, Cursor uses <code>.cursor/rules</code>, Copilot uses <code>.github/copilot-instructions.md</code>, and Codex uses <code>AGENTS.md</code>.</p><p>The value of AGENTS.md is that it gives teams one common entry point instead of duplicating the same rules across many tool-specific files. Claude Code can still be supported with a symlink:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>ln -s AGENTS.md CLAUDE.md
-</span></span></code></pre></div><hr><h2 id=the-problem-without-agentsmd>The Problem Without AGENTS.md</h2><p>The article&rsquo;s main diagnosis is simple:</p><blockquote><p>Project knowledge and project rules live in people&rsquo;s heads instead of in a place that AI can read and execute.</p></blockquote><p>Common failure modes:</p><ol><li><p><strong>Fragmented context</strong><br>Frontend, backend, component libraries, and docs are split across repositories. The agent only sees one slice of the system and loses context when a feature crosses boundaries.</p></li><li><p><strong>Private components are invisible to AI</strong><br>Closed-source component libraries are not in training data and often lack public docs. The agent misuses props, misses required config, or invents APIs.</p></li><li><p><strong>The agent does not know project rules</strong><br>Examples: exceptions must use <code>BusinessException</code>, response bodies must be wrapped by the framework, controllers must not depend on repositories directly. These rules are obvious to the team but invisible to the agent.</p></li><li><p><strong>The agent cannot start or verify the project</strong><br>Environment variables, startup commands, and validation steps are scattered across personal machines, IDE configs, and chat history. The agent can edit code but cannot close the loop.</p></li></ol><p>AGENTS.md does not make the model smarter. It makes the project more legible to AI.</p><hr><h2 id=core-principle-map-not-manual>Core Principle: Map, Not Manual</h2><p><img src=/images/engineering/agents-map-not-manual.png alt="Map, Not Manual"></p><p>The first principle is <strong>Map, not Manual</strong>.</p><p>AGENTS.md should be a navigation map, not a giant handbook.</p><p>Only two kinds of information belong directly in AGENTS.md:</p><ol><li><p><strong>Information required for the agent to understand the project</strong><br>Tech stack, repository layout, core modules, architecture boundaries.</p></li><li><p><strong>Hard rules whose violation causes real problems</strong><br>Coding conventions, forbidden dependencies, naming rules, mandatory checks.</p></li></ol><p>Everything else should live in linked docs under <code>docs/</code>.</p><p>The decision rule:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>If the agent will write wrong code without it -&gt; put it in AGENTS.md
-</span></span><span style=display:flex><span>If the agent will merely write less ideal code without it -&gt; put it in docs/ and link it
-</span></span></code></pre></div><p>A 5000-line AGENTS.md dilutes attention. Important rules become easier to miss. The article recommends keeping it around 200 lines and using progressive disclosure.</p><hr><h2 id=five-key-practices>Five Key Practices</h2><h3 id=1-aggregate-repositories-to-reduce-context-loss>1. Aggregate Repositories To Reduce Context Loss</h3><p>If a feature crosses backend, frontend, docs, and component libraries, the agent should ideally see all relevant code in one workspace.</p><p>Practical options:</p><ul><li>Prefer monorepo for new systems.</li><li>For existing systems, use scripts to aggregate related repos locally.</li><li>Put auxiliary repos under gitignored directories if they should not affect CI/CD.</li><li>Include user docs when useful, so the agent can update documentation after code changes.</li></ul><p>The goal:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>The agent can inspect API definitions, frontend callers, component usage, and docs in one context.
-</span></span></code></pre></div><h3 id=2-standardize-local-environment-setup>2. Standardize Local Environment Setup</h3><p>Agents need a reliable way to start and verify the project.</p><p>The article&rsquo;s recommended pattern:</p><ul><li>Store local environment variables in <code>~/.&lt;project>_env</code>.</li><li>Startup scripts automatically source the file.</li><li>AGENTS.md documents the env file location and precedence.</li><li>Startup scripts encapsulate JDK checks, process shutdown, restart, and health polling.</li></ul><p>The agent should not need to understand the whole environment. It should only need stable commands:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>./scripts/start-server.sh
-</span></span><span style=display:flex><span>./scripts/start-server.sh --quick
-</span></span><span style=display:flex><span>./scripts/start-server.sh --skip-build
-</span></span></code></pre></div><p>This is an engineering move: reduce the agent&rsquo;s operational burden.</p><h3 id=3-close-the-verification-loop>3. Close the Verification Loop</h3><p>Code modification is not the end of the task. A task is only done when the feature is verified.</p><p>For backend work, use bash/curl verification. For frontend work, use an agent browser or screenshot-based checks when layout and interaction matter.</p><p>The article recommends strict curl conventions:</p><ul><li>Run each curl independently.</li><li>Write outputs to <code>/tmp/</code> files.</li><li>Parse JSON with separate commands.</li><li>Template the login/token flow.</li><li>Document log locations and database access paths.</li></ul><p>This looks verbose, but it is robust. Agents often fail on shell quoting, zsh glob behavior, or fragile pipes. Temporary files are less elegant but more reliable.</p><p>Target loop:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>Agent completes task
-</span></span><span style=display:flex><span>  -&gt; builds
-</span></span><span style=display:flex><span>  -&gt; starts service
-</span></span><span style=display:flex><span>  -&gt; verifies API or UI
-</span></span><span style=display:flex><span>  -&gt; fixes based on the result
-</span></span></code></pre></div><p>This is a prerequisite for unattended or overnight agent work.</p><h3 id=4-give-rules-executable-force>4. Give Rules Executable Force</h3><p>Rules written in AGENTS.md are weak unless automation enforces them.</p><p>The article&rsquo;s example is layered dependency checking:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>L0 entity      -&gt; may depend only on common
-</span></span><span style=display:flex><span>L1 repository  -&gt; may depend only on entity, common
-</span></span><span style=display:flex><span>L5 controller  -&gt; may depend only on service, core, common
-</span></span></code></pre></div><p>A script scans imports and reports violations. The error message format matters:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>WHAT: what rule was violated
-</span></span><span style=display:flex><span>WHY: why this is not allowed
-</span></span><span style=display:flex><span>HOW: how to fix it
-</span></span></code></pre></div><p>This format is useful for humans and agents. If the agent sees HOW, it can often self-correct without additional explanation.</p><p>Rule priority:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>Automated checks &gt; AGENTS.md rules &gt; oral conventions
-</span></span></code></pre></div><h3 id=5-use-reference-projects-not-just-documentation>5. Use Reference Projects, Not Just Documentation</h3><p>For closed-source components, internal systems, or code that the model has never seen, documentation can lag behind reality.</p><p>The article recommends bringing reference source code into the workspace:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>reference-projects/
-</span></span><span style=display:flex><span>  pro-components/
-</span></span><span style=display:flex><span>  other-product-backend/
-</span></span><span style=display:flex><span>  other-product-frontend/
-</span></span><span style=display:flex><span>  open-source-reference/
-</span></span></code></pre></div><p>Then maintain <code>docs/design-docs/ref-*.md</code> files as maps:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>ref docs = tell the agent where important structures are
-</span></span><span style=display:flex><span>reference-projects = source of truth when details are needed
-</span></span></code></pre></div><p>The core claim:</p><blockquote><p>Source code never goes stale. It is the most accurate documentation.</p></blockquote><hr><h2 id=recommended-agentsmd-structure>Recommended AGENTS.md Structure</h2><p>A compact general structure:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-markdown data-lang=markdown><span style=display:flex><span><span style=font-weight:700># AGENTS.md
-</span></span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 1. Project Overview
-</span></span></span><span style=display:flex><span>What this project is, tech stack, repository layout.
-</span></span><span style=display:flex><span>The first 10 lines should establish the mental model.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 2. Quick Commands
-</span></span></span><span style=display:flex><span>Build, run, format, quality check, and test commands.
-</span></span><span style=display:flex><span>Environment file location and startup script behavior.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 3. Architecture
-</span></span></span><span style=display:flex><span>Core directory tree, module boundaries, layered architecture rules,
-</span></span><span style=display:flex><span>and links to deeper docs.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 4. Key Rules
-</span></span></span><span style=display:flex><span>5-10 hard rules that cause real problems if violated.
-</span></span><span style=display:flex><span>Each rule should include a reason or a link to detailed docs.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 5. Local Development and Verification
-</span></span></span><span style=display:flex><span>The full edit -&gt; build -&gt; start -&gt; verify loop.
-</span></span><span style=display:flex><span>curl/browser/log/database verification instructions.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 6. Quality Checks
-</span></span></span><span style=display:flex><span>Unified command matrix for lint, format, build, and test.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 7. Reference Projects
-</span></span></span><span style=display:flex><span>List of references, priority rules, and when to inspect them.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## 8. Documentation Map
-</span></span></span><span style=display:flex><span>Index of detailed docs.
-</span></span></code></pre></div><p>For a C++ trading system, this would become:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-markdown data-lang=markdown><span style=display:flex><span><span style=font-weight:700>## Quick Commands
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> cmake -B build -DCMAKE_BUILD_TYPE=Release
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> cmake --build build -j
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> ./build/test_order_book
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> ./build/test_strategies
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> ./build/benchmark
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## Hard Rules
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> Any change to order matching must preserve price-time priority.
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> No benchmark result may be trusted unless unit tests and semantic invariants pass first.
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> Do not optimize by changing trade sequence, fill quantity, or final book state.
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=font-weight:700>## Verification
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> Unit tests: ./build/test_order_book, ./build/test_strategies
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> Semantic invariants: fixed order scenario must match golden output
-</span></span><span style=display:flex><span><span style=color:#ff79c6>-</span> Performance: repeated benchmark, median comparison, threshold-based acceptance
-</span></span></code></pre></div><hr><h2 id=implementation-advice>Implementation Advice</h2><h3 id=start-with-auto-generated-init>Start With Auto-Generated Init</h3><p>Use a tool&rsquo;s <code>/init</code> command as a first draft, then tighten it manually.</p><p>The first version usually covers:</p><ul><li>Project overview</li><li>Basic build commands</li><li>Directory structure</li></ul><p>Then add project-specific constraints:</p><ul><li>Architecture boundaries</li><li>Verification scripts</li><li>Hard forbidden actions</li><li>Performance and semantic gates</li></ul><h3 id=iterate-from-bad-cases>Iterate From Bad Cases</h3><p>Do not try to write the perfect AGENTS.md in one pass.</p><p>Better loop:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>1. Agent makes a mistake
-</span></span><span style=display:flex><span>2. Identify why it happened
-</span></span><span style=display:flex><span>3. If it is a global rule, add it to AGENTS.md
-</span></span><span style=display:flex><span>4. If it is module-specific, add it to docs/
-</span></span><span style=display:flex><span>5. If it can be checked automatically, write a script instead of only writing prose
-</span></span></code></pre></div><p>AGENTS.md is a living project knowledge base, not a one-time document.</p><h3 id=mark-the-intended-reader>Mark The Intended Reader</h3><p>The article recommends making the audience clear:</p><table><thead><tr><th>File</th><th>Reader</th><th>Role</th></tr></thead><tbody><tr><td>README.md</td><td>Humans</td><td>Project intro and quick start</td></tr><tr><td>AGENTS.md</td><td>AI first, humans second</td><td>Automatically loaded project instructions</td></tr><tr><td>docs/*.md</td><td>AI first, humans can inspect</td><td>Module-level development manuals</td></tr><tr><td>scripts/*.sh</td><td>Humans and AI</td><td>Build, start, deploy, verify</td></tr></tbody></table><p>AGENTS.md is not a README replacement. It is the entry point for the AI workflow.</p><hr><h2 id=relationship-to-quality-assurance--overclock-mode>Relationship To Quality Assurance / Overclock Mode</h2><p>This article is not exactly about multi-agent adversarial review, but it provides the infrastructure underneath it.</p><p>Mapping:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>AGENTS.md
-</span></span><span style=display:flex><span>  -&gt; project map and hard rules for Builder, Critic, and Executor
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>scripts/*.sh
-</span></span><span style=display:flex><span>  -&gt; machine checks the Executor can run reliably
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>docs/*.md
-</span></span><span style=display:flex><span>  -&gt; rule source for the Critic&#39;s checklist
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>bad-case-driven updates
-</span></span><span style=display:flex><span>  -&gt; turn agent failures into durable rules
-</span></span></code></pre></div><p>AGENTS.md is not the whole quality system. It does not replace:</p><ul><li>Unit tests</li><li>Semantic invariants</li><li>Backtests</li><li>Benchmarks</li><li>CI</li><li>Critic review</li></ul><p>But it tells agents where those checks are, when they must run, and what counts as acceptance.</p><p>For the current trading-system learning path, AGENTS.md should do three things:</p><ol><li><p><strong>Teach the agent the hard rules of the matching engine</strong><br>Price-time priority, partial fills, stable trade sequence, final book state.</p></li><li><p><strong>Expose the verification commands</strong><br>Build, unit tests, fixed scenarios, benchmarks, and their required order.</p></li><li><p><strong>Define optimization boundaries</strong><br>Performance work must not change matching semantics. Benchmarks are only meaningful after correctness checks pass.</p></li></ol><p>In one sentence:</p><blockquote><p>AGENTS.md is the map of an agent quality system; scripts, tests, and CI provide the execution force.</p></blockquote><hr><h2 id=actionable-checklist>Actionable Checklist</h2><ul><li><input disabled type=checkbox> Run <code>claude /init</code> (or equivalent) to generate a first-draft AGENTS.md; tighten manually after</li><li><input disabled type=checkbox> Add hard rules specific to this project — matching semantics, layer boundaries, forbidden actions</li><li><input disabled type=checkbox> Write or link verification scripts: build → unit tests → semantic invariants → benchmark; document their required order</li><li><input disabled type=checkbox> Keep it under 200 lines; push detailed docs to <code>docs/</code> and link from AGENTS.md</li><li><input disabled type=checkbox> Add <code>ln -s AGENTS.md CLAUDE.md</code> symlink for Claude Code compatibility</li><li><input disabled type=checkbox> For closed-source or internal components: add reference source to <code>reference-projects/</code></li><li><input disabled type=checkbox> Treat every agent mistake as a signal: if it&rsquo;s a global rule, add to AGENTS.md; if it can be automated, write a script</li><li><input disabled type=checkbox> For the trading system: add matching semantics rules and the exact verification command sequence before running the agent optimization loop</li></ul><hr><h2 id=takeaway>Takeaway</h2><blockquote><p>Writing AGENTS.md means turning project &ldquo;tribal knowledge&rdquo; into AI-readable, executable, and maintainable engineering assets.</p></blockquote><p>Many AI coding failures are not caused by weak models. They happen because the project has not exposed its context, rules, and verification path to the agent.</p><p>The ideal state:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>Open the repo -&gt; understand the system
-</span></span><span style=display:flex><span>Modify code -&gt; verify automatically
-</span></span><span style=display:flex><span>Violate a rule -&gt; get blocked by automation
-</span></span><span style=display:flex><span>Hit a bad case -&gt; turn it into a new durable rule
-</span></span></code></pre></div><p>This is the same direction as agentic workflow design: humans design the feedback loop, agents operate inside it.</p><p><strong>The technical barrier is not model capability. It is whether the project has made its context, rules, and verification path legible to an agent.</strong></p><hr><h2 id=reference-blog>Reference Blog</h2><ul><li>Xu Jingfeng, <a href=https://www.cnkirito.moe/ai-agents-md-practise/>一个文件让 AI Coding 效率翻倍：AGENTS.md 实践指南</a>, published 2026-04-19.</li></ul></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><ul><li><a href=#summary>Summary</a></li><li><a href=#what-agentsmd-is>What AGENTS.md Is</a></li><li><a href=#the-problem-without-agentsmd>The Problem Without AGENTS.md</a></li><li><a href=#core-principle-map-not-manual>Core Principle: Map, Not Manual</a></li><li><a href=#five-key-practices>Five Key Practices</a></li><li><a href=#recommended-agentsmd-structure>Recommended AGENTS.md Structure</a></li><li><a href=#implementation-advice>Implementation Advice</a></li><li><a href=#relationship-to-quality-assurance--overclock-mode>Relationship To Quality Assurance / Overclock Mode</a></li><li><a href=#actionable-checklist>Actionable Checklist</a></li><li><a href=#takeaway>Takeaway</a></li><li><a href=#reference-blog>Reference Blog</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const t=document.querySelector(".nav-toggle"),n=document.querySelector("#site-navigation");if(!t||!n)return;function e(e){document.documentElement.classList.toggle("nav-open",e),t.setAttribute("aria-expanded",String(e))}t.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),n.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0})})()</script></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AGENTS.md Practice Guide — Map, Commands, and Verification Loops for AI Coding Agents | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="AGENTS.md as an AI-readable project map: hard rules, quick commands, verification loops, reference projects, and bad-case-driven maintenance for reliable agentic coding.">
+    <link rel="canonical" href="http://localhost:1313/posts/agents-md-practice-guide/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>AGENTS.md Practice Guide — Map, Commands, and Verification Loops for AI Coding Agents</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-05-02">May 2, 2026</time>
+          
+            <span>·</span>
+            <span>Engineering</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/ai-coding/">#ai-coding</a>
+            
+              <a class="chip" href="/tags/agents-md/">#agents-md</a>
+            
+              <a class="chip" href="/tags/harness-engineering/">#harness-engineering</a>
+            
+              <a class="chip" href="/tags/agent-workflow/">#agent-workflow</a>
+            
+              <a class="chip" href="/tags/quality-assurance/">#quality-assurance</a>
+            
+              <a class="chip" href="/tags/developer-tools/">#developer-tools</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            <nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#summary">Summary</a></li>
+        <li><a href="#what-agentsmd-is">What AGENTS.md Is</a></li>
+        <li><a href="#the-problem-without-agentsmd">The Problem Without AGENTS.md</a></li>
+        <li><a href="#core-principle-map-not-manual">Core Principle: Map, Not Manual</a></li>
+        <li><a href="#five-key-practices">Five Key Practices</a></li>
+        <li><a href="#recommended-agentsmd-structure">Recommended AGENTS.md Structure</a></li>
+        <li><a href="#implementation-advice">Implementation Advice</a></li>
+        <li><a href="#relationship-to-quality-assurance--overclock-mode">Relationship To Quality Assurance / Overclock Mode</a></li>
+        <li><a href="#actionable-checklist">Actionable Checklist</a></li>
+        <li><a href="#takeaway">Takeaway</a></li>
+        <li><a href="#reference-blog">Reference Blog</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </details>
+      
+      <div class="article-content prose">
+        <h2 id="summary">Summary</h2>
+<p>AGENTS.md is a README for AI agents.</p>
+<p>Its purpose is not to cram all project documentation into one file. Its purpose is to give an AI coding agent the smallest useful map of the project: what the project is, where the code lives, what rules must not be violated, how to build it, how to verify it, and where to find deeper documentation.</p>
+<p>The target experience is:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Agent opens the repo -&gt; understands the project
+</span></span><span style="display:flex;"><span>Agent changes code -&gt; knows how to verify it
+</span></span><span style="display:flex;"><span>Agent violates a rule -&gt; automation catches it
+</span></span></code></pre></div><p>This is directly aligned with Harness Engineering and agentic workflows. The human role moves from manually checking every step to designing a feedback loop that the agent can execute.</p>
+<hr>
+<h2 id="what-agentsmd-is">What AGENTS.md Is</h2>
+<p>AGENTS.md is an open Markdown convention placed at the repository root to guide AI coding agents.</p>
+<p>It usually contains:</p>
+<ul>
+<li>Project overview</li>
+<li>Repository structure</li>
+<li>Build, run, and test commands</li>
+<li>Coding rules</li>
+<li>Safety constraints</li>
+<li>Verification workflow</li>
+<li>Documentation map</li>
+</ul>
+<p>README.md is for humans. AGENTS.md is for AI first, humans second: its focus is project rules, commands, the verification loop, and forbidden actions—not a project intro.</p>
+<p>Different AI coding tools used to have different context files: Claude Code uses <code>CLAUDE.md</code>, Cursor uses <code>.cursor/rules</code>, Copilot uses <code>.github/copilot-instructions.md</code>, and Codex uses <code>AGENTS.md</code>.</p>
+<p>The value of AGENTS.md is that it gives teams one common entry point instead of duplicating the same rules across many tool-specific files. Claude Code can still be supported with a symlink:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>ln -s AGENTS.md CLAUDE.md
+</span></span></code></pre></div><hr>
+<h2 id="the-problem-without-agentsmd">The Problem Without AGENTS.md</h2>
+<p>The article&rsquo;s main diagnosis is simple:</p>
+<blockquote>
+<p>Project knowledge and project rules live in people&rsquo;s heads instead of in a place that AI can read and execute.</p>
+</blockquote>
+<p>Common failure modes:</p>
+<ol>
+<li>
+<p><strong>Fragmented context</strong><br>
+Frontend, backend, component libraries, and docs are split across repositories. The agent only sees one slice of the system and loses context when a feature crosses boundaries.</p>
+</li>
+<li>
+<p><strong>Private components are invisible to AI</strong><br>
+Closed-source component libraries are not in training data and often lack public docs. The agent misuses props, misses required config, or invents APIs.</p>
+</li>
+<li>
+<p><strong>The agent does not know project rules</strong><br>
+Examples: exceptions must use <code>BusinessException</code>, response bodies must be wrapped by the framework, controllers must not depend on repositories directly. These rules are obvious to the team but invisible to the agent.</p>
+</li>
+<li>
+<p><strong>The agent cannot start or verify the project</strong><br>
+Environment variables, startup commands, and validation steps are scattered across personal machines, IDE configs, and chat history. The agent can edit code but cannot close the loop.</p>
+</li>
+</ol>
+<p>AGENTS.md does not make the model smarter. It makes the project more legible to AI.</p>
+<hr>
+<h2 id="core-principle-map-not-manual">Core Principle: Map, Not Manual</h2>
+<p><img src="/images/engineering/agents-map-not-manual.png" alt="Map, Not Manual"></p>
+<p>The first principle is <strong>Map, not Manual</strong>.</p>
+<p>AGENTS.md should be a navigation map, not a giant handbook.</p>
+<p>Only two kinds of information belong directly in AGENTS.md:</p>
+<ol>
+<li>
+<p><strong>Information required for the agent to understand the project</strong><br>
+Tech stack, repository layout, core modules, architecture boundaries.</p>
+</li>
+<li>
+<p><strong>Hard rules whose violation causes real problems</strong><br>
+Coding conventions, forbidden dependencies, naming rules, mandatory checks.</p>
+</li>
+</ol>
+<p>Everything else should live in linked docs under <code>docs/</code>.</p>
+<p>The decision rule:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>If the agent will write wrong code without it -&gt; put it in AGENTS.md
+</span></span><span style="display:flex;"><span>If the agent will merely write less ideal code without it -&gt; put it in docs/ and link it
+</span></span></code></pre></div><p>A 5000-line AGENTS.md dilutes attention. Important rules become easier to miss. The article recommends keeping it around 200 lines and using progressive disclosure.</p>
+<hr>
+<h2 id="five-key-practices">Five Key Practices</h2>
+<h3 id="1-aggregate-repositories-to-reduce-context-loss">1. Aggregate Repositories To Reduce Context Loss</h3>
+<p>If a feature crosses backend, frontend, docs, and component libraries, the agent should ideally see all relevant code in one workspace.</p>
+<p>Practical options:</p>
+<ul>
+<li>Prefer monorepo for new systems.</li>
+<li>For existing systems, use scripts to aggregate related repos locally.</li>
+<li>Put auxiliary repos under gitignored directories if they should not affect CI/CD.</li>
+<li>Include user docs when useful, so the agent can update documentation after code changes.</li>
+</ul>
+<p>The goal:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>The agent can inspect API definitions, frontend callers, component usage, and docs in one context.
+</span></span></code></pre></div><h3 id="2-standardize-local-environment-setup">2. Standardize Local Environment Setup</h3>
+<p>Agents need a reliable way to start and verify the project.</p>
+<p>The article&rsquo;s recommended pattern:</p>
+<ul>
+<li>Store local environment variables in <code>~/.&lt;project&gt;_env</code>.</li>
+<li>Startup scripts automatically source the file.</li>
+<li>AGENTS.md documents the env file location and precedence.</li>
+<li>Startup scripts encapsulate JDK checks, process shutdown, restart, and health polling.</li>
+</ul>
+<p>The agent should not need to understand the whole environment. It should only need stable commands:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>./scripts/start-server.sh
+</span></span><span style="display:flex;"><span>./scripts/start-server.sh --quick
+</span></span><span style="display:flex;"><span>./scripts/start-server.sh --skip-build
+</span></span></code></pre></div><p>This is an engineering move: reduce the agent&rsquo;s operational burden.</p>
+<h3 id="3-close-the-verification-loop">3. Close the Verification Loop</h3>
+<p>Code modification is not the end of the task. A task is only done when the feature is verified.</p>
+<p>For backend work, use bash/curl verification. For frontend work, use an agent browser or screenshot-based checks when layout and interaction matter.</p>
+<p>The article recommends strict curl conventions:</p>
+<ul>
+<li>Run each curl independently.</li>
+<li>Write outputs to <code>/tmp/</code> files.</li>
+<li>Parse JSON with separate commands.</li>
+<li>Template the login/token flow.</li>
+<li>Document log locations and database access paths.</li>
+</ul>
+<p>This looks verbose, but it is robust. Agents often fail on shell quoting, zsh glob behavior, or fragile pipes. Temporary files are less elegant but more reliable.</p>
+<p>Target loop:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Agent completes task
+</span></span><span style="display:flex;"><span>  -&gt; builds
+</span></span><span style="display:flex;"><span>  -&gt; starts service
+</span></span><span style="display:flex;"><span>  -&gt; verifies API or UI
+</span></span><span style="display:flex;"><span>  -&gt; fixes based on the result
+</span></span></code></pre></div><p>This is a prerequisite for unattended or overnight agent work.</p>
+<h3 id="4-give-rules-executable-force">4. Give Rules Executable Force</h3>
+<p>Rules written in AGENTS.md are weak unless automation enforces them.</p>
+<p>The article&rsquo;s example is layered dependency checking:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>L0 entity      -&gt; may depend only on common
+</span></span><span style="display:flex;"><span>L1 repository  -&gt; may depend only on entity, common
+</span></span><span style="display:flex;"><span>L5 controller  -&gt; may depend only on service, core, common
+</span></span></code></pre></div><p>A script scans imports and reports violations. The error message format matters:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>WHAT: what rule was violated
+</span></span><span style="display:flex;"><span>WHY: why this is not allowed
+</span></span><span style="display:flex;"><span>HOW: how to fix it
+</span></span></code></pre></div><p>This format is useful for humans and agents. If the agent sees HOW, it can often self-correct without additional explanation.</p>
+<p>Rule priority:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Automated checks &gt; AGENTS.md rules &gt; oral conventions
+</span></span></code></pre></div><h3 id="5-use-reference-projects-not-just-documentation">5. Use Reference Projects, Not Just Documentation</h3>
+<p>For closed-source components, internal systems, or code that the model has never seen, documentation can lag behind reality.</p>
+<p>The article recommends bringing reference source code into the workspace:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>reference-projects/
+</span></span><span style="display:flex;"><span>  pro-components/
+</span></span><span style="display:flex;"><span>  other-product-backend/
+</span></span><span style="display:flex;"><span>  other-product-frontend/
+</span></span><span style="display:flex;"><span>  open-source-reference/
+</span></span></code></pre></div><p>Then maintain <code>docs/design-docs/ref-*.md</code> files as maps:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>ref docs = tell the agent where important structures are
+</span></span><span style="display:flex;"><span>reference-projects = source of truth when details are needed
+</span></span></code></pre></div><p>The core claim:</p>
+<blockquote>
+<p>Source code never goes stale. It is the most accurate documentation.</p>
+</blockquote>
+<hr>
+<h2 id="recommended-agentsmd-structure">Recommended AGENTS.md Structure</h2>
+<p>A compact general structure:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-markdown" data-lang="markdown"><span style="display:flex;"><span><span style="font-weight:bold"># AGENTS.md
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 1. Project Overview
+</span></span></span><span style="display:flex;"><span>What this project is, tech stack, repository layout.
+</span></span><span style="display:flex;"><span>The first 10 lines should establish the mental model.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 2. Quick Commands
+</span></span></span><span style="display:flex;"><span>Build, run, format, quality check, and test commands.
+</span></span><span style="display:flex;"><span>Environment file location and startup script behavior.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 3. Architecture
+</span></span></span><span style="display:flex;"><span>Core directory tree, module boundaries, layered architecture rules,
+</span></span><span style="display:flex;"><span>and links to deeper docs.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 4. Key Rules
+</span></span></span><span style="display:flex;"><span>5-10 hard rules that cause real problems if violated.
+</span></span><span style="display:flex;"><span>Each rule should include a reason or a link to detailed docs.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 5. Local Development and Verification
+</span></span></span><span style="display:flex;"><span>The full edit -&gt; build -&gt; start -&gt; verify loop.
+</span></span><span style="display:flex;"><span>curl/browser/log/database verification instructions.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 6. Quality Checks
+</span></span></span><span style="display:flex;"><span>Unified command matrix for lint, format, build, and test.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 7. Reference Projects
+</span></span></span><span style="display:flex;"><span>List of references, priority rules, and when to inspect them.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## 8. Documentation Map
+</span></span></span><span style="display:flex;"><span>Index of detailed docs.
+</span></span></code></pre></div><p>For a C++ trading system, this would become:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-markdown" data-lang="markdown"><span style="display:flex;"><span><span style="font-weight:bold">## Quick Commands
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> cmake -B build -DCMAKE_BUILD_TYPE=Release
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> cmake --build build -j
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> ./build/test_order_book
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> ./build/test_strategies
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> ./build/benchmark
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## Hard Rules
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> Any change to order matching must preserve price-time priority.
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> No benchmark result may be trusted unless unit tests and semantic invariants pass first.
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> Do not optimize by changing trade sequence, fill quantity, or final book state.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="font-weight:bold">## Verification
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> Unit tests: ./build/test_order_book, ./build/test_strategies
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> Semantic invariants: fixed order scenario must match golden output
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">-</span> Performance: repeated benchmark, median comparison, threshold-based acceptance
+</span></span></code></pre></div><hr>
+<h2 id="implementation-advice">Implementation Advice</h2>
+<h3 id="start-with-auto-generated-init">Start With Auto-Generated Init</h3>
+<p>Use a tool&rsquo;s <code>/init</code> command as a first draft, then tighten it manually.</p>
+<p>The first version usually covers:</p>
+<ul>
+<li>Project overview</li>
+<li>Basic build commands</li>
+<li>Directory structure</li>
+</ul>
+<p>Then add project-specific constraints:</p>
+<ul>
+<li>Architecture boundaries</li>
+<li>Verification scripts</li>
+<li>Hard forbidden actions</li>
+<li>Performance and semantic gates</li>
+</ul>
+<h3 id="iterate-from-bad-cases">Iterate From Bad Cases</h3>
+<p>Do not try to write the perfect AGENTS.md in one pass.</p>
+<p>Better loop:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>1. Agent makes a mistake
+</span></span><span style="display:flex;"><span>2. Identify why it happened
+</span></span><span style="display:flex;"><span>3. If it is a global rule, add it to AGENTS.md
+</span></span><span style="display:flex;"><span>4. If it is module-specific, add it to docs/
+</span></span><span style="display:flex;"><span>5. If it can be checked automatically, write a script instead of only writing prose
+</span></span></code></pre></div><p>AGENTS.md is a living project knowledge base, not a one-time document.</p>
+<h3 id="mark-the-intended-reader">Mark The Intended Reader</h3>
+<p>The article recommends making the audience clear:</p>
+<table>
+  <thead>
+      <tr>
+          <th>File</th>
+          <th>Reader</th>
+          <th>Role</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>README.md</td>
+          <td>Humans</td>
+          <td>Project intro and quick start</td>
+      </tr>
+      <tr>
+          <td>AGENTS.md</td>
+          <td>AI first, humans second</td>
+          <td>Automatically loaded project instructions</td>
+      </tr>
+      <tr>
+          <td>docs/*.md</td>
+          <td>AI first, humans can inspect</td>
+          <td>Module-level development manuals</td>
+      </tr>
+      <tr>
+          <td>scripts/*.sh</td>
+          <td>Humans and AI</td>
+          <td>Build, start, deploy, verify</td>
+      </tr>
+  </tbody>
+</table>
+<p>AGENTS.md is not a README replacement. It is the entry point for the AI workflow.</p>
+<hr>
+<h2 id="relationship-to-quality-assurance--overclock-mode">Relationship To Quality Assurance / Overclock Mode</h2>
+<p>This article is not exactly about multi-agent adversarial review, but it provides the infrastructure underneath it.</p>
+<p>Mapping:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>AGENTS.md
+</span></span><span style="display:flex;"><span>  -&gt; project map and hard rules for Builder, Critic, and Executor
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>scripts/*.sh
+</span></span><span style="display:flex;"><span>  -&gt; machine checks the Executor can run reliably
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>docs/*.md
+</span></span><span style="display:flex;"><span>  -&gt; rule source for the Critic&#39;s checklist
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>bad-case-driven updates
+</span></span><span style="display:flex;"><span>  -&gt; turn agent failures into durable rules
+</span></span></code></pre></div><p>AGENTS.md is not the whole quality system. It does not replace:</p>
+<ul>
+<li>Unit tests</li>
+<li>Semantic invariants</li>
+<li>Backtests</li>
+<li>Benchmarks</li>
+<li>CI</li>
+<li>Critic review</li>
+</ul>
+<p>But it tells agents where those checks are, when they must run, and what counts as acceptance.</p>
+<p>For the current trading-system learning path, AGENTS.md should do three things:</p>
+<ol>
+<li>
+<p><strong>Teach the agent the hard rules of the matching engine</strong><br>
+Price-time priority, partial fills, stable trade sequence, final book state.</p>
+</li>
+<li>
+<p><strong>Expose the verification commands</strong><br>
+Build, unit tests, fixed scenarios, benchmarks, and their required order.</p>
+</li>
+<li>
+<p><strong>Define optimization boundaries</strong><br>
+Performance work must not change matching semantics. Benchmarks are only meaningful after correctness checks pass.</p>
+</li>
+</ol>
+<p>In one sentence:</p>
+<blockquote>
+<p>AGENTS.md is the map of an agent quality system; scripts, tests, and CI provide the execution force.</p>
+</blockquote>
+<hr>
+<h2 id="actionable-checklist">Actionable Checklist</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Run <code>claude /init</code> (or equivalent) to generate a first-draft AGENTS.md; tighten manually after</li>
+<li><input disabled="" type="checkbox"> Add hard rules specific to this project — matching semantics, layer boundaries, forbidden actions</li>
+<li><input disabled="" type="checkbox"> Write or link verification scripts: build → unit tests → semantic invariants → benchmark; document their required order</li>
+<li><input disabled="" type="checkbox"> Keep it under 200 lines; push detailed docs to <code>docs/</code> and link from AGENTS.md</li>
+<li><input disabled="" type="checkbox"> Add <code>ln -s AGENTS.md CLAUDE.md</code> symlink for Claude Code compatibility</li>
+<li><input disabled="" type="checkbox"> For closed-source or internal components: add reference source to <code>reference-projects/</code></li>
+<li><input disabled="" type="checkbox"> Treat every agent mistake as a signal: if it&rsquo;s a global rule, add to AGENTS.md; if it can be automated, write a script</li>
+<li><input disabled="" type="checkbox"> For the trading system: add matching semantics rules and the exact verification command sequence before running the agent optimization loop</li>
+</ul>
+<hr>
+<h2 id="takeaway">Takeaway</h2>
+<blockquote>
+<p>Writing AGENTS.md means turning project &ldquo;tribal knowledge&rdquo; into AI-readable, executable, and maintainable engineering assets.</p>
+</blockquote>
+<p>Many AI coding failures are not caused by weak models. They happen because the project has not exposed its context, rules, and verification path to the agent.</p>
+<p>The ideal state:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>Open the repo -&gt; understand the system
+</span></span><span style="display:flex;"><span>Modify code -&gt; verify automatically
+</span></span><span style="display:flex;"><span>Violate a rule -&gt; get blocked by automation
+</span></span><span style="display:flex;"><span>Hit a bad case -&gt; turn it into a new durable rule
+</span></span></code></pre></div><p>This is the same direction as agentic workflow design: humans design the feedback loop, agents operate inside it.</p>
+<p><strong>The technical barrier is not model capability. It is whether the project has made its context, rules, and verification path legible to an agent.</strong></p>
+<hr>
+<h2 id="reference-blog">Reference Blog</h2>
+<ul>
+<li>Xu Jingfeng, <a href="https://www.cnkirito.moe/ai-agents-md-practise/">一个文件让 AI Coding 效率翻倍：AGENTS.md 实践指南</a>, published 2026-04-19.</li>
+</ul>
+
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#summary">Summary</a></li>
+        <li><a href="#what-agentsmd-is">What AGENTS.md Is</a></li>
+        <li><a href="#the-problem-without-agentsmd">The Problem Without AGENTS.md</a></li>
+        <li><a href="#core-principle-map-not-manual">Core Principle: Map, Not Manual</a></li>
+        <li><a href="#five-key-practices">Five Key Practices</a></li>
+        <li><a href="#recommended-agentsmd-structure">Recommended AGENTS.md Structure</a></li>
+        <li><a href="#implementation-advice">Implementation Advice</a></li>
+        <li><a href="#relationship-to-quality-assurance--overclock-mode">Relationship To Quality Assurance / Overclock Mode</a></li>
+        <li><a href="#actionable-checklist">Actionable Checklist</a></li>
+        <li><a href="#takeaway">Takeaway</a></li>
+        <li><a href="#reference-blog">Reference Blog</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const tocPanel = document.querySelector('.article-toc');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      let ticking = false;
+
+      function updateActiveTocLink() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
+          }
+        }
+      }
+
+      function updateTocBoundary() {
+        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
+          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
+          return;
+        }
+
+        const footer = document.querySelector('.site-footer');
+        if (!footer) return;
+
+        const bottomGap = 24;
+        const tocBottom = 86 + tocPanel.offsetHeight;
+        const footerTop = footer.getBoundingClientRect().top;
+        const overlap = tocBottom + bottomGap - footerTop;
+
+        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateTocBoundary();
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      
+      setTimeout(function() {
+        updateTocBoundary();
+        updateActiveTocLink();
+      }, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(next, true);
+        });
+      })();
+    </script>
+  </body>
+</html>

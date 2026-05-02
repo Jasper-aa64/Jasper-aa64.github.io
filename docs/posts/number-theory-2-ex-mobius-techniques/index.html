@@ -1,125 +1,611 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Number Theory #2-ex: Möbius Techniques | Jasper's Technical Notebook</title><meta name=description content="Seven core Möbius-inversion manipulation techniques: loop shortening, gcd-to-divisor conversion, reduction to coprimality indicator, Dirichlet convolution substitution, divisor symmetry, triangle-to-full-matrix, and value-domain inversion."><link rel=canonical href=https://jmaaa32.github.io/posts/number-theory-2-ex-mobius-techniques/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small>
-</span></a><button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class="nav-link is-active" href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Number Theory #2-ex: Möbius Techniques</h1><div class=article-meta><time datetime=2026-04-28>Apr 28, 2026</time>
-<span>·</span>
-<span>Number Theory</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/number-theory/>#number-theory</a>
-<a class=chip href=/tags/mobius-inversion/>#mobius-inversion</a>
-<a class=chip href=/tags/dirichlet-convolution/>#dirichlet-convolution</a>
-<a class=chip href=/tags/techniques/>#techniques</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><ul><li><a href=#01-basic-identities>0.1 Basic Identities</a></li></ul></li><li><a href=#1-trick-1--loop-shortening-via-divisibility>1 Trick 1 — Loop Shortening via Divisibility</a></li><li><a href=#2-trick-2--convert-gcd-divisors-to-individual-divisors>2 Trick 2 — Convert GCD-Divisors to Individual Divisors</a><ul><li></li></ul></li><li><a href=#3-trick-3--reduce-a-general--sum-to--form>3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</a></li><li><a href=#4-trick-4--substitute--to-identify-a-dirichlet-convolution>4 Trick 4 — Substitute $T=dk$ to Identify a Dirichlet Convolution</a><ul><li></li></ul></li><li><a href=#5-trick-5--divisor-symmetry>5 Trick 5 — Divisor Symmetry: $d\leftrightarrow n/d$</a></li><li><a href=#6-trick-6--diagonal-symmetry-upper-triangle-vs-full-matrix>6 Trick 6 — Diagonal Symmetry: Upper Triangle vs Full Matrix</a><ul><li><a href=#61-upper-triangle-and-lower-triangle>6.1 Upper-triangle and lower-triangle</a></li><li><a href=#62-upper-triangle-sum-and-full-matrix-sum>6.2 Upper-triangle sum and full-matrix sum</a></li></ul></li><li><a href=#7-trick-7--value-domain-möbius-with>7 Trick 7 — Value-Domain Möbius with $\mathrm{cnt}[\,]$</a></li></ul></nav></div></details><div class="article-content prose"><p>(Continues from <a href=../number-theory-2-multiplicative-functions>Number Theory #2</a>)</p><h2 id=01-basic-identities>0.1 Basic Identities</h2><blockquote>$$\bullet\;[n=1]=\sum_{d\mid n}\mu(d)$$<p></p>$$\bullet\;n=\sum_{d\mid n}\varphi(d)\;\implies\;\varphi(n)=\sum_{d\mid n}\mu(d)\cdot\frac{n}{d}$$<p></p>$$\bullet\;\sigma(n)=\sum_{d\mid n}d$$</blockquote><p><strong>Indicator / sieve identities</strong></p><ul><li><strong>Coprimality indicator:</strong> $\displaystyle[\gcd(x,n)=1]=\sum_{d\mid\gcd(x,n)}\mu(d)$</li><li><strong>Congruence indicator:</strong> $[x\equiv y\pmod{d}]=[d\mid(x-y)]$</li></ul><p><strong>Classical divisor sums</strong></p><ul><li>$\displaystyle\sum_{d\mid n}\varphi(d)=n$</li><li>$\displaystyle\sum_{d\mid n}\mu(d)=[n=1]$</li><li>$\displaystyle\sum_{d\mid n}\tau(d)=\sum_{d\mid n}\tau(n/d)\quad(\tau=1*1,\ \tau\text{ is the divisor-count function})$</li><li>$\sigma=\mathrm{id}*\mathbf{1},\quad\tau=\mathbf{1}*\mathbf{1},\quad\varphi=\mu*\mathrm{id}$</li></ul><p><strong>GCD variants</strong></p><ul><li>$\displaystyle\gcd(a,b)=\sum_{d\mid\gcd(a,b)}\varphi(d)$</li><li>$\displaystyle\sum_{d\mid n}\mu(d)\Bigl\lfloor\frac{m}{d}\Bigr\rfloor$ = &ldquo;count of $x\in[1,m]$ coprime to $n$&rdquo; (inclusion-exclusion over prime factors of $n$)</li><li>$\displaystyle d(xy)=\sum_{a\mid x}\sum_{b\mid y}[\gcd(a,b)=1]$</li></ul><p><strong>GCD-layered substitution (very common)</strong></p>$$\sum_{k=1}^{n}f\!\bigl(\gcd(k,n)\bigr)=\sum_{d\mid n}f(d)\,\varphi\!\left(\frac{n}{d}\right)$$<p>(Group $k$ by $\gcd(k,n)=d$.)</p><hr><h1 id=1-trick-1--loop-shortening-via-divisibility>1 Trick 1 — Loop Shortening via Divisibility</h1><blockquote><p>When iterating $i=1,\ldots,n$, if the expression is non-zero only when $k\mid i$, shorten the loop:</p>$$\sum_{i=1}^{n}[k\mid i]=\sum_{i=1}^{\lfloor n/k\rfloor}1=\Bigl\lfloor\frac{n}{k}\Bigr\rfloor$$</blockquote><p><strong>Example:</strong> $\displaystyle\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k]$</p><p>Substitute $i=i'k$, $j=j'k$; the condition $\gcd(i,j)=k$ becomes $\gcd(i',j')=1$:</p>$$\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k]=\sum_{i'=1}^{\lfloor n/k\rfloor}\sum_{j'=1}^{\lfloor m/k\rfloor}[\gcd(i',j')=1]$$<p><strong>Key point:</strong> non-zero entries appear only every $k$ steps in both loops, so the range shrinks by factor $k$.</p><hr><h1 id=2-trick-2--convert-gcd-divisors-to-individual-divisors>2 Trick 2 — Convert GCD-Divisors to Individual Divisors</h1>$$[\gcd(x,y)=1]=\sum_{d\mid\gcd(x,y)}\mu(d)=\sum_{\substack{d\mid x\\d\mid y}}\mu(d)=\sum_{d=1}^{n}\mu(d)\cdot[d\mid x]\cdot[d\mid y]$$<blockquote><p><strong>Core idea:</strong> $\gcd(i,j)$ varies with $i,j$ so its divisors are hard to enumerate directly. Use $d\mid\gcd(i,j)\iff d\mid i\text{ and }d\mid j$ to decouple the two indices.</p></blockquote><p><strong>Example:</strong> $\displaystyle\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=1]$</p>$$\begin{align}
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Number Theory #2-ex: Möbius Techniques | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="Seven core Möbius-inversion manipulation techniques: loop shortening, gcd-to-divisor conversion, reduction to coprimality indicator, Dirichlet convolution substitution, divisor symmetry, triangle-to-full-matrix, and value-domain inversion.">
+    <link rel="canonical" href="http://localhost:1313/posts/number-theory-2-ex-mobius-techniques/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Number Theory #2-ex: Möbius Techniques</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-28">Apr 28, 2026</time>
+          
+            <span>·</span>
+            <span>Number Theory</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/number-theory/">#number-theory</a>
+            
+              <a class="chip" href="/tags/mobius-inversion/">#mobius-inversion</a>
+            
+              <a class="chip" href="/tags/dirichlet-convolution/">#dirichlet-convolution</a>
+            
+              <a class="chip" href="/tags/techniques/">#techniques</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            <nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#01-basic-identities">0.1 Basic Identities</a></li>
+      </ul>
+    </li>
+    <li><a href="#1-trick-1--loop-shortening-via-divisibility">1 Trick 1 — Loop Shortening via Divisibility</a></li>
+    <li><a href="#2-trick-2--convert-gcd-divisors-to-individual-divisors">2 Trick 2 — Convert GCD-Divisors to Individual Divisors</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#3-trick-3--reduce-a-general--sum-to--form">3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</a></li>
+    <li><a href="#4-trick-4--substitute--to-identify-a-dirichlet-convolution">4 Trick 4 — Substitute $T=dk$ to Identify a Dirichlet Convolution</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#5-trick-5--divisor-symmetry">5 Trick 5 — Divisor Symmetry: $d\leftrightarrow n/d$</a></li>
+    <li><a href="#6-trick-6--diagonal-symmetry-upper-triangle-vs-full-matrix">6 Trick 6 — Diagonal Symmetry: Upper Triangle vs Full Matrix</a>
+      <ul>
+        <li><a href="#61-upper-triangle-and-lower-triangle">6.1 Upper-triangle and lower-triangle</a></li>
+        <li><a href="#62-upper-triangle-sum-and-full-matrix-sum">6.2 Upper-triangle sum and full-matrix sum</a></li>
+      </ul>
+    </li>
+    <li><a href="#7-trick-7--value-domain-möbius-with">7 Trick 7 — Value-Domain Möbius with $\mathrm{cnt}[\,]$</a></li>
+  </ul>
+</nav>
+          </div>
+        </details>
+      
+      <div class="article-content prose">
+        <p>(Continues from <a href="../number-theory-2-multiplicative-functions">Number Theory #2</a>)</p>
+<h2 id="01-basic-identities">0.1 Basic Identities</h2>
+<blockquote>
+$$\bullet\;[n=1]=\sum_{d\mid n}\mu(d)$$<p>
+</p>
+$$\bullet\;n=\sum_{d\mid n}\varphi(d)\;\implies\;\varphi(n)=\sum_{d\mid n}\mu(d)\cdot\frac{n}{d}$$<p>
+</p>
+$$\bullet\;\sigma(n)=\sum_{d\mid n}d$$</blockquote>
+<p><strong>Indicator / sieve identities</strong></p>
+<ul>
+<li><strong>Coprimality indicator:</strong> $\displaystyle[\gcd(x,n)=1]=\sum_{d\mid\gcd(x,n)}\mu(d)$</li>
+<li><strong>Congruence indicator:</strong> $[x\equiv y\pmod{d}]=[d\mid(x-y)]$</li>
+</ul>
+<p><strong>Classical divisor sums</strong></p>
+<ul>
+<li>$\displaystyle\sum_{d\mid n}\varphi(d)=n$</li>
+<li>$\displaystyle\sum_{d\mid n}\mu(d)=[n=1]$</li>
+<li>$\displaystyle\sum_{d\mid n}\tau(d)=\sum_{d\mid n}\tau(n/d)\quad(\tau=1*1,\ \tau\text{ is the divisor-count function})$</li>
+<li>$\sigma=\mathrm{id}*\mathbf{1},\quad\tau=\mathbf{1}*\mathbf{1},\quad\varphi=\mu*\mathrm{id}$</li>
+</ul>
+<p><strong>GCD variants</strong></p>
+<ul>
+<li>$\displaystyle\gcd(a,b)=\sum_{d\mid\gcd(a,b)}\varphi(d)$</li>
+<li>$\displaystyle\sum_{d\mid n}\mu(d)\Bigl\lfloor\frac{m}{d}\Bigr\rfloor$ = &ldquo;count of $x\in[1,m]$ coprime to $n$&rdquo; (inclusion-exclusion over prime factors of $n$)</li>
+<li>$\displaystyle d(xy)=\sum_{a\mid x}\sum_{b\mid y}[\gcd(a,b)=1]$</li>
+</ul>
+<p><strong>GCD-layered substitution (very common)</strong>
+</p>
+$$\sum_{k=1}^{n}f\!\bigl(\gcd(k,n)\bigr)=\sum_{d\mid n}f(d)\,\varphi\!\left(\frac{n}{d}\right)$$<p>
+(Group $k$ by $\gcd(k,n)=d$.)</p>
+<hr>
+<h1 id="1-trick-1--loop-shortening-via-divisibility">1 Trick 1 — Loop Shortening via Divisibility</h1>
+<blockquote>
+<p>When iterating $i=1,\ldots,n$, if the expression is non-zero only when $k\mid i$, shorten the loop:
+</p>
+$$\sum_{i=1}^{n}[k\mid i]=\sum_{i=1}^{\lfloor n/k\rfloor}1=\Bigl\lfloor\frac{n}{k}\Bigr\rfloor$$</blockquote>
+<p><strong>Example:</strong> $\displaystyle\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k]$</p>
+<p>Substitute $i=i'k$, $j=j'k$; the condition $\gcd(i,j)=k$ becomes $\gcd(i',j')=1$:
+</p>
+$$\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k]=\sum_{i'=1}^{\lfloor n/k\rfloor}\sum_{j'=1}^{\lfloor m/k\rfloor}[\gcd(i',j')=1]$$<p><strong>Key point:</strong> non-zero entries appear only every $k$ steps in both loops, so the range shrinks by factor $k$.</p>
+<hr>
+<h1 id="2-trick-2--convert-gcd-divisors-to-individual-divisors">2 Trick 2 — Convert GCD-Divisors to Individual Divisors</h1>
+$$[\gcd(x,y)=1]=\sum_{d\mid\gcd(x,y)}\mu(d)=\sum_{\substack{d\mid x\\d\mid y}}\mu(d)=\sum_{d=1}^{n}\mu(d)\cdot[d\mid x]\cdot[d\mid y]$$<blockquote>
+<p><strong>Core idea:</strong> $\gcd(i,j)$ varies with $i,j$ so its divisors are hard to enumerate directly. Use $d\mid\gcd(i,j)\iff d\mid i\text{ and }d\mid j$ to decouple the two indices.</p>
+</blockquote>
+<p><strong>Example:</strong> $\displaystyle\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=1]$</p>
+$$\begin{align}
 \sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=1]
 &=\sum_{i=1}^n\sum_{j=1}^m\sum_{d\mid\gcd(i,j)}\mu(d)\\
 &=\sum_{d=1}^{\min(n,m)}\mu(d)\sum_{i=1}^n[d\mid i]\sum_{j=1}^m[d\mid j]\\
 &=\sum_{d=1}^{\min(n,m)}\mu(d)\Bigl\lfloor\frac{n}{d}\Bigr\rfloor\Bigl\lfloor\frac{m}{d}\Bigr\rfloor
-\end{align}$$<p>The last sum is evaluated in $O\!\left(\sqrt{\min(n,m)}\right)$ via divisibility blocking.</p><h3 id=example-1-luogu-p3455-poi2007-zap-queries>Example 1: Luogu P3455 [POI2007] ZAP-Queries</h3>$$\text{Compute }\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k],\quad 1\leq T,n,m,k\leq5\times10^4$$<ul><li>Trick 1: reduce to $\sum_{i=1}^{\lfloor n/k\rfloor}\sum_{j=1}^{\lfloor m/k\rfloor}[\gcd(i,j)=1]$.</li><li>Trick 2: $=\displaystyle\sum_{d=1}^{\min(\lfloor n/k\rfloor,\lfloor m/k\rfloor)}\mu(d)\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor\Bigl\lfloor\frac{\lfloor m/k\rfloor}{d}\Bigr\rfloor$.</li></ul><blockquote><p><strong>Supplementary identity:</strong> $\displaystyle\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor=\Bigl\lfloor\frac{n}{kd}\Bigr\rfloor$. The two forms are equivalent; the right-hand form is cleaner in derivations, the left-hand form is more natural in code.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> t;
-</span></span><span style=display:flex><span>    read(t);
-</span></span><span style=display:flex><span>    get_mu(<span style=color:#bd93f9>50000</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span>(t<span style=color:#ff79c6>--</span>){
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>static</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> a, b, d;
-</span></span><span style=display:flex><span>        read(a); read(b); read(d);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>static</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> max_rep, ans;
-</span></span><span style=display:flex><span>        max_rep <span style=color:#ff79c6>=</span> min(a, b); ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>, r; l<span style=color:#ff79c6>&lt;=</span>max_rep; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){
-</span></span><span style=display:flex><span>            r <span style=color:#ff79c6>=</span> min(a<span style=color:#ff79c6>/</span>(a<span style=color:#ff79c6>/</span>l), b<span style=color:#ff79c6>/</span>(b<span style=color:#ff79c6>/</span>l));
-</span></span><span style=display:flex><span>            ans <span style=color:#ff79c6>+=</span> (a<span style=color:#ff79c6>/</span>(l<span style=color:#ff79c6>*</span>d)) <span style=color:#ff79c6>*</span> (b<span style=color:#ff79c6>/</span>(l<span style=color:#ff79c6>*</span>d)) <span style=color:#ff79c6>*</span> (sum[r] <span style=color:#ff79c6>-</span> sum[l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        printf(<span style=color:#f1fa8c>&#34;%lld</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>, ans);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h3 id=example-2-luogu-p2522-haoi2011-problem-b>Example 2: Luogu P2522 [HAOI2011] Problem b</h3>$$\text{Compute }\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k],\quad 1\leq T,x,y,n,m,k\leq5\times10^4$$<p>Reduce to four $(1,\cdot)$-based queries via 2D prefix-sum inclusion-exclusion:</p>$$\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k]
-=\sum_{1..n;1..m}-\sum_{1..x-1;1..m}-\sum_{1..n;1..y-1}+\sum_{1..x-1;1..y-1}$$<hr><h1 id=3-trick-3--reduce-a-general--sum-to--form>3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</h1><blockquote><p>Replace the inner expression $f(\gcd(i,j))$ by $f(d)\cdot[\gcd(i',j')=1]$ by factoring out $d=\gcd(i,j)$.</p></blockquote><p>The most common Möbius pattern: $\displaystyle\sum_{i=1}^n\sum_{j=1}^mf(\gcd(i,j))$.</p><p>Set $d=\gcd(i,j)$, $i=i'd$, $j=j'd$; then $\gcd(i',j')=1$ (otherwise $d$ is not maximal).</p><p>Add an outer loop over $d$ and shrink the inner ranges (Trick 1):</p>$$\begin{align}
+\end{align}$$<p>The last sum is evaluated in $O\!\left(\sqrt{\min(n,m)}\right)$ via divisibility blocking.</p>
+<h3 id="example-1-luogu-p3455-poi2007-zap-queries">Example 1: Luogu P3455 [POI2007] ZAP-Queries</h3>
+$$\text{Compute }\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k],\quad 1\leq T,n,m,k\leq5\times10^4$$<ul>
+<li>Trick 1: reduce to $\sum_{i=1}^{\lfloor n/k\rfloor}\sum_{j=1}^{\lfloor m/k\rfloor}[\gcd(i,j)=1]$.</li>
+<li>Trick 2: $=\displaystyle\sum_{d=1}^{\min(\lfloor n/k\rfloor,\lfloor m/k\rfloor)}\mu(d)\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor\Bigl\lfloor\frac{\lfloor m/k\rfloor}{d}\Bigr\rfloor$.</li>
+</ul>
+<blockquote>
+<p><strong>Supplementary identity:</strong> $\displaystyle\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor=\Bigl\lfloor\frac{n}{kd}\Bigr\rfloor$. The two forms are equivalent; the right-hand form is cleaner in derivations, the left-hand form is more natural in code.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> t;
+</span></span><span style="display:flex;"><span>    read(t);
+</span></span><span style="display:flex;"><span>    get_mu(<span style="color:#bd93f9">50000</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span>(t<span style="color:#ff79c6">--</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">static</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> a, b, d;
+</span></span><span style="display:flex;"><span>        read(a); read(b); read(d);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">static</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> max_rep, ans;
+</span></span><span style="display:flex;"><span>        max_rep <span style="color:#ff79c6">=</span> min(a, b); ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>, r; l<span style="color:#ff79c6">&lt;=</span>max_rep; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){
+</span></span><span style="display:flex;"><span>            r <span style="color:#ff79c6">=</span> min(a<span style="color:#ff79c6">/</span>(a<span style="color:#ff79c6">/</span>l), b<span style="color:#ff79c6">/</span>(b<span style="color:#ff79c6">/</span>l));
+</span></span><span style="display:flex;"><span>            ans <span style="color:#ff79c6">+=</span> (a<span style="color:#ff79c6">/</span>(l<span style="color:#ff79c6">*</span>d)) <span style="color:#ff79c6">*</span> (b<span style="color:#ff79c6">/</span>(l<span style="color:#ff79c6">*</span>d)) <span style="color:#ff79c6">*</span> (sum[r] <span style="color:#ff79c6">-</span> sum[l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        printf(<span style="color:#f1fa8c">&#34;%lld</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>, ans);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="example-2-luogu-p2522-haoi2011-problem-b">Example 2: Luogu P2522 [HAOI2011] Problem b</h3>
+$$\text{Compute }\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k],\quad 1\leq T,x,y,n,m,k\leq5\times10^4$$<p>Reduce to four $(1,\cdot)$-based queries via 2D prefix-sum inclusion-exclusion:
+</p>
+$$\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k]
+=\sum_{1..n;1..m}-\sum_{1..x-1;1..m}-\sum_{1..n;1..y-1}+\sum_{1..x-1;1..y-1}$$<hr>
+<h1 id="3-trick-3--reduce-a-general--sum-to--form">3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</h1>
+<blockquote>
+<p>Replace the inner expression $f(\gcd(i,j))$ by $f(d)\cdot[\gcd(i',j')=1]$ by factoring out $d=\gcd(i,j)$.</p>
+</blockquote>
+<p>The most common Möbius pattern: $\displaystyle\sum_{i=1}^n\sum_{j=1}^mf(\gcd(i,j))$.</p>
+<p>Set $d=\gcd(i,j)$, $i=i'd$, $j=j'd$; then $\gcd(i',j')=1$ (otherwise $d$ is not maximal).</p>
+<p>Add an outer loop over $d$ and shrink the inner ranges (Trick 1):
+</p>
+$$\begin{align}
 \sum_{i=1}^n\sum_{j=1}^mf(\gcd(i,j))
 &=\sum_{d=1}^{\min(n,m)}\sum_{i'=1}^{\lfloor n/d\rfloor}\sum_{j'=1}^{\lfloor m/d\rfloor}f(\gcd(i'd,j'd))\cdot[\gcd(i',j')=1]\\
 &=\sum_{d=1}^{n}\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor m/d\rfloor}f(d)\cdot[\gcd(i,j)=1]
-\end{align}$$<hr><h1 id=4-trick-4--substitute--to-identify-a-dirichlet-convolution>4 Trick 4 — Substitute $T=dk$ to Identify a Dirichlet Convolution</h1><blockquote><p>When outer loop is $d$ and inner variable is $k$, and only their product $T=dk$ appears in floor expressions, swap to outer loop over $T$ and enumerate divisors $d\mid T$.</p></blockquote><p>Starting from Trick 3:</p>$$S=\sum_{d=1}^n f(d)\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor m/d\rfloor}[\gcd(i,j)=1]$$<p><strong>Step 1.</strong> Expand $[\gcd(i,j)=1]$ with Möbius, swap summation order:</p>$$S=\sum_{d=1}^n f(d)\sum_{k=1}^{\min(\lfloor n/d\rfloor,\lfloor m/d\rfloor)}\mu(k)
-\sum_{i=1}^{\lfloor n/d\rfloor}[k\mid i]\;\sum_{j=1}^{\lfloor m/d\rfloor}[k\mid j]$$<p><strong>Step 2.</strong> Replace divisibility counts:</p>$$\sum_{i=1}^{\lfloor n/d\rfloor}[k\mid i]=\Bigl\lfloor\frac{n}{dk}\Bigr\rfloor,\qquad
-\sum_{j=1}^{\lfloor m/d\rfloor}[k\mid j]=\Bigl\lfloor\frac{m}{dk}\Bigr\rfloor$$$$S=\sum_{d=1}^n f(d)\sum_{k=1}^{\min(\lfloor n/d\rfloor,\lfloor m/d\rfloor)}\mu(k)\Bigl\lfloor\frac{n}{dk}\Bigr\rfloor\Bigl\lfloor\frac{m}{dk}\Bigr\rfloor$$<p><strong>Step 3.</strong> Set $T=dk$. For fixed $T$, all pairs $(d,k)$ with $dk=T$ correspond to divisors $d\mid T$ with $k=T/d$. Since $dk\leq\min(n,m)$, we have $T\leq\min(n,m)$:</p>$$S=\sum_{T=1}^{\min(n,m)}\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor\sum_{d\mid T}f(d)\,\mu\!\left(\frac{T}{d}\right)$$<p><strong>Step 4.</strong> Recognise the Dirichlet convolution $g=f*\mu$:</p>$$g(T)=\sum_{d\mid T}f(d)\,\mu\!\left(\frac{T}{d}\right)$$$$\boxed{S=\sum_{T=1}^{\min(n,m)}g(T)\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor}$$<blockquote><p><strong>General Formula 1.</strong> Combining Tricks 3 and 4 (assuming $n\leq m$):</p>$$\sum_{i=1}^n\sum_{j=1}^m f(\gcd(i,j))=\sum_{T=1}^{\min(n,m)}g(T)\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor,\quad g=f*\mu$$<p><strong>Limitation:</strong> the inner expression must depend only on $\gcd(i,j)$ (a univariate function). This formula does not generalise to expressions involving $i$ or $j$ independently.</p></blockquote><h3 id=41-example-zap-queries-via-general-formula-1>4.1 Example: ZAP-Queries via General Formula 1</h3><p>With $f(x)=[x=k]$:</p>$$g(T)=\sum_{d\mid T}[d=k]\,\mu\!\left(\frac{T}{d}\right)=[k\mid T]\,\mu\!\left(\frac{T}{k}\right)$$<p>Apply Trick 1 (set $T=ik$):</p>$$\sum_{i=1}^{\min(\lfloor n/k\rfloor,\lfloor m/k\rfloor)}\mu(i)\Bigl\lfloor\frac{n}{ik}\Bigr\rfloor\Bigl\lfloor\frac{m}{ik}\Bigr\rfloor$$<p>Evaluate with divisibility blocking.</p><hr><h1 id=5-trick-5--divisor-symmetry>5 Trick 5 — Divisor Symmetry: $d\leftrightarrow n/d$</h1><blockquote><p>When $d$ runs over all divisors of $n$, $d$ and $n/d$ are in bijection.</p></blockquote><p>Example:</p>$$\frac{1}{2}\sum_{d\mid n}\frac{n^2}{d}\,\varphi\!\left(\frac{n}{d}\right)+\frac{n}{2}
-=\frac{1}{2}\sum_{d\mid n}n\cdot d\,\varphi(d)+\frac{n}{2}$$<p>(Replace $d\to n/d$ throughout the divisor sum.)</p><hr><h1 id=6-trick-6--diagonal-symmetry-upper-triangle-vs-full-matrix>6 Trick 6 — Diagonal Symmetry: Upper Triangle vs Full Matrix</h1><blockquote><p><strong>When $f(i,j)=f(j,i)$, convert between the full double sum and the upper-triangle sum.</strong></p></blockquote><h2 id=61-upper-triangle-and-lower-triangle>6.1 Upper-triangle and lower-triangle</h2>$$\sum_{i=1}^n\sum_{j=i}^n f(i,j)=\sum_{j=1}^n\sum_{i=1}^j f(i,j)$$<p>Both sides sum the upper-triangle region (including the diagonal); only the summation order differs.</p><h2 id=62-upper-triangle-sum-and-full-matrix-sum>6.2 Upper-triangle sum and full-matrix sum</h2>$$\sum_{i=1}^n\sum_{j=i}^n f(i,j)
-=\frac{\displaystyle\sum_{i=1}^n\sum_{j=1}^n f(i,j)+\sum_{i=1}^n f(i,i)}{2}$$<p>&ldquo;Upper triangle including diagonal&rdquo; = (full matrix + diagonal) / 2.</p><p>Equivalently:</p>$$\sum_{i=1}^n\sum_{j=1}^n f(i,j)=2\sum_{i=1}^n\sum_{j=i}^n f(i,j)-\sum_{i=1}^n f(i,i)$$<hr><h1 id=7-trick-7--value-domain-möbius-with>7 Trick 7 — Value-Domain Möbius with $\mathrm{cnt}[\,]$</h1><blockquote><p><strong>Overview:</strong> standard Möbius problems operate on $1,2,\ldots,n$. When the input is an array $a[1\cdots n]$ and summation involves number-theoretic functions of array values, introduce:</p><ul><li>$w[y]$ = number of times value $y$ appears in $a[\cdot]$</li><li>$\mathrm{cnt}[d]$ = number of elements in $a[\cdot]$ divisible by $d$</li></ul></blockquote><p><strong>Example.</strong> Given $a[1\cdots n]$ with $1\leq a_i\leq n$, compute:</p>$$\sum_{i=1}^n\sum_{j=1}^n\bigl(\gcd(a[i],a[j])+[\gcd(a[i],a[j])\neq1]\bigr)$$<p>Split into two parts:</p>$$\underbrace{\sum_{i,j}\gcd(a[i],a[j])}_{P_1}+\underbrace{\sum_{i,j}[\gcd(a[i],a[j])\neq1]}_{P_2}$$<p><strong>Computing $P_2$ (non-coprime pairs):</strong></p><p>Expand $[\gcd=1]=\sum_{d\mid\gcd}\mu(d)$, decouple with Trick 2:</p>$$\sum_{i,j}[\gcd(a[i],a[j])=1]=\sum_{d=1}^V\mu(d)\Bigl(\sum_i[d\mid a[i]]\Bigr)^2=\sum_{d=1}^V\mu(d)\,\mathrm{cnt}^2(d)$$$$P_2=n^2-\sum_{d=1}^V\mu(d)\,\mathrm{cnt}^2(d)$$<p><strong>Computing $P_1$ (sum of GCDs):</strong></p><p>Use Euler inversion $\mathrm{id}=\varphi*\mathbf{1}$, i.e.\ $\gcd(a,b)=\sum_{d\mid\gcd(a,b)}\varphi(d)$, then Trick 2:</p>$$P_1=\sum_{i,j}\gcd(a[i],a[j])=\sum_{d=1}^V\varphi(d)\,\mathrm{cnt}^2(d)$$<p><strong>Final answer:</strong></p>$$\text{Answer}=n^2+\sum_{d=1}^V\bigl(\varphi(d)-\mu(d)\bigr)\,\mathrm{cnt}^2(d)$$<p><strong>Computing $\mathrm{cnt}[d]$:</strong> build $w[y]$ (frequency array), then for each $d$ accumulate $w[d]+w[2d]+\cdots$ — harmonic-series cost $O(V\log V)$.</p><p><strong>Complexity:</strong> $O(V\log V)$ overall, $V=\max\{a_i\}$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>100000</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>10</span>;   <span style=color:#6272a4>// set to max(a[i]) + 5 as needed
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> P <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>998244353</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> n, v;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> a[N], w[N];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>bool</span> st[N];
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> primes[N], tot;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> mu[N]; ll phi[N];
-</span></span><span style=display:flex><span>ll cnt[N];
-</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> g[N];  <span style=color:#6272a4>// g[x][0] = smallest prime factor of x
-</span></span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4>// sieve + phi + mu
-</span></span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>get_primes</span>(<span style=color:#8be9fd>int</span> nmax) {
-</span></span><span style=display:flex><span>    phi[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> nmax; i<span style=color:#ff79c6>++</span>) mu[i] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> nmax; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>st[i]) {
-</span></span><span style=display:flex><span>            primes[tot<span style=color:#ff79c6>++</span>] <span style=color:#ff79c6>=</span> i;
-</span></span><span style=display:flex><span>            mu[i] <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            phi[i] <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>+</span> i; j <span style=color:#ff79c6>&lt;=</span> nmax; j <span style=color:#ff79c6>+=</span> i) {
-</span></span><span style=display:flex><span>                st[j] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>                g[j].push_back(i);
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> ((j <span style=color:#ff79c6>/</span> i) <span style=color:#ff79c6>%</span> i <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) mu[j] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>else</span> <span style=color:#ff79c6>if</span> (mu[j] <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>0</span>) mu[j] <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>-</span>mu[j];
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>        } <span style=color:#ff79c6>else</span> {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> p <span style=color:#ff79c6>=</span> g[i][<span style=color:#bd93f9>0</span>];        <span style=color:#6272a4>// smallest prime factor of i
-</span></span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> now <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>/</span> p;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (now <span style=color:#ff79c6>%</span> p <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) phi[i] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> p <span style=color:#ff79c6>*</span> phi[now];
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span>              phi[i] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> (p <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>*</span> phi[now];
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4>// cnt[d] = number of elements in a[] divisible by d
-</span></span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>get_cnt</span>() {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; i<span style=color:#ff79c6>++</span>) w[a[i]]<span style=color:#ff79c6>++</span>;
-</span></span><span style=display:flex><span>    cnt[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> n;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> d <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; d <span style=color:#ff79c6>&lt;=</span> v; d<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> d; j <span style=color:#ff79c6>&lt;=</span> v; j <span style=color:#ff79c6>+=</span> d) {
-</span></span><span style=display:flex><span>            cnt[d] <span style=color:#ff79c6>+=</span> w[j];   <span style=color:#6272a4>// no modular reduction: cnt[d] &lt;= n
-</span></span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    cin <span style=color:#ff79c6>&gt;&gt;</span> n;
-</span></span><span style=display:flex><span>    v <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        cin <span style=color:#ff79c6>&gt;&gt;</span> a[i];
-</span></span><span style=display:flex><span>        v <span style=color:#ff79c6>=</span> max(v, a[i]);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    get_primes(v);
-</span></span><span style=display:flex><span>    get_cnt();
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>%</span> P;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> d <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; d <span style=color:#ff79c6>&lt;=</span> v; d<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        ll term <span style=color:#ff79c6>=</span> (((phi[d] <span style=color:#ff79c6>-</span> mu[d]) <span style=color:#ff79c6>%</span> P) <span style=color:#ff79c6>+</span> P) <span style=color:#ff79c6>%</span> P;
-</span></span><span style=display:flex><span>        ll cd   <span style=color:#ff79c6>=</span> cnt[d] <span style=color:#ff79c6>%</span> P;
-</span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>=</span> (ans <span style=color:#ff79c6>+</span> term <span style=color:#ff79c6>*</span> cd <span style=color:#ff79c6>%</span> P <span style=color:#ff79c6>*</span> cd) <span style=color:#ff79c6>%</span> P;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> ans <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39;\n&#39;</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><ul><li><a href=#01-basic-identities>0.1 Basic Identities</a></li></ul></li><li><a href=#1-trick-1--loop-shortening-via-divisibility>1 Trick 1 — Loop Shortening via Divisibility</a></li><li><a href=#2-trick-2--convert-gcd-divisors-to-individual-divisors>2 Trick 2 — Convert GCD-Divisors to Individual Divisors</a><ul><li></li></ul></li><li><a href=#3-trick-3--reduce-a-general--sum-to--form>3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</a></li><li><a href=#4-trick-4--substitute--to-identify-a-dirichlet-convolution>4 Trick 4 — Substitute $T=dk$ to Identify a Dirichlet Convolution</a><ul><li></li></ul></li><li><a href=#5-trick-5--divisor-symmetry>5 Trick 5 — Divisor Symmetry: $d\leftrightarrow n/d$</a></li><li><a href=#6-trick-6--diagonal-symmetry-upper-triangle-vs-full-matrix>6 Trick 6 — Diagonal Symmetry: Upper Triangle vs Full Matrix</a><ul><li><a href=#61-upper-triangle-and-lower-triangle>6.1 Upper-triangle and lower-triangle</a></li><li><a href=#62-upper-triangle-sum-and-full-matrix-sum>6.2 Upper-triangle sum and full-matrix sum</a></li></ul></li><li><a href=#7-trick-7--value-domain-möbius-with>7 Trick 7 — Value-Domain Möbius with $\mathrm{cnt}[\,]$</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const t=document.querySelector(".nav-toggle"),n=document.querySelector("#site-navigation");if(!t||!n)return;function e(e){document.documentElement.classList.toggle("nav-open",e),t.setAttribute("aria-expanded",String(e))}t.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),n.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0})})()</script></body></html>
+\end{align}$$<hr>
+<h1 id="4-trick-4--substitute--to-identify-a-dirichlet-convolution">4 Trick 4 — Substitute $T=dk$ to Identify a Dirichlet Convolution</h1>
+<blockquote>
+<p>When outer loop is $d$ and inner variable is $k$, and only their product $T=dk$ appears in floor expressions, swap to outer loop over $T$ and enumerate divisors $d\mid T$.</p>
+</blockquote>
+<p>Starting from Trick 3:
+</p>
+$$S=\sum_{d=1}^n f(d)\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor m/d\rfloor}[\gcd(i,j)=1]$$<p><strong>Step 1.</strong> Expand $[\gcd(i,j)=1]$ with Möbius, swap summation order:
+</p>
+$$S=\sum_{d=1}^n f(d)\sum_{k=1}^{\min(\lfloor n/d\rfloor,\lfloor m/d\rfloor)}\mu(k)
+\sum_{i=1}^{\lfloor n/d\rfloor}[k\mid i]\;\sum_{j=1}^{\lfloor m/d\rfloor}[k\mid j]$$<p><strong>Step 2.</strong> Replace divisibility counts:
+</p>
+$$\sum_{i=1}^{\lfloor n/d\rfloor}[k\mid i]=\Bigl\lfloor\frac{n}{dk}\Bigr\rfloor,\qquad
+\sum_{j=1}^{\lfloor m/d\rfloor}[k\mid j]=\Bigl\lfloor\frac{m}{dk}\Bigr\rfloor$$$$S=\sum_{d=1}^n f(d)\sum_{k=1}^{\min(\lfloor n/d\rfloor,\lfloor m/d\rfloor)}\mu(k)\Bigl\lfloor\frac{n}{dk}\Bigr\rfloor\Bigl\lfloor\frac{m}{dk}\Bigr\rfloor$$<p><strong>Step 3.</strong> Set $T=dk$. For fixed $T$, all pairs $(d,k)$ with $dk=T$ correspond to divisors $d\mid T$ with $k=T/d$. Since $dk\leq\min(n,m)$, we have $T\leq\min(n,m)$:
+</p>
+$$S=\sum_{T=1}^{\min(n,m)}\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor\sum_{d\mid T}f(d)\,\mu\!\left(\frac{T}{d}\right)$$<p><strong>Step 4.</strong> Recognise the Dirichlet convolution $g=f*\mu$:
+</p>
+$$g(T)=\sum_{d\mid T}f(d)\,\mu\!\left(\frac{T}{d}\right)$$$$\boxed{S=\sum_{T=1}^{\min(n,m)}g(T)\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor}$$<blockquote>
+<p><strong>General Formula 1.</strong> Combining Tricks 3 and 4 (assuming $n\leq m$):
+</p>
+$$\sum_{i=1}^n\sum_{j=1}^m f(\gcd(i,j))=\sum_{T=1}^{\min(n,m)}g(T)\Bigl\lfloor\frac{n}{T}\Bigr\rfloor\Bigl\lfloor\frac{m}{T}\Bigr\rfloor,\quad g=f*\mu$$<p>
+<strong>Limitation:</strong> the inner expression must depend only on $\gcd(i,j)$ (a univariate function). This formula does not generalise to expressions involving $i$ or $j$ independently.</p>
+</blockquote>
+<h3 id="41-example-zap-queries-via-general-formula-1">4.1 Example: ZAP-Queries via General Formula 1</h3>
+<p>With $f(x)=[x=k]$:
+</p>
+$$g(T)=\sum_{d\mid T}[d=k]\,\mu\!\left(\frac{T}{d}\right)=[k\mid T]\,\mu\!\left(\frac{T}{k}\right)$$<p>Apply Trick 1 (set $T=ik$):
+</p>
+$$\sum_{i=1}^{\min(\lfloor n/k\rfloor,\lfloor m/k\rfloor)}\mu(i)\Bigl\lfloor\frac{n}{ik}\Bigr\rfloor\Bigl\lfloor\frac{m}{ik}\Bigr\rfloor$$<p>Evaluate with divisibility blocking.</p>
+<hr>
+<h1 id="5-trick-5--divisor-symmetry">5 Trick 5 — Divisor Symmetry: $d\leftrightarrow n/d$</h1>
+<blockquote>
+<p>When $d$ runs over all divisors of $n$, $d$ and $n/d$ are in bijection.</p>
+</blockquote>
+<p>Example:
+</p>
+$$\frac{1}{2}\sum_{d\mid n}\frac{n^2}{d}\,\varphi\!\left(\frac{n}{d}\right)+\frac{n}{2}
+=\frac{1}{2}\sum_{d\mid n}n\cdot d\,\varphi(d)+\frac{n}{2}$$<p>(Replace $d\to n/d$ throughout the divisor sum.)</p>
+<hr>
+<h1 id="6-trick-6--diagonal-symmetry-upper-triangle-vs-full-matrix">6 Trick 6 — Diagonal Symmetry: Upper Triangle vs Full Matrix</h1>
+<blockquote>
+<p><strong>When $f(i,j)=f(j,i)$, convert between the full double sum and the upper-triangle sum.</strong></p>
+</blockquote>
+<h2 id="61-upper-triangle-and-lower-triangle">6.1 Upper-triangle and lower-triangle</h2>
+$$\sum_{i=1}^n\sum_{j=i}^n f(i,j)=\sum_{j=1}^n\sum_{i=1}^j f(i,j)$$<p>Both sides sum the upper-triangle region (including the diagonal); only the summation order differs.</p>
+<h2 id="62-upper-triangle-sum-and-full-matrix-sum">6.2 Upper-triangle sum and full-matrix sum</h2>
+$$\sum_{i=1}^n\sum_{j=i}^n f(i,j)
+=\frac{\displaystyle\sum_{i=1}^n\sum_{j=1}^n f(i,j)+\sum_{i=1}^n f(i,i)}{2}$$<p>&ldquo;Upper triangle including diagonal&rdquo; = (full matrix + diagonal) / 2.</p>
+<p>Equivalently:
+</p>
+$$\sum_{i=1}^n\sum_{j=1}^n f(i,j)=2\sum_{i=1}^n\sum_{j=i}^n f(i,j)-\sum_{i=1}^n f(i,i)$$<hr>
+<h1 id="7-trick-7--value-domain-möbius-with">7 Trick 7 — Value-Domain Möbius with $\mathrm{cnt}[\,]$</h1>
+<blockquote>
+<p><strong>Overview:</strong> standard Möbius problems operate on $1,2,\ldots,n$. When the input is an array $a[1\cdots n]$ and summation involves number-theoretic functions of array values, introduce:</p>
+<ul>
+<li>$w[y]$ = number of times value $y$ appears in $a[\cdot]$</li>
+<li>$\mathrm{cnt}[d]$ = number of elements in $a[\cdot]$ divisible by $d$</li>
+</ul>
+</blockquote>
+<p><strong>Example.</strong> Given $a[1\cdots n]$ with $1\leq a_i\leq n$, compute:
+</p>
+$$\sum_{i=1}^n\sum_{j=1}^n\bigl(\gcd(a[i],a[j])+[\gcd(a[i],a[j])\neq1]\bigr)$$<p>Split into two parts:
+</p>
+$$\underbrace{\sum_{i,j}\gcd(a[i],a[j])}_{P_1}+\underbrace{\sum_{i,j}[\gcd(a[i],a[j])\neq1]}_{P_2}$$<p><strong>Computing $P_2$ (non-coprime pairs):</strong></p>
+<p>Expand $[\gcd=1]=\sum_{d\mid\gcd}\mu(d)$, decouple with Trick 2:
+</p>
+$$\sum_{i,j}[\gcd(a[i],a[j])=1]=\sum_{d=1}^V\mu(d)\Bigl(\sum_i[d\mid a[i]]\Bigr)^2=\sum_{d=1}^V\mu(d)\,\mathrm{cnt}^2(d)$$$$P_2=n^2-\sum_{d=1}^V\mu(d)\,\mathrm{cnt}^2(d)$$<p><strong>Computing $P_1$ (sum of GCDs):</strong></p>
+<p>Use Euler inversion $\mathrm{id}=\varphi*\mathbf{1}$, i.e.\ $\gcd(a,b)=\sum_{d\mid\gcd(a,b)}\varphi(d)$, then Trick 2:
+</p>
+$$P_1=\sum_{i,j}\gcd(a[i],a[j])=\sum_{d=1}^V\varphi(d)\,\mathrm{cnt}^2(d)$$<p><strong>Final answer:</strong>
+</p>
+$$\text{Answer}=n^2+\sum_{d=1}^V\bigl(\varphi(d)-\mu(d)\bigr)\,\mathrm{cnt}^2(d)$$<p><strong>Computing $\mathrm{cnt}[d]$:</strong> build $w[y]$ (frequency array), then for each $d$ accumulate $w[d]+w[2d]+\cdots$ — harmonic-series cost $O(V\log V)$.</p>
+<p><strong>Complexity:</strong> $O(V\log V)$ overall, $V=\max\{a_i\}$.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">100000</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">10</span>;   <span style="color:#6272a4">// set to max(a[i]) + 5 as needed
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> P <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">998244353</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> n, v;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> a[N], w[N];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">bool</span> st[N];
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> primes[N], tot;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> mu[N]; ll phi[N];
+</span></span><span style="display:flex;"><span>ll cnt[N];
+</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> g[N];  <span style="color:#6272a4">// g[x][0] = smallest prime factor of x
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// sieve + phi + mu
+</span></span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">get_primes</span>(<span style="color:#8be9fd">int</span> nmax) {
+</span></span><span style="display:flex;"><span>    phi[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> nmax; i<span style="color:#ff79c6">++</span>) mu[i] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> nmax; i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>st[i]) {
+</span></span><span style="display:flex;"><span>            primes[tot<span style="color:#ff79c6">++</span>] <span style="color:#ff79c6">=</span> i;
+</span></span><span style="display:flex;"><span>            mu[i] <span style="color:#ff79c6">=</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            phi[i] <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">+</span> i; j <span style="color:#ff79c6">&lt;=</span> nmax; j <span style="color:#ff79c6">+=</span> i) {
+</span></span><span style="display:flex;"><span>                st[j] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>                g[j].push_back(i);
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> ((j <span style="color:#ff79c6">/</span> i) <span style="color:#ff79c6">%</span> i <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) mu[j] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">else</span> <span style="color:#ff79c6">if</span> (mu[j] <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">0</span>) mu[j] <span style="color:#ff79c6">=</span> <span style="color:#ff79c6">-</span>mu[j];
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        } <span style="color:#ff79c6">else</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> p <span style="color:#ff79c6">=</span> g[i][<span style="color:#bd93f9">0</span>];        <span style="color:#6272a4">// smallest prime factor of i
+</span></span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> now <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">/</span> p;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (now <span style="color:#ff79c6">%</span> p <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) phi[i] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> p <span style="color:#ff79c6">*</span> phi[now];
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">else</span>              phi[i] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> (p <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">*</span> phi[now];
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// cnt[d] = number of elements in a[] divisible by d
+</span></span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">get_cnt</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> n; i<span style="color:#ff79c6">++</span>) w[a[i]]<span style="color:#ff79c6">++</span>;
+</span></span><span style="display:flex;"><span>    cnt[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> n;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> d <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; d <span style="color:#ff79c6">&lt;=</span> v; d<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> d; j <span style="color:#ff79c6">&lt;=</span> v; j <span style="color:#ff79c6">+=</span> d) {
+</span></span><span style="display:flex;"><span>            cnt[d] <span style="color:#ff79c6">+=</span> w[j];   <span style="color:#6272a4">// no modular reduction: cnt[d] &lt;= n
+</span></span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    cin <span style="color:#ff79c6">&gt;&gt;</span> n;
+</span></span><span style="display:flex;"><span>    v <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> n; i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>        cin <span style="color:#ff79c6">&gt;&gt;</span> a[i];
+</span></span><span style="display:flex;"><span>        v <span style="color:#ff79c6">=</span> max(v, a[i]);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    get_primes(v);
+</span></span><span style="display:flex;"><span>    get_cnt();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">%</span> P;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> d <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; d <span style="color:#ff79c6">&lt;=</span> v; d<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>        ll term <span style="color:#ff79c6">=</span> (((phi[d] <span style="color:#ff79c6">-</span> mu[d]) <span style="color:#ff79c6">%</span> P) <span style="color:#ff79c6">+</span> P) <span style="color:#ff79c6">%</span> P;
+</span></span><span style="display:flex;"><span>        ll cd   <span style="color:#ff79c6">=</span> cnt[d] <span style="color:#ff79c6">%</span> P;
+</span></span><span style="display:flex;"><span>        ans <span style="color:#ff79c6">=</span> (ans <span style="color:#ff79c6">+</span> term <span style="color:#ff79c6">*</span> cd <span style="color:#ff79c6">%</span> P <span style="color:#ff79c6">*</span> cd) <span style="color:#ff79c6">%</span> P;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> ans <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39;\n&#39;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div>
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#01-basic-identities">0.1 Basic Identities</a></li>
+      </ul>
+    </li>
+    <li><a href="#1-trick-1--loop-shortening-via-divisibility">1 Trick 1 — Loop Shortening via Divisibility</a></li>
+    <li><a href="#2-trick-2--convert-gcd-divisors-to-individual-divisors">2 Trick 2 — Convert GCD-Divisors to Individual Divisors</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#3-trick-3--reduce-a-general--sum-to--form">3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</a></li>
+    <li><a href="#4-trick-4--substitute--to-identify-a-dirichlet-convolution">4 Trick 4 — Substitute $T=dk$ to Identify a Dirichlet Convolution</a>
+      <ul>
+        <li></li>
+      </ul>
+    </li>
+    <li><a href="#5-trick-5--divisor-symmetry">5 Trick 5 — Divisor Symmetry: $d\leftrightarrow n/d$</a></li>
+    <li><a href="#6-trick-6--diagonal-symmetry-upper-triangle-vs-full-matrix">6 Trick 6 — Diagonal Symmetry: Upper Triangle vs Full Matrix</a>
+      <ul>
+        <li><a href="#61-upper-triangle-and-lower-triangle">6.1 Upper-triangle and lower-triangle</a></li>
+        <li><a href="#62-upper-triangle-sum-and-full-matrix-sum">6.2 Upper-triangle sum and full-matrix sum</a></li>
+      </ul>
+    </li>
+    <li><a href="#7-trick-7--value-domain-möbius-with">7 Trick 7 — Value-Domain Möbius with $\mathrm{cnt}[\,]$</a></li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const tocPanel = document.querySelector('.article-toc');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      let ticking = false;
+
+      function updateActiveTocLink() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
+          }
+        }
+      }
+
+      function updateTocBoundary() {
+        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
+          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
+          return;
+        }
+
+        const footer = document.querySelector('.site-footer');
+        if (!footer) return;
+
+        const bottomGap = 24;
+        const tocBottom = 86 + tocPanel.offsetHeight;
+        const footerTop = footer.getBoundingClientRect().top;
+        const overlap = tocBottom + bottomGap - footerTop;
+
+        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateTocBoundary();
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      
+      setTimeout(function() {
+        updateTocBoundary();
+        updateActiveTocLink();
+      }, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(next, true);
+        });
+      })();
+    </script>
+  </body>
+</html>
