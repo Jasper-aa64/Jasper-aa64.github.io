@@ -131,7 +131,11 @@
         applyTheme(document.documentElement.dataset.theme || "light", false);
         themeToggle.addEventListener("click", function() {
           const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          document.documentElement.classList.add("theme-switching");
           applyTheme(next, true);
+          window.setTimeout(function() {
+            document.documentElement.classList.remove("theme-switching");
+          }, 620);
         });
       })();
     </script>

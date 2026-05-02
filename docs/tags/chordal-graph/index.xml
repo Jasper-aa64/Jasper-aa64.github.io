@@ -1,1 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Chordal-Graph on Jasper's Technical Notebook</title><link>https://jmaaa32.github.io/tags/chordal-graph/</link><description>Recent content in Chordal-Graph on Jasper's Technical Notebook</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Sun, 26 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jmaaa32.github.io/tags/chordal-graph/index.xml" rel="self" type="application/rss+xml"/><item><title>Combinatorics: Order Theory — Chromatic Polynomials, Chordal Graphs, Order Polynomials, Dilworth &amp; Hall</title><link>https://jmaaa32.github.io/posts/combinatorics-order-theory/</link><pubDate>Sun, 26 Apr 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/posts/combinatorics-order-theory/</guid><description>Chromatic polynomial, chordal/interval graphs, PEO product formula, order polynomials (chain/antichain/tree/DAG/divisor lattice), MacMahon formula, Dilworth, Mirsky, Hall&amp;rsquo;s marriage theorem, Erdős–Szekeres, missile interception.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Chordal-Graph on Jasper&#39;s Technical Notebook</title>
+    <link>http://localhost:1313/tags/chordal-graph/</link>
+    <description>Recent content in Chordal-Graph on Jasper&#39;s Technical Notebook</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 26 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/chordal-graph/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Combinatorics: Order Theory — Chromatic Polynomials, Chordal Graphs, Order Polynomials, Dilworth &amp; Hall</title>
+      <link>http://localhost:1313/posts/combinatorics-order-theory/</link>
+      <pubDate>Sun, 26 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/combinatorics-order-theory/</guid>
+      <description>Chromatic polynomial, chordal/interval graphs, PEO product formula, order polynomials (chain/antichain/tree/DAG/divisor lattice), MacMahon formula, Dilworth, Mirsky, Hall&amp;rsquo;s marriage theorem, Erdős–Szekeres, missile interception.</description>
+    </item>
+  </channel>
+</rss>

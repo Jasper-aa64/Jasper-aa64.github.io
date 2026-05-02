@@ -1,272 +1,790 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics D1: Diophantine Equations | Jasper's Technical Notebook</title><meta name=description content="Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;C NTT, equal-cap formula, and a full worked example on CF 2127F."><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-d1-diophantine-equations/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
-<span class=theme-toggle-icon aria-hidden=true></span>
-<span class=sr-only>Switch theme</span>
-</button>
-<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class="nav-link is-active" href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics D1: Diophantine Equations</h1><div class=article-meta><time datetime=2026-04-24>Apr 24, 2026</time>
-<span>·</span>
-<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/combinatorics/>#combinatorics</a>
-<a class=chip href=/tags/diophantine/>#diophantine</a>
-<a class=chip href=/tags/stars-and-bars/>#stars-and-bars</a>
-<a class=chip href=/tags/inclusion-exclusion/>#inclusion-exclusion</a>
-<a class=chip href=/tags/dp/>#dp</a>
-<a class=chip href=/tags/ntt/>#ntt</a>
-<a class=chip href=/tags/hockey-stick/>#hockey-stick</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#1-stars-and-bars-unconstrained--simple-bounds>1 Stars and Bars (Unconstrained / Simple Bounds)</a></li><li><a href=#2-bounded-diophantine--inclusion-exclusion-formula>2 Bounded Diophantine — Inclusion-Exclusion Formula</a><ul><li><a href=#21-setup>2.1 Setup</a></li><li><a href=#22-inclusion-exclusion>2.2 Inclusion-Exclusion</a></li></ul></li><li><a href=#3-prefix-sum-dp->3 Prefix-Sum DP — $O(kN)$</a></li><li><a href=#4-divide-and-conquer-ntt--generating-function-method>4 Divide-and-Conquer NTT — Generating Function Method</a></li><li><a href=#5-equal-cap-case>5 Equal-Cap Case</a></li><li><a href=#6-example--cf-2127f>6 Example — CF 2127F</a><ul><li><a href=#61-linearise-the-sum>6.1 Linearise the Sum</a></li><li><a href=#62-problem-statement>6.2 Problem Statement</a></li><li><a href=#63-algorithm>6.3 Algorithm</a></li><li><a href=#64-interchange-the-summations>6.4 Interchange the Summations</a></li><li><a href=#65-substitute-variables--convert-to-an-interval-sum-over>6.5 Substitute Variables — Convert to an Interval Sum over $t$</a></li><li><a href=#66-evaluate--and--via-hockey-stick>6.6 Evaluate $T_0$ and $T_1$ via Hockey Stick</a></li><li><a href=#67-same-treatment-for>6.7 Same Treatment for $B(M)$</a></li><li><a href=#68-key-takeaways>6.8 Key Takeaways</a></li></ul></li></ul></nav></div></details><div class="article-content prose"><h1 id=1-stars-and-bars-unconstrained--simple-bounds>1 Stars and Bars (Unconstrained / Simple Bounds)</h1><p>Count non-negative integer solutions of</p>$$x_1 + x_2 + \cdots + x_k = n, \quad x_i \ge 0.$$<p><strong>Model.</strong> Represent the $n$ units as $n$ identical balls placed into $k$ labeled bins. Insert $k-1$ dividers to separate bins. Together the $n$ balls and $k-1$ dividers occupy $n+k-1$ slots; choosing which $k-1$ slots hold dividers determines the solution:</p>$$\boxed{\binom{n+k-1}{k-1}}$$<p><strong>Strictly positive</strong> ($x_i \ge 1$): substitute $y_i = x_i - 1 \ge 0$, so $\sum y_i = n - k$. Requires $n \ge k$; formula:</p>$$\binom{n-1}{k-1}$$<p><strong>Lower bounds</strong> ($x_i \ge a_i$): substitute $y_i = x_i - a_i \ge 0$, so $\sum y_i = n - \sum a_i$. Requires $n \ge \sum a_i$; formula:</p>$$\binom{n - \sum_{i=1}^k a_i + k - 1}{k-1}$$<p><strong>At most $n$</strong> ($x_1 + \cdots + x_k \le n$, each $x_i \ge 0$):</p><ul><li>Add a slack variable $Z \ge 0$, so $x_1 + \cdots + x_k + Z = n$.</li><li>Now $k+1$ variables summing to $n$:
-$$\binom{n+k}{k}$$</li></ul><hr><h1 id=2-bounded-diophantine--inclusion-exclusion-formula>2 Bounded Diophantine — Inclusion-Exclusion Formula</h1><p><strong>Count</strong> non-negative integer solutions of</p>$$x_1 + x_2 + \cdots + x_k = n, \quad l_i \le x_i \le r_i.$$<h2 id=21-setup>2.1 Setup</h2><p><strong>Shift to zero lower-bounds.</strong> Let $y_i = x_i - l_i \ge 0$, $U_i = r_i - l_i$, $N = n - \sum l_i$.</p><ul><li>If $N < 0$ or $N > \sum U_i$: answer is $0$.</li><li>Otherwise count: $y_1 + \cdots + y_k = N$, $0 \le y_i \le U_i$.</li></ul><h2 id=22-inclusion-exclusion>2.2 Inclusion-Exclusion</h2><p>Let $A_i$ be the &ldquo;bad&rdquo; event $y_i \ge U_i + 1$ (upper bound violated).</p><p><strong>Unconstrained count</strong> ($y_i \ge 0$, no upper bound): $\binom{N+k-1}{k-1}$.</p><p><strong>Forced violation of subset $T$.</strong> If every $i \in T$ satisfies $y_i \ge U_i + 1$, substitute $z_i = y_i - (U_i+1) \ge 0$. The new target sum is $N - \sum_{i\in T}(U_i+1)$. Count:</p>$$\binom{N - \sum_{i\in T}(U_i+1) + k - 1}{k-1}$$<p>where $M = N - \sum_{i\in T}(U_i+1)$; the term is $0$ when $M < 0$.</p><p><strong>Inclusion-exclusion over all subsets:</strong></p>$$\boxed{\#\ =\ \sum_{T \subseteq [k]} (-1)^{|T|} \binom{N - \sum_{i\in T}(U_i+1) + k-1}{k-1}}$$<p>Direct evaluation: $O(k \cdot 2^k)$.</p><hr><h1 id=3-prefix-sum-dp->3 Prefix-Sum DP — $O(kN)$</h1><p>Define $dp[i][s]$ = number of ways to make sum $s$ using the first $i$ variables $y_1, \dots, y_i$ (each in $[0, U_i]$).</p><p><strong>Base:</strong> $dp[0][0] = 1$.</p><p><strong>Transition.</strong> $y_i$ contributes any value in $[0, U_i]$, so:</p>$$dp[i][s] = \sum_{v=0}^{\min(s,U_i)} dp[i-1][s-v] = \mathrm{pref}[s] - \mathrm{pref}[s - U_i - 1]$$<p>where $\mathrm{pref}[t] = \sum_{u=0}^{t} dp[i-1][u]$ and $\mathrm{pref}[-1] = 0$.</p><p>Rolling arrays reduce space to $O(N)$.</p><p><strong>Answer:</strong> $dp[k][N]$ (mod $10^9+7$).</p><blockquote><p>If $N$ itself exceeds available memory or time budget, this DP is not applicable — use the NTT method instead.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MOD <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1000000007</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>inline</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>add</span>(<span style=color:#8be9fd>int</span> a,<span style=color:#8be9fd>int</span> b){ a<span style=color:#ff79c6>+=</span>b; <span style=color:#ff79c6>if</span>(a<span style=color:#ff79c6>&gt;=</span>MOD) a<span style=color:#ff79c6>-=</span>MOD; <span style=color:#ff79c6>return</span> a; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> k; <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n; cin<span style=color:#ff79c6>&gt;&gt;</span>k<span style=color:#ff79c6>&gt;&gt;</span>n;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span><span style=color:#ff79c6>&gt;</span> L(k),R(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>k;<span style=color:#ff79c6>++</span>i) cin<span style=color:#ff79c6>&gt;&gt;</span>L[i]<span style=color:#ff79c6>&gt;&gt;</span>R[i];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> sumL<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>,sumU<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span><span style=color:#ff79c6>&gt;</span> U64(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>k;<span style=color:#ff79c6>++</span>i){
-</span></span><span style=display:flex><span>        sumL<span style=color:#ff79c6>+=</span>L[i];
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> ui<span style=color:#ff79c6>=</span>R[i]<span style=color:#ff79c6>-</span>L[i];
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(ui<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span>){ cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>        U64[i]<span style=color:#ff79c6>=</span>ui; sumU<span style=color:#ff79c6>+=</span>ui;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> N64<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>-</span>sumL;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(N64<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>||</span>N64<span style=color:#ff79c6>&gt;</span>sumU){ cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> N<span style=color:#ff79c6>=</span>(<span style=color:#8be9fd>int</span>)N64;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#6272a4>// clamp each U_i to N — anything larger never affects the DP
-</span></span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> U(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>k;<span style=color:#ff79c6>++</span>i) U[i]<span style=color:#ff79c6>=</span>(<span style=color:#8be9fd>int</span>)min(U64[i],N64);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> prev(N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>),cur(N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>),pref(N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>    prev[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; <span style=color:#8be9fd>int</span> reach<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>k;<span style=color:#ff79c6>++</span>i){
-</span></span><span style=display:flex><span>        reach<span style=color:#ff79c6>=</span>min(N,reach<span style=color:#ff79c6>+</span>U[i]);
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> run<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> s<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;s<span style=color:#ff79c6>&lt;=</span>reach;<span style=color:#ff79c6>++</span>s){ run<span style=color:#ff79c6>=</span>add(run,prev[s]); pref[s]<span style=color:#ff79c6>=</span>run; }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> s<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;s<span style=color:#ff79c6>&lt;=</span>reach;<span style=color:#ff79c6>++</span>s){
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> left<span style=color:#ff79c6>=</span>s<span style=color:#ff79c6>-</span>U[i]<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> val<span style=color:#ff79c6>=</span>pref[s];
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(left<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>){ val<span style=color:#ff79c6>-=</span>pref[left]; <span style=color:#ff79c6>if</span>(val<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>0</span>) val<span style=color:#ff79c6>+=</span>MOD; }
-</span></span><span style=display:flex><span>            cur[s]<span style=color:#ff79c6>=</span>val;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> s<span style=color:#ff79c6>=</span>reach<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>;s<span style=color:#ff79c6>&lt;=</span>N;<span style=color:#ff79c6>++</span>s) cur[s]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        swap(prev,cur);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    cout<span style=color:#ff79c6>&lt;&lt;</span>prev[N]<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;   <span style=color:#6272a4>// answer mod 10^9+7
-</span></span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=4-divide-and-conquer-ntt--generating-function-method>4 Divide-and-Conquer NTT — Generating Function Method</h1><p>Each variable $y_i \in [0, U_i]$ corresponds to the generating polynomial</p>$$P_i(x) = 1 + x + x^2 + \cdots + x^{U_i}.$$<p>The answer is $[x^N]\displaystyle\prod_{i=1}^k P_i(x)$.</p><p><strong>Strategy.</strong> Merge the $k$ polynomials with divide-and-conquer; at each merge truncate to degree $N$ to avoid unnecessary growth.</p><p><strong>Complexity.</strong> Each merge node $v$ performs one convolution of cost $O(d_v \log d_v)$ where $d_v$ is the effective polynomial length at that node (capped at $N+1$). Total cost:</p>$$O\!\left(\sum_{\text{merge node }v} d_v \log d_v\right)$$<p>Since every truncation keeps $d_v \le N+1$, in the common case where polynomial lengths grow gradually across levels this is approximately $O(N \log N \log k)$. In the worst case (e.g. all $k$ polynomials already of length $\Theta(N)$ at the leaves) it can reach $O(kN \log N)$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MOD <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>998244353</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> G   <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>3</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> <span style=color:#50fa7b>pw</span>(<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> a, <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> b, <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> mod <span style=color:#ff79c6>=</span> MOD) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; a <span style=color:#ff79c6>%=</span> mod;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (; b <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>; b <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>) { <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>*</span> a <span style=color:#ff79c6>%</span> mod; a <span style=color:#ff79c6>=</span> a <span style=color:#ff79c6>*</span> a <span style=color:#ff79c6>%</span> mod; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>ntt</span>(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> a, <span style=color:#8be9fd>bool</span> inv) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> a.size();
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> bit <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (; j <span style=color:#ff79c6>&amp;</span> bit; bit <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>) j <span style=color:#ff79c6>^=</span> bit;
-</span></span><span style=display:flex><span>        j <span style=color:#ff79c6>^=</span> bit;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>&lt;</span> j) swap(a[i], a[j]);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> len <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; len <span style=color:#ff79c6>&lt;=</span> n; len <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> w <span style=color:#ff79c6>=</span> inv <span style=color:#ff79c6>?</span> pw(G, MOD <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>-</span> (MOD <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> len)
-</span></span><span style=display:flex><span>                         <span style=color:#ff79c6>:</span> pw(G, (MOD <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> len);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; i <span style=color:#ff79c6>+=</span> len) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> wn <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> len <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span>; <span style=color:#ff79c6>++</span>j) {
-</span></span><span style=display:flex><span>                <span style=color:#8be9fd>int</span> u <span style=color:#ff79c6>=</span> a[i <span style=color:#ff79c6>+</span> j], v <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)a[i <span style=color:#ff79c6>+</span> j <span style=color:#ff79c6>+</span> len<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>] <span style=color:#ff79c6>*</span> wn <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>                a[i <span style=color:#ff79c6>+</span> j]          <span style=color:#ff79c6>=</span> u <span style=color:#ff79c6>+</span> v <span style=color:#ff79c6>&gt;=</span> MOD <span style=color:#ff79c6>?</span> u <span style=color:#ff79c6>+</span> v <span style=color:#ff79c6>-</span> <span style=color:#8be9fd;font-style:italic>MOD</span> : u <span style=color:#ff79c6>+</span> v;
-</span></span><span style=display:flex><span>                a[i <span style=color:#ff79c6>+</span> j <span style=color:#ff79c6>+</span> len<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>]  <span style=color:#ff79c6>=</span> u <span style=color:#ff79c6>-</span> v <span style=color:#ff79c6>&lt;</span>    <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>?</span> u <span style=color:#ff79c6>-</span> v <span style=color:#ff79c6>+</span> <span style=color:#8be9fd;font-style:italic>MOD</span> : u <span style=color:#ff79c6>-</span> v;
-</span></span><span style=display:flex><span>                wn <span style=color:#ff79c6>=</span> wn <span style=color:#ff79c6>*</span> w <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (inv) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> inv_n <span style=color:#ff79c6>=</span> pw(n, MOD <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span>);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#ff79c6>auto</span><span style=color:#ff79c6>&amp;</span> <span style=color:#8be9fd;font-style:italic>x</span> : a) x <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)x <span style=color:#ff79c6>*</span> inv_n <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4>// multiply A and B, keep only coefficients [0..lim]
-</span></span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> conv_trunc(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> A, vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> B, <span style=color:#8be9fd>int</span> lim) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (A.empty() <span style=color:#ff79c6>||</span> B.empty()) <span style=color:#ff79c6>return</span> {};
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> ((<span style=color:#8be9fd>int</span>)A.size() <span style=color:#ff79c6>&gt;</span> lim <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) A.resize(lim <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> ((<span style=color:#8be9fd>int</span>)B.size() <span style=color:#ff79c6>&gt;</span> lim <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) B.resize(lim <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> need <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)A.size() <span style=color:#ff79c6>+</span> (<span style=color:#8be9fd>int</span>)B.size() <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>while</span> (n <span style=color:#ff79c6>&lt;</span> need) n <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    A.resize(n); B.resize(n);
-</span></span><span style=display:flex><span>    ntt(A, <span style=color:#8be9fd;font-style:italic>false</span>); ntt(B, <span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) A[i] <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)A[i] <span style=color:#ff79c6>*</span> B[i] <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>    ntt(A, <span style=color:#8be9fd;font-style:italic>true</span>);
-</span></span><span style=display:flex><span>    A.resize(min(need, lim <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> A;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4>// D&amp;C: product of polys[l..r), coefficients truncated to degree N
-</span></span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> dc(vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;&amp;</span> polys, <span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r, <span style=color:#8be9fd>int</span> N) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (r <span style=color:#ff79c6>-</span> l <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> polys[l];
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m <span style=color:#ff79c6>=</span> (l <span style=color:#ff79c6>+</span> r) <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#50fa7b>conv_trunc</span>(dc(polys, l, m, N), dc(polys, m, r, N), N);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> k; <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n; cin <span style=color:#ff79c6>&gt;&gt;</span> k <span style=color:#ff79c6>&gt;&gt;</span> n;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span><span style=color:#ff79c6>&gt;</span> L(k), R(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> k; <span style=color:#ff79c6>++</span>i) cin <span style=color:#ff79c6>&gt;&gt;</span> L[i] <span style=color:#ff79c6>&gt;&gt;</span> R[i];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> sumL <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, sumU <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span><span style=color:#ff79c6>&gt;</span> U64(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> k; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        sumL <span style=color:#ff79c6>+=</span> L[i];
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> ui <span style=color:#ff79c6>=</span> R[i] <span style=color:#ff79c6>-</span> L[i];
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (ui <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) { cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>        U64[i] <span style=color:#ff79c6>=</span> ui; sumU <span style=color:#ff79c6>+=</span> ui;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> N64 <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>-</span> sumL;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (N64 <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>||</span> N64 <span style=color:#ff79c6>&gt;</span> sumU) { cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)N64;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#6272a4>// P_i(x) = 1 + x + ... + x^{min(U_i, N)}  (higher terms never contribute)
-</span></span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;</span> polys(k);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> k; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> len <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)min(U64[i], (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)N) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        polys[i].assign(len, <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> res <span style=color:#ff79c6>=</span> dc(polys, <span style=color:#bd93f9>0</span>, k, N);
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> (N <span style=color:#ff79c6>&lt;</span> (<span style=color:#8be9fd>int</span>)res.size() <span style=color:#ff79c6>?</span> res[N] <span style=color:#ff79c6>:</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;  <span style=color:#6272a4>// answer mod 998244353
-</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=5-equal-cap-case>5 Equal-Cap Case</h1><p>$n$ variables each in $[0, k]$, sum $= S$.</p><p>Let $A_j$: variable $j$ exceeds $k$ (i.e. $y_j \ge k+1$). By symmetry every size-$i$ intersection has the same count, so:</p>$$\boxed{g(n,S,k)=\sum_{i=0}^{\min\!\left(n,\,\lfloor S/(k+1)\rfloor\right)}(-1)^i\binom{n}{i}\binom{S-i(k+1)+n-1}{n-1}}$$<p>The upper limit is $\min\!\bigl(n,\lfloor S/(k+1)\rfloor\bigr)$: at most $n$ variables can violate the bound, and terms with $S-i(k+1)<0$ vanish. Complexity:</p>$$O\!\left(\min\!\left(n,\left\lfloor\frac{S}{k+1}\right\rfloor\right)\right)$$<p><strong>Special case.</strong> If $k \ge S$, no upper bound is ever tight: answer $= \dbinom{S+n-1}{n-1}$.</p><p><strong>Boundary.</strong> If $S < 0$ or $S > nk$, the answer is $0$.</p><hr><h1 id=6-example--cf-2127f>6 Example — <a href=https://codeforces.com/contest/2127/problem/F>CF 2127F</a></h1><blockquote><p>Combinatorics + Inclusion-Exclusion + Hockey-Stick Identity</p></blockquote><h2 id=61-linearise-the-sum>6.1 Linearise the Sum</h2><p>After substituting the sum variable, both $A(M)$ and $B(M)$ below reduce to sums of the form</p>$$\mathrm{Cnt}(k,\,y,\,M)=\#\bigl\{k\text{ variables in }[0,M]\text{ summing to }y\bigr\}$$<p>weighted by $y$ (or shifted versions thereof). Concretely:</p><ul><li>Let $k_1=n-2$, window $[L_A,U_A]=[\max(0,S-(M-1)),\,\min(S,k_1 M)]$,
-$$A(M)=\sum_{y=L_A}^{U_A}(y+M-S)\cdot\mathrm{Cnt}(k_1,y,M).$$</li><li>Let $k_2=n-3$, window $[L_B,U_B]=[\max(0,S-2M+1),\,\min(S-M,k_2 M)]$,
-$$B(M)=\sum_{y=L_B}^{U_B}(y+2M-S)\cdot\mathrm{Cnt}(k_2,y,M).$$</li></ul><h2 id=62-problem-statement>6.2 Problem Statement</h2><p>Given integers $n$ and $m$. A <strong>snake array</strong> $a_1,\dots,a_n$ satisfies:</p><ol><li>$0\le a_i\le m$;</li><li>$\sum a_i = m$;</li><li>$a_n = \max(a_1,\dots,a_n)$.</li></ol><p>Define function $f(a)$ as follows (pseudocode): starting at $\mathrm{pos}=1$, if $a_{\mathrm{pos}}\lt a_n$ jump to the first position to the right with a strictly larger value and add the difference to the answer; otherwise increment $\mathrm{pos}$. Compute the sum of $f(a)$ over all snake arrays, modulo $10^9+7$.</p><h2 id=63-algorithm>6.3 Algorithm</h2><h3 id=631-simplify>6.3.1 Simplify $f(a)$</h3><p>Let $M=a_n$. Tracing through the process: whenever we are at some position $i$ with $a_i \lt M$, we keep jumping to the &ldquo;next greater&rdquo; until we reach $a_n$, accumulating $M - a_i$.</p><p>Which positions $i$ serve as &ldquo;segment heads&rdquo;? Exactly those satisfying:</p><ul><li>$i=1$ and $a_1 \lt M$, or</li><li>$i\ge 2$, $a_{i-1}=M$, and $a_i \lt M$.</li></ul><p>This gives the clean formula:</p>$$f(a)=\sum_{i=1}^{n-1}(M-a_i)\cdot\bigl[a_i\lt M\;\wedge\;(i=1\text{ or }a_{i-1}=M)\bigr].$$<h3 id=632-enumerate-the-maximum>6.3.2 Enumerate the Maximum $M$</h3><p>The snake-array conditions are equivalent to: fix $M\in[0,m]$ as the maximum, let the first $n-1$ entries satisfy $0\le a_i\le M$ and $\sum_{i=1}^{n-1}a_i = S:=m-M$, and set $a_n=M$.</p><p>For fixed $M$, linearity lets us split the contribution into two types:</p><ul><li><strong>Position $i=1$:</strong>
-$$A(M)=\sum_{x=0}^{M-1}(M-x)\cdot\#\bigl\{(a_2,\dots,a_{n-1})\in[0,M]^{n-2}:\textstyle\sum a=S-x\bigr\}.$$</li><li><strong>Position $i\ge2$</strong> (requires $a_{i-1}=M$):
-$$B(M)=\sum_{x=0}^{M-1}(M-x)\cdot\#\bigl\{n-3\text{ variables in }[0,M]:\textstyle\sum a=S-M-x\bigr\}.$$</li></ul><p>By symmetry every $i\in\{2,\dots,n-1\}$ contributes equally, so the total contribution from these positions is $(n-2)\cdot B(M)$.</p><p>The answer is therefore:</p>$$\mathrm{Ans}=\sum_{M=0}^{m}\bigl(A(M)+(n-2)\,B(M)\bigr).$$<h3 id=633-count--ordered-integers-in--summing-to>6.3.3 Count $t$ Ordered Integers in $[0,k]$ Summing to $S$</h3><p><strong>1. Unconstrained (stars and bars).</strong> If $x_i\ge0$ with no upper bound, the count is $\binom{S+t-1}{t-1}$.</p><p><strong>2. Remove the upper bound by inclusion-exclusion.</strong></p>$$\#\text{valid}=\sum_{j=0}^{t}(-1)^j\binom{t}{j}\cdot\#\bigl\{\text{solutions with the chosen }j\text{ variables}\ge k+1\bigr\}.$$<p>Subtract $k+1$ from each chosen variable; the remaining $t$ variables are non-negative with total $S-j(k+1)$. This gives the standard formula:</p>$$\boxed{\mathrm{Cnt}(t,S,k)=\begin{cases}\displaystyle\sum_{j=0}^{\min(t,\,\lfloor S/(k+1)\rfloor)}(-1)^j\binom{t}{j}\binom{S-j(k+1)+t-1}{t-1}, & t\ge1,\\[6pt]1 & (t=0\text{ and }S=0),\\[4pt]0 & (t=0\text{ and }S\ne0).\end{cases}}$$<p>Binomial terms with a negative lower index are treated as 0. For each evaluation the upper limit on $j$ is $\lfloor S/(k+1)\rfloor$, so the cost per call is $O(S/k)$.</p><p>Expanding $\mathrm{Cnt}$ and substituting into $A(M)$:</p>$$A(M)=\sum_{x=0}^{M-1}(M-x)\sum_{j\ge0}(-1)^j\binom{k}{j}\binom{S-x-j(M+1)+r}{r}.$$<hr><p><strong>Why the naive triple loop is too slow.</strong></p><ul><li>Outer loop: $M=0,\dots,m$.</li><li>Middle loop (per $M$): $x=0,\dots,\min(M-1,S)$ — roughly $O(M)$ iterations.</li><li>Inner loop (per $(M,x)$): inclusion-exclusion over $j=0,\dots,\lfloor(S-x)/(M+1)\rfloor$.</li></ul><p>For fixed $M$, the middle × inner work is approximately $O\!\left(M\cdot\frac{S}{M+1}\right)$. When $S\approx m$ this is $O(m)$ per $M$, making the total $O(m^2)$ — too slow for $m\le2\cdot10^5$.</p><h2 id=64-interchange-the-summations>6.4 Interchange the Summations</h2><p>Because both sums are finite (the inner $j$-sum terminates when $S-x-j(M+1)\lt0$), we may swap the order of summation:</p>$$A(M)=\sum_{j\ge0}(-1)^j\binom{k}{j}\sum_{x=0}^{M-1}(M-x)\binom{S-x-j(M+1)+r}{r}.$$<p>(Apply the same transformation to $B(M)$, replacing $k$ with $n-3$ and $S$ with $S-M$.)</p><h2 id=65-substitute-variables--convert-to-an-interval-sum-over>6.5 Substitute Variables — Convert to an Interval Sum over $t$</h2><p>Fix $j$ and write the inner sum as:</p>$$I_j:=\sum_{x=0}^{M-1}(M-x)\binom{S-x-j(M+1)+r}{r}.$$<p>Substitute $t := S-j(M+1)-x$, i.e. $x = S-j(M+1)-t$. As $x$ runs from $0$ to $M-1$, $t$ runs from $S-j(M+1)$ down to $S-j(M+1)-M+1$. Truncating to the non-negative part:</p>$$a:=\max\bigl(0,\;S-j(M+1)-(M-1)\bigr),\qquad b:=S-j(M+1).$$<p>If $b\lt0$ the term is 0 (use this as an early-exit condition when increasing $j$).</p><p>After substitution, $M-x = (M-S+j(M+1))+t$, so:</p>$$I_j=\sum_{t=a}^{b}\bigl((M-S)+j(M+1)+t\bigr)\binom{t+r}{r}.$$<p>Splitting the constant from the $t$-term:</p>$$I_j=\bigl(M-S+j(M+1)\bigr)\underbrace{\sum_{t=a}^{b}\binom{t+r}{r}}_{T_0(a,b)}+\underbrace{\sum_{t=a}^{b}t\binom{t+r}{r}}_{T_1(a,b)}.$$<h2 id=66-evaluate--and--via-hockey-stick>6.6 Evaluate $T_0$ and $T_1$ via Hockey Stick</h2><p>Let $r=k-1$.</p><p><strong>$T_0$</strong> (Hockey Stick):</p>$$T_0(a,b)=\sum_{t=a}^{b}\binom{t+r}{r}=\binom{b+r+1}{r+1}-\binom{a+r}{r+1}.$$<p>($T_0=0$ if $a>b$; the second term vanishes when $a=0$.)</p><p><strong>$T_1$</strong> — use the identity $t\binom{t+r}{r}=(r+1)\binom{t+r}{r+1}$:</p>$$T_1(a,b)=\sum_{t=a}^{b}t\binom{t+r}{r}=(r+1)\sum_{t=a}^{b}\binom{t+r}{r+1}=(r+1)\!\left(\binom{b+r+1}{r+2}-\binom{a+r}{r+2}\right).$$<p>Therefore:</p>$$I_j=\bigl(M-S+j(M+1)\bigr)\,T_0(a,b)+T_1(a,b),$$<p>and substituting back:</p>$$A(M)=\sum_{j\ge0}(-1)^j\binom{k}{j}\Bigl(\bigl(M-S+j(M+1)\bigr)T_0(a,b)+T_1(a,b)\Bigr).$$<p>Each $T_0,T_1$ is a difference of two binomial coefficients — $O(1)$ per term.</p><h2 id=67-same-treatment-for>6.7 Same Treatment for $B(M)$</h2><p>Apply the identical steps to</p>$$B(M)=\sum_{x=0}^{M-1}(M-x)\cdot\mathrm{Cnt}(k',\,S-M-x,\,M),\qquad k'=n-3,$$<p>using $S\leftarrow S-M$ throughout. The only change is the constant factor in $M-x$: it becomes $(2M-S)+j(M+1)$.</p><h2 id=68-key-takeaways>6.8 Key Takeaways</h2><ul><li><strong>Linearise complex processes into &ldquo;segment-head&rdquo; contributions</strong> — reduces a complicated traversal to a simple weighted sum.</li><li><strong>Swap summation order</strong> when both sums are finite — turns a triple loop into $O(1)$ per $(M,j)$ pair after precomputing binomials.</li><li><strong>Hockey Stick + the identity $t\binom{t+r}{r}=(r+1)\binom{t+r}{r+1}$</strong> — closes interval sums of the form $\sum t^{\le1}\binom{t+r}{r}$ in $O(1)$.</li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> i64 <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MOD <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1&#39;000&#39;000&#39;007</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>i64 <span style=color:#50fa7b>qp</span>(i64 a, i64 e <span style=color:#ff79c6>=</span> MOD <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span>) {
-</span></span><span style=display:flex><span>    i64 r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (e) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (e <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>*</span> a <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>        a <span style=color:#ff79c6>=</span> a <span style=color:#ff79c6>*</span> a <span style=color:#ff79c6>%</span> MOD; e <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> T; cin <span style=color:#ff79c6>&gt;&gt;</span> T;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>pair<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span>,<span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;</span> qs(T);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> maxn <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, maxm <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; t <span style=color:#ff79c6>&lt;</span> T; <span style=color:#ff79c6>++</span>t) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> n, m; cin <span style=color:#ff79c6>&gt;&gt;</span> n <span style=color:#ff79c6>&gt;&gt;</span> m;
-</span></span><span style=display:flex><span>        qs[t] <span style=color:#ff79c6>=</span> {n, m};
-</span></span><span style=display:flex><span>        maxn <span style=color:#ff79c6>=</span> max(maxn, n);
-</span></span><span style=display:flex><span>        maxm <span style=color:#ff79c6>=</span> max(maxm, m);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> LIM <span style=color:#ff79c6>=</span> maxn <span style=color:#ff79c6>+</span> maxm <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>5</span>;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>i64<span style=color:#ff79c6>&gt;</span> fac(LIM <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>), ifac(LIM <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    fac[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> LIM; <span style=color:#ff79c6>++</span>i) fac[i] <span style=color:#ff79c6>=</span> fac[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>    ifac[LIM] <span style=color:#ff79c6>=</span> qp(fac[LIM]);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> LIM; i <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>--</span>i) ifac[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> ifac[i] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> C <span style=color:#ff79c6>=</span> [<span style=color:#ff79c6>&amp;</span>](i64 n, i64 k) <span style=color:#ff79c6>-&gt;</span> i64 {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>||</span> k <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>||</span> k <span style=color:#ff79c6>&gt;</span> n) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&gt;</span> LIM) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> fac[n] <span style=color:#ff79c6>*</span> ifac[k] <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>*</span> ifac[n<span style=color:#ff79c6>-</span>k] <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>    };
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Returns (sum0, sum1) = ( sum Cnt(k,y;M), sum y*Cnt(k,y;M) ) for y in [L..U]
-</span></span></span><span style=display:flex><span>    <span style=color:#6272a4>// where Cnt(k,y;M) = #{k variables in [0,M] summing to y}
-</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> windowed <span style=color:#ff79c6>=</span> [<span style=color:#ff79c6>&amp;</span>](<span style=color:#8be9fd>int</span> k, <span style=color:#8be9fd>int</span> M, i64 L, i64 U) <span style=color:#ff79c6>-&gt;</span> pair<span style=color:#ff79c6>&lt;</span>i64,i64<span style=color:#ff79c6>&gt;</span> {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (L <span style=color:#ff79c6>&gt;</span> U <span style=color:#ff79c6>||</span> M <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> {<span style=color:#bd93f9>0</span>, <span style=color:#bd93f9>0</span>};
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (k <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) {
-</span></span><span style=display:flex><span>            i64 s0 <span style=color:#ff79c6>=</span> (<span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&gt;=</span> L <span style=color:#ff79c6>&amp;&amp;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&lt;=</span> U) <span style=color:#ff79c6>?</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>:</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> {s0, <span style=color:#bd93f9>0</span>};
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        i64 sum0 <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, sum1 <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> r <span style=color:#ff79c6>=</span> k <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (U <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> {<span style=color:#bd93f9>0</span>, <span style=color:#bd93f9>0</span>};
-</span></span><span style=display:flex><span>        i64 jmax <span style=color:#ff79c6>=</span> U <span style=color:#ff79c6>/</span> (M <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (i64 j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;=</span> jmax; <span style=color:#ff79c6>++</span>j) {
-</span></span><span style=display:flex><span>            i64 a <span style=color:#ff79c6>=</span> L <span style=color:#ff79c6>-</span> j <span style=color:#ff79c6>*</span> (M <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>            i64 b <span style=color:#ff79c6>=</span> U <span style=color:#ff79c6>-</span> j <span style=color:#ff79c6>*</span> (M <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>break</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (a <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) a <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (a <span style=color:#ff79c6>&gt;</span> b) <span style=color:#ff79c6>continue</span>;
-</span></span><span style=display:flex><span>            <span style=color:#6272a4>// T0 = C(b+r+1, r+1) - C(a-1+r+1, r+1)
-</span></span></span><span style=display:flex><span>            i64 s0 <span style=color:#ff79c6>=</span> (C(b <span style=color:#ff79c6>+</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>-</span> C(a <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>+</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>)) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (s0 <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) s0 <span style=color:#ff79c6>+=</span> MOD;
-</span></span><span style=display:flex><span>            <span style=color:#6272a4>// T1 = (r+1) * (C(b+r+1, r+2) - C(a-1+r+1, r+2))
-</span></span></span><span style=display:flex><span>            i64 s1t <span style=color:#ff79c6>=</span> (i64)(r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>*</span> ((C(b <span style=color:#ff79c6>+</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>-</span> C(a <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>+</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>2</span>)) <span style=color:#ff79c6>%</span> MOD) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (s1t <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) s1t <span style=color:#ff79c6>+=</span> MOD;
-</span></span><span style=display:flex><span>            i64 coef <span style=color:#ff79c6>=</span> C(k, j);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (j <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) coef <span style=color:#ff79c6>=</span> (MOD <span style=color:#ff79c6>-</span> coef) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>            <span style=color:#6272a4>// y = t + j*(M+1), so sum1 gets s1t + j*(M+1)*s0
-</span></span></span><span style=display:flex><span>            i64 part <span style=color:#ff79c6>=</span> (s1t <span style=color:#ff79c6>+</span> (j <span style=color:#ff79c6>%</span> MOD) <span style=color:#ff79c6>*</span> ((M <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>%</span> MOD) <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>*</span> s0) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>            sum0 <span style=color:#ff79c6>=</span> (sum0 <span style=color:#ff79c6>+</span> coef <span style=color:#ff79c6>*</span> s0) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>            sum1 <span style=color:#ff79c6>=</span> (sum1 <span style=color:#ff79c6>+</span> coef <span style=color:#ff79c6>*</span> part) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> {sum0, sum1};
-</span></span><span style=display:flex><span>    };
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#ff79c6>auto</span> [n, m] <span style=color:#ff79c6>:</span> qs) {
-</span></span><span style=display:flex><span>        i64 ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> M <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; M <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>M) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> S <span style=color:#ff79c6>=</span> m <span style=color:#ff79c6>-</span> M;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>            <span style=color:#6272a4>// A(M): k1 = n-2, window [max(0,S-(M-1)) .. min(S, k1*M)]
-</span></span></span><span style=display:flex><span>            i64 A <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> k1 <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (M <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>) {
-</span></span><span style=display:flex><span>                i64 LA <span style=color:#ff79c6>=</span> max(<span style=color:#bd93f9>0</span>, S <span style=color:#ff79c6>-</span> (M <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>                i64 UA <span style=color:#ff79c6>=</span> (k1 <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>?</span> min<span style=color:#ff79c6>&lt;</span>i64<span style=color:#ff79c6>&gt;</span>(S, <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> k1 <span style=color:#ff79c6>*</span> M) <span style=color:#ff79c6>:</span> min<span style=color:#ff79c6>&lt;</span>i64<span style=color:#ff79c6>&gt;</span>(S, <span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>auto</span> [s0A, s1A] <span style=color:#ff79c6>=</span> windowed(k1, M, LA, UA);
-</span></span><span style=display:flex><span>                A <span style=color:#ff79c6>=</span> (s1A <span style=color:#ff79c6>+</span> ((M <span style=color:#ff79c6>-</span> S <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>0LL</span>) <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>+</span> MOD) <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>*</span> s0A) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>            <span style=color:#6272a4>// B(M): k2 = n-3, window [max(0,S-2M+1) .. min(S-M, k2*M)]
-</span></span></span><span style=display:flex><span>            i64 B <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> k2 <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>3</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (M <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&amp;&amp;</span> k2 <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span>) {
-</span></span><span style=display:flex><span>                i64 LB <span style=color:#ff79c6>=</span> max(<span style=color:#bd93f9>0</span>, S <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>*</span> M <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>                i64 UB <span style=color:#ff79c6>=</span> (k2 <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>?</span> min<span style=color:#ff79c6>&lt;</span>i64<span style=color:#ff79c6>&gt;</span>(S <span style=color:#ff79c6>-</span> M, <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> k2 <span style=color:#ff79c6>*</span> M) <span style=color:#ff79c6>:</span> min<span style=color:#ff79c6>&lt;</span>i64<span style=color:#ff79c6>&gt;</span>(S <span style=color:#ff79c6>-</span> M, <span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> (LB <span style=color:#ff79c6>&lt;=</span> UB) {
-</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>auto</span> [s0B, s1B] <span style=color:#ff79c6>=</span> windowed(k2, M, LB, UB);
-</span></span><span style=display:flex><span>                    B <span style=color:#ff79c6>=</span> (s1B <span style=color:#ff79c6>+</span> ((<span style=color:#bd93f9>2LL</span> <span style=color:#ff79c6>*</span> M <span style=color:#ff79c6>-</span> S) <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>+</span> MOD) <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>*</span> s0B) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>                }
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>            ans <span style=color:#ff79c6>=</span> (ans <span style=color:#ff79c6>+</span> A <span style=color:#ff79c6>+</span> ((n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>0LL</span>) <span style=color:#ff79c6>%</span> MOD) <span style=color:#ff79c6>*</span> B) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        cout <span style=color:#ff79c6>&lt;&lt;</span> ans <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-stars-and-bars-unconstrained--simple-bounds>1 Stars and Bars (Unconstrained / Simple Bounds)</a></li><li><a href=#2-bounded-diophantine--inclusion-exclusion-formula>2 Bounded Diophantine — Inclusion-Exclusion Formula</a><ul><li><a href=#21-setup>2.1 Setup</a></li><li><a href=#22-inclusion-exclusion>2.2 Inclusion-Exclusion</a></li></ul></li><li><a href=#3-prefix-sum-dp->3 Prefix-Sum DP — $O(kN)$</a></li><li><a href=#4-divide-and-conquer-ntt--generating-function-method>4 Divide-and-Conquer NTT — Generating Function Method</a></li><li><a href=#5-equal-cap-case>5 Equal-Cap Case</a></li><li><a href=#6-example--cf-2127f>6 Example — CF 2127F</a><ul><li><a href=#61-linearise-the-sum>6.1 Linearise the Sum</a></li><li><a href=#62-problem-statement>6.2 Problem Statement</a></li><li><a href=#63-algorithm>6.3 Algorithm</a></li><li><a href=#64-interchange-the-summations>6.4 Interchange the Summations</a></li><li><a href=#65-substitute-variables--convert-to-an-interval-sum-over>6.5 Substitute Variables — Convert to an Interval Sum over $t$</a></li><li><a href=#66-evaluate--and--via-hockey-stick>6.6 Evaluate $T_0$ and $T_1$ via Hockey Stick</a></li><li><a href=#67-same-treatment-for>6.7 Same Treatment for $B(M)$</a></li><li><a href=#68-key-takeaways>6.8 Key Takeaways</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";o(e,!0)})})()</script></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combinatorics D1: Diophantine Equations | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;C NTT, equal-cap formula, and a full worked example on CF 2127F.">
+    <link rel="canonical" href="http://localhost:1313/posts/combinatorics-d1-diophantine-equations/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Combinatorics D1: Diophantine Equations</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-24">Apr 24, 2026</time>
+          
+            <span>·</span>
+            <span>Combinatorics</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/combinatorics/">#combinatorics</a>
+            
+              <a class="chip" href="/tags/diophantine/">#diophantine</a>
+            
+              <a class="chip" href="/tags/stars-and-bars/">#stars-and-bars</a>
+            
+              <a class="chip" href="/tags/inclusion-exclusion/">#inclusion-exclusion</a>
+            
+              <a class="chip" href="/tags/dp/">#dp</a>
+            
+              <a class="chip" href="/tags/ntt/">#ntt</a>
+            
+              <a class="chip" href="/tags/hockey-stick/">#hockey-stick</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-stars-and-bars-unconstrained--simple-bounds">1 Stars and Bars (Unconstrained / Simple Bounds)</a></li>
+    <li><a href="#2-bounded-diophantine--inclusion-exclusion-formula">2 Bounded Diophantine — Inclusion-Exclusion Formula</a>
+      <ul>
+        <li><a href="#21-setup">2.1 Setup</a></li>
+        <li><a href="#22-inclusion-exclusion">2.2 Inclusion-Exclusion</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-prefix-sum-dp-">3 Prefix-Sum DP — $O(kN)$</a></li>
+    <li><a href="#4-divide-and-conquer-ntt--generating-function-method">4 Divide-and-Conquer NTT — Generating Function Method</a></li>
+    <li><a href="#5-equal-cap-case">5 Equal-Cap Case</a></li>
+    <li><a href="#6-example--cf-2127f">6 Example — CF 2127F</a>
+      <ul>
+        <li><a href="#61-linearise-the-sum">6.1 Linearise the Sum</a></li>
+        <li><a href="#62-problem-statement">6.2 Problem Statement</a></li>
+        <li><a href="#63-algorithm">6.3 Algorithm</a></li>
+        <li><a href="#64-interchange-the-summations">6.4 Interchange the Summations</a></li>
+        <li><a href="#65-substitute-variables--convert-to-an-interval-sum-over">6.5 Substitute Variables — Convert to an Interval Sum over $t$</a></li>
+        <li><a href="#66-evaluate--and--via-hockey-stick">6.6 Evaluate $T_0$ and $T_1$ via Hockey Stick</a></li>
+        <li><a href="#67-same-treatment-for">6.7 Same Treatment for $B(M)$</a></li>
+        <li><a href="#68-key-takeaways">6.8 Key Takeaways</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </details>
+      
+      <div class="article-content prose">
+        <h1 id="1-stars-and-bars-unconstrained--simple-bounds">1 Stars and Bars (Unconstrained / Simple Bounds)</h1>
+<p>Count non-negative integer solutions of
+</p>
+$$x_1 + x_2 + \cdots + x_k = n, \quad x_i \ge 0.$$<p><strong>Model.</strong> Represent the $n$ units as $n$ identical balls placed into $k$ labeled bins. Insert $k-1$ dividers to separate bins. Together the $n$ balls and $k-1$ dividers occupy $n+k-1$ slots; choosing which $k-1$ slots hold dividers determines the solution:
+</p>
+$$\boxed{\binom{n+k-1}{k-1}}$$<p><strong>Strictly positive</strong> ($x_i \ge 1$): substitute $y_i = x_i - 1 \ge 0$, so $\sum y_i = n - k$. Requires $n \ge k$; formula:
+</p>
+$$\binom{n-1}{k-1}$$<p><strong>Lower bounds</strong> ($x_i \ge a_i$): substitute $y_i = x_i - a_i \ge 0$, so $\sum y_i = n - \sum a_i$. Requires $n \ge \sum a_i$; formula:
+</p>
+$$\binom{n - \sum_{i=1}^k a_i + k - 1}{k-1}$$<p><strong>At most $n$</strong> ($x_1 + \cdots + x_k \le n$, each $x_i \ge 0$):</p>
+<ul>
+<li>Add a slack variable $Z \ge 0$, so $x_1 + \cdots + x_k + Z = n$.</li>
+<li>Now $k+1$ variables summing to $n$:
+
+$$\binom{n+k}{k}$$</li>
+</ul>
+<hr>
+<h1 id="2-bounded-diophantine--inclusion-exclusion-formula">2 Bounded Diophantine — Inclusion-Exclusion Formula</h1>
+<p><strong>Count</strong> non-negative integer solutions of
+</p>
+$$x_1 + x_2 + \cdots + x_k = n, \quad l_i \le x_i \le r_i.$$<h2 id="21-setup">2.1 Setup</h2>
+<p><strong>Shift to zero lower-bounds.</strong> Let $y_i = x_i - l_i \ge 0$, $U_i = r_i - l_i$, $N = n - \sum l_i$.</p>
+<ul>
+<li>If $N < 0$ or $N > \sum U_i$: answer is $0$.</li>
+<li>Otherwise count: $y_1 + \cdots + y_k = N$, $0 \le y_i \le U_i$.</li>
+</ul>
+<h2 id="22-inclusion-exclusion">2.2 Inclusion-Exclusion</h2>
+<p>Let $A_i$ be the &ldquo;bad&rdquo; event $y_i \ge U_i + 1$ (upper bound violated).</p>
+<p><strong>Unconstrained count</strong> ($y_i \ge 0$, no upper bound): $\binom{N+k-1}{k-1}$.</p>
+<p><strong>Forced violation of subset $T$.</strong> If every $i \in T$ satisfies $y_i \ge U_i + 1$, substitute $z_i = y_i - (U_i+1) \ge 0$. The new target sum is $N - \sum_{i\in T}(U_i+1)$. Count:
+</p>
+$$\binom{N - \sum_{i\in T}(U_i+1) + k - 1}{k-1}$$<p>where $M = N - \sum_{i\in T}(U_i+1)$; the term is $0$ when $M < 0$.</p>
+<p><strong>Inclusion-exclusion over all subsets:</strong>
+</p>
+$$\boxed{\#\ =\ \sum_{T \subseteq [k]} (-1)^{|T|} \binom{N - \sum_{i\in T}(U_i+1) + k-1}{k-1}}$$<p>
+Direct evaluation: $O(k \cdot 2^k)$.</p>
+<hr>
+<h1 id="3-prefix-sum-dp-">3 Prefix-Sum DP — $O(kN)$</h1>
+<p>Define $dp[i][s]$ = number of ways to make sum $s$ using the first $i$ variables $y_1, \dots, y_i$ (each in $[0, U_i]$).</p>
+<p><strong>Base:</strong> $dp[0][0] = 1$.</p>
+<p><strong>Transition.</strong> $y_i$ contributes any value in $[0, U_i]$, so:
+</p>
+$$dp[i][s] = \sum_{v=0}^{\min(s,U_i)} dp[i-1][s-v] = \mathrm{pref}[s] - \mathrm{pref}[s - U_i - 1]$$<p>where $\mathrm{pref}[t] = \sum_{u=0}^{t} dp[i-1][u]$ and $\mathrm{pref}[-1] = 0$.</p>
+<p>Rolling arrays reduce space to $O(N)$.</p>
+<p><strong>Answer:</strong> $dp[k][N]$ (mod $10^9+7$).</p>
+<blockquote>
+<p>If $N$ itself exceeds available memory or time budget, this DP is not applicable — use the NTT method instead.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MOD <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1000000007</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">inline</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">add</span>(<span style="color:#8be9fd">int</span> a,<span style="color:#8be9fd">int</span> b){ a<span style="color:#ff79c6">+=</span>b; <span style="color:#ff79c6">if</span>(a<span style="color:#ff79c6">&gt;=</span>MOD) a<span style="color:#ff79c6">-=</span>MOD; <span style="color:#ff79c6">return</span> a; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> k; <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n; cin<span style="color:#ff79c6">&gt;&gt;</span>k<span style="color:#ff79c6">&gt;&gt;</span>n;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span><span style="color:#ff79c6">&gt;</span> L(k),R(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>k;<span style="color:#ff79c6">++</span>i) cin<span style="color:#ff79c6">&gt;&gt;</span>L[i]<span style="color:#ff79c6">&gt;&gt;</span>R[i];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> sumL<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>,sumU<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span><span style="color:#ff79c6">&gt;</span> U64(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>k;<span style="color:#ff79c6">++</span>i){
+</span></span><span style="display:flex;"><span>        sumL<span style="color:#ff79c6">+=</span>L[i];
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> ui<span style="color:#ff79c6">=</span>R[i]<span style="color:#ff79c6">-</span>L[i];
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(ui<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span>){ cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>        U64[i]<span style="color:#ff79c6">=</span>ui; sumU<span style="color:#ff79c6">+=</span>ui;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> N64<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">-</span>sumL;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(N64<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">||</span>N64<span style="color:#ff79c6">&gt;</span>sumU){ cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> N<span style="color:#ff79c6">=</span>(<span style="color:#8be9fd">int</span>)N64;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// clamp each U_i to N — anything larger never affects the DP
+</span></span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> U(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>k;<span style="color:#ff79c6">++</span>i) U[i]<span style="color:#ff79c6">=</span>(<span style="color:#8be9fd">int</span>)min(U64[i],N64);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> prev(N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>),cur(N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>),pref(N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>    prev[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; <span style="color:#8be9fd">int</span> reach<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>k;<span style="color:#ff79c6">++</span>i){
+</span></span><span style="display:flex;"><span>        reach<span style="color:#ff79c6">=</span>min(N,reach<span style="color:#ff79c6">+</span>U[i]);
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> run<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> s<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;s<span style="color:#ff79c6">&lt;=</span>reach;<span style="color:#ff79c6">++</span>s){ run<span style="color:#ff79c6">=</span>add(run,prev[s]); pref[s]<span style="color:#ff79c6">=</span>run; }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> s<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;s<span style="color:#ff79c6">&lt;=</span>reach;<span style="color:#ff79c6">++</span>s){
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> left<span style="color:#ff79c6">=</span>s<span style="color:#ff79c6">-</span>U[i]<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> val<span style="color:#ff79c6">=</span>pref[s];
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(left<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>){ val<span style="color:#ff79c6">-=</span>pref[left]; <span style="color:#ff79c6">if</span>(val<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">0</span>) val<span style="color:#ff79c6">+=</span>MOD; }
+</span></span><span style="display:flex;"><span>            cur[s]<span style="color:#ff79c6">=</span>val;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> s<span style="color:#ff79c6">=</span>reach<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>;s<span style="color:#ff79c6">&lt;=</span>N;<span style="color:#ff79c6">++</span>s) cur[s]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        swap(prev,cur);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    cout<span style="color:#ff79c6">&lt;&lt;</span>prev[N]<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;   <span style="color:#6272a4">// answer mod 10^9+7
+</span></span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="4-divide-and-conquer-ntt--generating-function-method">4 Divide-and-Conquer NTT — Generating Function Method</h1>
+<p>Each variable $y_i \in [0, U_i]$ corresponds to the generating polynomial
+</p>
+$$P_i(x) = 1 + x + x^2 + \cdots + x^{U_i}.$$<p>The answer is $[x^N]\displaystyle\prod_{i=1}^k P_i(x)$.</p>
+<p><strong>Strategy.</strong> Merge the $k$ polynomials with divide-and-conquer; at each merge truncate to degree $N$ to avoid unnecessary growth.</p>
+<p><strong>Complexity.</strong> Each merge node $v$ performs one convolution of cost $O(d_v \log d_v)$ where $d_v$ is the effective polynomial length at that node (capped at $N+1$). Total cost:
+</p>
+$$O\!\left(\sum_{\text{merge node }v} d_v \log d_v\right)$$<p>
+Since every truncation keeps $d_v \le N+1$, in the common case where polynomial lengths grow gradually across levels this is approximately $O(N \log N \log k)$. In the worst case (e.g. all $k$ polynomials already of length $\Theta(N)$ at the leaves) it can reach $O(kN \log N)$.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MOD <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">998244353</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> G   <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">3</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> <span style="color:#50fa7b">pw</span>(<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> a, <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> b, <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> mod <span style="color:#ff79c6">=</span> MOD) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; a <span style="color:#ff79c6">%=</span> mod;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (; b <span style="color:#ff79c6">&gt;</span> <span style="color:#bd93f9">0</span>; b <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>) { <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">*</span> a <span style="color:#ff79c6">%</span> mod; a <span style="color:#ff79c6">=</span> a <span style="color:#ff79c6">*</span> a <span style="color:#ff79c6">%</span> mod; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">ntt</span>(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> a, <span style="color:#8be9fd">bool</span> inv) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> a.size();
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>, j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> bit <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (; j <span style="color:#ff79c6">&amp;</span> bit; bit <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>) j <span style="color:#ff79c6">^=</span> bit;
+</span></span><span style="display:flex;"><span>        j <span style="color:#ff79c6">^=</span> bit;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">&lt;</span> j) swap(a[i], a[j]);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> len <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; len <span style="color:#ff79c6">&lt;=</span> n; len <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> w <span style="color:#ff79c6">=</span> inv <span style="color:#ff79c6">?</span> pw(G, MOD <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">-</span> (MOD <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> len)
+</span></span><span style="display:flex;"><span>                         <span style="color:#ff79c6">:</span> pw(G, (MOD <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> len);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; i <span style="color:#ff79c6">+=</span> len) {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> wn <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> len <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span>; <span style="color:#ff79c6">++</span>j) {
+</span></span><span style="display:flex;"><span>                <span style="color:#8be9fd">int</span> u <span style="color:#ff79c6">=</span> a[i <span style="color:#ff79c6">+</span> j], v <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)a[i <span style="color:#ff79c6">+</span> j <span style="color:#ff79c6">+</span> len<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>] <span style="color:#ff79c6">*</span> wn <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>                a[i <span style="color:#ff79c6">+</span> j]          <span style="color:#ff79c6">=</span> u <span style="color:#ff79c6">+</span> v <span style="color:#ff79c6">&gt;=</span> MOD <span style="color:#ff79c6">?</span> u <span style="color:#ff79c6">+</span> v <span style="color:#ff79c6">-</span> <span style="color:#8be9fd;font-style:italic">MOD</span> : u <span style="color:#ff79c6">+</span> v;
+</span></span><span style="display:flex;"><span>                a[i <span style="color:#ff79c6">+</span> j <span style="color:#ff79c6">+</span> len<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>]  <span style="color:#ff79c6">=</span> u <span style="color:#ff79c6">-</span> v <span style="color:#ff79c6">&lt;</span>    <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">?</span> u <span style="color:#ff79c6">-</span> v <span style="color:#ff79c6">+</span> <span style="color:#8be9fd;font-style:italic">MOD</span> : u <span style="color:#ff79c6">-</span> v;
+</span></span><span style="display:flex;"><span>                wn <span style="color:#ff79c6">=</span> wn <span style="color:#ff79c6">*</span> w <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (inv) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> inv_n <span style="color:#ff79c6">=</span> pw(n, MOD <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#ff79c6">auto</span><span style="color:#ff79c6">&amp;</span> <span style="color:#8be9fd;font-style:italic">x</span> : a) x <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)x <span style="color:#ff79c6">*</span> inv_n <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// multiply A and B, keep only coefficients [0..lim]
+</span></span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> conv_trunc(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> A, vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> B, <span style="color:#8be9fd">int</span> lim) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (A.empty() <span style="color:#ff79c6">||</span> B.empty()) <span style="color:#ff79c6">return</span> {};
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> ((<span style="color:#8be9fd">int</span>)A.size() <span style="color:#ff79c6">&gt;</span> lim <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) A.resize(lim <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> ((<span style="color:#8be9fd">int</span>)B.size() <span style="color:#ff79c6">&gt;</span> lim <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) B.resize(lim <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> need <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)A.size() <span style="color:#ff79c6">+</span> (<span style="color:#8be9fd">int</span>)B.size() <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">while</span> (n <span style="color:#ff79c6">&lt;</span> need) n <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    A.resize(n); B.resize(n);
+</span></span><span style="display:flex;"><span>    ntt(A, <span style="color:#8be9fd;font-style:italic">false</span>); ntt(B, <span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) A[i] <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)A[i] <span style="color:#ff79c6">*</span> B[i] <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>    ntt(A, <span style="color:#8be9fd;font-style:italic">true</span>);
+</span></span><span style="display:flex;"><span>    A.resize(min(need, lim <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> A;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// D&amp;C: product of polys[l..r), coefficients truncated to degree N
+</span></span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> dc(vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;&amp;</span> polys, <span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r, <span style="color:#8be9fd">int</span> N) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (r <span style="color:#ff79c6">-</span> l <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> polys[l];
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m <span style="color:#ff79c6">=</span> (l <span style="color:#ff79c6">+</span> r) <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#50fa7b">conv_trunc</span>(dc(polys, l, m, N), dc(polys, m, r, N), N);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> k; <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n; cin <span style="color:#ff79c6">&gt;&gt;</span> k <span style="color:#ff79c6">&gt;&gt;</span> n;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span><span style="color:#ff79c6">&gt;</span> L(k), R(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> k; <span style="color:#ff79c6">++</span>i) cin <span style="color:#ff79c6">&gt;&gt;</span> L[i] <span style="color:#ff79c6">&gt;&gt;</span> R[i];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> sumL <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, sumU <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span><span style="color:#ff79c6">&gt;</span> U64(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> k; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        sumL <span style="color:#ff79c6">+=</span> L[i];
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> ui <span style="color:#ff79c6">=</span> R[i] <span style="color:#ff79c6">-</span> L[i];
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (ui <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) { cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>        U64[i] <span style="color:#ff79c6">=</span> ui; sumU <span style="color:#ff79c6">+=</span> ui;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> N64 <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">-</span> sumL;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (N64 <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">||</span> N64 <span style="color:#ff79c6">&gt;</span> sumU) { cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)N64;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// P_i(x) = 1 + x + ... + x^{min(U_i, N)}  (higher terms never contribute)
+</span></span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;</span> polys(k);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> k; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> len <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)min(U64[i], (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)N) <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        polys[i].assign(len, <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> res <span style="color:#ff79c6">=</span> dc(polys, <span style="color:#bd93f9">0</span>, k, N);
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> (N <span style="color:#ff79c6">&lt;</span> (<span style="color:#8be9fd">int</span>)res.size() <span style="color:#ff79c6">?</span> res[N] <span style="color:#ff79c6">:</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;  <span style="color:#6272a4">// answer mod 998244353
+</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="5-equal-cap-case">5 Equal-Cap Case</h1>
+<p>$n$ variables each in $[0, k]$, sum $= S$.</p>
+<p>Let $A_j$: variable $j$ exceeds $k$ (i.e. $y_j \ge k+1$). By symmetry every size-$i$ intersection has the same count, so:</p>
+$$\boxed{g(n,S,k)=\sum_{i=0}^{\min\!\left(n,\,\lfloor S/(k+1)\rfloor\right)}(-1)^i\binom{n}{i}\binom{S-i(k+1)+n-1}{n-1}}$$<p>The upper limit is $\min\!\bigl(n,\lfloor S/(k+1)\rfloor\bigr)$: at most $n$ variables can violate the bound, and terms with $S-i(k+1)<0$ vanish. Complexity:
+</p>
+$$O\!\left(\min\!\left(n,\left\lfloor\frac{S}{k+1}\right\rfloor\right)\right)$$<p><strong>Special case.</strong> If $k \ge S$, no upper bound is ever tight: answer $= \dbinom{S+n-1}{n-1}$.</p>
+<p><strong>Boundary.</strong> If $S < 0$ or $S > nk$, the answer is $0$.</p>
+<hr>
+<h1 id="6-example--cf-2127f">6 Example — <a href="https://codeforces.com/contest/2127/problem/F">CF 2127F</a></h1>
+<blockquote>
+<p>Combinatorics + Inclusion-Exclusion + Hockey-Stick Identity</p>
+</blockquote>
+<h2 id="61-linearise-the-sum">6.1 Linearise the Sum</h2>
+<p>After substituting the sum variable, both $A(M)$ and $B(M)$ below reduce to sums of the form
+</p>
+$$\mathrm{Cnt}(k,\,y,\,M)=\#\bigl\{k\text{ variables in }[0,M]\text{ summing to }y\bigr\}$$<p>
+weighted by $y$ (or shifted versions thereof). Concretely:</p>
+<ul>
+<li>Let $k_1=n-2$, window $[L_A,U_A]=[\max(0,S-(M-1)),\,\min(S,k_1 M)]$,
+
+$$A(M)=\sum_{y=L_A}^{U_A}(y+M-S)\cdot\mathrm{Cnt}(k_1,y,M).$$</li>
+<li>Let $k_2=n-3$, window $[L_B,U_B]=[\max(0,S-2M+1),\,\min(S-M,k_2 M)]$,
+
+$$B(M)=\sum_{y=L_B}^{U_B}(y+2M-S)\cdot\mathrm{Cnt}(k_2,y,M).$$</li>
+</ul>
+<h2 id="62-problem-statement">6.2 Problem Statement</h2>
+<p>Given integers $n$ and $m$. A <strong>snake array</strong> $a_1,\dots,a_n$ satisfies:</p>
+<ol>
+<li>$0\le a_i\le m$;</li>
+<li>$\sum a_i = m$;</li>
+<li>$a_n = \max(a_1,\dots,a_n)$.</li>
+</ol>
+<p>Define function $f(a)$ as follows (pseudocode): starting at $\mathrm{pos}=1$, if $a_{\mathrm{pos}}\lt a_n$ jump to the first position to the right with a strictly larger value and add the difference to the answer; otherwise increment $\mathrm{pos}$. Compute the sum of $f(a)$ over all snake arrays, modulo $10^9+7$.</p>
+<h2 id="63-algorithm">6.3 Algorithm</h2>
+<h3 id="631-simplify">6.3.1 Simplify $f(a)$</h3>
+<p>Let $M=a_n$. Tracing through the process: whenever we are at some position $i$ with $a_i \lt M$, we keep jumping to the &ldquo;next greater&rdquo; until we reach $a_n$, accumulating $M - a_i$.</p>
+<p>Which positions $i$ serve as &ldquo;segment heads&rdquo;? Exactly those satisfying:</p>
+<ul>
+<li>$i=1$ and $a_1 \lt M$, or</li>
+<li>$i\ge 2$, $a_{i-1}=M$, and $a_i \lt M$.</li>
+</ul>
+<p>This gives the clean formula:
+</p>
+$$f(a)=\sum_{i=1}^{n-1}(M-a_i)\cdot\bigl[a_i\lt M\;\wedge\;(i=1\text{ or }a_{i-1}=M)\bigr].$$<h3 id="632-enumerate-the-maximum">6.3.2 Enumerate the Maximum $M$</h3>
+<p>The snake-array conditions are equivalent to: fix $M\in[0,m]$ as the maximum, let the first $n-1$ entries satisfy $0\le a_i\le M$ and $\sum_{i=1}^{n-1}a_i = S:=m-M$, and set $a_n=M$.</p>
+<p>For fixed $M$, linearity lets us split the contribution into two types:</p>
+<ul>
+<li><strong>Position $i=1$:</strong>
+
+$$A(M)=\sum_{x=0}^{M-1}(M-x)\cdot\#\bigl\{(a_2,\dots,a_{n-1})\in[0,M]^{n-2}:\textstyle\sum a=S-x\bigr\}.$$</li>
+<li><strong>Position $i\ge2$</strong> (requires $a_{i-1}=M$):
+
+$$B(M)=\sum_{x=0}^{M-1}(M-x)\cdot\#\bigl\{n-3\text{ variables in }[0,M]:\textstyle\sum a=S-M-x\bigr\}.$$</li>
+</ul>
+<p>By symmetry every $i\in\{2,\dots,n-1\}$ contributes equally, so the total contribution from these positions is $(n-2)\cdot B(M)$.</p>
+<p>The answer is therefore:
+</p>
+$$\mathrm{Ans}=\sum_{M=0}^{m}\bigl(A(M)+(n-2)\,B(M)\bigr).$$<h3 id="633-count--ordered-integers-in--summing-to">6.3.3 Count $t$ Ordered Integers in $[0,k]$ Summing to $S$</h3>
+<p><strong>1. Unconstrained (stars and bars).</strong> If $x_i\ge0$ with no upper bound, the count is $\binom{S+t-1}{t-1}$.</p>
+<p><strong>2. Remove the upper bound by inclusion-exclusion.</strong>
+</p>
+$$\#\text{valid}=\sum_{j=0}^{t}(-1)^j\binom{t}{j}\cdot\#\bigl\{\text{solutions with the chosen }j\text{ variables}\ge k+1\bigr\}.$$<p>
+Subtract $k+1$ from each chosen variable; the remaining $t$ variables are non-negative with total $S-j(k+1)$. This gives the standard formula:</p>
+$$\boxed{\mathrm{Cnt}(t,S,k)=\begin{cases}\displaystyle\sum_{j=0}^{\min(t,\,\lfloor S/(k+1)\rfloor)}(-1)^j\binom{t}{j}\binom{S-j(k+1)+t-1}{t-1}, & t\ge1,\\[6pt]1 & (t=0\text{ and }S=0),\\[4pt]0 & (t=0\text{ and }S\ne0).\end{cases}}$$<p>Binomial terms with a negative lower index are treated as 0. For each evaluation the upper limit on $j$ is $\lfloor S/(k+1)\rfloor$, so the cost per call is $O(S/k)$.</p>
+<p>Expanding $\mathrm{Cnt}$ and substituting into $A(M)$:
+</p>
+$$A(M)=\sum_{x=0}^{M-1}(M-x)\sum_{j\ge0}(-1)^j\binom{k}{j}\binom{S-x-j(M+1)+r}{r}.$$<hr>
+<p><strong>Why the naive triple loop is too slow.</strong></p>
+<ul>
+<li>Outer loop: $M=0,\dots,m$.</li>
+<li>Middle loop (per $M$): $x=0,\dots,\min(M-1,S)$ — roughly $O(M)$ iterations.</li>
+<li>Inner loop (per $(M,x)$): inclusion-exclusion over $j=0,\dots,\lfloor(S-x)/(M+1)\rfloor$.</li>
+</ul>
+<p>For fixed $M$, the middle × inner work is approximately $O\!\left(M\cdot\frac{S}{M+1}\right)$. When $S\approx m$ this is $O(m)$ per $M$, making the total $O(m^2)$ — too slow for $m\le2\cdot10^5$.</p>
+<h2 id="64-interchange-the-summations">6.4 Interchange the Summations</h2>
+<p>Because both sums are finite (the inner $j$-sum terminates when $S-x-j(M+1)\lt0$), we may swap the order of summation:
+</p>
+$$A(M)=\sum_{j\ge0}(-1)^j\binom{k}{j}\sum_{x=0}^{M-1}(M-x)\binom{S-x-j(M+1)+r}{r}.$$<p>
+(Apply the same transformation to $B(M)$, replacing $k$ with $n-3$ and $S$ with $S-M$.)</p>
+<h2 id="65-substitute-variables--convert-to-an-interval-sum-over">6.5 Substitute Variables — Convert to an Interval Sum over $t$</h2>
+<p>Fix $j$ and write the inner sum as:
+</p>
+$$I_j:=\sum_{x=0}^{M-1}(M-x)\binom{S-x-j(M+1)+r}{r}.$$<p>Substitute $t := S-j(M+1)-x$, i.e. $x = S-j(M+1)-t$. As $x$ runs from $0$ to $M-1$, $t$ runs from $S-j(M+1)$ down to $S-j(M+1)-M+1$. Truncating to the non-negative part:
+</p>
+$$a:=\max\bigl(0,\;S-j(M+1)-(M-1)\bigr),\qquad b:=S-j(M+1).$$<p>
+If $b\lt0$ the term is 0 (use this as an early-exit condition when increasing $j$).</p>
+<p>After substitution, $M-x = (M-S+j(M+1))+t$, so:
+</p>
+$$I_j=\sum_{t=a}^{b}\bigl((M-S)+j(M+1)+t\bigr)\binom{t+r}{r}.$$<p>Splitting the constant from the $t$-term:
+</p>
+$$I_j=\bigl(M-S+j(M+1)\bigr)\underbrace{\sum_{t=a}^{b}\binom{t+r}{r}}_{T_0(a,b)}+\underbrace{\sum_{t=a}^{b}t\binom{t+r}{r}}_{T_1(a,b)}.$$<h2 id="66-evaluate--and--via-hockey-stick">6.6 Evaluate $T_0$ and $T_1$ via Hockey Stick</h2>
+<p>Let $r=k-1$.</p>
+<p><strong>$T_0$</strong> (Hockey Stick):
+</p>
+$$T_0(a,b)=\sum_{t=a}^{b}\binom{t+r}{r}=\binom{b+r+1}{r+1}-\binom{a+r}{r+1}.$$<p>
+($T_0=0$ if $a>b$; the second term vanishes when $a=0$.)</p>
+<p><strong>$T_1$</strong> — use the identity $t\binom{t+r}{r}=(r+1)\binom{t+r}{r+1}$:
+</p>
+$$T_1(a,b)=\sum_{t=a}^{b}t\binom{t+r}{r}=(r+1)\sum_{t=a}^{b}\binom{t+r}{r+1}=(r+1)\!\left(\binom{b+r+1}{r+2}-\binom{a+r}{r+2}\right).$$<p>Therefore:
+</p>
+$$I_j=\bigl(M-S+j(M+1)\bigr)\,T_0(a,b)+T_1(a,b),$$<p>
+and substituting back:
+</p>
+$$A(M)=\sum_{j\ge0}(-1)^j\binom{k}{j}\Bigl(\bigl(M-S+j(M+1)\bigr)T_0(a,b)+T_1(a,b)\Bigr).$$<p>
+Each $T_0,T_1$ is a difference of two binomial coefficients — $O(1)$ per term.</p>
+<h2 id="67-same-treatment-for">6.7 Same Treatment for $B(M)$</h2>
+<p>Apply the identical steps to
+</p>
+$$B(M)=\sum_{x=0}^{M-1}(M-x)\cdot\mathrm{Cnt}(k',\,S-M-x,\,M),\qquad k'=n-3,$$<p>
+using $S\leftarrow S-M$ throughout. The only change is the constant factor in $M-x$: it becomes $(2M-S)+j(M+1)$.</p>
+<h2 id="68-key-takeaways">6.8 Key Takeaways</h2>
+<ul>
+<li><strong>Linearise complex processes into &ldquo;segment-head&rdquo; contributions</strong> — reduces a complicated traversal to a simple weighted sum.</li>
+<li><strong>Swap summation order</strong> when both sums are finite — turns a triple loop into $O(1)$ per $(M,j)$ pair after precomputing binomials.</li>
+<li><strong>Hockey Stick + the identity $t\binom{t+r}{r}=(r+1)\binom{t+r}{r+1}$</strong> — closes interval sums of the form $\sum t^{\le1}\binom{t+r}{r}$ in $O(1)$.</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> i64 <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MOD <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1&#39;000&#39;000&#39;007</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>i64 <span style="color:#50fa7b">qp</span>(i64 a, i64 e <span style="color:#ff79c6">=</span> MOD <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span>) {
+</span></span><span style="display:flex;"><span>    i64 r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (e) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (e <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">*</span> a <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>        a <span style="color:#ff79c6">=</span> a <span style="color:#ff79c6">*</span> a <span style="color:#ff79c6">%</span> MOD; e <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> T; cin <span style="color:#ff79c6">&gt;&gt;</span> T;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>pair<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span>,<span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;</span> qs(T);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> maxn <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, maxm <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; t <span style="color:#ff79c6">&lt;</span> T; <span style="color:#ff79c6">++</span>t) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> n, m; cin <span style="color:#ff79c6">&gt;&gt;</span> n <span style="color:#ff79c6">&gt;&gt;</span> m;
+</span></span><span style="display:flex;"><span>        qs[t] <span style="color:#ff79c6">=</span> {n, m};
+</span></span><span style="display:flex;"><span>        maxn <span style="color:#ff79c6">=</span> max(maxn, n);
+</span></span><span style="display:flex;"><span>        maxm <span style="color:#ff79c6">=</span> max(maxm, m);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> LIM <span style="color:#ff79c6">=</span> maxn <span style="color:#ff79c6">+</span> maxm <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">5</span>;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>i64<span style="color:#ff79c6">&gt;</span> fac(LIM <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>), ifac(LIM <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    fac[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> LIM; <span style="color:#ff79c6">++</span>i) fac[i] <span style="color:#ff79c6">=</span> fac[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>    ifac[LIM] <span style="color:#ff79c6">=</span> qp(fac[LIM]);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> LIM; i <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">--</span>i) ifac[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> ifac[i] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> C <span style="color:#ff79c6">=</span> [<span style="color:#ff79c6">&amp;</span>](i64 n, i64 k) <span style="color:#ff79c6">-&gt;</span> i64 {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">||</span> k <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">||</span> k <span style="color:#ff79c6">&gt;</span> n) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&gt;</span> LIM) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> fac[n] <span style="color:#ff79c6">*</span> ifac[k] <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">*</span> ifac[n<span style="color:#ff79c6">-</span>k] <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Returns (sum0, sum1) = ( sum Cnt(k,y;M), sum y*Cnt(k,y;M) ) for y in [L..U]
+</span></span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// where Cnt(k,y;M) = #{k variables in [0,M] summing to y}
+</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> windowed <span style="color:#ff79c6">=</span> [<span style="color:#ff79c6">&amp;</span>](<span style="color:#8be9fd">int</span> k, <span style="color:#8be9fd">int</span> M, i64 L, i64 U) <span style="color:#ff79c6">-&gt;</span> pair<span style="color:#ff79c6">&lt;</span>i64,i64<span style="color:#ff79c6">&gt;</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (L <span style="color:#ff79c6">&gt;</span> U <span style="color:#ff79c6">||</span> M <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> {<span style="color:#bd93f9">0</span>, <span style="color:#bd93f9">0</span>};
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (k <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) {
+</span></span><span style="display:flex;"><span>            i64 s0 <span style="color:#ff79c6">=</span> (<span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&gt;=</span> L <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&lt;=</span> U) <span style="color:#ff79c6">?</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">:</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">return</span> {s0, <span style="color:#bd93f9">0</span>};
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        i64 sum0 <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, sum1 <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> r <span style="color:#ff79c6">=</span> k <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (U <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> {<span style="color:#bd93f9">0</span>, <span style="color:#bd93f9">0</span>};
+</span></span><span style="display:flex;"><span>        i64 jmax <span style="color:#ff79c6">=</span> U <span style="color:#ff79c6">/</span> (M <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (i64 j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;=</span> jmax; <span style="color:#ff79c6">++</span>j) {
+</span></span><span style="display:flex;"><span>            i64 a <span style="color:#ff79c6">=</span> L <span style="color:#ff79c6">-</span> j <span style="color:#ff79c6">*</span> (M <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>            i64 b <span style="color:#ff79c6">=</span> U <span style="color:#ff79c6">-</span> j <span style="color:#ff79c6">*</span> (M <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">break</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (a <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) a <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (a <span style="color:#ff79c6">&gt;</span> b) <span style="color:#ff79c6">continue</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#6272a4">// T0 = C(b+r+1, r+1) - C(a-1+r+1, r+1)
+</span></span></span><span style="display:flex;"><span>            i64 s0 <span style="color:#ff79c6">=</span> (C(b <span style="color:#ff79c6">+</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">-</span> C(a <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">+</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>)) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (s0 <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) s0 <span style="color:#ff79c6">+=</span> MOD;
+</span></span><span style="display:flex;"><span>            <span style="color:#6272a4">// T1 = (r+1) * (C(b+r+1, r+2) - C(a-1+r+1, r+2))
+</span></span></span><span style="display:flex;"><span>            i64 s1t <span style="color:#ff79c6">=</span> (i64)(r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">*</span> ((C(b <span style="color:#ff79c6">+</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">2</span>) <span style="color:#ff79c6">-</span> C(a <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">+</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">2</span>)) <span style="color:#ff79c6">%</span> MOD) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (s1t <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) s1t <span style="color:#ff79c6">+=</span> MOD;
+</span></span><span style="display:flex;"><span>            i64 coef <span style="color:#ff79c6">=</span> C(k, j);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (j <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) coef <span style="color:#ff79c6">=</span> (MOD <span style="color:#ff79c6">-</span> coef) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>            <span style="color:#6272a4">// y = t + j*(M+1), so sum1 gets s1t + j*(M+1)*s0
+</span></span></span><span style="display:flex;"><span>            i64 part <span style="color:#ff79c6">=</span> (s1t <span style="color:#ff79c6">+</span> (j <span style="color:#ff79c6">%</span> MOD) <span style="color:#ff79c6">*</span> ((M <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">%</span> MOD) <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">*</span> s0) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>            sum0 <span style="color:#ff79c6">=</span> (sum0 <span style="color:#ff79c6">+</span> coef <span style="color:#ff79c6">*</span> s0) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>            sum1 <span style="color:#ff79c6">=</span> (sum1 <span style="color:#ff79c6">+</span> coef <span style="color:#ff79c6">*</span> part) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> {sum0, sum1};
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#ff79c6">auto</span> [n, m] <span style="color:#ff79c6">:</span> qs) {
+</span></span><span style="display:flex;"><span>        i64 ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> M <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; M <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>M) {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> S <span style="color:#ff79c6">=</span> m <span style="color:#ff79c6">-</span> M;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#6272a4">// A(M): k1 = n-2, window [max(0,S-(M-1)) .. min(S, k1*M)]
+</span></span></span><span style="display:flex;"><span>            i64 A <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> k1 <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (M <span style="color:#ff79c6">&gt;</span> <span style="color:#bd93f9">0</span>) {
+</span></span><span style="display:flex;"><span>                i64 LA <span style="color:#ff79c6">=</span> max(<span style="color:#bd93f9">0</span>, S <span style="color:#ff79c6">-</span> (M <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>                i64 UA <span style="color:#ff79c6">=</span> (k1 <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">?</span> min<span style="color:#ff79c6">&lt;</span>i64<span style="color:#ff79c6">&gt;</span>(S, <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> k1 <span style="color:#ff79c6">*</span> M) <span style="color:#ff79c6">:</span> min<span style="color:#ff79c6">&lt;</span>i64<span style="color:#ff79c6">&gt;</span>(S, <span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">auto</span> [s0A, s1A] <span style="color:#ff79c6">=</span> windowed(k1, M, LA, UA);
+</span></span><span style="display:flex;"><span>                A <span style="color:#ff79c6">=</span> (s1A <span style="color:#ff79c6">+</span> ((M <span style="color:#ff79c6">-</span> S <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">0LL</span>) <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">+</span> MOD) <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">*</span> s0A) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#6272a4">// B(M): k2 = n-3, window [max(0,S-2M+1) .. min(S-M, k2*M)]
+</span></span></span><span style="display:flex;"><span>            i64 B <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> k2 <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">3</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (M <span style="color:#ff79c6">&gt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&amp;&amp;</span> k2 <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">0</span>) {
+</span></span><span style="display:flex;"><span>                i64 LB <span style="color:#ff79c6">=</span> max(<span style="color:#bd93f9">0</span>, S <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">*</span> M <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>                i64 UB <span style="color:#ff79c6">=</span> (k2 <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">?</span> min<span style="color:#ff79c6">&lt;</span>i64<span style="color:#ff79c6">&gt;</span>(S <span style="color:#ff79c6">-</span> M, <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> k2 <span style="color:#ff79c6">*</span> M) <span style="color:#ff79c6">:</span> min<span style="color:#ff79c6">&lt;</span>i64<span style="color:#ff79c6">&gt;</span>(S <span style="color:#ff79c6">-</span> M, <span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> (LB <span style="color:#ff79c6">&lt;=</span> UB) {
+</span></span><span style="display:flex;"><span>                    <span style="color:#ff79c6">auto</span> [s0B, s1B] <span style="color:#ff79c6">=</span> windowed(k2, M, LB, UB);
+</span></span><span style="display:flex;"><span>                    B <span style="color:#ff79c6">=</span> (s1B <span style="color:#ff79c6">+</span> ((<span style="color:#bd93f9">2LL</span> <span style="color:#ff79c6">*</span> M <span style="color:#ff79c6">-</span> S) <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">+</span> MOD) <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">*</span> s0B) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            ans <span style="color:#ff79c6">=</span> (ans <span style="color:#ff79c6">+</span> A <span style="color:#ff79c6">+</span> ((n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">0LL</span>) <span style="color:#ff79c6">%</span> MOD) <span style="color:#ff79c6">*</span> B) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        cout <span style="color:#ff79c6">&lt;&lt;</span> ans <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div>
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-stars-and-bars-unconstrained--simple-bounds">1 Stars and Bars (Unconstrained / Simple Bounds)</a></li>
+    <li><a href="#2-bounded-diophantine--inclusion-exclusion-formula">2 Bounded Diophantine — Inclusion-Exclusion Formula</a>
+      <ul>
+        <li><a href="#21-setup">2.1 Setup</a></li>
+        <li><a href="#22-inclusion-exclusion">2.2 Inclusion-Exclusion</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-prefix-sum-dp-">3 Prefix-Sum DP — $O(kN)$</a></li>
+    <li><a href="#4-divide-and-conquer-ntt--generating-function-method">4 Divide-and-Conquer NTT — Generating Function Method</a></li>
+    <li><a href="#5-equal-cap-case">5 Equal-Cap Case</a></li>
+    <li><a href="#6-example--cf-2127f">6 Example — CF 2127F</a>
+      <ul>
+        <li><a href="#61-linearise-the-sum">6.1 Linearise the Sum</a></li>
+        <li><a href="#62-problem-statement">6.2 Problem Statement</a></li>
+        <li><a href="#63-algorithm">6.3 Algorithm</a></li>
+        <li><a href="#64-interchange-the-summations">6.4 Interchange the Summations</a></li>
+        <li><a href="#65-substitute-variables--convert-to-an-interval-sum-over">6.5 Substitute Variables — Convert to an Interval Sum over $t$</a></li>
+        <li><a href="#66-evaluate--and--via-hockey-stick">6.6 Evaluate $T_0$ and $T_1$ via Hockey Stick</a></li>
+        <li><a href="#67-same-treatment-for">6.7 Same Treatment for $B(M)$</a></li>
+        <li><a href="#68-key-takeaways">6.8 Key Takeaways</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const tocPanel = document.querySelector('.article-toc');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      let ticking = false;
+
+      function updateActiveTocLink() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
+          }
+        }
+      }
+
+      function updateTocBoundary() {
+        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
+          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
+          return;
+        }
+
+        const footer = document.querySelector('.site-footer');
+        if (!footer) return;
+
+        const bottomGap = 24;
+        const tocBottom = 86 + tocPanel.offsetHeight;
+        const footerTop = footer.getBoundingClientRect().top;
+        const overlap = tocBottom + bottomGap - footerTop;
+
+        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateTocBoundary();
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      
+      setTimeout(function() {
+        updateTocBoundary();
+        updateActiveTocLink();
+      }, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          document.documentElement.classList.add("theme-switching");
+          applyTheme(next, true);
+          window.setTimeout(function() {
+            document.documentElement.classList.remove("theme-switching");
+          }, 620);
+        });
+      })();
+    </script>
+  </body>
+</html>

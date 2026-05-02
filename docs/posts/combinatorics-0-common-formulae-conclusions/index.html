@@ -1,134 +1,663 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics #0: Common Formulae & Conclusions | Jasper's Technical Notebook</title><meta name=description content="A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns."><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-0-common-formulae-conclusions/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
-<span class=theme-toggle-icon aria-hidden=true></span>
-<span class=sr-only>Switch theme</span>
-</button>
-<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class="nav-link is-active" href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics #0: Common Formulae & Conclusions</h1><div class=article-meta><time datetime=2026-04-20>Apr 20, 2026</time>
-<span>·</span>
-<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/combinatorics/>#combinatorics</a>
-<a class=chip href=/tags/floor-sum/>#floor-sum</a>
-<a class=chip href=/tags/xor/>#xor</a>
-<a class=chip href=/tags/fibonacci/>#fibonacci</a>
-<a class=chip href=/tags/perfect-squares/>#perfect-squares</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#1-geometric-series-sum>1 Geometric Series Sum</a></li><li><a href=#2-floor-sum-algorithm-euclidean-like-类欧几里得>2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</a><ul><li><a href=#basic-form>Basic form</a></li><li><a href=#general-form>General form</a></li><li><a href=#21-template-problem--luogu-p5170>2.1 Template problem — Luogu P5170</a></li><li><a href=#22-example--2025-icpc-wuhan-a-planting-trees>2.2 Example — 2025 ICPC Wuhan A. Planting Trees</a></li></ul></li><li><a href=#3-xor-kingdom>3 XOR Kingdom</a><ul><li><a href=#31-xor--addition>3.1 XOR ↔ Addition</a></li><li><a href=#32-basic-properties>3.2 Basic Properties</a></li><li><a href=#33-common-conclusions>3.3 Common Conclusions</a></li><li><a href=#34-linear-basis-merge>3.4 Linear Basis Merge</a></li></ul></li><li><a href=#4-fibonacci>4 Fibonacci</a><ul><li><a href=#sum-formula>Sum formula</a></li><li><a href=#41-fast-doubling>4.1 Fast Doubling</a></li><li><a href=#42-number-of-digits-of-fibonacci-numbers>4.2 Number of digits of Fibonacci numbers</a></li><li><a href=#43-closed-form-binets-formula>4.3 Closed form (Binet&rsquo;s formula)</a></li></ul></li><li><a href=#5-perfect-squares>5 Perfect Squares</a><ul><li><a href=#51-fast-detection>5.1 Fast detection</a></li><li><a href=#52-two-elements-sum-to-a-perfect-square>5.2 Two elements sum to a perfect square</a></li><li><a href=#53-consecutive-integers-summing-to-a-perfect-square>5.3 Consecutive integers summing to a perfect square</a></li><li><a href=#54-prefix-difference-is-a-perfect-square>5.4 Prefix difference is a perfect square</a></li></ul></li></ul></nav></div></details><div class="article-content prose"><h1 id=1-geometric-series-sum>1 Geometric Series Sum</h1><p>First term $a_1$, common ratio $q$, sum of first $n$ terms $S_n$:</p><ul><li>$q = 1$: $S_n = n a_1$</li><li>$q \neq 1$: $S_n = \dfrac{a_1(1 - q^n)}{1 - q}$</li></ul><hr><h1 id=2-floor-sum-algorithm-euclidean-like-类欧几里得>2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</h1><h2 id=basic-form>Basic form</h2>$$\sum_{i=0}^{n-1}\left\lfloor\frac{a \cdot i+b}{m}\right\rfloor, \quad n,m,a,b > 0$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>LL <span style=color:#50fa7b>F</span>(LL n, LL m, LL a, LL b) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (a <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> n <span style=color:#ff79c6>*</span> (b <span style=color:#ff79c6>/</span> m);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&gt;=</span> m) <span style=color:#ff79c6>return</span> n <span style=color:#ff79c6>*</span> (b <span style=color:#ff79c6>/</span> m) <span style=color:#ff79c6>+</span> F(n, a, b <span style=color:#ff79c6>%</span> m, m);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (a <span style=color:#ff79c6>&gt;=</span> m) <span style=color:#ff79c6>return</span> (n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>*</span> (a <span style=color:#ff79c6>/</span> m) <span style=color:#ff79c6>+</span> F(n, a <span style=color:#ff79c6>%</span> m, b, m);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> F((a <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>+</span> b) <span style=color:#ff79c6>/</span> m, m, (a <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>+</span> b) <span style=color:#ff79c6>%</span> m, a);
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=general-form>General form</h2><p>Allows negative $a, b$; requires $n \geq 0, m > 0$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>ll <span style=color:#50fa7b>F_all</span>(ll n, ll m, ll a, ll b) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> floordiv <span style=color:#ff79c6>=</span> [<span style=color:#ff79c6>&amp;</span>](ll x, ll m) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (x <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> x <span style=color:#ff79c6>/</span> m;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span>( (<span style=color:#ff79c6>-</span>x <span style=color:#ff79c6>+</span> m <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> m );
-</span></span><span style=display:flex><span>    };
-</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (a <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>||</span> a <span style=color:#ff79c6>&gt;=</span> m) { ll q <span style=color:#ff79c6>=</span> floordiv(a, m); ans <span style=color:#ff79c6>+=</span> q <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>*</span> (n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span>; a <span style=color:#ff79c6>-=</span> q <span style=color:#ff79c6>*</span> m; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>||</span> b <span style=color:#ff79c6>&gt;=</span> m) { ll q <span style=color:#ff79c6>=</span> floordiv(b, m); ans <span style=color:#ff79c6>+=</span> q <span style=color:#ff79c6>*</span> n; b <span style=color:#ff79c6>-=</span> q <span style=color:#ff79c6>*</span> m; }
-</span></span><span style=display:flex><span>    <span style=color:#6272a4>// now 0 &lt;= a, b &lt; m — use non-negative version
-</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (<span style=color:#8be9fd;font-style:italic>true</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (a <span style=color:#ff79c6>&gt;=</span> m) { ans <span style=color:#ff79c6>+=</span> (n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>*</span> (a <span style=color:#ff79c6>/</span> m); a <span style=color:#ff79c6>%=</span> m; }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&gt;=</span> m) { ans <span style=color:#ff79c6>+=</span> n <span style=color:#ff79c6>*</span> (b <span style=color:#ff79c6>/</span> m); b <span style=color:#ff79c6>%=</span> m; }
-</span></span><span style=display:flex><span>        ll y_max <span style=color:#ff79c6>=</span> a <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>+</span> b;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (y_max <span style=color:#ff79c6>&lt;</span> m) <span style=color:#ff79c6>break</span>;
-</span></span><span style=display:flex><span>        n <span style=color:#ff79c6>=</span> y_max <span style=color:#ff79c6>/</span> m; b <span style=color:#ff79c6>=</span> y_max <span style=color:#ff79c6>%</span> m; swap(a, m);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> ans;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=21-template-problem--luogu-p5170>2.1 Template problem — <a href=https://www.luogu.com.cn/problem/P5170>Luogu P5170</a></h2><p>Given $n, a, b, c$, compute $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor$, $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor^2$, $\sum_{i=0}^{n} i\lfloor\frac{ai+b}{c}\rfloor$ mod $998244353$.</p><p><strong>Universal Euclidean algorithm:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;iostream&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>template</span> <span style=color:#ff79c6>&lt;</span><span style=color:#ff79c6>typename</span> T<span style=color:#ff79c6>&gt;</span> T pow(T a, <span style=color:#8be9fd>int</span> b) {
-</span></span><span style=display:flex><span>    T res; <span style=color:#ff79c6>for</span> (; b; b <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>) { <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) res <span style=color:#ff79c6>=</span> res <span style=color:#ff79c6>*</span> a; a <span style=color:#ff79c6>=</span> a <span style=color:#ff79c6>*</span> a; } <span style=color:#ff79c6>return</span> res;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span><span style=color:#ff79c6>template</span> <span style=color:#ff79c6>&lt;</span><span style=color:#ff79c6>typename</span> T<span style=color:#ff79c6>&gt;</span> T euclid(<span style=color:#8be9fd>int</span> a, <span style=color:#8be9fd>int</span> b, <span style=color:#8be9fd>int</span> c, <span style=color:#8be9fd>int</span> n, T U, T R) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&gt;=</span> c) <span style=color:#ff79c6>return</span> pow(U, b <span style=color:#ff79c6>/</span> c) <span style=color:#ff79c6>*</span> euclid(a, b <span style=color:#ff79c6>%</span> c, c, n, U, R);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (a <span style=color:#ff79c6>&gt;=</span> c) <span style=color:#ff79c6>return</span> euclid(a <span style=color:#ff79c6>%</span> c, b, c, n, U, pow(U, a <span style=color:#ff79c6>/</span> c) <span style=color:#ff79c6>*</span> R);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> m <span style=color:#ff79c6>=</span> ((<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)a <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>+</span> b) <span style=color:#ff79c6>/</span> c;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>m) <span style=color:#ff79c6>return</span> pow(R, n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#50fa7b>pow</span>(R, (c <span style=color:#ff79c6>-</span> b <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> a) <span style=color:#ff79c6>*</span> U <span style=color:#ff79c6>*</span>
-</span></span><span style=display:flex><span>           euclid(c, (c <span style=color:#ff79c6>-</span> b <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>%</span> a, a, m <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>, R, U) <span style=color:#ff79c6>*</span>
-</span></span><span style=display:flex><span>           pow(R, n <span style=color:#ff79c6>-</span> (c <span style=color:#ff79c6>*</span> m <span style=color:#ff79c6>-</span> b <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> a);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span><span style=color:#ff79c6>constexpr</span> <span style=color:#8be9fd>int</span> M <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>998244353</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>Info</span> {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> x, y, s, t, u;
-</span></span><span style=display:flex><span>    Info() <span style=color:#ff79c6>:</span> x(<span style=color:#bd93f9>0</span>), y(<span style=color:#bd93f9>0</span>), s(<span style=color:#bd93f9>0</span>), t(<span style=color:#bd93f9>0</span>), u(<span style=color:#bd93f9>0</span>) {}
-</span></span><span style=display:flex><span>    Info <span style=color:#ff79c6>operator</span><span style=color:#ff79c6>*</span>(<span style=color:#ff79c6>const</span> Info<span style=color:#ff79c6>&amp;</span> rhs) <span style=color:#ff79c6>const</span> {
-</span></span><span style=display:flex><span>        Info res;
-</span></span><span style=display:flex><span>        res.x <span style=color:#ff79c6>=</span> (x <span style=color:#ff79c6>+</span> rhs.x) <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        res.y <span style=color:#ff79c6>=</span> (y <span style=color:#ff79c6>+</span> rhs.y) <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        res.s <span style=color:#ff79c6>=</span> (s <span style=color:#ff79c6>+</span> rhs.s <span style=color:#ff79c6>+</span> rhs.x <span style=color:#ff79c6>*</span> y) <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>auto</span> tmp <span style=color:#ff79c6>=</span> (rhs.x <span style=color:#ff79c6>*</span> (rhs.x <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>+</span> x <span style=color:#ff79c6>*</span> rhs.x) <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        res.t <span style=color:#ff79c6>=</span> (t <span style=color:#ff79c6>+</span> rhs.t <span style=color:#ff79c6>+</span> x <span style=color:#ff79c6>*</span> rhs.s <span style=color:#ff79c6>+</span> tmp <span style=color:#ff79c6>*</span> y) <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        res.u <span style=color:#ff79c6>=</span> (u <span style=color:#ff79c6>+</span> rhs.u <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>*</span> y <span style=color:#ff79c6>*</span> rhs.s <span style=color:#ff79c6>+</span> rhs.x <span style=color:#ff79c6>*</span> y <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>*</span> y) <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> res;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>};
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>solve</span>(<span style=color:#8be9fd>int</span> a, <span style=color:#8be9fd>int</span> b, <span style=color:#8be9fd>int</span> c, <span style=color:#8be9fd>int</span> n) {
-</span></span><span style=display:flex><span>    Info U, R; U.y <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; R.x <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> res <span style=color:#ff79c6>=</span> euclid(a, b, c, n, U, R);
-</span></span><span style=display:flex><span>    std<span style=color:#ff79c6>::</span>cout <span style=color:#ff79c6>&lt;&lt;</span> (res.s <span style=color:#ff79c6>+</span> b <span style=color:#ff79c6>/</span> c) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39; &#39;</span> <span style=color:#ff79c6>&lt;&lt;</span> (res.u <span style=color:#ff79c6>+</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)(b<span style=color:#ff79c6>/</span>c)<span style=color:#ff79c6>*</span>(b<span style=color:#ff79c6>/</span>c)) <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39; &#39;</span> <span style=color:#ff79c6>&lt;&lt;</span> res.t <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39;\n&#39;</span>;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> t; std<span style=color:#ff79c6>::</span>cin <span style=color:#ff79c6>&gt;&gt;</span> t;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (; t; <span style=color:#ff79c6>--</span>t) { <span style=color:#8be9fd>int</span> a, b, c, n; std<span style=color:#ff79c6>::</span>cin <span style=color:#ff79c6>&gt;&gt;</span> n <span style=color:#ff79c6>&gt;&gt;</span> a <span style=color:#ff79c6>&gt;&gt;</span> b <span style=color:#ff79c6>&gt;&gt;</span> c; solve(a, b, c, n); }
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=22-example--2025-icpc-wuhan-a-planting-trees>2.2 Example — <a href=https://qoj.ac/contest/2609/problem/14719>2025 ICPC Wuhan A. Planting Trees</a></h2><p><strong>Problem:</strong> Two plants start at heights $x, y$. Each day they grow by $f$ and $g$ respectively, then height is taken mod $m$.<br>Count days where the first plant is shorter ($L_t < R_t$).</p>$$L_t = (x + ft) \bmod m, \quad R_t = (y + gt) \bmod m, \quad \text{Ans} = \sum_{t=0}^{n-1} [L_t < R_t]$$<p><strong>Key trick — convert $[u < v]$ to a floor sum:</strong></p><p>For any $0 \leq u, v < m$:</p>$$[u < v] = 1 + \left\lfloor\frac{(v-1) - u}{m}\right\rfloor \tag{1}$$<p><em>Proof:</em> $(v-1)-u \in [-m, m-1]$. If $u < v$: value $\in [0, m-1)$, floor = 0, RHS = 1. If $u \geq v$: value $\in [-m,-1]$, floor = $-1$, RHS = 0. ✓</p><p>Apply (1) with $u = L_t,\ v = R_t$:</p>$$[L_t < R_t] = 1 + \left\lfloor\frac{R_t - 1 - L_t}{m}\right\rfloor \tag{2}$$<p>Expand $L_t, R_t$ by <strong>writing mod as &ldquo;original minus $m\lfloor\cdot\rfloor$&rdquo;:</strong></p>$$L_t = ft + x - m\left\lfloor\frac{ft+x}{m}\right\rfloor, \qquad R_t = gt + y - m\left\lfloor\frac{gt+y}{m}\right\rfloor$$<p>Substitute into the numerator of (2):</p>$$R_t - 1 - L_t = (g-f)t + (y-x-1) - m\left(\left\lfloor\frac{gt+y}{m}\right\rfloor - \left\lfloor\frac{ft+x}{m}\right\rfloor\right)$$<p>Divide by $m$ and take floor (the $m\lfloor\cdot\rfloor/m$ terms are already integers, so they pass through the floor unchanged):</p>$$\left\lfloor\frac{R_t-1-L_t}{m}\right\rfloor = \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor$$<p>So (2) becomes:</p>$$[L_t < R_t] = 1 + \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor \tag{3}$$<p>Sum (3) over $t = 0,\dots,n-1$, letting $F(n,m,a,b) = \sum_{t=0}^{n-1}\left\lfloor\frac{at+b}{m}\right\rfloor$:</p>$$\boxed{\text{Ans} = n + F(n,m,g-f,\,y-x-1) - F(n,m,g,\,y) + F(n,m,f,\,x)}$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>solve</span>() {
-</span></span><span style=display:flex><span>    ll f, x, g, y, n, M; cin <span style=color:#ff79c6>&gt;&gt;</span> f <span style=color:#ff79c6>&gt;&gt;</span> x <span style=color:#ff79c6>&gt;&gt;</span> g <span style=color:#ff79c6>&gt;&gt;</span> y <span style=color:#ff79c6>&gt;&gt;</span> n <span style=color:#ff79c6>&gt;&gt;</span> M;
-</span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>+</span> F_all(n, M, g<span style=color:#ff79c6>-</span>f, y<span style=color:#ff79c6>-</span>x<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>-</span> F_all(n, M, g, y) <span style=color:#ff79c6>+</span> F_all(n, M, f, x);
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> ans <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=3-xor-kingdom>3 XOR Kingdom</h1><h2 id=31-xor--addition>3.1 XOR ↔ Addition</h2>$$x + y = (x \oplus y) + 2 \cdot (x \mathbin{\&} y)$$<ul><li><strong>XOR</strong> = addition without carry</li><li><strong>AND</strong> = exactly which bits carry</li></ul><h2 id=32-basic-properties>3.2 Basic Properties</h2><ol><li>Commutative & associative: <code>a^b = b^a</code>, <code>(a^b)^c = a^(b^c)</code> — bits are independent.</li><li>Identity & self-inverse: <code>a^0 = a</code>, <code>a^a = 0</code>.</li><li>⭐ Invertible: if <code>a^b = c</code> then <code>a = b^c</code>.</li><li>Each bit is $\bmod 2$ addition (no carry).</li><li><strong>Prefix XOR of $1..n$</strong> has period 4:</li></ol><table><thead><tr><th>$n \bmod 4$</th><th><code>1^2^...^n</code></th></tr></thead><tbody><tr><td>0</td><td><code>n</code></td></tr><tr><td>1</td><td><code>1</code></td></tr><tr><td>2</td><td><code>n+1</code></td></tr><tr><td>3</td><td><code>0</code></td></tr></tbody></table><h2 id=33-common-conclusions>3.3 Common Conclusions</h2><ol><li><p><strong>Subarray XOR via prefix XOR</strong><br>Let <code>pref[i] = a[1]^...^a[i]</code>. Then XOR of <code>a[l..r]</code> = <code>pref[r] ^ pref[l-1]</code>.</p><ul><li><strong>Count subarrays with XOR = K:</strong> prefix XOR + hashmap.</li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>ll <span style=color:#50fa7b>countXorSubarrays</span>(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> a, <span style=color:#8be9fd>int</span> K) {
-</span></span><span style=display:flex><span>    unordered_map<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span>,<span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> cnt; cnt[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> pref <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>x</span> : a) { pref <span style=color:#ff79c6>^=</span> x; ans <span style=color:#ff79c6>+=</span> cnt[pref <span style=color:#ff79c6>^</span> K]; cnt[pref]<span style=color:#ff79c6>++</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> ans;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div></li><li><p><strong>Subset XOR and linear algebra</strong><br>Each number is a bit-vector; XOR is vector addition over $GF(2)$. → <strong>Linear basis.</strong></p></li><li><p><strong>Maximum XOR pair / maximum subset XOR</strong></p><ul><li>Max <code>ai ^ aj</code>: 01-Trie, greedy from highest bit. $O(n \log A)$.</li><li>Max XOR of subset / linear combination: linear basis, greedy from high bit.</li></ul></li><li><p><strong>Count pairs with XOR &lt; K</strong><br>01-Trie with subtree sizes; for each prefix query how many stored prefixes $p$ satisfy <code>(pref[i]^p) &lt; K</code>. $O(n \log A)$.</p></li><li><p><strong>XOR convolution</strong><br>FWT in $O(N \log N)$ on frequency vectors of size $N = 2^m$.</p></li><li><p><strong>Bit divide-and-conquer</strong><br>For counting/minimisation, split on highest bit, recurse, count cross contributions.</p></li></ol><h3 id=331-trie-templates>3.3.1 Trie Templates</h3><p><strong>Max XOR pair:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>Trie</span> { <span style=color:#8be9fd>int</span> ch[<span style=color:#bd93f9>2</span>]; Trie(){ ch[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span>ch[<span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>=-</span><span style=color:#bd93f9>1</span>; } };
-</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span>Trie<span style=color:#ff79c6>&gt;</span> T;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>insert</span>(<span style=color:#8be9fd>int</span> x) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> p <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> b <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>30</span>; b <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>--</span>b) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> bit <span style=color:#ff79c6>=</span> (x <span style=color:#ff79c6>&gt;&gt;</span> b) <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (T[p].ch[bit] <span style=color:#ff79c6>==</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) { T[p].ch[bit] <span style=color:#ff79c6>=</span> T.size(); T.emplace_back(); }
-</span></span><span style=display:flex><span>        p <span style=color:#ff79c6>=</span> T[p].ch[bit];
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>queryMaxXor</span>(<span style=color:#8be9fd>int</span> x) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> p <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, res <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> b <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>30</span>; b <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>--</span>b) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> bit <span style=color:#ff79c6>=</span> (x <span style=color:#ff79c6>&gt;&gt;</span> b) <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>, want <span style=color:#ff79c6>=</span> bit <span style=color:#ff79c6>^</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (T[p].ch[want] <span style=color:#ff79c6>!=</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) { res <span style=color:#ff79c6>|=</span> (<span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> b); p <span style=color:#ff79c6>=</span> T[p].ch[want]; }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span> p <span style=color:#ff79c6>=</span> T[p].ch[bit];
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> res;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><p><strong>Count XOR pairs &lt; K:</strong> maintain subtree size <code>sz</code> at each Trie node; at each bit, if taking the &ldquo;same&rdquo; branch keeps XOR smaller, add the whole opposite subtree count.</p><h2 id=34-linear-basis-merge>3.4 Linear Basis Merge</h2><ul><li>Classic application: $k$-th minimum XOR value (use basis + greedy / divide-and-conquer + count).</li></ul><hr><h1 id=4-fibonacci>4 Fibonacci</h1><h2 id=sum-formula>Sum formula</h2>$$S(n) = \sum_{i=1}^{n} F_i = F_{n+2} - 1$$<p><em>Proof:</em> $F_k = F_{k+2} - F_{k+1}$; telescoping sum from $k=1$ to $n$ gives $F_{n+2} - F_2 = F_{n+2} - 1$.</p><h2 id=41-fast-doubling>4.1 Fast Doubling</h2><p>Given $a = F_k$, $b = F_{k+1}$:</p>$$F_{2k} = a(2b - a), \qquad F_{2k+1} = a^2 + b^2$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>pair<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>,<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span><span style=color:#ff79c6>&gt;</span> fib_pair(<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n, <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> mod) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> {<span style=color:#bd93f9>0</span>, <span style=color:#bd93f9>1</span>};
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> [a, b] <span style=color:#ff79c6>=</span> fib_pair(n <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>, mod);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> c <span style=color:#ff79c6>=</span> (__int128)a <span style=color:#ff79c6>*</span> ((<span style=color:#bd93f9>2</span><span style=color:#ff79c6>*</span>b <span style=color:#ff79c6>-</span> a <span style=color:#ff79c6>%</span> mod <span style=color:#ff79c6>+</span> mod) <span style=color:#ff79c6>%</span> mod) <span style=color:#ff79c6>%</span> mod;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> d <span style=color:#ff79c6>=</span> ((__int128)a<span style=color:#ff79c6>*</span>a <span style=color:#ff79c6>+</span> (__int128)b<span style=color:#ff79c6>*</span>b) <span style=color:#ff79c6>%</span> mod;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> (n <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>?</span> make_pair(d, (c <span style=color:#ff79c6>+</span> d) <span style=color:#ff79c6>%</span> mod) <span style=color:#ff79c6>:</span> make_pair(c, d);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4>// Usage: sum F(1)+...+F(n) = F(n+2) - 1
-</span></span></span><span style=display:flex><span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> <span style=color:#50fa7b>fibSum</span>(<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n, <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> MOD) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> [f, _] <span style=color:#ff79c6>=</span> fib_pair(n <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>2</span>, MOD);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> (f <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>+</span> MOD) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=42-number-of-digits-of-fibonacci-numbers>4.2 Number of digits of Fibonacci numbers</h2>$$\text{digits}(F_n) = \left\lfloor n \log_{10} \varphi - \tfrac{1}{2}\log_{10} 5 \right\rfloor + 1$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> <span style=color:#50fa7b>fib_digits</span>(<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n, <span style=color:#8be9fd>double</span> base <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>10.0</span>) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>double</span> phi <span style=color:#ff79c6>=</span> (<span style=color:#bd93f9>1.0</span> <span style=color:#ff79c6>+</span> sqrt(<span style=color:#bd93f9>5.0</span>)) <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2.0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)floor(n <span style=color:#ff79c6>*</span> log(phi)<span style=color:#ff79c6>/</span>log(base) <span style=color:#ff79c6>-</span> log(sqrt(<span style=color:#bd93f9>5.0</span>))<span style=color:#ff79c6>/</span>log(base)) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=43-closed-form-binets-formula>4.3 Closed form (Binet&rsquo;s formula)</h2>$$F_n = \frac{1}{\sqrt{5}}\left[\left(\frac{1+\sqrt{5}}{2}\right)^n - \left(\frac{1-\sqrt{5}}{2}\right)^n\right]$$<hr><h1 id=5-perfect-squares>5 Perfect Squares</h1><h2 id=51-fast-detection>5.1 Fast detection</h2><p>For integer $x \geq 0$:</p><ol><li><strong>Modular pruning</strong> (eliminates most non-squares instantly):<ul><li>$x \bmod 4 \in \{0,1\}$</li><li>$x \bmod 8 \in \{0,1,4\}$</li><li>$x \bmod 16 \in \{0,1,4,9\}$ (stronger)</li><li>$x \bmod 3 \in \{0,1\}$</li><li>Last decimal digit $\in \{0,1,4,5,6,9\}$</li></ul></li><li>Integer square root: <code>r = (ll)sqrt(x)</code>, check <code>r*r == x</code> (also try <code>r±1</code> for float precision).</li></ol><h2 id=52-two-elements-sum-to-a-perfect-square>5.2 Two elements sum to a perfect square</h2><h3 id=521-existence-check>5.2.1 Existence check</h3><p>Let <code>Amax</code> = max value, <code>Smax = 2*Amax</code>.</p><ol><li>Precompute all squares up to <code>Smax</code>: <code>sq = {0, 1, 4, 9, ..., ⌊√Smax⌋²}</code></li><li>Maintain count table <code>cnt</code> of values seen so far.</li><li>For each <code>x = a[i]</code>: check <code>for t in sq: if cnt[t - x] > 0</code>.</li></ol><p>Complexity: $O(n \sqrt{S_{\max}})$.</p><h3 id=522-count-all-such-pairs>5.2.2 Count all such pairs</h3><p>Same as above — accumulate <code>cnt[t - x]</code> instead of just checking existence. Scan left-to-right so each unordered pair is counted once.</p><h3 id=523-small-value-range>5.2.3 Small value range</h3><p>If <code>Amax</code> is small (e.g. $\leq 2 \times 10^5$): use frequency array <code>freq[v]</code>. For each square <code>t</code>, enumerate <code>v</code>, pair <code>u = t - v</code>, add <code>freq[v]*freq[u]</code>. Handle <code>v == u</code> with $\binom{\text{freq}[v]}{2}$.</p><p>Complexity: $O(\sqrt{S_{\max}} \cdot A_{\max})$, small constant.</p><h2 id=53-consecutive-integers-summing-to-a-perfect-square>5.3 Consecutive integers summing to a perfect square</h2><p>Find $l..r$ such that $l + (l+1) + \cdots + r = \dfrac{(l+r)(r-l+1)}{2} = k^2$.</p><p>With length $m = r - l + 1$: sum $= \dfrac{m(2l + m - 1)}{2}$, which becomes a number-theory equation.</p><p><strong>Algorithms:</strong></p><ol><li><strong>Two pointers / sliding window</strong> (when all values positive): expand right if <code>sum &lt; target</code>, shrink left if <code>sum > target</code>. When target isn&rsquo;t fixed, check if <code>sum</code> is a perfect square at each step.</li><li><strong>Enumerate square root</strong>: if sum&rsquo;s upper bound is $M$, enumerate $k$, set $S = k^2$, solve for $m$ or $l$.</li></ol><h2 id=54-prefix-difference-is-a-perfect-square>5.4 Prefix difference is a perfect square</h2><p>Many problems reduce to: $\text{prefix}[j] - \text{prefix}[i]$ is a perfect square.</p><ul><li>Enumerate right endpoint $j$; maintain hashmap <code>cnt[prefix[i]]</code>.</li><li>Precompute square set <code>sq</code> (up to max possible interval sum).</li><li>For each $j$, add:</li></ul>$$\sum_{t \in \text{sq}} \texttt{cnt}[\text{prefix}[j] - t]$$<p>Complexity: $O(n \sqrt{\text{MaxSum}})$. Very stable pattern.</p></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-geometric-series-sum>1 Geometric Series Sum</a></li><li><a href=#2-floor-sum-algorithm-euclidean-like-类欧几里得>2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</a><ul><li><a href=#basic-form>Basic form</a></li><li><a href=#general-form>General form</a></li><li><a href=#21-template-problem--luogu-p5170>2.1 Template problem — Luogu P5170</a></li><li><a href=#22-example--2025-icpc-wuhan-a-planting-trees>2.2 Example — 2025 ICPC Wuhan A. Planting Trees</a></li></ul></li><li><a href=#3-xor-kingdom>3 XOR Kingdom</a><ul><li><a href=#31-xor--addition>3.1 XOR ↔ Addition</a></li><li><a href=#32-basic-properties>3.2 Basic Properties</a></li><li><a href=#33-common-conclusions>3.3 Common Conclusions</a></li><li><a href=#34-linear-basis-merge>3.4 Linear Basis Merge</a></li></ul></li><li><a href=#4-fibonacci>4 Fibonacci</a><ul><li><a href=#sum-formula>Sum formula</a></li><li><a href=#41-fast-doubling>4.1 Fast Doubling</a></li><li><a href=#42-number-of-digits-of-fibonacci-numbers>4.2 Number of digits of Fibonacci numbers</a></li><li><a href=#43-closed-form-binets-formula>4.3 Closed form (Binet&rsquo;s formula)</a></li></ul></li><li><a href=#5-perfect-squares>5 Perfect Squares</a><ul><li><a href=#51-fast-detection>5.1 Fast detection</a></li><li><a href=#52-two-elements-sum-to-a-perfect-square>5.2 Two elements sum to a perfect square</a></li><li><a href=#53-consecutive-integers-summing-to-a-perfect-square>5.3 Consecutive integers summing to a perfect square</a></li><li><a href=#54-prefix-difference-is-a-perfect-square>5.4 Prefix difference is a perfect square</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";o(e,!0)})})()</script></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combinatorics #0: Common Formulae &amp; Conclusions | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="A compact toolkit of geometric sums, floor-sum transformations, XOR facts, Fibonacci identities, and perfect-square patterns.">
+    <link rel="canonical" href="http://localhost:1313/posts/combinatorics-0-common-formulae-conclusions/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Combinatorics #0: Common Formulae &amp; Conclusions</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-20">Apr 20, 2026</time>
+          
+            <span>·</span>
+            <span>Combinatorics</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/combinatorics/">#combinatorics</a>
+            
+              <a class="chip" href="/tags/floor-sum/">#floor-sum</a>
+            
+              <a class="chip" href="/tags/xor/">#xor</a>
+            
+              <a class="chip" href="/tags/fibonacci/">#fibonacci</a>
+            
+              <a class="chip" href="/tags/perfect-squares/">#perfect-squares</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-geometric-series-sum">1 Geometric Series Sum</a></li>
+    <li><a href="#2-floor-sum-algorithm-euclidean-like-类欧几里得">2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</a>
+      <ul>
+        <li><a href="#basic-form">Basic form</a></li>
+        <li><a href="#general-form">General form</a></li>
+        <li><a href="#21-template-problem--luogu-p5170">2.1 Template problem — Luogu P5170</a></li>
+        <li><a href="#22-example--2025-icpc-wuhan-a-planting-trees">2.2 Example — 2025 ICPC Wuhan A. Planting Trees</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-xor-kingdom">3 XOR Kingdom</a>
+      <ul>
+        <li><a href="#31-xor--addition">3.1 XOR ↔ Addition</a></li>
+        <li><a href="#32-basic-properties">3.2 Basic Properties</a></li>
+        <li><a href="#33-common-conclusions">3.3 Common Conclusions</a></li>
+        <li><a href="#34-linear-basis-merge">3.4 Linear Basis Merge</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-fibonacci">4 Fibonacci</a>
+      <ul>
+        <li><a href="#sum-formula">Sum formula</a></li>
+        <li><a href="#41-fast-doubling">4.1 Fast Doubling</a></li>
+        <li><a href="#42-number-of-digits-of-fibonacci-numbers">4.2 Number of digits of Fibonacci numbers</a></li>
+        <li><a href="#43-closed-form-binets-formula">4.3 Closed form (Binet&rsquo;s formula)</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-perfect-squares">5 Perfect Squares</a>
+      <ul>
+        <li><a href="#51-fast-detection">5.1 Fast detection</a></li>
+        <li><a href="#52-two-elements-sum-to-a-perfect-square">5.2 Two elements sum to a perfect square</a></li>
+        <li><a href="#53-consecutive-integers-summing-to-a-perfect-square">5.3 Consecutive integers summing to a perfect square</a></li>
+        <li><a href="#54-prefix-difference-is-a-perfect-square">5.4 Prefix difference is a perfect square</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </details>
+      
+      <div class="article-content prose">
+        <h1 id="1-geometric-series-sum">1 Geometric Series Sum</h1>
+<p>First term $a_1$, common ratio $q$, sum of first $n$ terms $S_n$:</p>
+<ul>
+<li>$q = 1$: $S_n = n a_1$</li>
+<li>$q \neq 1$: $S_n = \dfrac{a_1(1 - q^n)}{1 - q}$</li>
+</ul>
+<hr>
+<h1 id="2-floor-sum-algorithm-euclidean-like-类欧几里得">2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</h1>
+<h2 id="basic-form">Basic form</h2>
+$$\sum_{i=0}^{n-1}\left\lfloor\frac{a \cdot i+b}{m}\right\rfloor, \quad n,m,a,b > 0$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>LL <span style="color:#50fa7b">F</span>(LL n, LL m, LL a, LL b) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (a <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> n <span style="color:#ff79c6">*</span> (b <span style="color:#ff79c6">/</span> m);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&gt;=</span> m) <span style="color:#ff79c6">return</span> n <span style="color:#ff79c6">*</span> (b <span style="color:#ff79c6">/</span> m) <span style="color:#ff79c6">+</span> F(n, a, b <span style="color:#ff79c6">%</span> m, m);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (a <span style="color:#ff79c6">&gt;=</span> m) <span style="color:#ff79c6">return</span> (n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">*</span> (a <span style="color:#ff79c6">/</span> m) <span style="color:#ff79c6">+</span> F(n, a <span style="color:#ff79c6">%</span> m, b, m);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> F((a <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">+</span> b) <span style="color:#ff79c6">/</span> m, m, (a <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">+</span> b) <span style="color:#ff79c6">%</span> m, a);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="general-form">General form</h2>
+<p>Allows negative $a, b$; requires $n \geq 0, m > 0$.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>ll <span style="color:#50fa7b">F_all</span>(ll n, ll m, ll a, ll b) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> floordiv <span style="color:#ff79c6">=</span> [<span style="color:#ff79c6">&amp;</span>](ll x, ll m) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (x <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> x <span style="color:#ff79c6">/</span> m;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span>( (<span style="color:#ff79c6">-</span>x <span style="color:#ff79c6">+</span> m <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> m );
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (a <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">||</span> a <span style="color:#ff79c6">&gt;=</span> m) { ll q <span style="color:#ff79c6">=</span> floordiv(a, m); ans <span style="color:#ff79c6">+=</span> q <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">*</span> (n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span>; a <span style="color:#ff79c6">-=</span> q <span style="color:#ff79c6">*</span> m; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">||</span> b <span style="color:#ff79c6">&gt;=</span> m) { ll q <span style="color:#ff79c6">=</span> floordiv(b, m); ans <span style="color:#ff79c6">+=</span> q <span style="color:#ff79c6">*</span> n; b <span style="color:#ff79c6">-=</span> q <span style="color:#ff79c6">*</span> m; }
+</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// now 0 &lt;= a, b &lt; m — use non-negative version
+</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (<span style="color:#8be9fd;font-style:italic">true</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (a <span style="color:#ff79c6">&gt;=</span> m) { ans <span style="color:#ff79c6">+=</span> (n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">*</span> (a <span style="color:#ff79c6">/</span> m); a <span style="color:#ff79c6">%=</span> m; }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&gt;=</span> m) { ans <span style="color:#ff79c6">+=</span> n <span style="color:#ff79c6">*</span> (b <span style="color:#ff79c6">/</span> m); b <span style="color:#ff79c6">%=</span> m; }
+</span></span><span style="display:flex;"><span>        ll y_max <span style="color:#ff79c6">=</span> a <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">+</span> b;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (y_max <span style="color:#ff79c6">&lt;</span> m) <span style="color:#ff79c6">break</span>;
+</span></span><span style="display:flex;"><span>        n <span style="color:#ff79c6">=</span> y_max <span style="color:#ff79c6">/</span> m; b <span style="color:#ff79c6">=</span> y_max <span style="color:#ff79c6">%</span> m; swap(a, m);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> ans;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="21-template-problem--luogu-p5170">2.1 Template problem — <a href="https://www.luogu.com.cn/problem/P5170">Luogu P5170</a></h2>
+<p>Given $n, a, b, c$, compute $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor$, $\sum_{i=0}^{n} \lfloor\frac{ai+b}{c}\rfloor^2$, $\sum_{i=0}^{n} i\lfloor\frac{ai+b}{c}\rfloor$ mod $998244353$.</p>
+<p><strong>Universal Euclidean algorithm:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;iostream&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">template</span> <span style="color:#ff79c6">&lt;</span><span style="color:#ff79c6">typename</span> T<span style="color:#ff79c6">&gt;</span> T pow(T a, <span style="color:#8be9fd">int</span> b) {
+</span></span><span style="display:flex;"><span>    T res; <span style="color:#ff79c6">for</span> (; b; b <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>) { <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) res <span style="color:#ff79c6">=</span> res <span style="color:#ff79c6">*</span> a; a <span style="color:#ff79c6">=</span> a <span style="color:#ff79c6">*</span> a; } <span style="color:#ff79c6">return</span> res;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">template</span> <span style="color:#ff79c6">&lt;</span><span style="color:#ff79c6">typename</span> T<span style="color:#ff79c6">&gt;</span> T euclid(<span style="color:#8be9fd">int</span> a, <span style="color:#8be9fd">int</span> b, <span style="color:#8be9fd">int</span> c, <span style="color:#8be9fd">int</span> n, T U, T R) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&gt;=</span> c) <span style="color:#ff79c6">return</span> pow(U, b <span style="color:#ff79c6">/</span> c) <span style="color:#ff79c6">*</span> euclid(a, b <span style="color:#ff79c6">%</span> c, c, n, U, R);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (a <span style="color:#ff79c6">&gt;=</span> c) <span style="color:#ff79c6">return</span> euclid(a <span style="color:#ff79c6">%</span> c, b, c, n, U, pow(U, a <span style="color:#ff79c6">/</span> c) <span style="color:#ff79c6">*</span> R);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> m <span style="color:#ff79c6">=</span> ((<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)a <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">+</span> b) <span style="color:#ff79c6">/</span> c;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>m) <span style="color:#ff79c6">return</span> pow(R, n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#50fa7b">pow</span>(R, (c <span style="color:#ff79c6">-</span> b <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> a) <span style="color:#ff79c6">*</span> U <span style="color:#ff79c6">*</span>
+</span></span><span style="display:flex;"><span>           euclid(c, (c <span style="color:#ff79c6">-</span> b <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">%</span> a, a, m <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>, R, U) <span style="color:#ff79c6">*</span>
+</span></span><span style="display:flex;"><span>           pow(R, n <span style="color:#ff79c6">-</span> (c <span style="color:#ff79c6">*</span> m <span style="color:#ff79c6">-</span> b <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> a);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">constexpr</span> <span style="color:#8be9fd">int</span> M <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">998244353</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">Info</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> x, y, s, t, u;
+</span></span><span style="display:flex;"><span>    Info() <span style="color:#ff79c6">:</span> x(<span style="color:#bd93f9">0</span>), y(<span style="color:#bd93f9">0</span>), s(<span style="color:#bd93f9">0</span>), t(<span style="color:#bd93f9">0</span>), u(<span style="color:#bd93f9">0</span>) {}
+</span></span><span style="display:flex;"><span>    Info <span style="color:#ff79c6">operator</span><span style="color:#ff79c6">*</span>(<span style="color:#ff79c6">const</span> Info<span style="color:#ff79c6">&amp;</span> rhs) <span style="color:#ff79c6">const</span> {
+</span></span><span style="display:flex;"><span>        Info res;
+</span></span><span style="display:flex;"><span>        res.x <span style="color:#ff79c6">=</span> (x <span style="color:#ff79c6">+</span> rhs.x) <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        res.y <span style="color:#ff79c6">=</span> (y <span style="color:#ff79c6">+</span> rhs.y) <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        res.s <span style="color:#ff79c6">=</span> (s <span style="color:#ff79c6">+</span> rhs.s <span style="color:#ff79c6">+</span> rhs.x <span style="color:#ff79c6">*</span> y) <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">auto</span> tmp <span style="color:#ff79c6">=</span> (rhs.x <span style="color:#ff79c6">*</span> (rhs.x <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">+</span> x <span style="color:#ff79c6">*</span> rhs.x) <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        res.t <span style="color:#ff79c6">=</span> (t <span style="color:#ff79c6">+</span> rhs.t <span style="color:#ff79c6">+</span> x <span style="color:#ff79c6">*</span> rhs.s <span style="color:#ff79c6">+</span> tmp <span style="color:#ff79c6">*</span> y) <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        res.u <span style="color:#ff79c6">=</span> (u <span style="color:#ff79c6">+</span> rhs.u <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">*</span> y <span style="color:#ff79c6">*</span> rhs.s <span style="color:#ff79c6">+</span> rhs.x <span style="color:#ff79c6">*</span> y <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">*</span> y) <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> res;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">solve</span>(<span style="color:#8be9fd">int</span> a, <span style="color:#8be9fd">int</span> b, <span style="color:#8be9fd">int</span> c, <span style="color:#8be9fd">int</span> n) {
+</span></span><span style="display:flex;"><span>    Info U, R; U.y <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; R.x <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> res <span style="color:#ff79c6">=</span> euclid(a, b, c, n, U, R);
+</span></span><span style="display:flex;"><span>    std<span style="color:#ff79c6">::</span>cout <span style="color:#ff79c6">&lt;&lt;</span> (res.s <span style="color:#ff79c6">+</span> b <span style="color:#ff79c6">/</span> c) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39; &#39;</span> <span style="color:#ff79c6">&lt;&lt;</span> (res.u <span style="color:#ff79c6">+</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)(b<span style="color:#ff79c6">/</span>c)<span style="color:#ff79c6">*</span>(b<span style="color:#ff79c6">/</span>c)) <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39; &#39;</span> <span style="color:#ff79c6">&lt;&lt;</span> res.t <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39;\n&#39;</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> t; std<span style="color:#ff79c6">::</span>cin <span style="color:#ff79c6">&gt;&gt;</span> t;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (; t; <span style="color:#ff79c6">--</span>t) { <span style="color:#8be9fd">int</span> a, b, c, n; std<span style="color:#ff79c6">::</span>cin <span style="color:#ff79c6">&gt;&gt;</span> n <span style="color:#ff79c6">&gt;&gt;</span> a <span style="color:#ff79c6">&gt;&gt;</span> b <span style="color:#ff79c6">&gt;&gt;</span> c; solve(a, b, c, n); }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="22-example--2025-icpc-wuhan-a-planting-trees">2.2 Example — <a href="https://qoj.ac/contest/2609/problem/14719">2025 ICPC Wuhan A. Planting Trees</a></h2>
+<p><strong>Problem:</strong> Two plants start at heights $x, y$. Each day they grow by $f$ and $g$ respectively, then height is taken mod $m$.<br>
+Count days where the first plant is shorter ($L_t < R_t$).</p>
+$$L_t = (x + ft) \bmod m, \quad R_t = (y + gt) \bmod m, \quad \text{Ans} = \sum_{t=0}^{n-1} [L_t < R_t]$$<p><strong>Key trick — convert $[u < v]$ to a floor sum:</strong></p>
+<p>For any $0 \leq u, v < m$:</p>
+$$[u < v] = 1 + \left\lfloor\frac{(v-1) - u}{m}\right\rfloor \tag{1}$$<p><em>Proof:</em> $(v-1)-u \in [-m, m-1]$. If $u < v$: value $\in [0, m-1)$, floor = 0, RHS = 1. If $u \geq v$: value $\in [-m,-1]$, floor = $-1$, RHS = 0. ✓</p>
+<p>Apply (1) with $u = L_t,\ v = R_t$:</p>
+$$[L_t < R_t] = 1 + \left\lfloor\frac{R_t - 1 - L_t}{m}\right\rfloor \tag{2}$$<p>Expand $L_t, R_t$ by <strong>writing mod as &ldquo;original minus $m\lfloor\cdot\rfloor$&rdquo;:</strong></p>
+$$L_t = ft + x - m\left\lfloor\frac{ft+x}{m}\right\rfloor, \qquad R_t = gt + y - m\left\lfloor\frac{gt+y}{m}\right\rfloor$$<p>Substitute into the numerator of (2):</p>
+$$R_t - 1 - L_t = (g-f)t + (y-x-1) - m\left(\left\lfloor\frac{gt+y}{m}\right\rfloor - \left\lfloor\frac{ft+x}{m}\right\rfloor\right)$$<p>Divide by $m$ and take floor (the $m\lfloor\cdot\rfloor/m$ terms are already integers, so they pass through the floor unchanged):</p>
+$$\left\lfloor\frac{R_t-1-L_t}{m}\right\rfloor = \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor$$<p>So (2) becomes:</p>
+$$[L_t < R_t] = 1 + \left\lfloor\frac{(g-f)t+(y-x-1)}{m}\right\rfloor - \left\lfloor\frac{gt+y}{m}\right\rfloor + \left\lfloor\frac{ft+x}{m}\right\rfloor \tag{3}$$<p>Sum (3) over $t = 0,\dots,n-1$, letting $F(n,m,a,b) = \sum_{t=0}^{n-1}\left\lfloor\frac{at+b}{m}\right\rfloor$:</p>
+$$\boxed{\text{Ans} = n + F(n,m,g-f,\,y-x-1) - F(n,m,g,\,y) + F(n,m,f,\,x)}$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">solve</span>() {
+</span></span><span style="display:flex;"><span>    ll f, x, g, y, n, M; cin <span style="color:#ff79c6">&gt;&gt;</span> f <span style="color:#ff79c6">&gt;&gt;</span> x <span style="color:#ff79c6">&gt;&gt;</span> g <span style="color:#ff79c6">&gt;&gt;</span> y <span style="color:#ff79c6">&gt;&gt;</span> n <span style="color:#ff79c6">&gt;&gt;</span> M;
+</span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">+</span> F_all(n, M, g<span style="color:#ff79c6">-</span>f, y<span style="color:#ff79c6">-</span>x<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">-</span> F_all(n, M, g, y) <span style="color:#ff79c6">+</span> F_all(n, M, f, x);
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> ans <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="3-xor-kingdom">3 XOR Kingdom</h1>
+<h2 id="31-xor--addition">3.1 XOR ↔ Addition</h2>
+$$x + y = (x \oplus y) + 2 \cdot (x \mathbin{\&} y)$$<ul>
+<li><strong>XOR</strong> = addition without carry</li>
+<li><strong>AND</strong> = exactly which bits carry</li>
+</ul>
+<h2 id="32-basic-properties">3.2 Basic Properties</h2>
+<ol>
+<li>Commutative &amp; associative: <code>a^b = b^a</code>, <code>(a^b)^c = a^(b^c)</code> — bits are independent.</li>
+<li>Identity &amp; self-inverse: <code>a^0 = a</code>, <code>a^a = 0</code>.</li>
+<li>⭐ Invertible: if <code>a^b = c</code> then <code>a = b^c</code>.</li>
+<li>Each bit is $\bmod 2$ addition (no carry).</li>
+<li><strong>Prefix XOR of $1..n$</strong> has period 4:</li>
+</ol>
+<table>
+  <thead>
+      <tr>
+          <th>$n \bmod 4$</th>
+          <th><code>1^2^...^n</code></th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>0</td>
+          <td><code>n</code></td>
+      </tr>
+      <tr>
+          <td>1</td>
+          <td><code>1</code></td>
+      </tr>
+      <tr>
+          <td>2</td>
+          <td><code>n+1</code></td>
+      </tr>
+      <tr>
+          <td>3</td>
+          <td><code>0</code></td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="33-common-conclusions">3.3 Common Conclusions</h2>
+<ol>
+<li>
+<p><strong>Subarray XOR via prefix XOR</strong><br>
+Let <code>pref[i] = a[1]^...^a[i]</code>. Then XOR of <code>a[l..r]</code> = <code>pref[r] ^ pref[l-1]</code>.</p>
+<ul>
+<li><strong>Count subarrays with XOR = K:</strong> prefix XOR + hashmap.</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>ll <span style="color:#50fa7b">countXorSubarrays</span>(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> a, <span style="color:#8be9fd">int</span> K) {
+</span></span><span style="display:flex;"><span>    unordered_map<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span>,<span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> cnt; cnt[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> pref <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">x</span> : a) { pref <span style="color:#ff79c6">^=</span> x; ans <span style="color:#ff79c6">+=</span> cnt[pref <span style="color:#ff79c6">^</span> K]; cnt[pref]<span style="color:#ff79c6">++</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> ans;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div></li>
+<li>
+<p><strong>Subset XOR and linear algebra</strong><br>
+Each number is a bit-vector; XOR is vector addition over $GF(2)$. → <strong>Linear basis.</strong></p>
+</li>
+<li>
+<p><strong>Maximum XOR pair / maximum subset XOR</strong></p>
+<ul>
+<li>Max <code>ai ^ aj</code>: 01-Trie, greedy from highest bit. $O(n \log A)$.</li>
+<li>Max XOR of subset / linear combination: linear basis, greedy from high bit.</li>
+</ul>
+</li>
+<li>
+<p><strong>Count pairs with XOR &lt; K</strong><br>
+01-Trie with subtree sizes; for each prefix query how many stored prefixes $p$ satisfy <code>(pref[i]^p) &lt; K</code>. $O(n \log A)$.</p>
+</li>
+<li>
+<p><strong>XOR convolution</strong><br>
+FWT in $O(N \log N)$ on frequency vectors of size $N = 2^m$.</p>
+</li>
+<li>
+<p><strong>Bit divide-and-conquer</strong><br>
+For counting/minimisation, split on highest bit, recurse, count cross contributions.</p>
+</li>
+</ol>
+<h3 id="331-trie-templates">3.3.1 Trie Templates</h3>
+<p><strong>Max XOR pair:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">Trie</span> { <span style="color:#8be9fd">int</span> ch[<span style="color:#bd93f9">2</span>]; Trie(){ ch[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span>ch[<span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">=-</span><span style="color:#bd93f9">1</span>; } };
+</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span>Trie<span style="color:#ff79c6">&gt;</span> T;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">insert</span>(<span style="color:#8be9fd">int</span> x) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> p <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> b <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">30</span>; b <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">--</span>b) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> bit <span style="color:#ff79c6">=</span> (x <span style="color:#ff79c6">&gt;&gt;</span> b) <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (T[p].ch[bit] <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) { T[p].ch[bit] <span style="color:#ff79c6">=</span> T.size(); T.emplace_back(); }
+</span></span><span style="display:flex;"><span>        p <span style="color:#ff79c6">=</span> T[p].ch[bit];
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">queryMaxXor</span>(<span style="color:#8be9fd">int</span> x) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> p <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, res <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> b <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">30</span>; b <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">--</span>b) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> bit <span style="color:#ff79c6">=</span> (x <span style="color:#ff79c6">&gt;&gt;</span> b) <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>, want <span style="color:#ff79c6">=</span> bit <span style="color:#ff79c6">^</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (T[p].ch[want] <span style="color:#ff79c6">!=</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) { res <span style="color:#ff79c6">|=</span> (<span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> b); p <span style="color:#ff79c6">=</span> T[p].ch[want]; }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">else</span> p <span style="color:#ff79c6">=</span> T[p].ch[bit];
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> res;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>Count XOR pairs &lt; K:</strong> maintain subtree size <code>sz</code> at each Trie node; at each bit, if taking the &ldquo;same&rdquo; branch keeps XOR smaller, add the whole opposite subtree count.</p>
+<h2 id="34-linear-basis-merge">3.4 Linear Basis Merge</h2>
+<ul>
+<li>Classic application: $k$-th minimum XOR value (use basis + greedy / divide-and-conquer + count).</li>
+</ul>
+<hr>
+<h1 id="4-fibonacci">4 Fibonacci</h1>
+<h2 id="sum-formula">Sum formula</h2>
+$$S(n) = \sum_{i=1}^{n} F_i = F_{n+2} - 1$$<p><em>Proof:</em> $F_k = F_{k+2} - F_{k+1}$; telescoping sum from $k=1$ to $n$ gives $F_{n+2} - F_2 = F_{n+2} - 1$.</p>
+<h2 id="41-fast-doubling">4.1 Fast Doubling</h2>
+<p>Given $a = F_k$, $b = F_{k+1}$:</p>
+$$F_{2k} = a(2b - a), \qquad F_{2k+1} = a^2 + b^2$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>pair<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>,<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span><span style="color:#ff79c6">&gt;</span> fib_pair(<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n, <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> mod) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> {<span style="color:#bd93f9">0</span>, <span style="color:#bd93f9">1</span>};
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> [a, b] <span style="color:#ff79c6">=</span> fib_pair(n <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>, mod);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> c <span style="color:#ff79c6">=</span> (__int128)a <span style="color:#ff79c6">*</span> ((<span style="color:#bd93f9">2</span><span style="color:#ff79c6">*</span>b <span style="color:#ff79c6">-</span> a <span style="color:#ff79c6">%</span> mod <span style="color:#ff79c6">+</span> mod) <span style="color:#ff79c6">%</span> mod) <span style="color:#ff79c6">%</span> mod;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> d <span style="color:#ff79c6">=</span> ((__int128)a<span style="color:#ff79c6">*</span>a <span style="color:#ff79c6">+</span> (__int128)b<span style="color:#ff79c6">*</span>b) <span style="color:#ff79c6">%</span> mod;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> (n <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">?</span> make_pair(d, (c <span style="color:#ff79c6">+</span> d) <span style="color:#ff79c6">%</span> mod) <span style="color:#ff79c6">:</span> make_pair(c, d);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// Usage: sum F(1)+...+F(n) = F(n+2) - 1
+</span></span></span><span style="display:flex;"><span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> <span style="color:#50fa7b">fibSum</span>(<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n, <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> MOD) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> [f, _] <span style="color:#ff79c6">=</span> fib_pair(n <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">2</span>, MOD);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> (f <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">+</span> MOD) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="42-number-of-digits-of-fibonacci-numbers">4.2 Number of digits of Fibonacci numbers</h2>
+$$\text{digits}(F_n) = \left\lfloor n \log_{10} \varphi - \tfrac{1}{2}\log_{10} 5 \right\rfloor + 1$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> <span style="color:#50fa7b">fib_digits</span>(<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n, <span style="color:#8be9fd">double</span> base <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">10.0</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">const</span> <span style="color:#8be9fd">double</span> phi <span style="color:#ff79c6">=</span> (<span style="color:#bd93f9">1.0</span> <span style="color:#ff79c6">+</span> sqrt(<span style="color:#bd93f9">5.0</span>)) <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2.0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)floor(n <span style="color:#ff79c6">*</span> log(phi)<span style="color:#ff79c6">/</span>log(base) <span style="color:#ff79c6">-</span> log(sqrt(<span style="color:#bd93f9">5.0</span>))<span style="color:#ff79c6">/</span>log(base)) <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="43-closed-form-binets-formula">4.3 Closed form (Binet&rsquo;s formula)</h2>
+$$F_n = \frac{1}{\sqrt{5}}\left[\left(\frac{1+\sqrt{5}}{2}\right)^n - \left(\frac{1-\sqrt{5}}{2}\right)^n\right]$$<hr>
+<h1 id="5-perfect-squares">5 Perfect Squares</h1>
+<h2 id="51-fast-detection">5.1 Fast detection</h2>
+<p>For integer $x \geq 0$:</p>
+<ol>
+<li><strong>Modular pruning</strong> (eliminates most non-squares instantly):
+<ul>
+<li>$x \bmod 4 \in \{0,1\}$</li>
+<li>$x \bmod 8 \in \{0,1,4\}$</li>
+<li>$x \bmod 16 \in \{0,1,4,9\}$ (stronger)</li>
+<li>$x \bmod 3 \in \{0,1\}$</li>
+<li>Last decimal digit $\in \{0,1,4,5,6,9\}$</li>
+</ul>
+</li>
+<li>Integer square root: <code>r = (ll)sqrt(x)</code>, check <code>r*r == x</code> (also try <code>r±1</code> for float precision).</li>
+</ol>
+<h2 id="52-two-elements-sum-to-a-perfect-square">5.2 Two elements sum to a perfect square</h2>
+<h3 id="521-existence-check">5.2.1 Existence check</h3>
+<p>Let <code>Amax</code> = max value, <code>Smax = 2*Amax</code>.</p>
+<ol>
+<li>Precompute all squares up to <code>Smax</code>: <code>sq = {0, 1, 4, 9, ..., ⌊√Smax⌋²}</code></li>
+<li>Maintain count table <code>cnt</code> of values seen so far.</li>
+<li>For each <code>x = a[i]</code>: check <code>for t in sq: if cnt[t - x] &gt; 0</code>.</li>
+</ol>
+<p>Complexity: $O(n \sqrt{S_{\max}})$.</p>
+<h3 id="522-count-all-such-pairs">5.2.2 Count all such pairs</h3>
+<p>Same as above — accumulate <code>cnt[t - x]</code> instead of just checking existence. Scan left-to-right so each unordered pair is counted once.</p>
+<h3 id="523-small-value-range">5.2.3 Small value range</h3>
+<p>If <code>Amax</code> is small (e.g. $\leq 2 \times 10^5$): use frequency array <code>freq[v]</code>. For each square <code>t</code>, enumerate <code>v</code>, pair <code>u = t - v</code>, add <code>freq[v]*freq[u]</code>. Handle <code>v == u</code> with $\binom{\text{freq}[v]}{2}$.</p>
+<p>Complexity: $O(\sqrt{S_{\max}} \cdot A_{\max})$, small constant.</p>
+<h2 id="53-consecutive-integers-summing-to-a-perfect-square">5.3 Consecutive integers summing to a perfect square</h2>
+<p>Find $l..r$ such that $l + (l+1) + \cdots + r = \dfrac{(l+r)(r-l+1)}{2} = k^2$.</p>
+<p>With length $m = r - l + 1$: sum $= \dfrac{m(2l + m - 1)}{2}$, which becomes a number-theory equation.</p>
+<p><strong>Algorithms:</strong></p>
+<ol>
+<li><strong>Two pointers / sliding window</strong> (when all values positive): expand right if <code>sum &lt; target</code>, shrink left if <code>sum &gt; target</code>. When target isn&rsquo;t fixed, check if <code>sum</code> is a perfect square at each step.</li>
+<li><strong>Enumerate square root</strong>: if sum&rsquo;s upper bound is $M$, enumerate $k$, set $S = k^2$, solve for $m$ or $l$.</li>
+</ol>
+<h2 id="54-prefix-difference-is-a-perfect-square">5.4 Prefix difference is a perfect square</h2>
+<p>Many problems reduce to: $\text{prefix}[j] - \text{prefix}[i]$ is a perfect square.</p>
+<ul>
+<li>Enumerate right endpoint $j$; maintain hashmap <code>cnt[prefix[i]]</code>.</li>
+<li>Precompute square set <code>sq</code> (up to max possible interval sum).</li>
+<li>For each $j$, add:</li>
+</ul>
+$$\sum_{t \in \text{sq}} \texttt{cnt}[\text{prefix}[j] - t]$$<p>Complexity: $O(n \sqrt{\text{MaxSum}})$. Very stable pattern.</p>
+
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-geometric-series-sum">1 Geometric Series Sum</a></li>
+    <li><a href="#2-floor-sum-algorithm-euclidean-like-类欧几里得">2 Floor Sum Algorithm (Euclidean-like 类欧几里得)</a>
+      <ul>
+        <li><a href="#basic-form">Basic form</a></li>
+        <li><a href="#general-form">General form</a></li>
+        <li><a href="#21-template-problem--luogu-p5170">2.1 Template problem — Luogu P5170</a></li>
+        <li><a href="#22-example--2025-icpc-wuhan-a-planting-trees">2.2 Example — 2025 ICPC Wuhan A. Planting Trees</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-xor-kingdom">3 XOR Kingdom</a>
+      <ul>
+        <li><a href="#31-xor--addition">3.1 XOR ↔ Addition</a></li>
+        <li><a href="#32-basic-properties">3.2 Basic Properties</a></li>
+        <li><a href="#33-common-conclusions">3.3 Common Conclusions</a></li>
+        <li><a href="#34-linear-basis-merge">3.4 Linear Basis Merge</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-fibonacci">4 Fibonacci</a>
+      <ul>
+        <li><a href="#sum-formula">Sum formula</a></li>
+        <li><a href="#41-fast-doubling">4.1 Fast Doubling</a></li>
+        <li><a href="#42-number-of-digits-of-fibonacci-numbers">4.2 Number of digits of Fibonacci numbers</a></li>
+        <li><a href="#43-closed-form-binets-formula">4.3 Closed form (Binet&rsquo;s formula)</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-perfect-squares">5 Perfect Squares</a>
+      <ul>
+        <li><a href="#51-fast-detection">5.1 Fast detection</a></li>
+        <li><a href="#52-two-elements-sum-to-a-perfect-square">5.2 Two elements sum to a perfect square</a></li>
+        <li><a href="#53-consecutive-integers-summing-to-a-perfect-square">5.3 Consecutive integers summing to a perfect square</a></li>
+        <li><a href="#54-prefix-difference-is-a-perfect-square">5.4 Prefix difference is a perfect square</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const tocPanel = document.querySelector('.article-toc');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      let ticking = false;
+
+      function updateActiveTocLink() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
+          }
+        }
+      }
+
+      function updateTocBoundary() {
+        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
+          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
+          return;
+        }
+
+        const footer = document.querySelector('.site-footer');
+        if (!footer) return;
+
+        const bottomGap = 24;
+        const tocBottom = 86 + tocPanel.offsetHeight;
+        const footerTop = footer.getBoundingClientRect().top;
+        const overlap = tocBottom + bottomGap - footerTop;
+
+        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateTocBoundary();
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      
+      setTimeout(function() {
+        updateTocBoundary();
+        updateActiveTocLink();
+      }, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          document.documentElement.classList.add("theme-switching");
+          applyTheme(next, true);
+          window.setTimeout(function() {
+            document.documentElement.classList.remove("theme-switching");
+          }, 620);
+        });
+      })();
+    </script>
+  </body>
+</html>
