@@ -22,6 +22,14 @@
     </header>
 
     <div class="article-layout">
+      {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            {{ .TableOfContents }}
+          </div>
+        </details>
+      {{ end }}
       <div class="article-content prose">
         {{ .Content }}
       </div>
