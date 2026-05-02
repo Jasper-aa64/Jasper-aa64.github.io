@@ -12,9 +12,15 @@
         <span></span>
         <span></span>
       </div>
-      <picture>
+      {{/* Light mode avatar */}}
+      <picture class="home-avatar home-avatar-light">
+        <source srcset="/images/site/avatar-light.webp" type="image/webp">
+        <img src="/images/site/avatar-light.png" alt="Varka chibi — light mode" width="860" height="860">
+      </picture>
+      {{/* Dark mode avatar */}}
+      <picture class="home-avatar home-avatar-dark">
         <source srcset="/images/site/avatar-technical-notebook-860.webp" type="image/webp">
-        <img class="home-avatar" src="/images/site/avatar-technical-notebook-860.png" alt="Hand-drawn technical notebook avatar" width="736" height="860">
+        <img src="/images/site/avatar-technical-notebook-860.png" alt="Hand-drawn technical notebook avatar" width="736" height="860">
       </picture>
       <dl class="site-stats" aria-label="Site statistics">
         <div>
