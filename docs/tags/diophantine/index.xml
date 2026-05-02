@@ -1,1 +1,26 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Diophantine on Jasper's Technical Notebook</title><link>https://jmaaa32.github.io/tags/diophantine/</link><description>Recent content in Diophantine on Jasper's Technical Notebook</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Fri, 24 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jmaaa32.github.io/tags/diophantine/index.xml" rel="self" type="application/rss+xml"/><item><title>Combinatorics D1: Diophantine Equations</title><link>https://jmaaa32.github.io/posts/combinatorics-d1-diophantine-equations/</link><pubDate>Fri, 24 Apr 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/posts/combinatorics-d1-diophantine-equations/</guid><description>Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;amp;C NTT, equal-cap formula, and a full worked example on CF 2127F.</description></item><item><title>Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements</title><link>https://jmaaa32.github.io/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/</link><pubDate>Mon, 20 Apr 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/</guid><description>Inclusion-exclusion in set and operator form, equal-count subproblems, bounded Diophantine counting, derangements, Stirling numbers, and selected contest problems.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Diophantine on Jasper&#39;s Technical Notebook</title>
+    <link>http://localhost:1313/tags/diophantine/</link>
+    <description>Recent content in Diophantine on Jasper&#39;s Technical Notebook</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 24 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/diophantine/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Combinatorics D1: Diophantine Equations</title>
+      <link>http://localhost:1313/posts/combinatorics-d1-diophantine-equations/</link>
+      <pubDate>Fri, 24 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/combinatorics-d1-diophantine-equations/</guid>
+      <description>Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;amp;C NTT, equal-cap formula, and a full worked example on CF 2127F.</description>
+    </item>
+    <item>
+      <title>Combinatorics #1.2: Inclusion-Exclusion, Bounded Diophantine Equations, and Derangements</title>
+      <link>http://localhost:1313/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/</link>
+      <pubDate>Mon, 20 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/</guid>
+      <description>Inclusion-exclusion in set and operator form, equal-count subproblems, bounded Diophantine counting, derangements, Stirling numbers, and selected contest problems.</description>
+    </item>
+  </channel>
+</rss>

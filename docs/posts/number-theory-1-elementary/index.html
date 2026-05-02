@@ -1,229 +1,705 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT | Jasper's Technical Notebook</title><meta name=description content="GCD/LCM properties and subarray difference identity; Bézout's theorem and Frobenius; Euler's theorem, Fermat's little theorem, modular inverse; power-tower reduction via φ-chain; congruence systems and CRT; Legendre's formula for n!."><link rel=canonical href=https://jmaaa32.github.io/posts/number-theory-1-elementary/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
-<span class=theme-toggle-icon aria-hidden=true></span>
-<span class=sr-only>Switch theme</span>
-</button>
-<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class="nav-link is-active" href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT</h1><div class=article-meta><time datetime=2026-04-28>Apr 28, 2026</time>
-<span>·</span>
-<span>Number Theory</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/number-theory/>#number-theory</a>
-<a class=chip href=/tags/gcd/>#gcd</a>
-<a class=chip href=/tags/lcm/>#lcm</a>
-<a class=chip href=/tags/euler/>#euler</a>
-<a class=chip href=/tags/crt/>#crt</a>
-<a class=chip href=/tags/congruence/>#congruence</a>
-<a class=chip href=/tags/legendre/>#legendre</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#1-gcd--lcm>1 GCD & LCM</a><ul><li><a href=#11-gcd-properties>1.1 GCD Properties</a></li><li><a href=#12-lcm-properties>1.2 LCM Properties</a></li><li><a href=#13-useful-identity-and-cf-2183>1.3 Useful Identity and CF 2183</a></li></ul></li><li><a href=#2-extended-gcd-exgcd>2 Extended GCD (exGCD)</a><ul><li><a href=#21-bézouts-theorem>2.1 Bézout&rsquo;s Theorem</a></li></ul></li><li><a href=#3-eulers-theorem>3 Euler&rsquo;s Theorem</a><ul><li><a href=#31-statements>3.1 Statements</a></li><li><a href=#32-power-tower-reduction-euler-totient-descent>3.2 Power-Tower Reduction (Euler Totient Descent)</a></li><li><a href=#33-eulers-totient-function>3.3 Euler&rsquo;s Totient Function $\varphi$</a></li></ul></li><li><a href=#4-congruence-systems>4 Congruence Systems</a><ul><li><a href=#41-residue-classes-mod-m>4.1 Residue Classes mod m</a></li><li><a href=#42-merging-two-congruences-via-exgcd>4.2 Merging Two Congruences via exGCD</a></li><li><a href=#43-crt--constructive-solution-pairwise-coprime-moduli>4.3 CRT — Constructive Solution (Pairwise Coprime Moduli)</a></li></ul></li><li><a href=#5-prime-factorisation-of>5 Prime Factorisation of $n!$</a></li></ul></nav></div></details><div class="article-content prose"><h1 id=1-gcd--lcm>1 GCD & LCM</h1><h2 id=11-gcd-properties>1.1 GCD Properties</h2>$$\begin{aligned}
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="GCD/LCM properties and subarray difference identity; Bézout&#39;s theorem and Frobenius; Euler&#39;s theorem, Fermat&#39;s little theorem, modular inverse; power-tower reduction via φ-chain; congruence systems and CRT; Legendre&#39;s formula for n!.">
+    <link rel="canonical" href="http://localhost:1313/posts/number-theory-1-elementary/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-28">Apr 28, 2026</time>
+          
+            <span>·</span>
+            <span>Number Theory</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/number-theory/">#number-theory</a>
+            
+              <a class="chip" href="/tags/gcd/">#gcd</a>
+            
+              <a class="chip" href="/tags/lcm/">#lcm</a>
+            
+              <a class="chip" href="/tags/euler/">#euler</a>
+            
+              <a class="chip" href="/tags/crt/">#crt</a>
+            
+              <a class="chip" href="/tags/congruence/">#congruence</a>
+            
+              <a class="chip" href="/tags/legendre/">#legendre</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-gcd--lcm">1 GCD &amp; LCM</a>
+      <ul>
+        <li><a href="#11-gcd-properties">1.1 GCD Properties</a></li>
+        <li><a href="#12-lcm-properties">1.2 LCM Properties</a></li>
+        <li><a href="#13-useful-identity-and-cf-2183">1.3 Useful Identity and CF 2183</a></li>
+      </ul>
+    </li>
+    <li><a href="#2-extended-gcd-exgcd">2 Extended GCD (exGCD)</a>
+      <ul>
+        <li><a href="#21-bézouts-theorem">2.1 Bézout&rsquo;s Theorem</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-eulers-theorem">3 Euler&rsquo;s Theorem</a>
+      <ul>
+        <li><a href="#31-statements">3.1 Statements</a></li>
+        <li><a href="#32-power-tower-reduction-euler-totient-descent">3.2 Power-Tower Reduction (Euler Totient Descent)</a></li>
+        <li><a href="#33-eulers-totient-function">3.3 Euler&rsquo;s Totient Function $\varphi$</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-congruence-systems">4 Congruence Systems</a>
+      <ul>
+        <li><a href="#41-residue-classes-mod-m">4.1 Residue Classes mod m</a></li>
+        <li><a href="#42-merging-two-congruences-via-exgcd">4.2 Merging Two Congruences via exGCD</a></li>
+        <li><a href="#43-crt--constructive-solution-pairwise-coprime-moduli">4.3 CRT — Constructive Solution (Pairwise Coprime Moduli)</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-prime-factorisation-of">5 Prime Factorisation of $n!$</a></li>
+  </ul>
+</nav>
+          </div>
+        </details>
+      
+      <div class="article-content prose">
+        <h1 id="1-gcd--lcm">1 GCD &amp; LCM</h1>
+<h2 id="11-gcd-properties">1.1 GCD Properties</h2>
+$$\begin{aligned}
 &\bullet\;\gcd(a,b)=\gcd(b,a) &&\bullet\;\gcd(a,0)=a\\
 &\bullet\;\gcd(a,b)=\gcd(-a,b) &&\bullet\;\gcd(a,ka)=a\\
 &\bullet\;\gcd(a,b)=\gcd(|a|,|b|) &&\bullet\;\gcd(an,bn)=n\gcd(a,b)\\
 &\bullet\;\text{if }d\mid a\text{ and }d\mid b\text{, then }d\mid\gcd(a,b) &&\bullet\;\gcd(a,b)=\gcd(a,ka+b)
-\end{aligned}$$<p>The last identity implies $\gcd(x,y)=\gcd(x,y-x)$.</p><p>Also: $d\mid\gcd(i,j)\;\Rightarrow\;d\mid i\text{ and }d\mid j$.</p><h3 id=112-subarray-gcd--difference-identity>1.1.2 Subarray GCD — Difference Identity</h3><p>For any interval $[l,r]$ with minimum position $m$:</p>$$\gcd(a_l,\ldots,a_r)=\gcd\!\bigl(a_m,\;|a_l-a_{l+1}|,\;|a_{l+1}-a_{l+2}|,\;\ldots,\;|a_{r-1}-a_r|\bigr).$$<h2 id=12-lcm-properties>1.2 LCM Properties</h2><ul><li>If $a\mid m$ and $b\mid m$, then $\operatorname{lcm}(a,b)\mid m$ (generalises to arrays).</li><li>$\operatorname{lcm}(ma,mb)=m\cdot\operatorname{lcm}(a,b)$.</li></ul><p><strong>LCM of $1\ldots n$:</strong> consider the prime factorisation.</p>$$\operatorname{lcm}(1,\ldots,n)=\prod_{p\in\mathcal{P}}p^{\lfloor\log_p n\rfloor},\quad\mathcal{P}=\{\text{primes}\leq n\}.$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#6272a4>// enumerate primes, accumulate highest prime power ≤ n
-</span></span></span><span style=display:flex><span>ll lc <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> p <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; p <span style=color:#ff79c6>&lt;=</span> n; p<span style=color:#ff79c6>++</span>){
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>is_prime[p]) <span style=color:#ff79c6>continue</span>;
-</span></span><span style=display:flex><span>    ll e <span style=color:#ff79c6>=</span> p;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span>(e <span style=color:#ff79c6>*</span> p <span style=color:#ff79c6>&lt;=</span> n) e <span style=color:#ff79c6>*=</span> p;   <span style=color:#6272a4>// highest power of p not exceeding n
-</span></span></span><span style=display:flex><span>    lc <span style=color:#ff79c6>=</span> lc <span style=color:#ff79c6>*</span> e <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>cout <span style=color:#ff79c6>&lt;&lt;</span> lc <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span></code></pre></div><h2 id=13-useful-identity-and-cf-2183>1.3 Useful Identity and CF 2183</h2><blockquote><p><strong>Identity:</strong></p>$$\frac{1}{\operatorname{lcm}(a_i,a_{i+1})}=\frac{\gcd(a_i,a_{i+1})}{a_i a_{i+1}}$$<p>When $a_i\lt a_{i+1}$: $\gcd(a_i,a_{i+1})\leq a_{i+1}-a_i$.</p></blockquote><p><strong>Codeforces 2183 solution</strong> (bounding a cyclic lcm-sum by 1):</p>$$\begin{aligned}
+\end{aligned}$$<p>The last identity implies $\gcd(x,y)=\gcd(x,y-x)$.</p>
+<p>Also: $d\mid\gcd(i,j)\;\Rightarrow\;d\mid i\text{ and }d\mid j$.</p>
+<h3 id="112-subarray-gcd--difference-identity">1.1.2 Subarray GCD — Difference Identity</h3>
+<p>For any interval $[l,r]$ with minimum position $m$:
+</p>
+$$\gcd(a_l,\ldots,a_r)=\gcd\!\bigl(a_m,\;|a_l-a_{l+1}|,\;|a_{l+1}-a_{l+2}|,\;\ldots,\;|a_{r-1}-a_r|\bigr).$$<h2 id="12-lcm-properties">1.2 LCM Properties</h2>
+<ul>
+<li>If $a\mid m$ and $b\mid m$, then $\operatorname{lcm}(a,b)\mid m$ (generalises to arrays).</li>
+<li>$\operatorname{lcm}(ma,mb)=m\cdot\operatorname{lcm}(a,b)$.</li>
+</ul>
+<p><strong>LCM of $1\ldots n$:</strong> consider the prime factorisation.
+</p>
+$$\operatorname{lcm}(1,\ldots,n)=\prod_{p\in\mathcal{P}}p^{\lfloor\log_p n\rfloor},\quad\mathcal{P}=\{\text{primes}\leq n\}.$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#6272a4">// enumerate primes, accumulate highest prime power ≤ n
+</span></span></span><span style="display:flex;"><span>ll lc <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> p <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; p <span style="color:#ff79c6">&lt;=</span> n; p<span style="color:#ff79c6">++</span>){
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>is_prime[p]) <span style="color:#ff79c6">continue</span>;
+</span></span><span style="display:flex;"><span>    ll e <span style="color:#ff79c6">=</span> p;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span>(e <span style="color:#ff79c6">*</span> p <span style="color:#ff79c6">&lt;=</span> n) e <span style="color:#ff79c6">*=</span> p;   <span style="color:#6272a4">// highest power of p not exceeding n
+</span></span></span><span style="display:flex;"><span>    lc <span style="color:#ff79c6">=</span> lc <span style="color:#ff79c6">*</span> e <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>cout <span style="color:#ff79c6">&lt;&lt;</span> lc <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span></code></pre></div><h2 id="13-useful-identity-and-cf-2183">1.3 Useful Identity and CF 2183</h2>
+<blockquote>
+<p><strong>Identity:</strong>
+</p>
+$$\frac{1}{\operatorname{lcm}(a_i,a_{i+1})}=\frac{\gcd(a_i,a_{i+1})}{a_i a_{i+1}}$$<p>
+When $a_i\lt a_{i+1}$: $\gcd(a_i,a_{i+1})\leq a_{i+1}-a_i$.</p>
+</blockquote>
+<p><strong>Codeforces 2183 solution</strong> (bounding a cyclic lcm-sum by 1):</p>
+$$\begin{aligned}
 &\sum_{i}\frac{1}{\operatorname{lcm}(a_i,a_{i+1})}
 =\sum_i\frac{\gcd(a_i,a_{i+1})}{a_ia_{i+1}}\\
 &\leq\frac{a_2-a_1}{a_1a_2}+\frac{a_3-a_2}{a_2a_3}+\cdots+\frac{a_n-a_{n-1}}{a_{n-1}a_n}+\frac{a_1}{a_1a_n}\\
 &=\Bigl(\frac{1}{a_1}-\frac{1}{a_2}\Bigr)+\Bigl(\frac{1}{a_2}-\frac{1}{a_3}\Bigr)+\cdots+\Bigl(\frac{1}{a_{n-1}}-\frac{1}{a_n}\Bigr)+\frac{1}{a_n}\\
 &=\frac{1}{a_1}\;\leq\;1.
-\end{aligned}$$<hr><h1 id=2-extended-gcd-exgcd>2 Extended GCD (exGCD)</h1><h2 id=21-bézouts-theorem>2.1 Bézout&rsquo;s Theorem</h2><ul><li>$ax+by=c$ has integer solutions iff $\gcd(a,b)\mid c$.</li><li>Generalisation: $\sum_{i=1}^n a_ix_i=b$ has integer solutions iff $\gcd(a_i)\mid b$.</li><li>$\gcd(a,b)$ is the smallest positive integer representable as $ax+by$.</li></ul><p><strong>Frobenius coin problem</strong> (two denominations, $\gcd(a,b)=1$):<br>Largest non-representable value $= ab-a-b$.</p><hr><h1 id=3-eulers-theorem>3 Euler&rsquo;s Theorem</h1><h2 id=31-statements>3.1 Statements</h2><h3 id=eulers-theorem>Euler&rsquo;s Theorem</h3><p>If $\gcd(a,m)=1$:</p>$$a^{\varphi(m)}\equiv1\pmod{m}$$<h3 id=fermats-little-theorem>Fermat&rsquo;s Little Theorem</h3><p>For prime $p$ with $p\nmid a$:</p>$$a^{p-1}\equiv1\pmod{p}$$<p>(Special case of Euler: $\varphi(p)=p-1$.)</p><h3 id=modular-inverse>Modular Inverse</h3><ol><li>When $\gcd(a,m)=1$: $a^{-1}\equiv a^{\varphi(m)-1}\pmod{m}$.</li><li>When $p$ is prime and $0\lt a\lt p$: $a^{-1}\equiv a^{p-2}\pmod{p}$.</li></ol><h2 id=32-power-tower-reduction-euler-totient-descent>3.2 Power-Tower Reduction (Euler Totient Descent)</h2>$$a^b\equiv\begin{cases}a^{b\bmod\varphi(m)},&\gcd(a,m)=1\\a^b,&b\lt\varphi(m)\\a^{b\bmod\varphi(m)+\varphi(m)},&b\geq\varphi(m)\end{cases}\pmod{m}$$<h3 id=321-general-method-φ-chain--lifted-modulus>3.2.1 General Method: φ-Chain + Lifted Modulus</h3><p><strong>Scenario:</strong> the modulus may vary, the base may not be coprime to the modulus, and the exponent may be small — we need a safe, uniform approach.</p><ol><li><p><strong>Build the φ-chain from top to bottom:</strong> start with the outer modulus $p$, the next layer uses $\varphi(p)$, then $\varphi(\varphi(p))$, down to 1. When $\gcd(a,p)=1$, we only need $b\bmod\varphi(p)$.</p></li><li><p><strong>Lifted modulus (preserve &ldquo;large exponent&rdquo; information):</strong> returning only $b\bmod\varphi(p)$ is wrong when the base and modulus are not coprime or when the exponent is small. Instead return:</p>$$\operatorname{Mod}(x,m)=\begin{cases}x,&x\lt m\\x\bmod m+m,&x\geq m\end{cases}$$<p>The &ldquo;+m&rdquo; flag signals to the upper layer that the exponent is &ldquo;large&rdquo;, preventing incorrect collapse.</p></li><li><p><strong>Recursive implementation:</strong> <code>dfs(pos, mod, r)</code> — stop at the leaf or when <code>mod == 1</code>; compute the upper-layer exponent modulo $\varphi(\text{mod})$ first, then exponentiate.</p></li></ol><h3 id=322-example-a--nowcoder-nc17190-range-add--power-tower-mod-p>3.2.2 Example A — Nowcoder NC17190: Range-Add + Power Tower mod p</h3><blockquote><p>Support: range add on array $a[]$; query $a[l]^{a[l+1]^{\cdots^{a[r]}}}\bmod p$.</p></blockquote><ul><li>Use a <strong>BIT with difference encoding</strong> to support range-add and point-query: <code>query(i)</code> returns the current <code>a[i]</code>.</li><li>For queries, run <strong>φ-chain + lifted-modulus DFS</strong>. This handles:<ul><li>Different modulus each query.</li><li>Base possibly not coprime to modulus.</li><li>Exponent possibly too small.</li></ul></li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>#define pb push_back
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>5e5</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>5</span>, maxn <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2e7</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>5</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>typedef</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> ll;
-</span></span><span style=display:flex><span>ll bit[N]; <span style=color:#8be9fd>int</span> n;
-</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> prime; <span style=color:#8be9fd>bool</span> vis[maxn]; <span style=color:#8be9fd>int</span> phi[maxn];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>read</span>(<span style=color:#8be9fd>int</span> <span style=color:#ff79c6>&amp;</span>x) {
-</span></span><span style=display:flex><span>    x <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; <span style=color:#8be9fd>int</span> f <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; <span style=color:#8be9fd>char</span> ch <span style=color:#ff79c6>=</span> getchar();
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (<span style=color:#ff79c6>!</span>isdigit(ch)) { <span style=color:#ff79c6>if</span> (ch <span style=color:#ff79c6>==</span> <span style=color:#f1fa8c>&#39;-&#39;</span>) f <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>; ch <span style=color:#ff79c6>=</span> getchar(); }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (isdigit(ch)) { x <span style=color:#ff79c6>=</span> (x <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>3</span>) <span style=color:#ff79c6>+</span> (x <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> ch <span style=color:#ff79c6>-</span> <span style=color:#f1fa8c>&#39;0&#39;</span>; ch <span style=color:#ff79c6>=</span> getchar(); }
-</span></span><span style=display:flex><span>    x <span style=color:#ff79c6>*=</span> f;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>init</span>() {
-</span></span><span style=display:flex><span>    phi[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;</span> maxn; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>vis[i]) { prime.pb(i); phi[i] <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>; }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> (<span style=color:#8be9fd>int</span>)prime.size() <span style=color:#ff79c6>&amp;&amp;</span> i <span style=color:#ff79c6>*</span> prime[j] <span style=color:#ff79c6>&lt;</span> maxn; j<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>            vis[i <span style=color:#ff79c6>*</span> prime[j]] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> prime[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) { phi[i <span style=color:#ff79c6>*</span> prime[j]] <span style=color:#ff79c6>=</span> phi[i] <span style=color:#ff79c6>*</span> prime[j]; <span style=color:#ff79c6>break</span>; }
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>else</span> phi[i <span style=color:#ff79c6>*</span> prime[j]] <span style=color:#ff79c6>=</span> phi[i] <span style=color:#ff79c6>*</span> phi[prime[j]];
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>update</span>(<span style=color:#8be9fd>int</span> p, ll val) { <span style=color:#ff79c6>while</span> (p <span style=color:#ff79c6>&lt;=</span> n) { bit[p] <span style=color:#ff79c6>+=</span> val; p <span style=color:#ff79c6>+=</span> (p <span style=color:#ff79c6>&amp;</span> <span style=color:#ff79c6>-</span>p); } }
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>query</span>(<span style=color:#8be9fd>int</span> p) { ll res <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>while</span> (p <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>0</span>) { res <span style=color:#ff79c6>+=</span> bit[p]; p <span style=color:#ff79c6>-=</span> (p <span style=color:#ff79c6>&amp;</span> <span style=color:#ff79c6>-</span>p); } <span style=color:#ff79c6>return</span> res; }
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>range_update</span>(<span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r, ll val) { update(l, val); update(r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, <span style=color:#ff79c6>-</span>val); }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>Mod</span>(ll x, ll y) { <span style=color:#ff79c6>return</span> x <span style=color:#ff79c6>&gt;=</span> y <span style=color:#ff79c6>?</span> (x <span style=color:#ff79c6>%</span> y <span style=color:#ff79c6>+</span> y) <span style=color:#ff79c6>:</span> x; }
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>power</span>(ll a, ll b, ll p) {
-</span></span><span style=display:flex><span>    ll res <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; a <span style=color:#ff79c6>=</span> Mod(a, p);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (b) { <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) res <span style=color:#ff79c6>=</span> Mod(res <span style=color:#ff79c6>*</span> a, p); a <span style=color:#ff79c6>=</span> Mod(a <span style=color:#ff79c6>*</span> a, p); b <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> res;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>dfs</span>(<span style=color:#8be9fd>int</span> v, <span style=color:#8be9fd>int</span> p, <span style=color:#8be9fd>int</span> r) {
-</span></span><span style=display:flex><span>    ll tn <span style=color:#ff79c6>=</span> query(v);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (v <span style=color:#ff79c6>==</span> r <span style=color:#ff79c6>||</span> p <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> Mod(tn, <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> p);
-</span></span><span style=display:flex><span>    ll res <span style=color:#ff79c6>=</span> dfs(v <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, phi[p], r);   <span style=color:#6272a4>// keep original value (lifted)
-</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> power(tn, res, <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> p);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    init();
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m, a, op, l, r, x, p;
-</span></span><span style=display:flex><span>    read(n); read(m);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; i<span style=color:#ff79c6>++</span>) { read(a); range_update(i, i, a); }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (m<span style=color:#ff79c6>--</span>) {
-</span></span><span style=display:flex><span>        read(op); read(l); read(r);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (op <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>) { read(x); range_update(l, r, <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> x); }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span> { read(p); printf(<span style=color:#f1fa8c>&#34;%lld</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>, dfs(l, p, r) <span style=color:#ff79c6>%</span> p); }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h3 id=323-example-b--2023-power-tower-mod-2023-when-the-shortcut-works>3.2.3 Example B — &ldquo;2023 Power Tower mod 2023&rdquo;: When the Shortcut Works</h3><p><strong>Goal:</strong> $2^{3^{4^{\cdots^{2023}}}}\bmod 2023$.</p><p>Key observations:</p><ul><li>$2023=7\cdot17^2$, $\varphi(2023)=1632$, $\gcd(2,2023)=1$ — so only the exponent mod 1632 matters.</li><li>The tower <strong>contains 1632 itself as a layer</strong>. Since $1632^{(\text{positive})} \equiv 0\pmod{1632}$, that layer collapses immediately.</li><li>From that layer downward, parity and $\bmod16$ control of lower-order factors propagate correctly within the same mod-1632 iteration.</li></ul><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>b <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2023</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2022</span>; i <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>3</span>; <span style=color:#ff79c6>--</span>i)
-</span></span><span style=display:flex><span>    b <span style=color:#ff79c6>=</span> qpow(i, b, <span style=color:#bd93f9>1632</span>);        <span style=color:#6272a4>// iterate from top, always mod φ(2023)
-</span></span></span><span style=display:flex><span>ans <span style=color:#ff79c6>=</span> qpow(<span style=color:#bd93f9>2</span>, b <span style=color:#6272a4>/* or b%1632+1632 */</span>, <span style=color:#bd93f9>2023</span>);
-</span></span></code></pre></div><p><strong>Conclusion:</strong> this &ldquo;always reduce mod $\varphi(p)$&rdquo; shortcut works here because the tower contains $\varphi(p)$ as a layer and the outermost base is coprime to $p$. It is a <strong>special-case shortcut, not a general rule</strong>.</p><h2 id=33-eulers-totient-function>3.3 Euler&rsquo;s Totient Function $\varphi$</h2><p>$\varphi(n)$ = count of integers in $[1,n]$ coprime to $n$. $\varphi(1)=1$.</p>$$\varphi(n)=n\!\left(1-\frac{1}{p_1}\right)\!\left(1-\frac{1}{p_2}\right)\cdots\left(1-\frac{1}{p_k}\right)$$<p><strong>Single-value computation in $O(\sqrt{n})$:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>euler_phi</span>(<span style=color:#8be9fd>int</span> n) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)sqrt(n <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>0.5</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> ans <span style=color:#ff79c6>=</span> n;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> m; i<span style=color:#ff79c6>++</span>)
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>%</span> i <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) {
-</span></span><span style=display:flex><span>            ans <span style=color:#ff79c6>=</span> ans <span style=color:#ff79c6>/</span> i <span style=color:#ff79c6>*</span> (i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);   <span style=color:#6272a4>// divide first to avoid overflow
-</span></span></span><span style=display:flex><span>            <span style=color:#ff79c6>while</span> (n <span style=color:#ff79c6>%</span> i <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) n <span style=color:#ff79c6>/=</span> i;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>1</span>) ans <span style=color:#ff79c6>=</span> ans <span style=color:#ff79c6>/</span> n <span style=color:#ff79c6>*</span> (n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);   <span style=color:#6272a4>// last prime factor &gt; sqrt(n)
-</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> ans;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=4-congruence-systems>4 Congruence Systems</h1><h2 id=41-residue-classes-mod-m>4.1 Residue Classes mod m</h2><p>The integers mod $m$ partition $\mathbb{Z}$ into $m$ equivalence classes $\{0,1,\ldots,m-1\}$. The congruence relation $a\equiv b\pmod{m}$ is equivalent to $m\mid(a-b)$.</p><h2 id=42-merging-two-congruences-via-exgcd>4.2 Merging Two Congruences via exGCD</h2><p><strong>Problem:</strong> given $x\equiv r\pmod{m_1}$ and $x\equiv b\pmod{m_2}$, find $x\pmod{\operatorname{lcm}(m_1,m_2)}$.</p><blockquote><p>Note: $(m_1,m_2)$ denotes GCD, $[m_1,m_2]$ denotes LCM.</p></blockquote><p><strong>Merging procedure</strong> (using exGCD):</p><ol><li>Solve $m_1 t\equiv(b-r)\pmod{m_2}$ for $t$.</li><li>Solvable iff $g=\gcd(m_1,m_2)\mid(b-r)$; otherwise no solution.</li><li>Reduce to $(m_1/g)\cdot t\equiv(b-r)/g\pmod{m_2/g}$; multiply by the inverse of $m_1/g$ mod $m_2/g$.</li><li>New solution: $x\leftarrow r+m_1 t_0$, new modulus: $\operatorname{lcm}(m_1,m_2)$.</li></ol><p><strong>Recursively merge all $k$ equations in $O(k\log m)$.</strong> Final answer: $x\equiv x_0\pmod{[m_1,m_2,\ldots,m_k]}$.</p><p>Template (POJ 2891, arbitrary moduli):</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>__int128 <span style=color:#50fa7b>exgcd</span>(__int128 a, __int128 b, __int128 <span style=color:#ff79c6>&amp;</span>x, __int128 <span style=color:#ff79c6>&amp;</span>y) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) { x <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; y <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>return</span> a; }
-</span></span><span style=display:flex><span>    __int128 x1, y1;
-</span></span><span style=display:flex><span>    __int128 g <span style=color:#ff79c6>=</span> exgcd(b, a <span style=color:#ff79c6>%</span> b, x1, y1);
-</span></span><span style=display:flex><span>    x <span style=color:#ff79c6>=</span> y1; y <span style=color:#ff79c6>=</span> x1 <span style=color:#ff79c6>-</span> (a <span style=color:#ff79c6>/</span> b) <span style=color:#ff79c6>*</span> y1;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> g;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> k;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (cin <span style=color:#ff79c6>&gt;&gt;</span> k) {
-</span></span><span style=display:flex><span>        vector<span style=color:#ff79c6>&lt;</span>pair<span style=color:#ff79c6>&lt;</span>ll,ll<span style=color:#ff79c6>&gt;&gt;</span> eq(k);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> k; i<span style=color:#ff79c6>++</span>) cin <span style=color:#ff79c6>&gt;&gt;</span> eq[i].first <span style=color:#ff79c6>&gt;&gt;</span> eq[i].second;  <span style=color:#6272a4>// modulus ai, remainder ri
-</span></span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>        __int128 r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, m <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>bool</span> ok <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#ff79c6>auto</span> <span style=color:#ff79c6>&amp;</span>[a0, r0] <span style=color:#ff79c6>:</span> eq) {
-</span></span><span style=display:flex><span>            __int128 a <span style=color:#ff79c6>=</span> a0, b <span style=color:#ff79c6>=</span> r0;
-</span></span><span style=display:flex><span>            __int128 x, y;
-</span></span><span style=display:flex><span>            __int128 g <span style=color:#ff79c6>=</span> exgcd(m, a, x, y);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> ((b <span style=color:#ff79c6>-</span> r) <span style=color:#ff79c6>%</span> g <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>0</span>) { ok <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>; <span style=color:#ff79c6>break</span>; }
-</span></span><span style=display:flex><span>            __int128 lcm <span style=color:#ff79c6>=</span> m <span style=color:#ff79c6>/</span> g <span style=color:#ff79c6>*</span> a;
-</span></span><span style=display:flex><span>            __int128 tgt <span style=color:#ff79c6>=</span> (b <span style=color:#ff79c6>-</span> r) <span style=color:#ff79c6>/</span> g;
-</span></span><span style=display:flex><span>            __int128 mod <span style=color:#ff79c6>=</span> a <span style=color:#ff79c6>/</span> g;
-</span></span><span style=display:flex><span>            __int128 t0 <span style=color:#ff79c6>=</span> ((x <span style=color:#ff79c6>%</span> mod) <span style=color:#ff79c6>*</span> (tgt <span style=color:#ff79c6>%</span> mod)) <span style=color:#ff79c6>%</span> mod;
-</span></span><span style=display:flex><span>            r <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>+</span> m <span style=color:#ff79c6>*</span> t0;
-</span></span><span style=display:flex><span>            r <span style=color:#ff79c6>=</span> (r <span style=color:#ff79c6>%</span> lcm <span style=color:#ff79c6>+</span> lcm) <span style=color:#ff79c6>%</span> lcm;
-</span></span><span style=display:flex><span>            m <span style=color:#ff79c6>=</span> lcm;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>ok) cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span> cout <span style=color:#ff79c6>&lt;&lt;</span> (ll)r <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=43-crt--constructive-solution-pairwise-coprime-moduli>4.3 CRT — Constructive Solution (Pairwise Coprime Moduli)</h2><p>When $m_1,m_2,\ldots,m_n$ are pairwise coprime, the unique solution mod $M=\prod m_i$ is:</p>$$x=\sum_{i=1}^n a_i\cdot M_i\cdot(M_i^{-1}\bmod m_i)\pmod{M},\quad M_i=M/m_i.$$<div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>ll <span style=color:#50fa7b>CRT</span>(<span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> <span style=color:#ff79c6>&amp;</span>a, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> <span style=color:#ff79c6>&amp;</span>m) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> a.size();
-</span></span><span style=display:flex><span>    ll M <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) M <span style=color:#ff79c6>*=</span> m[i];   <span style=color:#6272a4>// product of all moduli
-</span></span></span><span style=display:flex><span>    ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        ll mi <span style=color:#ff79c6>=</span> m[i], Mi <span style=color:#ff79c6>=</span> M <span style=color:#ff79c6>/</span> mi;
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> x, y;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (exgcd(mi, Mi, x, y) <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>=</span> (ans <span style=color:#ff79c6>+</span> Mi <span style=color:#ff79c6>*</span> y <span style=color:#ff79c6>%</span> M <span style=color:#ff79c6>*</span> a[i]) <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> (ans <span style=color:#ff79c6>+</span> M) <span style=color:#ff79c6>%</span> M;   <span style=color:#6272a4>// return value in [0, M)
-</span></span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=5-prime-factorisation-of>5 Prime Factorisation of $n!$</h1><p><strong>Legendre&rsquo;s formula:</strong> the exponent of prime $p$ in $n!$ is</p>$$e_p=\sum_{k\geq1}\left\lfloor\frac{n}{p^k}\right\rfloor.$$<p>Each term $\lfloor n/p^k\rfloor$ counts multiples of $p^k$ in $[1,n]$, each contributing one additional factor of $p$.</p><p><strong>Implementation 1</strong> (Sieve of Eratosthenes + Legendre):</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> n; <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>(cin <span style=color:#ff79c6>&gt;&gt;</span> n)) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)n;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>char</span><span style=color:#ff79c6>&gt;</span> is_prime(N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#8be9fd;font-style:italic>true</span>);
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> primes;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (N <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>2</span>) {
-</span></span><span style=display:flex><span>        is_prime[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> is_prime[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> N; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (is_prime[i]) {
-</span></span><span style=display:flex><span>                primes.push_back(i);
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span> ((<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)i <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>&lt;=</span> N)
-</span></span><span style=display:flex><span>                    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>*</span> i; j <span style=color:#ff79c6>&lt;=</span> N; j <span style=color:#ff79c6>+=</span> i) is_prime[j] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> first <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>p</span> : primes) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> cnt <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, pk <span style=color:#ff79c6>=</span> p;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> (pk <span style=color:#ff79c6>&lt;=</span> n) {
-</span></span><span style=display:flex><span>            cnt <span style=color:#ff79c6>+=</span> n <span style=color:#ff79c6>/</span> pk;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (pk <span style=color:#ff79c6>&gt;</span> n <span style=color:#ff79c6>/</span> p) <span style=color:#ff79c6>break</span>;   <span style=color:#6272a4>// prevent overflow
-</span></span></span><span style=display:flex><span>            pk <span style=color:#ff79c6>*=</span> p;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>first) cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39; &#39;</span>;
-</span></span><span style=display:flex><span>        cout <span style=color:#ff79c6>&lt;&lt;</span> p <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39;^&#39;</span> <span style=color:#ff79c6>&lt;&lt;</span> cnt;
-</span></span><span style=display:flex><span>        first <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39;\n&#39;</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><p><strong>Implementation 2</strong> (Linear sieve + Legendre, cleaner):</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;iostream&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1000010</span>;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> primes[N], cnt;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>bool</span> st[N];
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>init</span>(<span style=color:#8be9fd>int</span> n) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> n; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>st[i]) primes[cnt<span style=color:#ff79c6>++</span>] <span style=color:#ff79c6>=</span> i;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; primes[j] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>&lt;=</span> n; j<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>            st[i <span style=color:#ff79c6>*</span> primes[j]] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> primes[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>break</span>;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n; cin <span style=color:#ff79c6>&gt;&gt;</span> n;
-</span></span><span style=display:flex><span>    init(n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> cnt; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> p <span style=color:#ff79c6>=</span> primes[i], s <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> n; j; j <span style=color:#ff79c6>/=</span> p) s <span style=color:#ff79c6>+=</span> j <span style=color:#ff79c6>/</span> p;   <span style=color:#6272a4>// Legendre&#39;s formula
-</span></span></span><span style=display:flex><span>        printf(<span style=color:#f1fa8c>&#34;%d %d</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>, p, s);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-gcd--lcm>1 GCD & LCM</a><ul><li><a href=#11-gcd-properties>1.1 GCD Properties</a></li><li><a href=#12-lcm-properties>1.2 LCM Properties</a></li><li><a href=#13-useful-identity-and-cf-2183>1.3 Useful Identity and CF 2183</a></li></ul></li><li><a href=#2-extended-gcd-exgcd>2 Extended GCD (exGCD)</a><ul><li><a href=#21-bézouts-theorem>2.1 Bézout&rsquo;s Theorem</a></li></ul></li><li><a href=#3-eulers-theorem>3 Euler&rsquo;s Theorem</a><ul><li><a href=#31-statements>3.1 Statements</a></li><li><a href=#32-power-tower-reduction-euler-totient-descent>3.2 Power-Tower Reduction (Euler Totient Descent)</a></li><li><a href=#33-eulers-totient-function>3.3 Euler&rsquo;s Totient Function $\varphi$</a></li></ul></li><li><a href=#4-congruence-systems>4 Congruence Systems</a><ul><li><a href=#41-residue-classes-mod-m>4.1 Residue Classes mod m</a></li><li><a href=#42-merging-two-congruences-via-exgcd>4.2 Merging Two Congruences via exGCD</a></li><li><a href=#43-crt--constructive-solution-pairwise-coprime-moduli>4.3 CRT — Constructive Solution (Pairwise Coprime Moduli)</a></li></ul></li><li><a href=#5-prime-factorisation-of>5 Prime Factorisation of $n!$</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";o(e,!0)})})()</script></body></html>
+\end{aligned}$$<hr>
+<h1 id="2-extended-gcd-exgcd">2 Extended GCD (exGCD)</h1>
+<h2 id="21-bézouts-theorem">2.1 Bézout&rsquo;s Theorem</h2>
+<ul>
+<li>$ax+by=c$ has integer solutions iff $\gcd(a,b)\mid c$.</li>
+<li>Generalisation: $\sum_{i=1}^n a_ix_i=b$ has integer solutions iff $\gcd(a_i)\mid b$.</li>
+<li>$\gcd(a,b)$ is the smallest positive integer representable as $ax+by$.</li>
+</ul>
+<p><strong>Frobenius coin problem</strong> (two denominations, $\gcd(a,b)=1$):<br>
+Largest non-representable value $= ab-a-b$.</p>
+<hr>
+<h1 id="3-eulers-theorem">3 Euler&rsquo;s Theorem</h1>
+<h2 id="31-statements">3.1 Statements</h2>
+<h3 id="eulers-theorem">Euler&rsquo;s Theorem</h3>
+<p>If $\gcd(a,m)=1$:
+</p>
+$$a^{\varphi(m)}\equiv1\pmod{m}$$<h3 id="fermats-little-theorem">Fermat&rsquo;s Little Theorem</h3>
+<p>For prime $p$ with $p\nmid a$:
+</p>
+$$a^{p-1}\equiv1\pmod{p}$$<p>(Special case of Euler: $\varphi(p)=p-1$.)</p>
+<h3 id="modular-inverse">Modular Inverse</h3>
+<ol>
+<li>When $\gcd(a,m)=1$: $a^{-1}\equiv a^{\varphi(m)-1}\pmod{m}$.</li>
+<li>When $p$ is prime and $0\lt a\lt p$: $a^{-1}\equiv a^{p-2}\pmod{p}$.</li>
+</ol>
+<h2 id="32-power-tower-reduction-euler-totient-descent">3.2 Power-Tower Reduction (Euler Totient Descent)</h2>
+$$a^b\equiv\begin{cases}a^{b\bmod\varphi(m)},&\gcd(a,m)=1\\a^b,&b\lt\varphi(m)\\a^{b\bmod\varphi(m)+\varphi(m)},&b\geq\varphi(m)\end{cases}\pmod{m}$$<h3 id="321-general-method-φ-chain--lifted-modulus">3.2.1 General Method: φ-Chain + Lifted Modulus</h3>
+<p><strong>Scenario:</strong> the modulus may vary, the base may not be coprime to the modulus, and the exponent may be small — we need a safe, uniform approach.</p>
+<ol>
+<li>
+<p><strong>Build the φ-chain from top to bottom:</strong> start with the outer modulus $p$, the next layer uses $\varphi(p)$, then $\varphi(\varphi(p))$, down to 1. When $\gcd(a,p)=1$, we only need $b\bmod\varphi(p)$.</p>
+</li>
+<li>
+<p><strong>Lifted modulus (preserve &ldquo;large exponent&rdquo; information):</strong> returning only $b\bmod\varphi(p)$ is wrong when the base and modulus are not coprime or when the exponent is small. Instead return:
+</p>
+$$\operatorname{Mod}(x,m)=\begin{cases}x,&x\lt m\\x\bmod m+m,&x\geq m\end{cases}$$<p>
+The &ldquo;+m&rdquo; flag signals to the upper layer that the exponent is &ldquo;large&rdquo;, preventing incorrect collapse.</p>
+</li>
+<li>
+<p><strong>Recursive implementation:</strong> <code>dfs(pos, mod, r)</code> — stop at the leaf or when <code>mod == 1</code>; compute the upper-layer exponent modulo $\varphi(\text{mod})$ first, then exponentiate.</p>
+</li>
+</ol>
+<h3 id="322-example-a--nowcoder-nc17190-range-add--power-tower-mod-p">3.2.2 Example A — Nowcoder NC17190: Range-Add + Power Tower mod p</h3>
+<blockquote>
+<p>Support: range add on array $a[]$; query $a[l]^{a[l+1]^{\cdots^{a[r]}}}\bmod p$.</p>
+</blockquote>
+<ul>
+<li>Use a <strong>BIT with difference encoding</strong> to support range-add and point-query: <code>query(i)</code> returns the current <code>a[i]</code>.</li>
+<li>For queries, run <strong>φ-chain + lifted-modulus DFS</strong>. This handles:
+<ul>
+<li>Different modulus each query.</li>
+<li>Base possibly not coprime to modulus.</li>
+<li>Exponent possibly too small.</li>
+</ul>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">#define pb push_back
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">5e5</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">5</span>, maxn <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2e7</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">5</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">typedef</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> ll;
+</span></span><span style="display:flex;"><span>ll bit[N]; <span style="color:#8be9fd">int</span> n;
+</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> prime; <span style="color:#8be9fd">bool</span> vis[maxn]; <span style="color:#8be9fd">int</span> phi[maxn];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">read</span>(<span style="color:#8be9fd">int</span> <span style="color:#ff79c6">&amp;</span>x) {
+</span></span><span style="display:flex;"><span>    x <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; <span style="color:#8be9fd">int</span> f <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; <span style="color:#8be9fd">char</span> ch <span style="color:#ff79c6">=</span> getchar();
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (<span style="color:#ff79c6">!</span>isdigit(ch)) { <span style="color:#ff79c6">if</span> (ch <span style="color:#ff79c6">==</span> <span style="color:#f1fa8c">&#39;-&#39;</span>) f <span style="color:#ff79c6">=</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>; ch <span style="color:#ff79c6">=</span> getchar(); }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (isdigit(ch)) { x <span style="color:#ff79c6">=</span> (x <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">3</span>) <span style="color:#ff79c6">+</span> (x <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">+</span> ch <span style="color:#ff79c6">-</span> <span style="color:#f1fa8c">&#39;0&#39;</span>; ch <span style="color:#ff79c6">=</span> getchar(); }
+</span></span><span style="display:flex;"><span>    x <span style="color:#ff79c6">*=</span> f;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">init</span>() {
+</span></span><span style="display:flex;"><span>    phi[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;</span> maxn; i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>vis[i]) { prime.pb(i); phi[i] <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>; }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> (<span style="color:#8be9fd">int</span>)prime.size() <span style="color:#ff79c6">&amp;&amp;</span> i <span style="color:#ff79c6">*</span> prime[j] <span style="color:#ff79c6">&lt;</span> maxn; j<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>            vis[i <span style="color:#ff79c6">*</span> prime[j]] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">%</span> prime[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) { phi[i <span style="color:#ff79c6">*</span> prime[j]] <span style="color:#ff79c6">=</span> phi[i] <span style="color:#ff79c6">*</span> prime[j]; <span style="color:#ff79c6">break</span>; }
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">else</span> phi[i <span style="color:#ff79c6">*</span> prime[j]] <span style="color:#ff79c6">=</span> phi[i] <span style="color:#ff79c6">*</span> phi[prime[j]];
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">update</span>(<span style="color:#8be9fd">int</span> p, ll val) { <span style="color:#ff79c6">while</span> (p <span style="color:#ff79c6">&lt;=</span> n) { bit[p] <span style="color:#ff79c6">+=</span> val; p <span style="color:#ff79c6">+=</span> (p <span style="color:#ff79c6">&amp;</span> <span style="color:#ff79c6">-</span>p); } }
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">query</span>(<span style="color:#8be9fd">int</span> p) { ll res <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">while</span> (p <span style="color:#ff79c6">&gt;</span> <span style="color:#bd93f9">0</span>) { res <span style="color:#ff79c6">+=</span> bit[p]; p <span style="color:#ff79c6">-=</span> (p <span style="color:#ff79c6">&amp;</span> <span style="color:#ff79c6">-</span>p); } <span style="color:#ff79c6">return</span> res; }
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">range_update</span>(<span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r, ll val) { update(l, val); update(r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, <span style="color:#ff79c6">-</span>val); }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">Mod</span>(ll x, ll y) { <span style="color:#ff79c6">return</span> x <span style="color:#ff79c6">&gt;=</span> y <span style="color:#ff79c6">?</span> (x <span style="color:#ff79c6">%</span> y <span style="color:#ff79c6">+</span> y) <span style="color:#ff79c6">:</span> x; }
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">power</span>(ll a, ll b, ll p) {
+</span></span><span style="display:flex;"><span>    ll res <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; a <span style="color:#ff79c6">=</span> Mod(a, p);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (b) { <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) res <span style="color:#ff79c6">=</span> Mod(res <span style="color:#ff79c6">*</span> a, p); a <span style="color:#ff79c6">=</span> Mod(a <span style="color:#ff79c6">*</span> a, p); b <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> res;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">dfs</span>(<span style="color:#8be9fd">int</span> v, <span style="color:#8be9fd">int</span> p, <span style="color:#8be9fd">int</span> r) {
+</span></span><span style="display:flex;"><span>    ll tn <span style="color:#ff79c6">=</span> query(v);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (v <span style="color:#ff79c6">==</span> r <span style="color:#ff79c6">||</span> p <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> Mod(tn, <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> p);
+</span></span><span style="display:flex;"><span>    ll res <span style="color:#ff79c6">=</span> dfs(v <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, phi[p], r);   <span style="color:#6272a4">// keep original value (lifted)
+</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> power(tn, res, <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> p);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    init();
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m, a, op, l, r, x, p;
+</span></span><span style="display:flex;"><span>    read(n); read(m);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> n; i<span style="color:#ff79c6">++</span>) { read(a); range_update(i, i, a); }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (m<span style="color:#ff79c6">--</span>) {
+</span></span><span style="display:flex;"><span>        read(op); read(l); read(r);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (op <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">1</span>) { read(x); range_update(l, r, <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> x); }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">else</span> { read(p); printf(<span style="color:#f1fa8c">&#34;%lld</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>, dfs(l, p, r) <span style="color:#ff79c6">%</span> p); }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="323-example-b--2023-power-tower-mod-2023-when-the-shortcut-works">3.2.3 Example B — &ldquo;2023 Power Tower mod 2023&rdquo;: When the Shortcut Works</h3>
+<p><strong>Goal:</strong> $2^{3^{4^{\cdots^{2023}}}}\bmod 2023$.</p>
+<p>Key observations:</p>
+<ul>
+<li>$2023=7\cdot17^2$, $\varphi(2023)=1632$, $\gcd(2,2023)=1$ — so only the exponent mod 1632 matters.</li>
+<li>The tower <strong>contains 1632 itself as a layer</strong>. Since $1632^{(\text{positive})} \equiv 0\pmod{1632}$, that layer collapses immediately.</li>
+<li>From that layer downward, parity and $\bmod16$ control of lower-order factors propagate correctly within the same mod-1632 iteration.</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>b <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2023</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2022</span>; i <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">3</span>; <span style="color:#ff79c6">--</span>i)
+</span></span><span style="display:flex;"><span>    b <span style="color:#ff79c6">=</span> qpow(i, b, <span style="color:#bd93f9">1632</span>);        <span style="color:#6272a4">// iterate from top, always mod φ(2023)
+</span></span></span><span style="display:flex;"><span>ans <span style="color:#ff79c6">=</span> qpow(<span style="color:#bd93f9">2</span>, b <span style="color:#6272a4">/* or b%1632+1632 */</span>, <span style="color:#bd93f9">2023</span>);
+</span></span></code></pre></div><p><strong>Conclusion:</strong> this &ldquo;always reduce mod $\varphi(p)$&rdquo; shortcut works here because the tower contains $\varphi(p)$ as a layer and the outermost base is coprime to $p$. It is a <strong>special-case shortcut, not a general rule</strong>.</p>
+<h2 id="33-eulers-totient-function">3.3 Euler&rsquo;s Totient Function $\varphi$</h2>
+<p>$\varphi(n)$ = count of integers in $[1,n]$ coprime to $n$. $\varphi(1)=1$.</p>
+$$\varphi(n)=n\!\left(1-\frac{1}{p_1}\right)\!\left(1-\frac{1}{p_2}\right)\cdots\left(1-\frac{1}{p_k}\right)$$<p><strong>Single-value computation in $O(\sqrt{n})$:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">euler_phi</span>(<span style="color:#8be9fd">int</span> n) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)sqrt(n <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">0.5</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> ans <span style="color:#ff79c6">=</span> n;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> m; i<span style="color:#ff79c6">++</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">%</span> i <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) {
+</span></span><span style="display:flex;"><span>            ans <span style="color:#ff79c6">=</span> ans <span style="color:#ff79c6">/</span> i <span style="color:#ff79c6">*</span> (i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);   <span style="color:#6272a4">// divide first to avoid overflow
+</span></span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">while</span> (n <span style="color:#ff79c6">%</span> i <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) n <span style="color:#ff79c6">/=</span> i;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&gt;</span> <span style="color:#bd93f9">1</span>) ans <span style="color:#ff79c6">=</span> ans <span style="color:#ff79c6">/</span> n <span style="color:#ff79c6">*</span> (n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);   <span style="color:#6272a4">// last prime factor &gt; sqrt(n)
+</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> ans;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="4-congruence-systems">4 Congruence Systems</h1>
+<h2 id="41-residue-classes-mod-m">4.1 Residue Classes mod m</h2>
+<p>The integers mod $m$ partition $\mathbb{Z}$ into $m$ equivalence classes $\{0,1,\ldots,m-1\}$. The congruence relation $a\equiv b\pmod{m}$ is equivalent to $m\mid(a-b)$.</p>
+<h2 id="42-merging-two-congruences-via-exgcd">4.2 Merging Two Congruences via exGCD</h2>
+<p><strong>Problem:</strong> given $x\equiv r\pmod{m_1}$ and $x\equiv b\pmod{m_2}$, find $x\pmod{\operatorname{lcm}(m_1,m_2)}$.</p>
+<blockquote>
+<p>Note: $(m_1,m_2)$ denotes GCD, $[m_1,m_2]$ denotes LCM.</p>
+</blockquote>
+<p><strong>Merging procedure</strong> (using exGCD):</p>
+<ol>
+<li>Solve $m_1 t\equiv(b-r)\pmod{m_2}$ for $t$.</li>
+<li>Solvable iff $g=\gcd(m_1,m_2)\mid(b-r)$; otherwise no solution.</li>
+<li>Reduce to $(m_1/g)\cdot t\equiv(b-r)/g\pmod{m_2/g}$; multiply by the inverse of $m_1/g$ mod $m_2/g$.</li>
+<li>New solution: $x\leftarrow r+m_1 t_0$, new modulus: $\operatorname{lcm}(m_1,m_2)$.</li>
+</ol>
+<p><strong>Recursively merge all $k$ equations in $O(k\log m)$.</strong> Final answer: $x\equiv x_0\pmod{[m_1,m_2,\ldots,m_k]}$.</p>
+<p>Template (POJ 2891, arbitrary moduli):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>__int128 <span style="color:#50fa7b">exgcd</span>(__int128 a, __int128 b, __int128 <span style="color:#ff79c6">&amp;</span>x, __int128 <span style="color:#ff79c6">&amp;</span>y) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) { x <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; y <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">return</span> a; }
+</span></span><span style="display:flex;"><span>    __int128 x1, y1;
+</span></span><span style="display:flex;"><span>    __int128 g <span style="color:#ff79c6">=</span> exgcd(b, a <span style="color:#ff79c6">%</span> b, x1, y1);
+</span></span><span style="display:flex;"><span>    x <span style="color:#ff79c6">=</span> y1; y <span style="color:#ff79c6">=</span> x1 <span style="color:#ff79c6">-</span> (a <span style="color:#ff79c6">/</span> b) <span style="color:#ff79c6">*</span> y1;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> g;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> k;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (cin <span style="color:#ff79c6">&gt;&gt;</span> k) {
+</span></span><span style="display:flex;"><span>        vector<span style="color:#ff79c6">&lt;</span>pair<span style="color:#ff79c6">&lt;</span>ll,ll<span style="color:#ff79c6">&gt;&gt;</span> eq(k);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> k; i<span style="color:#ff79c6">++</span>) cin <span style="color:#ff79c6">&gt;&gt;</span> eq[i].first <span style="color:#ff79c6">&gt;&gt;</span> eq[i].second;  <span style="color:#6272a4">// modulus ai, remainder ri
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        __int128 r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, m <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">bool</span> ok <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#ff79c6">auto</span> <span style="color:#ff79c6">&amp;</span>[a0, r0] <span style="color:#ff79c6">:</span> eq) {
+</span></span><span style="display:flex;"><span>            __int128 a <span style="color:#ff79c6">=</span> a0, b <span style="color:#ff79c6">=</span> r0;
+</span></span><span style="display:flex;"><span>            __int128 x, y;
+</span></span><span style="display:flex;"><span>            __int128 g <span style="color:#ff79c6">=</span> exgcd(m, a, x, y);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> ((b <span style="color:#ff79c6">-</span> r) <span style="color:#ff79c6">%</span> g <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">0</span>) { ok <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>; <span style="color:#ff79c6">break</span>; }
+</span></span><span style="display:flex;"><span>            __int128 lcm <span style="color:#ff79c6">=</span> m <span style="color:#ff79c6">/</span> g <span style="color:#ff79c6">*</span> a;
+</span></span><span style="display:flex;"><span>            __int128 tgt <span style="color:#ff79c6">=</span> (b <span style="color:#ff79c6">-</span> r) <span style="color:#ff79c6">/</span> g;
+</span></span><span style="display:flex;"><span>            __int128 mod <span style="color:#ff79c6">=</span> a <span style="color:#ff79c6">/</span> g;
+</span></span><span style="display:flex;"><span>            __int128 t0 <span style="color:#ff79c6">=</span> ((x <span style="color:#ff79c6">%</span> mod) <span style="color:#ff79c6">*</span> (tgt <span style="color:#ff79c6">%</span> mod)) <span style="color:#ff79c6">%</span> mod;
+</span></span><span style="display:flex;"><span>            r <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">+</span> m <span style="color:#ff79c6">*</span> t0;
+</span></span><span style="display:flex;"><span>            r <span style="color:#ff79c6">=</span> (r <span style="color:#ff79c6">%</span> lcm <span style="color:#ff79c6">+</span> lcm) <span style="color:#ff79c6">%</span> lcm;
+</span></span><span style="display:flex;"><span>            m <span style="color:#ff79c6">=</span> lcm;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>ok) cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">else</span> cout <span style="color:#ff79c6">&lt;&lt;</span> (ll)r <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="43-crt--constructive-solution-pairwise-coprime-moduli">4.3 CRT — Constructive Solution (Pairwise Coprime Moduli)</h2>
+<p>When $m_1,m_2,\ldots,m_n$ are pairwise coprime, the unique solution mod $M=\prod m_i$ is:
+</p>
+$$x=\sum_{i=1}^n a_i\cdot M_i\cdot(M_i^{-1}\bmod m_i)\pmod{M},\quad M_i=M/m_i.$$<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>ll <span style="color:#50fa7b">CRT</span>(<span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> <span style="color:#ff79c6">&amp;</span>a, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> <span style="color:#ff79c6">&amp;</span>m) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> a.size();
+</span></span><span style="display:flex;"><span>    ll M <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) M <span style="color:#ff79c6">*=</span> m[i];   <span style="color:#6272a4">// product of all moduli
+</span></span></span><span style="display:flex;"><span>    ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        ll mi <span style="color:#ff79c6">=</span> m[i], Mi <span style="color:#ff79c6">=</span> M <span style="color:#ff79c6">/</span> mi;
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> x, y;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (exgcd(mi, Mi, x, y) <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        ans <span style="color:#ff79c6">=</span> (ans <span style="color:#ff79c6">+</span> Mi <span style="color:#ff79c6">*</span> y <span style="color:#ff79c6">%</span> M <span style="color:#ff79c6">*</span> a[i]) <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> (ans <span style="color:#ff79c6">+</span> M) <span style="color:#ff79c6">%</span> M;   <span style="color:#6272a4">// return value in [0, M)
+</span></span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="5-prime-factorisation-of">5 Prime Factorisation of $n!$</h1>
+<p><strong>Legendre&rsquo;s formula:</strong> the exponent of prime $p$ in $n!$ is
+</p>
+$$e_p=\sum_{k\geq1}\left\lfloor\frac{n}{p^k}\right\rfloor.$$<p>Each term $\lfloor n/p^k\rfloor$ counts multiples of $p^k$ in $[1,n]$, each contributing one additional factor of $p$.</p>
+<p><strong>Implementation 1</strong> (Sieve of Eratosthenes + Legendre):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> n; <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>(cin <span style="color:#ff79c6">&gt;&gt;</span> n)) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)n;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">char</span><span style="color:#ff79c6">&gt;</span> is_prime(N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#8be9fd;font-style:italic">true</span>);
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> primes;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (N <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">2</span>) {
+</span></span><span style="display:flex;"><span>        is_prime[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> is_prime[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> N; i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (is_prime[i]) {
+</span></span><span style="display:flex;"><span>                primes.push_back(i);
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span> ((<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)i <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">&lt;=</span> N)
+</span></span><span style="display:flex;"><span>                    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">*</span> i; j <span style="color:#ff79c6">&lt;=</span> N; j <span style="color:#ff79c6">+=</span> i) is_prime[j] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> first <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">p</span> : primes) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> cnt <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, pk <span style="color:#ff79c6">=</span> p;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">while</span> (pk <span style="color:#ff79c6">&lt;=</span> n) {
+</span></span><span style="display:flex;"><span>            cnt <span style="color:#ff79c6">+=</span> n <span style="color:#ff79c6">/</span> pk;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (pk <span style="color:#ff79c6">&gt;</span> n <span style="color:#ff79c6">/</span> p) <span style="color:#ff79c6">break</span>;   <span style="color:#6272a4">// prevent overflow
+</span></span></span><span style="display:flex;"><span>            pk <span style="color:#ff79c6">*=</span> p;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>first) cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39; &#39;</span>;
+</span></span><span style="display:flex;"><span>        cout <span style="color:#ff79c6">&lt;&lt;</span> p <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39;^&#39;</span> <span style="color:#ff79c6">&lt;&lt;</span> cnt;
+</span></span><span style="display:flex;"><span>        first <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39;\n&#39;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>Implementation 2</strong> (Linear sieve + Legendre, cleaner):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;iostream&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1000010</span>;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> primes[N], cnt;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">bool</span> st[N];
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">init</span>(<span style="color:#8be9fd">int</span> n) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> n; i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>st[i]) primes[cnt<span style="color:#ff79c6">++</span>] <span style="color:#ff79c6">=</span> i;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; primes[j] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">&lt;=</span> n; j<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>            st[i <span style="color:#ff79c6">*</span> primes[j]] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">%</span> primes[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">break</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n; cin <span style="color:#ff79c6">&gt;&gt;</span> n;
+</span></span><span style="display:flex;"><span>    init(n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> cnt; i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> p <span style="color:#ff79c6">=</span> primes[i], s <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> n; j; j <span style="color:#ff79c6">/=</span> p) s <span style="color:#ff79c6">+=</span> j <span style="color:#ff79c6">/</span> p;   <span style="color:#6272a4">// Legendre&#39;s formula
+</span></span></span><span style="display:flex;"><span>        printf(<span style="color:#f1fa8c">&#34;%d %d</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>, p, s);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div>
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-gcd--lcm">1 GCD &amp; LCM</a>
+      <ul>
+        <li><a href="#11-gcd-properties">1.1 GCD Properties</a></li>
+        <li><a href="#12-lcm-properties">1.2 LCM Properties</a></li>
+        <li><a href="#13-useful-identity-and-cf-2183">1.3 Useful Identity and CF 2183</a></li>
+      </ul>
+    </li>
+    <li><a href="#2-extended-gcd-exgcd">2 Extended GCD (exGCD)</a>
+      <ul>
+        <li><a href="#21-bézouts-theorem">2.1 Bézout&rsquo;s Theorem</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-eulers-theorem">3 Euler&rsquo;s Theorem</a>
+      <ul>
+        <li><a href="#31-statements">3.1 Statements</a></li>
+        <li><a href="#32-power-tower-reduction-euler-totient-descent">3.2 Power-Tower Reduction (Euler Totient Descent)</a></li>
+        <li><a href="#33-eulers-totient-function">3.3 Euler&rsquo;s Totient Function $\varphi$</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-congruence-systems">4 Congruence Systems</a>
+      <ul>
+        <li><a href="#41-residue-classes-mod-m">4.1 Residue Classes mod m</a></li>
+        <li><a href="#42-merging-two-congruences-via-exgcd">4.2 Merging Two Congruences via exGCD</a></li>
+        <li><a href="#43-crt--constructive-solution-pairwise-coprime-moduli">4.3 CRT — Constructive Solution (Pairwise Coprime Moduli)</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-prime-factorisation-of">5 Prime Factorisation of $n!$</a></li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const tocPanel = document.querySelector('.article-toc');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      let ticking = false;
+
+      function updateActiveTocLink() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
+          }
+        }
+      }
+
+      function updateTocBoundary() {
+        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
+          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
+          return;
+        }
+
+        const footer = document.querySelector('.site-footer');
+        if (!footer) return;
+
+        const bottomGap = 24;
+        const tocBottom = 86 + tocPanel.offsetHeight;
+        const footerTop = footer.getBoundingClientRect().top;
+        const overlap = tocBottom + bottomGap - footerTop;
+
+        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateTocBoundary();
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      
+      setTimeout(function() {
+        updateTocBoundary();
+        updateActiveTocLink();
+      }, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          document.documentElement.classList.add("theme-switching");
+          applyTheme(next, true);
+          window.setTimeout(function() {
+            document.documentElement.classList.remove("theme-switching");
+          }, 620);
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -29,24 +29,24 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #10151f;
-  --bg-top: #151d2a;
-  --surface: #171f2d;
-  --surface-subtle: #1d2737;
-  --surface-code: #0b111c;
-  --header-bg: rgba(16, 21, 31, .9);
-  --line: #344258;
-  --line-soft: #263246;
-  --text: #d7e0ee;
-  --text-strong: #f2f6fc;
-  --muted: #8fa0b8;
-  --muted-strong: #b6c3d4;
-  --accent: #86a8ff;
-  --accent-deep: #b2c7ff;
-  --accent-soft: rgba(99, 135, 220, .18);
-  --accent-line: rgba(134, 168, 255, .42);
+  --bg: #100d0d;
+  --bg-top: #181313;
+  --surface: #1a1616;
+  --surface-subtle: #241d1d;
+  --surface-code: #0b0909;
+  --header-bg: rgba(16, 13, 13, .9);
+  --line: #403232;
+  --line-soft: #2c2424;
+  --text: #e4d8d3;
+  --text-strong: #fff5ee;
+  --muted: #a89690;
+  --muted-strong: #cbbab3;
+  --accent: #b85b61;
+  --accent-deep: #e3a0a5;
+  --accent-soft: rgba(139, 48, 56, .24);
+  --accent-line: rgba(199, 92, 100, .5);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .18), 0 10px 28px rgba(0, 0, 0, .16);
-  --shadow-card: 0 14px 34px rgba(0, 0, 0, .24);
+  --shadow-card: 0 14px 34px rgba(0, 0, 0, .3);
 }
 
 /* Reset */
@@ -58,6 +58,7 @@ html {
   background: var(--bg);
 }
 body {
+  position: relative;
   min-height: 100vh;
   color: var(--text);
   font-family: var(--font);
@@ -68,6 +69,48 @@ body {
     var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background:
+    radial-gradient(circle at calc(100% - 88px) 32px,
+      color-mix(in srgb, var(--accent-soft) 78%, transparent) 0,
+      color-mix(in srgb, var(--bg-top) 62%, transparent) 34%,
+      transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(.8);
+}
+.theme-switching body,
+.theme-switching .site-header,
+.theme-switching .content-panel,
+.theme-switching .topic-card,
+.theme-switching .post-entry,
+.theme-switching .site-stats,
+.theme-switching .home-hero-panel::before,
+.theme-switching .home-hero-panel::after,
+.theme-switching .theme-toggle,
+.theme-switching .nav-link,
+.theme-switching .chip,
+.theme-switching .post-entry-tags a {
+  transition:
+    background-color .34s ease,
+    background .34s ease,
+    border-color .34s ease,
+    color .34s ease,
+    box-shadow .34s ease,
+    filter .34s ease;
+}
+.theme-switching body::after {
+  animation: themeWash .58s ease both;
+}
+@keyframes themeWash {
+  0% { opacity: 0; transform: scale(.8); }
+  38% { opacity: .42; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.18); }
 }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; height: auto; border-radius: var(--radius-sm); }
@@ -158,11 +201,13 @@ code, pre { font-family: var(--mono); }
   cursor: pointer;
   padding: 0;
   box-shadow: var(--shadow-sm);
+  transition: transform .24s ease, background-color .24s ease, border-color .24s ease, color .24s ease;
 }
 .theme-toggle:hover {
   border-color: var(--accent-line);
   color: var(--accent-deep);
   background: var(--accent-soft);
+  transform: translateY(-1px);
 }
 .theme-toggle:focus-visible,
 .nav-toggle:focus-visible,
@@ -195,6 +240,14 @@ code, pre { font-family: var(--mono); }
 }
 :root[data-theme="dark"] .theme-toggle-icon::before {
   opacity: 0;
+}
+.theme-switching .theme-toggle {
+  animation: themeButtonTurn .5s cubic-bezier(.22, 1, .36, 1);
+}
+@keyframes themeButtonTurn {
+  from { transform: rotate(0deg) scale(1); }
+  42% { transform: rotate(48deg) scale(.94); }
+  to { transform: rotate(0deg) scale(1); }
 }
 .nav-toggle {
   display: none;
@@ -343,33 +396,62 @@ code, pre { font-family: var(--mono); }
 .hero-sketch-lines span {
   position: absolute;
   display: block;
-  height: 2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 32%, transparent);
+  height: 0;
+  border-top: 2px solid color-mix(in srgb, var(--muted) 38%, transparent);
+  border-radius: 0;
+  background: transparent;
   transform-origin: left center;
 }
+.hero-sketch-lines span::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: -5px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+}
+.hero-sketch-lines span::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  border-right: 2px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  transform: rotate(45deg);
+}
 .hero-sketch-lines span:nth-child(1) {
-  --line-rotation: -8deg;
-  width: 170px;
-  left: 236px;
-  top: 48px;
+  --line-rotation: 0deg;
+  width: 72px;
+  left: 264px;
+  top: 58px;
   transform: rotate(var(--line-rotation));
 }
 .hero-sketch-lines span:nth-child(2) {
-  --line-rotation: 4deg;
-  width: 124px;
-  left: 264px;
+  --line-rotation: 0deg;
+  width: 52px;
+  left: 270px;
   top: 104px;
-  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  border-top-color: color-mix(in srgb, var(--accent) 34%, transparent);
   transform: rotate(var(--line-rotation));
 }
 .hero-sketch-lines span:nth-child(3) {
-  --line-rotation: -3deg;
-  width: 170px;
-  left: 210px;
-  bottom: 64px;
-  background: color-mix(in srgb, var(--accent-deep) 30%, transparent);
+  --line-rotation: 0deg;
+  width: 64px;
+  left: 238px;
+  bottom: 72px;
+  border-top-color: color-mix(in srgb, var(--muted) 34%, transparent);
   transform: rotate(var(--line-rotation));
+}
+:root[data-theme="dark"] .home-hero-panel::before {
+  background:
+    linear-gradient(color-mix(in srgb, var(--line-soft) 82%, transparent) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, color-mix(in srgb, var(--line-soft) 72%, transparent) 1px, transparent 1px) 0 0 / 32px 100%,
+    color-mix(in srgb, var(--surface) 88%, #271c1c);
 }
 .site-stats {
   display: grid;
@@ -1254,17 +1336,17 @@ code, pre { font-family: var(--mono); }
   .hero-sketch-lines span:nth-child(1) {
     left: 44%;
     top: 56px;
-    width: 138px;
+    width: 64px;
   }
   .hero-sketch-lines span:nth-child(2) {
     left: 48%;
     top: 104px;
-    width: 104px;
+    width: 48px;
   }
   .hero-sketch-lines span:nth-child(3) {
     left: 42%;
     bottom: 150px;
-    width: 112px;
+    width: 58px;
   }
   .home-hero-panel .site-stats {
     left: 14px;

@@ -1,1 +1,33 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Sieve on Jasper's Technical Notebook</title><link>https://jmaaa32.github.io/tags/sieve/</link><description>Recent content in Sieve on Jasper's Technical Notebook</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Tue, 28 Apr 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://jmaaa32.github.io/tags/sieve/index.xml" rel="self" type="application/rss+xml"/><item><title>Number Theory #0: Common Formulae — Legendre's Formula &amp; Divisor Convolutions</title><link>https://jmaaa32.github.io/posts/number-theory-0-common-formulae/</link><pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate><guid>https://jmaaa32.github.io/posts/number-theory-0-common-formulae/</guid><description>Legendre&amp;rsquo;s formula, divisor and multiple convolutions in O(n log n), offline-difference batch processing for H(n)=Σf(d)g(⌊n/d⌋).</description></item><item><title>Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion</title><link>https://jmaaa32.github.io/posts/number-theory-3-sieve-mobius-inclusion-exclusion/</link><pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate><guid>https://jmaaa32.github.io/posts/number-theory-3-sieve-mobius-inclusion-exclusion/</guid><description>Eratosthenes sieve for μ; g/f/h framework; Conclusions 1 and 2 with derivations and tables; GCD table intuition; CF 803F Coprime Subsequences with bottom-up and Möbius approaches.</description></item><item><title>Number Theory #3.1: Sieve Problems — Coin System DP via Sieve</title><link>https://jmaaa32.github.io/posts/number-theory-3-1-sieve-problems/</link><pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate><guid>https://jmaaa32.github.io/posts/number-theory-3-1-sieve-problems/</guid><description>Greedy optimality for divisibility-chain coin systems, DP over the maximum denomination, and a sieve-style transition by adding one larger coin.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Sieve on Jasper&#39;s Technical Notebook</title>
+    <link>http://localhost:1313/tags/sieve/</link>
+    <description>Recent content in Sieve on Jasper&#39;s Technical Notebook</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 28 Apr 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/sieve/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Number Theory #0: Common Formulae — Legendre&#39;s Formula &amp; Divisor Convolutions</title>
+      <link>http://localhost:1313/posts/number-theory-0-common-formulae/</link>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate>
+      <guid>http://localhost:1313/posts/number-theory-0-common-formulae/</guid>
+      <description>Legendre&amp;rsquo;s formula, divisor and multiple convolutions in O(n log n), offline-difference batch processing for H(n)=Σf(d)g(⌊n/d⌋).</description>
+    </item>
+    <item>
+      <title>Number Theory #3: From Eratosthenes to Möbius Inclusion-Exclusion</title>
+      <link>http://localhost:1313/posts/number-theory-3-sieve-mobius-inclusion-exclusion/</link>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate>
+      <guid>http://localhost:1313/posts/number-theory-3-sieve-mobius-inclusion-exclusion/</guid>
+      <description>Eratosthenes sieve for μ; g/f/h framework; Conclusions 1 and 2 with derivations and tables; GCD table intuition; CF 803F Coprime Subsequences with bottom-up and Möbius approaches.</description>
+    </item>
+    <item>
+      <title>Number Theory #3.1: Sieve Problems — Coin System DP via Sieve</title>
+      <link>http://localhost:1313/posts/number-theory-3-1-sieve-problems/</link>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate>
+      <guid>http://localhost:1313/posts/number-theory-3-1-sieve-problems/</guid>
+      <description>Greedy optimality for divisibility-chain coin systems, DP over the maximum denomination, and a sieve-style transition by adding one larger coin.</description>
+    </item>
+  </channel>
+</rss>
