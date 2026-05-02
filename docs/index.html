@@ -1,62 +1,488 @@
-<!doctype html><html lang=en-us><head><meta name=generator content="Hugo 0.160.1"><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Jasper's Technical Notebook</title><meta name=description content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."><link rel=canonical href=https://jmaaa32.github.io/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small>
-</span></a><button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button><nav class=site-nav id=site-navigation><a class="nav-link is-active" href=/>Home</a>
-<a class=nav-link href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><section class=home-intro><div class=intro-copy><span class=eyebrow>Technical notebook</span><h1>A working index for technical notes.</h1><p>Algorithms now, engineering and systems notes over time. Written for lookup, review, and reuse.</p></div><dl class=site-stats aria-label="Site statistics"><div><dt>Posts</dt><dd>28</dd></div><div><dt>Categories</dt><dd>4</dd></div><div><dt>Tags</dt><dd>104</dd></div></dl></section><section class=topic-index aria-labelledby=topics-title><div class=section-head><div><span class=eyebrow>Browse</span><h2 id=topics-title>Core areas</h2></div></div><div class=topic-grid><a class=topic-card href=/categories/combinatorics/><span>Algorithms</span>
-<strong>Combinatorics, data structures, graph theory, number theory.</strong>
-</a><a class=topic-card href=/categories/engineering/><span>Engineering</span>
-<strong>Implementation notes, project write-ups, tooling, and architecture.</strong>
-</a><a class=topic-card href=/categories/systems/><span>Systems</span>
-<strong>Linux, networking, concurrency, C++, and runtime behavior.</strong>
-</a><a class=topic-card href=/posts/><span>Notes</span>
-<strong>Everything published, ordered for quick lookup and review.</strong></a></div></section><section class=content-panel><div class=section-head><div><span class=eyebrow>Latest</span><h2>Recent notes</h2></div><a class=text-link href=/archives/>View archive</a></div><div class=post-list><article class=post-entry><div class=post-entry-date><time datetime=2026-05-02>2026.05.02</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/engineering/>Engineering</a>
-<span>9 min read</span></div><h3><a href=/posts/agents-md-practice-guide/>AGENTS.md Practice Guide — Map, Commands, and Verification Loops for AI Coding Agents</a></h3><p>AGENTS.md is a README for AI agents: a compact project map that exposes hard rules, build/test commands, verification loops, and deeper documentation links so agents can understand, modify, and verify code without …</p><div class=post-entry-tags><a href=/tags/ai-coding/>#ai-coding</a>
-<a href=/tags/agents-md/>#agents-md</a>
-<a href=/tags/harness-engineering/>#harness-engineering</a>
-<a href=/tags/agent-workflow/>#agent-workflow</a>
-<a href=/tags/quality-assurance/>#quality-assurance</a></div></div></article><article class=post-entry><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
-<span>17 min read</span></div><h3><a href=/posts/matrix-1-fast-exponentiation/>Matrix #1: Matrix Fast Power — Linear Recurrence, DP Semirings & Kitamasa</a></h3><p>Matrix fast power for linear recurrences (4 patterns), 4 semiring templates (count/bool/min-plus/max-plus), matrix+segment tree for range-add Fibonacci queries, Kitamasa O(k²logn) and NTT O(k log²k logn).</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/matrix/>#matrix</a>
-<a href=/tags/fast-power/>#fast-power</a>
-<a href=/tags/linear-recurrence/>#linear-recurrence</a>
-<a href=/tags/dp/>#dp</a></div></div></article><article class=post-entry><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
-<span>15 min read</span></div><h3><a href=/posts/matrix-2-gaussian-elimination/>Matrix #2: Gaussian Elimination — Real, Mod, Mod-2, Incremental</a></h3><p>Gauss elimination: real/mod/mod-2 templates (solve, det, inv, rank); incremental online RREF; Extended Lights Out, CF 1344F abstract GF(2) modelling, 2024 ICPC Kunming interactive tree queries.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/matrix/>#matrix</a>
-<a href=/tags/gaussian-elimination/>#gaussian-elimination</a>
-<a href=/tags/linear-algebra/>#linear-algebra</a>
-<a href=/tags/gf2/>#gf2</a></div></div></article><article class=post-entry><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
-<span>8 min read</span></div><h3><a href=/posts/matrix-3-linear-basis/>Matrix #3: Linear Basis (XOR Basis) & Simplex Method</a></h3><p>XOR linear basis: full template with kth, range basis, normalisation; Nowcoder median example; CF 1101G prefix-XOR rank; gym 104768 C XOR-divisibility; Simplex LP solver.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/matrix/>#matrix</a>
-<a href=/tags/linear-basis/>#linear-basis</a>
-<a href=/tags/xor/>#xor</a>
-<a href=/tags/gf2/>#gf2</a></div></div></article><article class=post-entry><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/matrix/>Matrix</a>
-<span>6 min read</span></div><h3><a href=/posts/matrix-4-problems/>Matrix #4: Matrix Problems — Fibonacci Subarray Sums, Gaussian Elimination & Expected Value</a></h3><p>Hard matrix problems: Fibonacci squared subarray sum with segment-tree 4-tuple and companion matrix; cycle-decomposition partition state space for random-swap sorting, first-step analysis, and Gaussian elimination.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/matrix/>#matrix</a>
-<a href=/tags/segment-tree/>#segment-tree</a>
-<a href=/tags/gaussian-elimination/>#gaussian-elimination</a>
-<a href=/tags/expected-value/>#expected-value</a></div></div></article><article class=post-entry><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
-<span>2 min read</span></div><h3><a href=/posts/number-theory-0-common-formulae/>Number Theory #0: Common Formulae — Legendre's Formula & Divisor Convolutions</a></h3><p>Legendre&rsquo;s formula, divisor and multiple convolutions in O(n log n), offline-difference batch processing for H(n)=Σf(d)g(⌊n/d⌋).</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/number-theory/>#number-theory</a>
-<a href=/tags/convolution/>#convolution</a>
-<a href=/tags/divisor/>#divisor</a>
-<a href=/tags/legendre/>#legendre</a></div></div></article><article class=post-entry><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
-<span>9 min read</span></div><h3><a href=/posts/number-theory-1-elementary/>Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT</a></h3><p>GCD/LCM properties, Bézout/Frobenius, Euler&rsquo;s theorem with power-tower reduction and φ-chain technique, congruence system merging via exGCD, CRT, and n! prime factorisation via Legendre&rsquo;s formula.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/number-theory/>#number-theory</a>
-<a href=/tags/gcd/>#gcd</a>
-<a href=/tags/lcm/>#lcm</a>
-<a href=/tags/euler/>#euler</a></div></div></article><article class=post-entry><div class=post-entry-date><time datetime=2026-04-28>2026.04.28</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/number-theory/>Number Theory</a>
-<span>3 min read</span></div><h3><a href=/posts/number-theory-1-1-divisibility-blocking/>Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)</a></h3><p>Divisibility blocking for O(sqrt n) floor-sum evaluation: lemma, single-variable loop, O(1) interval sum requirements, two-variable min-trick, multi-variable pseudocode, and ceiling-division blocking.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/number-theory/>#number-theory</a>
-<a href=/tags/blocking/>#blocking</a>
-<a href=/tags/sqrt-decomposition/>#sqrt-decomposition</a>
-<a href=/tags/floor-sum/>#floor-sum</a></div></div></article></div></section></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const t=document.querySelector(".nav-toggle"),n=document.querySelector("#site-navigation");if(!t||!n)return;function e(e){document.documentElement.classList.toggle("nav-open",e),t.setAttribute("aria-expanded",String(e))}t.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),n.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0})})()</script></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head>
+	<meta name="generator" content="Hugo 0.160.1"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.">
+    <link rel="canonical" href="http://localhost:1313/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  
+  <section class="home-intro">
+    <div class="intro-copy">
+      <span class="eyebrow">Technical notebook</span>
+      <h1>A working index for technical notes.</h1>
+      <p>Algorithms now, engineering and systems notes over time. Written for lookup, review, and reuse.</p>
+    </div>
+    <dl class="site-stats" aria-label="Site statistics">
+      <div>
+        <dt>Posts</dt>
+        <dd>28</dd>
+      </div>
+      <div>
+        <dt>Categories</dt>
+        <dd>4</dd>
+      </div>
+      <div>
+        <dt>Tags</dt>
+        <dd>104</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="topic-index" aria-labelledby="topics-title">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Browse</span>
+        <h2 id="topics-title">Core areas</h2>
+      </div>
+    </div>
+    <div class="topic-grid">
+      <a class="topic-card" href="/categories/combinatorics/">
+        <span>Algorithms</span>
+        <strong>Combinatorics, data structures, graph theory, number theory.</strong>
+      </a>
+      <a class="topic-card" href="/categories/engineering/">
+        <span>Engineering</span>
+        <strong>Implementation notes, project write-ups, tooling, and architecture.</strong>
+      </a>
+      <a class="topic-card" href="/categories/systems/">
+        <span>Systems</span>
+        <strong>Linux, networking, concurrency, C++, and runtime behavior.</strong>
+      </a>
+      <a class="topic-card" href="/posts/">
+        <span>Notes</span>
+        <strong>Everything published, ordered for quick lookup and review.</strong>
+      </a>
+    </div>
+  </section>
+
+  <section class="content-panel">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Latest</span>
+        <h2>Recent notes</h2>
+      </div>
+      <a class="text-link" href="/archives/">View archive</a>
+    </div>
+    <div class="post-list">
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/agents-md-practice-guide/" aria-label="Read AGENTS.md Practice Guide — Map, Commands, and Verification Loops for AI Coding Agents"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-05-02">2026.05.02</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/engineering/">Engineering</a>
+      
+      <span>9 min read</span>
+    </div>
+    <h3><a href="/posts/agents-md-practice-guide/">AGENTS.md Practice Guide — Map, Commands, and Verification Loops for AI Coding Agents</a></h3>
+    <p>AGENTS.md is a README for AI agents: a compact project map that exposes hard rules, build/test commands, verification loops, and deeper documentation links so agents can understand, modify, and verify code without …</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/ai-coding/">#ai-coding</a>
+        
+          <a href="/tags/agents-md/">#agents-md</a>
+        
+          <a href="/tags/harness-engineering/">#harness-engineering</a>
+        
+          <a href="/tags/agent-workflow/">#agent-workflow</a>
+        
+          <a href="/tags/quality-assurance/">#quality-assurance</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/matrix-1-fast-exponentiation/" aria-label="Read Matrix #1: Matrix Fast Power — Linear Recurrence, DP Semirings &amp; Kitamasa"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-28">2026.04.28</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/matrix/">Matrix</a>
+      
+      <span>17 min read</span>
+    </div>
+    <h3><a href="/posts/matrix-1-fast-exponentiation/">Matrix #1: Matrix Fast Power — Linear Recurrence, DP Semirings &amp; Kitamasa</a></h3>
+    <p>Matrix fast power for linear recurrences (4 patterns), 4 semiring templates (count/bool/min-plus/max-plus), matrix+segment tree for range-add Fibonacci queries, Kitamasa O(k²logn) and NTT O(k log²k logn).</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/matrix/">#matrix</a>
+        
+          <a href="/tags/fast-power/">#fast-power</a>
+        
+          <a href="/tags/linear-recurrence/">#linear-recurrence</a>
+        
+          <a href="/tags/dp/">#dp</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/matrix-2-gaussian-elimination/" aria-label="Read Matrix #2: Gaussian Elimination — Real, Mod, Mod-2, Incremental"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-28">2026.04.28</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/matrix/">Matrix</a>
+      
+      <span>15 min read</span>
+    </div>
+    <h3><a href="/posts/matrix-2-gaussian-elimination/">Matrix #2: Gaussian Elimination — Real, Mod, Mod-2, Incremental</a></h3>
+    <p>Gauss elimination: real/mod/mod-2 templates (solve, det, inv, rank); incremental online RREF; Extended Lights Out, CF 1344F abstract GF(2) modelling, 2024 ICPC Kunming interactive tree queries.</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/matrix/">#matrix</a>
+        
+          <a href="/tags/gaussian-elimination/">#gaussian-elimination</a>
+        
+          <a href="/tags/linear-algebra/">#linear-algebra</a>
+        
+          <a href="/tags/gf2/">#gf2</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/matrix-3-linear-basis/" aria-label="Read Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-28">2026.04.28</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/matrix/">Matrix</a>
+      
+      <span>8 min read</span>
+    </div>
+    <h3><a href="/posts/matrix-3-linear-basis/">Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method</a></h3>
+    <p>XOR linear basis: full template with kth, range basis, normalisation; Nowcoder median example; CF 1101G prefix-XOR rank; gym 104768 C XOR-divisibility; Simplex LP solver.</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/matrix/">#matrix</a>
+        
+          <a href="/tags/linear-basis/">#linear-basis</a>
+        
+          <a href="/tags/xor/">#xor</a>
+        
+          <a href="/tags/gf2/">#gf2</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/matrix-4-problems/" aria-label="Read Matrix #4: Matrix Problems — Fibonacci Subarray Sums, Gaussian Elimination &amp; Expected Value"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-28">2026.04.28</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/matrix/">Matrix</a>
+      
+      <span>6 min read</span>
+    </div>
+    <h3><a href="/posts/matrix-4-problems/">Matrix #4: Matrix Problems — Fibonacci Subarray Sums, Gaussian Elimination &amp; Expected Value</a></h3>
+    <p>Hard matrix problems: Fibonacci squared subarray sum with segment-tree 4-tuple and companion matrix; cycle-decomposition partition state space for random-swap sorting, first-step analysis, and Gaussian elimination.</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/matrix/">#matrix</a>
+        
+          <a href="/tags/segment-tree/">#segment-tree</a>
+        
+          <a href="/tags/gaussian-elimination/">#gaussian-elimination</a>
+        
+          <a href="/tags/expected-value/">#expected-value</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/number-theory-0-common-formulae/" aria-label="Read Number Theory #0: Common Formulae — Legendre&#39;s Formula &amp; Divisor Convolutions"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-28">2026.04.28</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/number-theory/">Number Theory</a>
+      
+      <span>2 min read</span>
+    </div>
+    <h3><a href="/posts/number-theory-0-common-formulae/">Number Theory #0: Common Formulae — Legendre&#39;s Formula &amp; Divisor Convolutions</a></h3>
+    <p>Legendre&rsquo;s formula, divisor and multiple convolutions in O(n log n), offline-difference batch processing for H(n)=Σf(d)g(⌊n/d⌋).</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/number-theory/">#number-theory</a>
+        
+          <a href="/tags/convolution/">#convolution</a>
+        
+          <a href="/tags/divisor/">#divisor</a>
+        
+          <a href="/tags/legendre/">#legendre</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/number-theory-1-elementary/" aria-label="Read Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-28">2026.04.28</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/number-theory/">Number Theory</a>
+      
+      <span>9 min read</span>
+    </div>
+    <h3><a href="/posts/number-theory-1-elementary/">Number Theory #1: Elementary Number Theory — GCD, LCM, Euler, CRT</a></h3>
+    <p>GCD/LCM properties, Bézout/Frobenius, Euler&rsquo;s theorem with power-tower reduction and φ-chain technique, congruence system merging via exGCD, CRT, and n! prime factorisation via Legendre&rsquo;s formula.</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/number-theory/">#number-theory</a>
+        
+          <a href="/tags/gcd/">#gcd</a>
+        
+          <a href="/tags/lcm/">#lcm</a>
+        
+          <a href="/tags/euler/">#euler</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+        <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/number-theory-1-1-divisibility-blocking/" aria-label="Read Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-28">2026.04.28</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/number-theory/">Number Theory</a>
+      
+      <span>3 min read</span>
+    </div>
+    <h3><a href="/posts/number-theory-1-1-divisibility-blocking/">Number Theory #1.1: Divisibility Blocking (Floor-Division Decomposition)</a></h3>
+    <p>Divisibility blocking for O(sqrt n) floor-sum evaluation: lemma, single-variable loop, O(1) interval sum requirements, two-variable min-trick, multi-variable pseudocode, and ceiling-division blocking.</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/number-theory/">#number-theory</a>
+        
+          <a href="/tags/blocking/">#blocking</a>
+        
+          <a href="/tags/sqrt-decomposition/">#sqrt-decomposition</a>
+        
+          <a href="/tags/floor-sum/">#floor-sum</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+      
+    </div>
+  </section>
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(next, true);
+        });
+      })();
+    </script>
+  </body>
+</html>

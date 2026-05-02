@@ -1,20 +1,214 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Cyclic | Jasper's Technical Notebook</title><meta name=description content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."><link rel=canonical href=https://jmaaa32.github.io/tags/cyclic/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small>
-</span></a><button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class=nav-link href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class="nav-link is-active" href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><section class=page-heading><span class=eyebrow>Term</span><h1>Cyclic</h1></section><section class=content-panel><div class=section-head><div><span class=eyebrow>Index</span><h2>All notes</h2></div></div><div class=post-list><article class=post-entry><div class=post-entry-date><time datetime=2026-04-25>2026.04.25</time></div><div class=post-entry-main><div class=post-entry-meta><a href=/categories/combinatorics/>Combinatorics</a>
-<span>5 min read</span></div><h3><a href=/posts/combinatorics-2-ex2-cyclic-convolution/>Combinatorics #2-ex2: Cyclic Convolution</a></h3><p>Cyclic convolution definition, FFT/NTT implementation for n=2^k, zero-padding, why n must be a power of two, and the fold-back technique for arbitrary n.</p><div class=post-entry-tags><a href=/tags/math/>#math</a>
-<a href=/tags/combinatorics/>#combinatorics</a>
-<a href=/tags/fft/>#fft</a>
-<a href=/tags/ntt/>#ntt</a>
-<a href=/tags/convolution/>#convolution</a></div></div></article></div></section></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const t=document.querySelector(".nav-toggle"),n=document.querySelector("#site-navigation");if(!t||!n)return;function e(e){document.documentElement.classList.toggle("nav-open",e),t.setAttribute("aria-expanded",String(e))}t.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),n.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0})})()</script></body></html>
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cyclic | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.">
+    <link rel="canonical" href="http://localhost:1313/tags/cyclic/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <section class="page-heading">
+    <span class="eyebrow">Term</span>
+    <h1>Cyclic</h1>
+    
+  </section>
+
+  <section class="content-panel">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Index</span>
+        <h2>All notes</h2>
+      </div>
+    </div>
+
+    
+      <div class="post-list">
+        
+          <article class="post-entry">
+  <a class="post-entry-cover-link" href="/posts/combinatorics-2-ex2-cyclic-convolution/" aria-label="Read Combinatorics #2-ex2: Cyclic Convolution"></a>
+  <div class="post-entry-date">
+    <time datetime="2026-04-25">2026.04.25</time>
+  </div>
+  <div class="post-entry-main">
+    <div class="post-entry-meta">
+      
+        <a href="/categories/combinatorics/">Combinatorics</a>
+      
+      <span>5 min read</span>
+    </div>
+    <h3><a href="/posts/combinatorics-2-ex2-cyclic-convolution/">Combinatorics #2-ex2: Cyclic Convolution</a></h3>
+    <p>Cyclic convolution definition, FFT/NTT implementation for n=2^k, zero-padding, why n must be a power of two, and the fold-back technique for arbitrary n.</p>
+    
+      <div class="post-entry-tags">
+        
+          <a href="/tags/math/">#math</a>
+        
+          <a href="/tags/combinatorics/">#combinatorics</a>
+        
+          <a href="/tags/fft/">#fft</a>
+        
+          <a href="/tags/ntt/">#ntt</a>
+        
+          <a href="/tags/convolution/">#convolution</a>
+        
+      </div>
+    
+  </div>
+</article>
+
+        
+      </div>
+    
+  </section>
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(next, true);
+        });
+      })();
+    </script>
+  </body>
+</html>

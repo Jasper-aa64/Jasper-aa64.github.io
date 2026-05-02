@@ -1,516 +1,1063 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics #0.1: 计数中常用的结论 | Jasper's Technical Notebook</title><meta name=description content="常见计数结论、Lucas 定理、不定方程解计数、平面分拆、DAG 路径计数、多项式平移、XOR 均匀性与若干竞赛常用结论。"><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-1-counting-conclusions/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small>
-</span></a><button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class="nav-link is-active" href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics #0.1: 计数中常用的结论</h1><div class=article-meta><time datetime=2026-04-20>Apr 20, 2026</time>
-<span>·</span>
-<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/combinatorics/>#combinatorics</a>
-<a class=chip href=/tags/counting/>#counting</a>
-<a class=chip href=/tags/lucas/>#lucas</a>
-<a class=chip href=/tags/partition/>#partition</a>
-<a class=chip href=/tags/xor/>#xor</a>
-<a class=chip href=/tags/graph/>#graph</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#1-常用>1 常用</a></li><li><a href=#2-lucas-定理>2 Lucas 定理</a><ul><li><a href=#mod-2-的推论>mod 2 的推论</a></li></ul></li><li><a href=#3-不定方程解的数量>3 不定方程解的数量</a><ul><li><a href=#1-直接容斥>1) 直接容斥</a></li><li><a href=#2-对称上界所有>2) 对称上界：所有 $u'_j = k$</a></li><li><a href=#3-一般上下界推荐生成函数--截断卷积>3) 一般上下界：推荐生成函数 / 截断卷积</a></li></ul></li><li><a href=#4-分拆计数平面分拆>4 分拆计数（平面分拆）</a><ul><li><a href=#41-普通分拆>4.1 普通分拆</a></li><li><a href=#42-平面分拆>4.2 平面分拆</a></li><li><a href=#43-盒子里的平面分拆>4.3 盒子里的平面分拆</a></li><li><a href=#44-macmahon-盒子公式>4.4 MacMahon 盒子公式</a></li><li><a href=#45-对应原题>4.5 对应原题</a></li></ul></li><li><a href=#5--路径数量怎么求>5 $u\to v$ 路径数量怎么求</a><ul><li><a href=#51-图是-dag-时>5.1 图是 DAG 时</a></li><li><a href=#52-一般有向图先-scc-压缩>5.2 一般有向图：先 SCC 压缩</a></li></ul></li><li><a href=#6-多项式平移--连续点值平移>6 多项式平移 / 连续点值平移</a><ul><li><a href=#61-模素数意义下二项式前缀和>6.1 模素数意义下二项式前缀和</a></li></ul></li><li><a href=#7-xor-的均匀性结论>7 XOR 的均匀性结论</a></li><li><a href=#8-一些竞赛中的常见结论>8 一些竞赛中的常见结论</a><ul><li><a href=#81-中位数聚段把相同值的--个出现挪成一段的最小相邻交换数>8.1 中位数聚段：把相同值的 $k$ 个出现挪成一段的最小相邻交换数</a></li><li><a href=#82-多种颜色都要各自聚成连续块子集-dp--sos-dp>8.2 多种颜色都要各自聚成连续块：子集 DP / SOS DP</a></li></ul></li></ul></nav></div></details><div class="article-content prose"><p>快速幂逆元模板：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>ll <span style=color:#50fa7b>qp</span>(ll a, ll e <span style=color:#ff79c6>=</span> M <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span>) {
-</span></span><span style=display:flex><span>    ll r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (e) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (e <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>*</span> a <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        a <span style=color:#ff79c6>=</span> a <span style=color:#ff79c6>*</span> a <span style=color:#ff79c6>%</span> M;
-</span></span><span style=display:flex><span>        e <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h1 id=1-常用>1 常用</h1><ol><li>长度为 $n$ 的序列，非空子区间个数为：</li></ol>$$
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combinatorics #0.1: 计数中常用的结论 | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="常见计数结论、Lucas 定理、不定方程解计数、平面分拆、DAG 路径计数、多项式平移、XOR 均匀性与若干竞赛常用结论。">
+    <link rel="canonical" href="http://localhost:1313/posts/combinatorics-1-counting-conclusions/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Combinatorics #0.1: 计数中常用的结论</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-20">Apr 20, 2026</time>
+          
+            <span>·</span>
+            <span>Combinatorics</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/combinatorics/">#combinatorics</a>
+            
+              <a class="chip" href="/tags/counting/">#counting</a>
+            
+              <a class="chip" href="/tags/lucas/">#lucas</a>
+            
+              <a class="chip" href="/tags/partition/">#partition</a>
+            
+              <a class="chip" href="/tags/xor/">#xor</a>
+            
+              <a class="chip" href="/tags/graph/">#graph</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-常用">1 常用</a></li>
+    <li><a href="#2-lucas-定理">2 Lucas 定理</a>
+      <ul>
+        <li><a href="#mod-2-的推论">mod 2 的推论</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-不定方程解的数量">3 不定方程解的数量</a>
+      <ul>
+        <li><a href="#1-直接容斥">1) 直接容斥</a></li>
+        <li><a href="#2-对称上界所有">2) 对称上界：所有 $u'_j = k$</a></li>
+        <li><a href="#3-一般上下界推荐生成函数--截断卷积">3) 一般上下界：推荐生成函数 / 截断卷积</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-分拆计数平面分拆">4 分拆计数（平面分拆）</a>
+      <ul>
+        <li><a href="#41-普通分拆">4.1 普通分拆</a></li>
+        <li><a href="#42-平面分拆">4.2 平面分拆</a></li>
+        <li><a href="#43-盒子里的平面分拆">4.3 盒子里的平面分拆</a></li>
+        <li><a href="#44-macmahon-盒子公式">4.4 MacMahon 盒子公式</a></li>
+        <li><a href="#45-对应原题">4.5 对应原题</a></li>
+      </ul>
+    </li>
+    <li><a href="#5--路径数量怎么求">5 $u\to v$ 路径数量怎么求</a>
+      <ul>
+        <li><a href="#51-图是-dag-时">5.1 图是 DAG 时</a></li>
+        <li><a href="#52-一般有向图先-scc-压缩">5.2 一般有向图：先 SCC 压缩</a></li>
+      </ul>
+    </li>
+    <li><a href="#6-多项式平移--连续点值平移">6 多项式平移 / 连续点值平移</a>
+      <ul>
+        <li><a href="#61-模素数意义下二项式前缀和">6.1 模素数意义下二项式前缀和</a></li>
+      </ul>
+    </li>
+    <li><a href="#7-xor-的均匀性结论">7 XOR 的均匀性结论</a></li>
+    <li><a href="#8-一些竞赛中的常见结论">8 一些竞赛中的常见结论</a>
+      <ul>
+        <li><a href="#81-中位数聚段把相同值的--个出现挪成一段的最小相邻交换数">8.1 中位数聚段：把相同值的 $k$ 个出现挪成一段的最小相邻交换数</a></li>
+        <li><a href="#82-多种颜色都要各自聚成连续块子集-dp--sos-dp">8.2 多种颜色都要各自聚成连续块：子集 DP / SOS DP</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </details>
+      
+      <div class="article-content prose">
+        <p>快速幂逆元模板：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>ll <span style="color:#50fa7b">qp</span>(ll a, ll e <span style="color:#ff79c6">=</span> M <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span>) {
+</span></span><span style="display:flex;"><span>    ll r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (e) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (e <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">*</span> a <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        a <span style="color:#ff79c6">=</span> a <span style="color:#ff79c6">*</span> a <span style="color:#ff79c6">%</span> M;
+</span></span><span style="display:flex;"><span>        e <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h1 id="1-常用">1 常用</h1>
+<ol>
+<li>长度为 $n$ 的序列，非空子区间个数为：</li>
+</ol>
+$$
 \frac{n(n+1)}{2}
-$$<p>例如 $n = 3$ 时：</p>$$
+$$<p>例如 $n = 3$ 时：</p>
+$$
 \begin{align}
 [1,1], [1,2], [1,3] \\
 [2,2], [2,3] \\
 [3,3]
 \end{align}
-$$<ol start=2><li>若某个连通块大小为 $s$，其内部简单路径总数（包含单点路径）为：</li></ol>$$
+$$<ol start="2">
+<li>若某个连通块大小为 $s$，其内部简单路径总数（包含单点路径）为：</li>
+</ol>
+$$
 \binom{s}{2} + s = \frac{s(s-1)}{2} + s = \frac{s(s+1)}{2}
-$$<ol start=3><li>把长度为 $n$ 的序列切成若干连续段的方案数为：</li></ol>$$
+$$<ol start="3">
+<li>把长度为 $n$ 的序列切成若干连续段的方案数为：</li>
+</ol>
+$$
 2^{n-1}
-$$<p>因为相邻位置之间一共 $n-1$ 个缝，每个缝都可以选择“切”或“不切”。</p><ol start=4><li>$s$ 个点组成简单无向图（允许不连通）的方案数为：</li></ol>$$
+$$<p>因为相邻位置之间一共 $n-1$ 个缝，每个缝都可以选择“切”或“不切”。</p>
+<ol start="4">
+<li>$s$ 个点组成简单无向图（允许不连通）的方案数为：</li>
+</ol>
+$$
 2^{\binom{s}{2}}
-$$<p>因为任意两个点之间都可以独立选择“连边”或“不连边”。</p><h1 id=2-lucas-定理>2 Lucas 定理</h1><p>对素数 $p$，有：</p>$$
+$$<p>因为任意两个点之间都可以独立选择“连边”或“不连边”。</p>
+<h1 id="2-lucas-定理">2 Lucas 定理</h1>
+<p>对素数 $p$，有：</p>
+$$
 \binom{n}{m} \bmod p =
 \binom{\left\lfloor \frac{n}{p} \right\rfloor}{\left\lfloor \frac{m}{p} \right\rfloor}
 \binom{n \bmod p}{m \bmod p}
 \pmod p
-$$<p>更准确的递推式通常写成：</p>$$
+$$<p>更准确的递推式通常写成：</p>
+$$
 \binom{n}{m}\bmod p =
 \binom{\left\lfloor \frac{n}{p} \right\rfloor}{\left\lfloor \frac{m}{p} \right\rfloor}
 \cdot \binom{n \bmod p}{m \bmod p}
 \pmod p
-$$<h2 id=mod-2-的推论>mod 2 的推论</h2>$$
+$$<h2 id="mod-2-的推论">mod 2 的推论</h2>
+$$
 \binom{n}{i}\bmod 2 = 1
 \iff i \subseteq n
-$$<p>也就是：</p><ul><li>$\binom{n}{i}$ 为奇数，当且仅当 $i$ 的二进制 1 位都是 $n$ 的子集位。</li><li>这是很多按位计数题的核心工具。</li></ul><h1 id=3-不定方程解的数量>3 不定方程解的数量</h1><p>相关关键词：</p><ul><li>无上界：经典插板法</li><li>上下界：容斥、DP、生成函数</li><li>对称上界：可进一步合并同类项</li></ul><p>设要求解</p>$$
+$$<p>也就是：</p>
+<ul>
+<li>$\binom{n}{i}$ 为奇数，当且仅当 $i$ 的二进制 1 位都是 $n$ 的子集位。</li>
+<li>这是很多按位计数题的核心工具。</li>
+</ul>
+<h1 id="3-不定方程解的数量">3 不定方程解的数量</h1>
+<p>相关关键词：</p>
+<ul>
+<li>无上界：经典插板法</li>
+<li>上下界：容斥、DP、生成函数</li>
+<li>对称上界：可进一步合并同类项</li>
+</ul>
+<p>设要求解</p>
+$$
 \sum_{j=1}^{n} x_j = S
-$$<p>且每个变量满足下界 $l_j$、上界 $u_j$。</p><p>先做统一变换：</p>$$
+$$<p>且每个变量满足下界 $l_j$、上界 $u_j$。</p>
+<p>先做统一变换：</p>
+$$
 y_j = x_j - l_j \ge 0
-$$<p>则</p>$$
+$$<p>则</p>
+$$
 \sum_{j=1}^{n} y_j = S', \qquad
 S' = S - \sum_{j=1}^{n} l_j
-$$<p>同时新上界变为</p>$$
+$$<p>同时新上界变为</p>
+$$
 0 \le y_j \le u'_j,\qquad u'_j = u_j - l_j
-$$<h2 id=1-直接容斥>1) 直接容斥</h2>$$
+$$<h2 id="1-直接容斥">1) 直接容斥</h2>
+$$
 \# =
 \sum_{I \subseteq \{1,\dots,n\}}
 (-1)^{|I|}
 \binom{S' - \sum_{j \in I}(u'_j + 1) + n - 1}{n - 1}
-$$<p>当括号中为负数时该项视为 $0$。</p><p>复杂度：</p>$$
+$$<p>当括号中为负数时该项视为 $0$。</p>
+<p>复杂度：</p>
+$$
 O(2^n)
-$$<p>最直观，但当 $n$ 稍大时就不可用。</p><h2 id=2-对称上界所有>2) 对称上界：所有 $u'_j = k$</h2><p>此时每个大小为 $i$ 的子集贡献相同，可合并成：</p>$$
+$$<p>最直观，但当 $n$ 稍大时就不可用。</p>
+<h2 id="2-对称上界所有">2) 对称上界：所有 $u'_j = k$</h2>
+<p>此时每个大小为 $i$ 的子集贡献相同，可合并成：</p>
+$$
 \sum_{i=0}^{\lfloor S'/(k+1)\rfloor}
 (-1)^i
 \binom{n}{i}
 \binom{S' - i(k+1) + n - 1}{n - 1}
-$$<p>复杂度约为：</p>$$
+$$<p>复杂度约为：</p>
+$$
 O\!\left(\frac{S'}{k+1}\right)
-$$<p>再加上组合数预处理开销。</p><h2 id=3-一般上下界推荐生成函数--截断卷积>3) 一般上下界：推荐生成函数 / 截断卷积</h2><p>答案就是多项式系数：</p>$$
+$$<p>再加上组合数预处理开销。</p>
+<h2 id="3-一般上下界推荐生成函数--截断卷积">3) 一般上下界：推荐生成函数 / 截断卷积</h2>
+<p>答案就是多项式系数：</p>
+$$
 [x^{S'}]\prod_{j=1}^{n}(1+x+\cdots+x^{u'_j})
-$$<h3 id=a-逐变量前缀和-dp>A. 逐变量前缀和 DP</h3><p>初始：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>dp[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span></code></pre></div><p>转移时，对每个变量构造前缀和：</p>$$
+$$<h3 id="a-逐变量前缀和-dp">A. 逐变量前缀和 DP</h3>
+<p>初始：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>dp[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span></code></pre></div><p>转移时，对每个变量构造前缀和：</p>
+$$
 \text{pref}[s] = \sum_{t=0}^{s} dp[t]
-$$<p>则有：</p>$$
+$$<p>则有：</p>
+$$
 \text{new\_dp}[s] =
 \text{pref}[s] -
 \bigl(s-u'_j-1\ge 0 ? \text{pref}[s-u'_j-1] : 0\bigr)
-$$<p>复杂度：</p>$$
+$$<p>复杂度：</p>
+$$
 O(nS')
-$$<p>实现简单、常数小，是竞赛里最常用的版本。</p><h3 id=b-分子--分母拆分>B. 分子 / 分母拆分</h3><p>利用恒等式：</p>$$
+$$<p>实现简单、常数小，是竞赛里最常用的版本。</p>
+<h3 id="b-分子--分母拆分">B. 分子 / 分母拆分</h3>
+<p>利用恒等式：</p>
+$$
 1+x+\cdots+x^{u'_j} = \frac{1-x^{u'_j+1}}{1-x}
-$$<p>所以</p>$$
+$$<p>所以</p>
+$$
 \prod_j (1+x+\cdots+x^{u'_j}) =
 \frac{\prod_j(1-x^{w_j})}{(1-x)^n},
 \qquad w_j = u'_j+1
-$$<p>定义</p>$$
+$$<p>定义</p>
+$$
 \prod_j(1-x^{w_j}) = \sum_{t\ge 0} a_t x^t
-$$<p>则</p>$$
+$$<p>则</p>
+$$
 [x^{S'}]\prod_j(1+x+\cdots+x^{u'_j}) =
 \sum_{t=0}^{S'} a_t \binom{S'-t+n-1}{n-1}
-$$<p>先反向 0/1 背包求 $a_t$：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>a[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> each <span style=color:#8be9fd;font-style:italic>w_j</span>:
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> t <span style=color:#ff79c6>=</span> S&#39;..<span style=color:#8be9fd;font-style:italic>w_j</span>:
-</span></span><span style=display:flex><span>        a[t] <span style=color:#ff79c6>-=</span> a[t <span style=color:#ff79c6>-</span> w_j];
-</span></span></code></pre></div><p>再做组合数加权求和。</p><p>完整代码：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> int64 <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MOD <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1000000007</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>int64 <span style=color:#50fa7b>qp</span>(int64 a, int64 e) {
-</span></span><span style=display:flex><span>    int64 r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (e) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (e <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> (r <span style=color:#ff79c6>*</span> a) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>        a <span style=color:#ff79c6>=</span> (a <span style=color:#ff79c6>*</span> a) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>        e <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>int64 <span style=color:#50fa7b>invmod</span>(int64 x) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> qp((x <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>+</span> MOD) <span style=color:#ff79c6>%</span> MOD, MOD <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span>);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>int64 <span style=color:#50fa7b>comb_mod</span>(<span style=color:#8be9fd>int</span> N, <span style=color:#8be9fd>int</span> K, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span>int64<span style=color:#ff79c6>&gt;&amp;</span> fact, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span>int64<span style=color:#ff79c6>&gt;&amp;</span> invfact) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (K <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>||</span> K <span style=color:#ff79c6>&gt;</span> N) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> fact[N] <span style=color:#ff79c6>*</span> invfact[K] <span style=color:#ff79c6>%</span> MOD <span style=color:#ff79c6>*</span> invfact[N <span style=color:#ff79c6>-</span> K] <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>int64 <span style=color:#50fa7b>count_solutions_mod</span>(<span style=color:#8be9fd>int</span> S, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> l, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> u) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)l.size();
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span> (u[i] <span style=color:#ff79c6>&lt;</span> l[i]) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> suml <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>x</span> : l) suml <span style=color:#ff79c6>+=</span> x;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> S1 <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>)S <span style=color:#ff79c6>-</span> suml;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (S1 <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> w(n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) w[i] <span style=color:#ff79c6>=</span> u[i] <span style=color:#ff79c6>-</span> l[i] <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>int64<span style=color:#ff79c6>&gt;</span> a(S1 <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    a[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>j) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> wj <span style=color:#ff79c6>=</span> w[j];
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (wj <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>continue</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)S1; t <span style=color:#ff79c6>&gt;=</span> wj; <span style=color:#ff79c6>--</span>t) {
-</span></span><span style=display:flex><span>            a[t] <span style=color:#ff79c6>=</span> (a[t] <span style=color:#ff79c6>-</span> a[t <span style=color:#ff79c6>-</span> wj]) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#ff79c6>auto</span><span style=color:#ff79c6>&amp;</span> <span style=color:#8be9fd;font-style:italic>v</span> : a) <span style=color:#ff79c6>if</span> (v <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) v <span style=color:#ff79c6>+=</span> MOD;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> Nmax <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)(S1 <span style=color:#ff79c6>+</span> n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>int64<span style=color:#ff79c6>&gt;</span> fact(Nmax <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>), invfact(Nmax <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    fact[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> Nmax; <span style=color:#ff79c6>++</span>i) fact[i] <span style=color:#ff79c6>=</span> fact[i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>    invfact[Nmax] <span style=color:#ff79c6>=</span> invmod(fact[Nmax]);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> Nmax; i <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>--</span>i) invfact[i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> invfact[i] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    int64 total <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; t <span style=color:#ff79c6>&lt;=</span> S1; <span style=color:#ff79c6>++</span>t) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (a[t] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>continue</span>;
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)(S1 <span style=color:#ff79c6>-</span> t <span style=color:#ff79c6>+</span> n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> K <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        int64 c <span style=color:#ff79c6>=</span> comb_mod(N, K, fact, invfact);
-</span></span><span style=display:flex><span>        total <span style=color:#ff79c6>=</span> (total <span style=color:#ff79c6>+</span> a[t] <span style=color:#ff79c6>*</span> c) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (total <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) total <span style=color:#ff79c6>+=</span> MOD;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> total;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> S <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>10</span>;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> l <span style=color:#ff79c6>=</span> {<span style=color:#bd93f9>0</span>, <span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>};
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> u <span style=color:#ff79c6>=</span> {<span style=color:#bd93f9>5</span>, <span style=color:#bd93f9>4</span>, <span style=color:#bd93f9>6</span>};
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> count_solutions_mod(S, l, u) <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h1 id=4-分拆计数平面分拆>4 分拆计数（平面分拆）</h1><p>例题模型：<code>Monotonic Matrix</code></p><p>题意等价于求满足以下条件的矩阵个数：</p><ul><li>$A_{i,j}\in\{0,1,2\}$</li><li>行方向单调</li><li>列方向单调</li></ul><h2 id=41-普通分拆>4.1 普通分拆</h2><p>整数分拆（integer partition）是把一个正整数拆成若干个非增正整数之和，例如：</p>$$
+$$<p>先反向 0/1 背包求 $a_t$：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>a[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> each <span style="color:#8be9fd;font-style:italic">w_j</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> t <span style="color:#ff79c6">=</span> S&#39;..<span style="color:#8be9fd;font-style:italic">w_j</span>:
+</span></span><span style="display:flex;"><span>        a[t] <span style="color:#ff79c6">-=</span> a[t <span style="color:#ff79c6">-</span> w_j];
+</span></span></code></pre></div><p>再做组合数加权求和。</p>
+<p>完整代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> int64 <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MOD <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1000000007</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>int64 <span style="color:#50fa7b">qp</span>(int64 a, int64 e) {
+</span></span><span style="display:flex;"><span>    int64 r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (e) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (e <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> (r <span style="color:#ff79c6">*</span> a) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>        a <span style="color:#ff79c6">=</span> (a <span style="color:#ff79c6">*</span> a) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>        e <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>int64 <span style="color:#50fa7b">invmod</span>(int64 x) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> qp((x <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">+</span> MOD) <span style="color:#ff79c6">%</span> MOD, MOD <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>int64 <span style="color:#50fa7b">comb_mod</span>(<span style="color:#8be9fd">int</span> N, <span style="color:#8be9fd">int</span> K, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span>int64<span style="color:#ff79c6">&gt;&amp;</span> fact, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span>int64<span style="color:#ff79c6">&gt;&amp;</span> invfact) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (K <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">||</span> K <span style="color:#ff79c6">&gt;</span> N) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> fact[N] <span style="color:#ff79c6">*</span> invfact[K] <span style="color:#ff79c6">%</span> MOD <span style="color:#ff79c6">*</span> invfact[N <span style="color:#ff79c6">-</span> K] <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>int64 <span style="color:#50fa7b">count_solutions_mod</span>(<span style="color:#8be9fd">int</span> S, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> l, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> u) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)l.size();
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span> (u[i] <span style="color:#ff79c6">&lt;</span> l[i]) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> suml <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">x</span> : l) suml <span style="color:#ff79c6">+=</span> x;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> S1 <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>)S <span style="color:#ff79c6">-</span> suml;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (S1 <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> w(n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) w[i] <span style="color:#ff79c6">=</span> u[i] <span style="color:#ff79c6">-</span> l[i] <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>int64<span style="color:#ff79c6">&gt;</span> a(S1 <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    a[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>j) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> wj <span style="color:#ff79c6">=</span> w[j];
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (wj <span style="color:#ff79c6">&lt;=</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">continue</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> t <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)S1; t <span style="color:#ff79c6">&gt;=</span> wj; <span style="color:#ff79c6">--</span>t) {
+</span></span><span style="display:flex;"><span>            a[t] <span style="color:#ff79c6">=</span> (a[t] <span style="color:#ff79c6">-</span> a[t <span style="color:#ff79c6">-</span> wj]) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#ff79c6">auto</span><span style="color:#ff79c6">&amp;</span> <span style="color:#8be9fd;font-style:italic">v</span> : a) <span style="color:#ff79c6">if</span> (v <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) v <span style="color:#ff79c6">+=</span> MOD;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> Nmax <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)(S1 <span style="color:#ff79c6">+</span> n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>int64<span style="color:#ff79c6">&gt;</span> fact(Nmax <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>), invfact(Nmax <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    fact[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> Nmax; <span style="color:#ff79c6">++</span>i) fact[i] <span style="color:#ff79c6">=</span> fact[i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>    invfact[Nmax] <span style="color:#ff79c6">=</span> invmod(fact[Nmax]);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> Nmax; i <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">--</span>i) invfact[i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> invfact[i] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    int64 total <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; t <span style="color:#ff79c6">&lt;=</span> S1; <span style="color:#ff79c6">++</span>t) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (a[t] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">continue</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)(S1 <span style="color:#ff79c6">-</span> t <span style="color:#ff79c6">+</span> n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> K <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        int64 c <span style="color:#ff79c6">=</span> comb_mod(N, K, fact, invfact);
+</span></span><span style="display:flex;"><span>        total <span style="color:#ff79c6">=</span> (total <span style="color:#ff79c6">+</span> a[t] <span style="color:#ff79c6">*</span> c) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (total <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) total <span style="color:#ff79c6">+=</span> MOD;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> total;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> S <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">10</span>;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> l <span style="color:#ff79c6">=</span> {<span style="color:#bd93f9">0</span>, <span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>};
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> u <span style="color:#ff79c6">=</span> {<span style="color:#bd93f9">5</span>, <span style="color:#bd93f9">4</span>, <span style="color:#bd93f9">6</span>};
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> count_solutions_mod(S, l, u) <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h1 id="4-分拆计数平面分拆">4 分拆计数（平面分拆）</h1>
+<p>例题模型：<code>Monotonic Matrix</code></p>
+<p>题意等价于求满足以下条件的矩阵个数：</p>
+<ul>
+<li>$A_{i,j}\in\{0,1,2\}$</li>
+<li>行方向单调</li>
+<li>列方向单调</li>
+</ul>
+<h2 id="41-普通分拆">4.1 普通分拆</h2>
+<p>整数分拆（integer partition）是把一个正整数拆成若干个非增正整数之和，例如：</p>
+$$
 5 = 3+2 = 2+2+1 = 5
-$$<p>通常可用 Ferrers 图表示。</p><h2 id=42-平面分拆>4.2 平面分拆</h2><p>平面分拆是分拆的二维推广：一个矩阵 $(a_{i,j})$ 满足</p>$$
+$$<p>通常可用 Ferrers 图表示。</p>
+<h2 id="42-平面分拆">4.2 平面分拆</h2>
+<p>平面分拆是分拆的二维推广：一个矩阵 $(a_{i,j})$ 满足</p>
+$$
 a_{i,j} \ge a_{i,j+1},\qquad
 a_{i,j} \ge a_{i+1,j},\qquad
 a_{i,j}\ge 0
-$$<p>也就是行列都非增。可以把 $a_{i,j}$ 看成该位置堆叠的小立方体高度，于是平面分拆对应一个三维堆积模型。</p><h2 id=43-盒子里的平面分拆>4.3 盒子里的平面分拆</h2><p>若限制：</p><ul><li>行数 $\le n$</li><li>列数 $\le m$</li><li>高度 $\le k$</li></ul><p>那么就得到“装在 $n\times m\times k$ 盒子里的平面分拆”。</p><h2 id=44-macmahon-盒子公式>4.4 MacMahon 盒子公式</h2><p>装在 $a\times b\times c$ 盒子里的平面分拆个数为：</p>$$
+$$<p>也就是行列都非增。可以把 $a_{i,j}$ 看成该位置堆叠的小立方体高度，于是平面分拆对应一个三维堆积模型。</p>
+<h2 id="43-盒子里的平面分拆">4.3 盒子里的平面分拆</h2>
+<p>若限制：</p>
+<ul>
+<li>行数 $\le n$</li>
+<li>列数 $\le m$</li>
+<li>高度 $\le k$</li>
+</ul>
+<p>那么就得到“装在 $n\times m\times k$ 盒子里的平面分拆”。</p>
+<h2 id="44-macmahon-盒子公式">4.4 MacMahon 盒子公式</h2>
+<p>装在 $a\times b\times c$ 盒子里的平面分拆个数为：</p>
+$$
 \prod_{i=1}^{a}\prod_{j=1}^{b}\prod_{k=1}^{c}
 \frac{i+j+k-1}{i+j+k-2}
-$$<h2 id=45-对应原题>4.5 对应原题</h2><p>题目要求 $A_{i,j}\in\{0,1,2\}$ 且行列单调不减。</p><p>如果把数值看作高度，那么这正好对应装在一个 $n\times m\times 2$ 盒子里的平面分拆。</p><p>因此答案就是：</p>$$ \prod_{i=1}^{n}\prod_{j=1}^{m}\prod_{k=1}^{2}\frac{i+j+k-1}{i+j+k-2} = \prod_{i=1}^{n}\prod_{j=1}^{m}\frac{i+j+1}{i+j-1} $$<p>进一步可化简为封闭式：</p><p>$f(n,m) = \frac{\binom{n+m}{n}\binom{n+m+1}{n}}{n+1} = \frac{\binom{n+m}{m}\binom{n+m+1}{m}}{m+1}$。</p><h1 id=5--路径数量怎么求>5 $u\to v$ 路径数量怎么求</h1><p>这里区分两个概念：</p><ul><li><code>walk</code>：允许重复顶点</li><li><code>simple path</code>：不允许重复顶点</li></ul><p>一些关键结论：</p><ul><li>若图中存在从 $u$ 到 $v$ 的可达环，那么 <code>walk</code> 的数量可能是无限。</li><li>一般有向图上计数 simple paths 是 <code>#P-complete</code>，通常没有多项式做法。</li><li>但在 DAG 上，simple paths 数量可以用拓扑 DP 在线性时间内求出。</li></ul><h2 id=51-图是-dag-时>5.1 图是 DAG 时</h2><p>复杂度：</p>$$
+$$<h2 id="45-对应原题">4.5 对应原题</h2>
+<p>题目要求 $A_{i,j}\in\{0,1,2\}$ 且行列单调不减。</p>
+<p>如果把数值看作高度，那么这正好对应装在一个 $n\times m\times 2$ 盒子里的平面分拆。</p>
+<p>因此答案就是：</p>
+$$ \prod_{i=1}^{n}\prod_{j=1}^{m}\prod_{k=1}^{2}\frac{i+j+k-1}{i+j+k-2} = \prod_{i=1}^{n}\prod_{j=1}^{m}\frac{i+j+1}{i+j-1} $$<p>进一步可化简为封闭式：</p>
+<p>$f(n,m) = \frac{\binom{n+m}{n}\binom{n+m+1}{n}}{n+1} = \frac{\binom{n+m}{m}\binom{n+m+1}{m}}{m+1}$。</p>
+<h1 id="5--路径数量怎么求">5 $u\to v$ 路径数量怎么求</h1>
+<p>这里区分两个概念：</p>
+<ul>
+<li><code>walk</code>：允许重复顶点</li>
+<li><code>simple path</code>：不允许重复顶点</li>
+</ul>
+<p>一些关键结论：</p>
+<ul>
+<li>若图中存在从 $u$ 到 $v$ 的可达环，那么 <code>walk</code> 的数量可能是无限。</li>
+<li>一般有向图上计数 simple paths 是 <code>#P-complete</code>，通常没有多项式做法。</li>
+<li>但在 DAG 上，simple paths 数量可以用拓扑 DP 在线性时间内求出。</li>
+</ul>
+<h2 id="51-图是-dag-时">5.1 图是 DAG 时</h2>
+<p>复杂度：</p>
+$$
 O(n+m)
-$$<p>代码：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>count_paths_in_dag</span>(<span style=color:#8be9fd>int</span> n, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;&amp;</span> g, <span style=color:#8be9fd>int</span> s, <span style=color:#8be9fd>int</span> t, ll MOD) {
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> indeg(n, <span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> u <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; u <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>u)
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>v</span> : g[u]) indeg[v]<span style=color:#ff79c6>++</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    queue<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> q;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i)
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (indeg[i] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) q.push(i);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> topo;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (<span style=color:#ff79c6>!</span>q.empty()) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> u <span style=color:#ff79c6>=</span> q.front();
-</span></span><span style=display:flex><span>        q.pop();
-</span></span><span style=display:flex><span>        topo.push_back(u);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>v</span> : g[u])
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>--</span>indeg[v] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) q.push(v);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> dp(n, <span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>    dp[s] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>u</span> : topo) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (dp[u] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>continue</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>v</span> : g[u]) {
-</span></span><span style=display:flex><span>            dp[v] <span style=color:#ff79c6>+=</span> dp[u];
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (dp[v] <span style=color:#ff79c6>&gt;=</span> MOD) dp[v] <span style=color:#ff79c6>-=</span> MOD;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> dp[t];
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=52-一般有向图先-scc-压缩>5.2 一般有向图：先 SCC 压缩</h2><p>做法：</p><ol><li>用 Tarjan / Kosaraju 找 SCC。</li><li>构造压缩后的 condensation DAG。</li><li>判断从 <code>comp(u)</code> 到 <code>comp(v)</code> 的路径上是否经过“有环 SCC”。</li><li>若路径上无环成分，则在压缩 DAG 上做 DP。</li></ol><p>如果路径上存在有环 SCC：</p><ul><li>若计数 <code>walk</code>，通常意味着答案无限。</li><li>若计数 <code>simple path</code>，问题通常已经回到困难问题。</li></ul><h1 id=6-多项式平移--连续点值平移>6 多项式平移 / 连续点值平移</h1><h2 id=61-模素数意义下二项式前缀和>6.1 模素数意义下二项式前缀和</h2><p>问题：</p>$$
+$$<p>代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">count_paths_in_dag</span>(<span style="color:#8be9fd">int</span> n, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;&amp;</span> g, <span style="color:#8be9fd">int</span> s, <span style="color:#8be9fd">int</span> t, ll MOD) {
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> indeg(n, <span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> u <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; u <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>u)
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">v</span> : g[u]) indeg[v]<span style="color:#ff79c6">++</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    queue<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> q;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i)
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (indeg[i] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) q.push(i);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> topo;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (<span style="color:#ff79c6">!</span>q.empty()) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> u <span style="color:#ff79c6">=</span> q.front();
+</span></span><span style="display:flex;"><span>        q.pop();
+</span></span><span style="display:flex;"><span>        topo.push_back(u);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">v</span> : g[u])
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">--</span>indeg[v] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) q.push(v);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> dp(n, <span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>    dp[s] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">u</span> : topo) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (dp[u] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">continue</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">v</span> : g[u]) {
+</span></span><span style="display:flex;"><span>            dp[v] <span style="color:#ff79c6">+=</span> dp[u];
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (dp[v] <span style="color:#ff79c6">&gt;=</span> MOD) dp[v] <span style="color:#ff79c6">-=</span> MOD;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> dp[t];
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="52-一般有向图先-scc-压缩">5.2 一般有向图：先 SCC 压缩</h2>
+<p>做法：</p>
+<ol>
+<li>用 Tarjan / Kosaraju 找 SCC。</li>
+<li>构造压缩后的 condensation DAG。</li>
+<li>判断从 <code>comp(u)</code> 到 <code>comp(v)</code> 的路径上是否经过“有环 SCC”。</li>
+<li>若路径上无环成分，则在压缩 DAG 上做 DP。</li>
+</ol>
+<p>如果路径上存在有环 SCC：</p>
+<ul>
+<li>若计数 <code>walk</code>，通常意味着答案无限。</li>
+<li>若计数 <code>simple path</code>，问题通常已经回到困难问题。</li>
+</ul>
+<h1 id="6-多项式平移--连续点值平移">6 多项式平移 / 连续点值平移</h1>
+<h2 id="61-模素数意义下二项式前缀和">6.1 模素数意义下二项式前缀和</h2>
+<p>问题：</p>
+$$
 \sum_{i=0}^{m}\binom{n}{i}\bmod 998244353,
 \qquad
 0\le m\le n\le 9\times 10^8
-$$<p>这类题可用多项式平移 / 连续点值平移做到：</p>$$
+$$<p>这类题可用多项式平移 / 连续点值平移做到：</p>
+$$
 O(\sqrt m \log m)
-$$<p>参考：<a href=https://oi-wiki.org/math/poly/shift/>https://oi-wiki.org/math/poly/shift/</a></p><p>代码如下：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> P <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>998244353</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>namespace</span> ModInt {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>inline</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>add</span>(<span style=color:#8be9fd>int</span> x, <span style=color:#8be9fd>int</span> y) { <span style=color:#ff79c6>return</span> x <span style=color:#ff79c6>+</span> y <span style=color:#ff79c6>&gt;=</span> P <span style=color:#ff79c6>?</span> x <span style=color:#ff79c6>+</span> y <span style=color:#ff79c6>-</span> <span style=color:#8be9fd;font-style:italic>P</span> : x <span style=color:#ff79c6>+</span> y; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>inline</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>sub</span>(<span style=color:#8be9fd>int</span> x, <span style=color:#8be9fd>int</span> y) { <span style=color:#ff79c6>return</span> x <span style=color:#ff79c6>&lt;</span> y <span style=color:#ff79c6>?</span> x <span style=color:#ff79c6>-</span> y <span style=color:#ff79c6>+</span> <span style=color:#8be9fd;font-style:italic>P</span> : x <span style=color:#ff79c6>-</span> y; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>inline</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>mul</span>(<span style=color:#8be9fd>int</span> x, <span style=color:#8be9fd>int</span> y) { <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>1ll</span> <span style=color:#ff79c6>*</span> x <span style=color:#ff79c6>*</span> y <span style=color:#ff79c6>%</span> P; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>inline</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>Pow</span>(<span style=color:#8be9fd>int</span> x, <span style=color:#8be9fd>int</span> y) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (; y; y <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>, x <span style=color:#ff79c6>=</span> mul(x, x)) <span style=color:#ff79c6>if</span> (y <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> mul(r, x);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>inline</span> <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>inv</span>(<span style=color:#8be9fd>int</span> x) { <span style=color:#ff79c6>return</span> Pow(x, P <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>2</span>); }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> ModInt;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>namespace</span> POLY {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>using</span> Poly <span style=color:#ff79c6>=</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    Poly G[<span style=color:#bd93f9>19</span>];
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>Prework</span>() {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; k <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>19</span>; <span style=color:#ff79c6>++</span>k) {
-</span></span><span style=display:flex><span>            G[k] <span style=color:#ff79c6>=</span> Poly(<span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> k, <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> x <span style=color:#ff79c6>=</span> Pow(<span style=color:#bd93f9>3</span>, P <span style=color:#ff79c6>&gt;&gt;</span> k <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;</span> (<span style=color:#8be9fd>int</span>)G[k].size(); <span style=color:#ff79c6>++</span>i) G[k][i] <span style=color:#ff79c6>=</span> mul(G[k][i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>], x);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> r[<span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>22</span>], l;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>Getlen</span>(<span style=color:#8be9fd>int</span> n) {
-</span></span><span style=display:flex><span>        l <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> (l <span style=color:#ff79c6>&lt;</span> n) l <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;</span> l; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>            r[i] <span style=color:#ff79c6>=</span> r[i <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r[i] <span style=color:#ff79c6>|=</span> (l <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>Dft</span>(Poly<span style=color:#ff79c6>&amp;</span> F, <span style=color:#8be9fd>int</span> tp) {
-</span></span><span style=display:flex><span>        F.resize(l);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> l; <span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>&lt;</span> r[i]) swap(F[i], F[r[i]]);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, o <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> l; i <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>, <span style=color:#ff79c6>++</span>o) {
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> l; j <span style=color:#ff79c6>+=</span> (i <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>1</span>)) {
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; k <span style=color:#ff79c6>&lt;</span> i; <span style=color:#ff79c6>++</span>k) {
-</span></span><span style=display:flex><span>                    <span style=color:#8be9fd>int</span> x <span style=color:#ff79c6>=</span> F[j <span style=color:#ff79c6>+</span> k], y <span style=color:#ff79c6>=</span> mul(G[o][k], F[i <span style=color:#ff79c6>+</span> j <span style=color:#ff79c6>+</span> k]);
-</span></span><span style=display:flex><span>                    F[j <span style=color:#ff79c6>+</span> k] <span style=color:#ff79c6>=</span> add(x, y);
-</span></span><span style=display:flex><span>                    F[i <span style=color:#ff79c6>+</span> j <span style=color:#ff79c6>+</span> k] <span style=color:#ff79c6>=</span> sub(x, y);
-</span></span><span style=display:flex><span>                }
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (tp <span style=color:#ff79c6>==</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>            reverse(F.begin() <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, F.end());
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> x <span style=color:#ff79c6>=</span> inv(l);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> l; <span style=color:#ff79c6>++</span>i) F[i] <span style=color:#ff79c6>=</span> mul(F[i], x);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    Poly <span style=color:#ff79c6>operator</span><span style=color:#ff79c6>*</span>(Poly x, Poly y) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> tx <span style=color:#ff79c6>=</span> x.size(), ty <span style=color:#ff79c6>=</span> y.size();
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (tx <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>50</span> <span style=color:#ff79c6>&amp;&amp;</span> ty <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>50</span>) {
-</span></span><span style=display:flex><span>            Poly <span style=color:#50fa7b>ret</span>(tx <span style=color:#ff79c6>+</span> ty <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> tx; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> ty; <span style=color:#ff79c6>++</span>j) {
-</span></span><span style=display:flex><span>                    ret[i <span style=color:#ff79c6>+</span> j] <span style=color:#ff79c6>=</span> (ret[i <span style=color:#ff79c6>+</span> j] <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1ll</span> <span style=color:#ff79c6>*</span> x[i] <span style=color:#ff79c6>*</span> y[j]) <span style=color:#ff79c6>%</span> P;
-</span></span><span style=display:flex><span>                }
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> ret;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        Getlen(tx <span style=color:#ff79c6>+</span> ty);
-</span></span><span style=display:flex><span>        Dft(x, <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        Dft(y, <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> l; <span style=color:#ff79c6>++</span>i) x[i] <span style=color:#ff79c6>=</span> mul(x[i], y[i]);
-</span></span><span style=display:flex><span>        Dft(x, <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        x.resize(tx <span style=color:#ff79c6>+</span> ty <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> x;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> POLY;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1e5</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>10</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> fac[N], ifac[N];
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>init</span>(<span style=color:#8be9fd>int</span> n) {
-</span></span><span style=display:flex><span>    fac[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>i) fac[i] <span style=color:#ff79c6>=</span> mul(fac[i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>], i);
-</span></span><span style=display:flex><span>    ifac[n] <span style=color:#ff79c6>=</span> inv(fac[n]);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> n; i; <span style=color:#ff79c6>--</span>i) ifac[i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> mul(ifac[i], i);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>Poly <span style=color:#50fa7b>Inv</span>(<span style=color:#ff79c6>const</span> Poly<span style=color:#ff79c6>&amp;</span> F) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> F.size();
-</span></span><span style=display:flex><span>    Poly mut(n <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>1</span>), G(n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) mut[i <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> mul(mut[i], F[i]);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> x <span style=color:#ff79c6>=</span> inv(mut[n]);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>, t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>~</span>i; t <span style=color:#ff79c6>=</span> mul(t, F[i]), <span style=color:#ff79c6>--</span>i) {
-</span></span><span style=display:flex><span>        G[i] <span style=color:#ff79c6>=</span> mul(mul(mut[i], t), x);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> G;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>Poly <span style=color:#50fa7b>Inter</span>(Poly F, <span style=color:#8be9fd>int</span> c) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> F.size() <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        F[i] <span style=color:#ff79c6>=</span> mul(F[i], mul(ifac[i], ifac[n <span style=color:#ff79c6>-</span> i]));
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> ((n <span style=color:#ff79c6>-</span> i) <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) F[i] <span style=color:#ff79c6>=</span> P <span style=color:#ff79c6>-</span> F[i];
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    Poly G(<span style=color:#bd93f9>2</span> <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>*</span> n; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        G[i] <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>-</span> n <span style=color:#ff79c6>+</span> c;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (G[i] <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) G[i] <span style=color:#ff79c6>+=</span> P;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    G <span style=color:#ff79c6>=</span> Inv(G);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    F <span style=color:#ff79c6>=</span> F <span style=color:#ff79c6>*</span> G;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>i) t <span style=color:#ff79c6>=</span> mul(t, sub(c, i));
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        F[i] <span style=color:#ff79c6>=</span> mul(F[i <span style=color:#ff79c6>+</span> n], t);
-</span></span><span style=display:flex><span>        t <span style=color:#ff79c6>=</span> mul(t, mul(c <span style=color:#ff79c6>+</span> i <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, G[i]));
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    F.resize(n <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> F;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> n, m;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>solve</span>() {
-</span></span><span style=display:flex><span>    cin <span style=color:#ff79c6>&gt;&gt;</span> n <span style=color:#ff79c6>&gt;&gt;</span> m;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>        cout <span style=color:#ff79c6>&lt;&lt;</span> m <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> endl;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> B <span style=color:#ff79c6>=</span> sqrt(m);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (B <span style=color:#ff79c6>*</span> (B <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>&gt;</span> m) B<span style=color:#ff79c6>--</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, r <span style=color:#ff79c6>=</span> m <span style=color:#ff79c6>-</span> B <span style=color:#ff79c6>*</span> (B <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>), t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;=</span> r; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (i) t <span style=color:#ff79c6>=</span> mul(t, n <span style=color:#ff79c6>-</span> i <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>=</span> add(ans, mul(ifac[i], t));
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    t <span style=color:#ff79c6>=</span> mul(t, ifac[r]);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> merge <span style=color:#ff79c6>=</span> [<span style=color:#ff79c6>&amp;</span>](Poly<span style=color:#ff79c6>&amp;</span> F, Poly G) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#ff79c6>auto</span> <span style=color:#8be9fd;font-style:italic>x</span> : G) F.push_back(x);
-</span></span><span style=display:flex><span>    };
-</span></span><span style=display:flex><span>    Poly F{r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>, r <span style=color:#ff79c6>+</span> B <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>}, G{n <span style=color:#ff79c6>-</span> r, n <span style=color:#ff79c6>-</span> r <span style=color:#ff79c6>-</span> B}, H{n <span style=color:#ff79c6>-</span> r, n <span style=color:#ff79c6>-</span> r <span style=color:#ff79c6>-</span> B};
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> inv_B <span style=color:#ff79c6>=</span> inv(B);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> __lg(B) <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>~</span>k; <span style=color:#ff79c6>--</span>k) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> d(B <span style=color:#ff79c6>&gt;&gt;</span> k);
-</span></span><span style=display:flex><span>        merge(F, Inter(F, (d <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>        merge(G, Inter(G, (d <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>        merge(H, Inter(H, (d <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>        Poly F0 <span style=color:#ff79c6>=</span> Inter(F, mul(d <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>, inv_B));
-</span></span><span style=display:flex><span>        Poly G0 <span style=color:#ff79c6>=</span> Inter(G, mul(d <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>, inv_B));
-</span></span><span style=display:flex><span>        Poly H0 <span style=color:#ff79c6>=</span> Inter(H, mul(d <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>, inv_B));
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> (<span style=color:#8be9fd>int</span>)F.size(); <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>            H[i] <span style=color:#ff79c6>=</span> add(mul(G[i], H0[i]), mul(H[i], F0[i]));
-</span></span><span style=display:flex><span>            F[i] <span style=color:#ff79c6>=</span> mul(F[i], F0[i]);
-</span></span><span style=display:flex><span>            G[i] <span style=color:#ff79c6>=</span> mul(G[i], G0[i]);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (d <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> (<span style=color:#8be9fd>int</span>)F.size(); <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>                H[i] <span style=color:#ff79c6>=</span> add(mul(G[i], n <span style=color:#ff79c6>-</span> r <span style=color:#ff79c6>-</span> i <span style=color:#ff79c6>*</span> B <span style=color:#ff79c6>-</span> d <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>), mul(H[i], r <span style=color:#ff79c6>+</span> i <span style=color:#ff79c6>*</span> B <span style=color:#ff79c6>+</span> d));
-</span></span><span style=display:flex><span>                G[i] <span style=color:#ff79c6>=</span> mul(G[i], n <span style=color:#ff79c6>-</span> r <span style=color:#ff79c6>-</span> i <span style=color:#ff79c6>*</span> B <span style=color:#ff79c6>-</span> d <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>                F[i] <span style=color:#ff79c6>=</span> mul(F[i], r <span style=color:#ff79c6>+</span> i <span style=color:#ff79c6>*</span> B <span style=color:#ff79c6>+</span> d);
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>        } <span style=color:#ff79c6>else</span> {
-</span></span><span style=display:flex><span>            F.pop_back();
-</span></span><span style=display:flex><span>            G.pop_back();
-</span></span><span style=display:flex><span>            H.pop_back();
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    F <span style=color:#ff79c6>=</span> Inv(F);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> (<span style=color:#8be9fd>int</span>)F.size(); t <span style=color:#ff79c6>=</span> mul(t, mul(F[i], G[i])), <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        ans <span style=color:#ff79c6>=</span> add(ans, mul(mul(F[i], H[i]), t));
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> ans <span style=color:#ff79c6>&lt;&lt;</span> endl;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    init(<span style=color:#bd93f9>100000</span>);
-</span></span><span style=display:flex><span>    Prework();
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> T;
-</span></span><span style=display:flex><span>    cin <span style=color:#ff79c6>&gt;&gt;</span> T;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (T<span style=color:#ff79c6>--</span>) solve();
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h1 id=7-xor-的均匀性结论>7 XOR 的均匀性结论</h1><p>把数看成向量空间 $\mathbb{F}_2^m$ 中的元素。若 $X_1,\dots,X_t$ 独立且均匀分布在 $\{0,\dots,2^m-1\}$ 上，令 $k = 2^m$，则</p>$$
+$$<p>参考：<a href="https://oi-wiki.org/math/poly/shift/">https://oi-wiki.org/math/poly/shift/</a></p>
+<p>代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> P <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">998244353</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">namespace</span> ModInt {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">inline</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">add</span>(<span style="color:#8be9fd">int</span> x, <span style="color:#8be9fd">int</span> y) { <span style="color:#ff79c6">return</span> x <span style="color:#ff79c6">+</span> y <span style="color:#ff79c6">&gt;=</span> P <span style="color:#ff79c6">?</span> x <span style="color:#ff79c6">+</span> y <span style="color:#ff79c6">-</span> <span style="color:#8be9fd;font-style:italic">P</span> : x <span style="color:#ff79c6">+</span> y; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">inline</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">sub</span>(<span style="color:#8be9fd">int</span> x, <span style="color:#8be9fd">int</span> y) { <span style="color:#ff79c6">return</span> x <span style="color:#ff79c6">&lt;</span> y <span style="color:#ff79c6">?</span> x <span style="color:#ff79c6">-</span> y <span style="color:#ff79c6">+</span> <span style="color:#8be9fd;font-style:italic">P</span> : x <span style="color:#ff79c6">-</span> y; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">inline</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">mul</span>(<span style="color:#8be9fd">int</span> x, <span style="color:#8be9fd">int</span> y) { <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">1ll</span> <span style="color:#ff79c6">*</span> x <span style="color:#ff79c6">*</span> y <span style="color:#ff79c6">%</span> P; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">inline</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">Pow</span>(<span style="color:#8be9fd">int</span> x, <span style="color:#8be9fd">int</span> y) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (; y; y <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>, x <span style="color:#ff79c6">=</span> mul(x, x)) <span style="color:#ff79c6">if</span> (y <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> mul(r, x);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">inline</span> <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">inv</span>(<span style="color:#8be9fd">int</span> x) { <span style="color:#ff79c6">return</span> Pow(x, P <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">2</span>); }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> ModInt;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">namespace</span> POLY {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">using</span> Poly <span style="color:#ff79c6">=</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    Poly G[<span style="color:#bd93f9">19</span>];
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">Prework</span>() {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; k <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">19</span>; <span style="color:#ff79c6">++</span>k) {
+</span></span><span style="display:flex;"><span>            G[k] <span style="color:#ff79c6">=</span> Poly(<span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> k, <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> x <span style="color:#ff79c6">=</span> Pow(<span style="color:#bd93f9">3</span>, P <span style="color:#ff79c6">&gt;&gt;</span> k <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;</span> (<span style="color:#8be9fd">int</span>)G[k].size(); <span style="color:#ff79c6">++</span>i) G[k][i] <span style="color:#ff79c6">=</span> mul(G[k][i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>], x);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> r[<span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">22</span>], l;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">Getlen</span>(<span style="color:#8be9fd">int</span> n) {
+</span></span><span style="display:flex;"><span>        l <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">while</span> (l <span style="color:#ff79c6">&lt;</span> n) l <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;</span> l; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>            r[i] <span style="color:#ff79c6">=</span> r[i <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r[i] <span style="color:#ff79c6">|=</span> (l <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">Dft</span>(Poly<span style="color:#ff79c6">&amp;</span> F, <span style="color:#8be9fd">int</span> tp) {
+</span></span><span style="display:flex;"><span>        F.resize(l);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> l; <span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">&lt;</span> r[i]) swap(F[i], F[r[i]]);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>, o <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> l; i <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>, <span style="color:#ff79c6">++</span>o) {
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> l; j <span style="color:#ff79c6">+=</span> (i <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">1</span>)) {
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; k <span style="color:#ff79c6">&lt;</span> i; <span style="color:#ff79c6">++</span>k) {
+</span></span><span style="display:flex;"><span>                    <span style="color:#8be9fd">int</span> x <span style="color:#ff79c6">=</span> F[j <span style="color:#ff79c6">+</span> k], y <span style="color:#ff79c6">=</span> mul(G[o][k], F[i <span style="color:#ff79c6">+</span> j <span style="color:#ff79c6">+</span> k]);
+</span></span><span style="display:flex;"><span>                    F[j <span style="color:#ff79c6">+</span> k] <span style="color:#ff79c6">=</span> add(x, y);
+</span></span><span style="display:flex;"><span>                    F[i <span style="color:#ff79c6">+</span> j <span style="color:#ff79c6">+</span> k] <span style="color:#ff79c6">=</span> sub(x, y);
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (tp <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>            reverse(F.begin() <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, F.end());
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> x <span style="color:#ff79c6">=</span> inv(l);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> l; <span style="color:#ff79c6">++</span>i) F[i] <span style="color:#ff79c6">=</span> mul(F[i], x);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    Poly <span style="color:#ff79c6">operator</span><span style="color:#ff79c6">*</span>(Poly x, Poly y) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> tx <span style="color:#ff79c6">=</span> x.size(), ty <span style="color:#ff79c6">=</span> y.size();
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (tx <span style="color:#ff79c6">&lt;=</span> <span style="color:#bd93f9">50</span> <span style="color:#ff79c6">&amp;&amp;</span> ty <span style="color:#ff79c6">&lt;=</span> <span style="color:#bd93f9">50</span>) {
+</span></span><span style="display:flex;"><span>            Poly <span style="color:#50fa7b">ret</span>(tx <span style="color:#ff79c6">+</span> ty <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> tx; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> ty; <span style="color:#ff79c6">++</span>j) {
+</span></span><span style="display:flex;"><span>                    ret[i <span style="color:#ff79c6">+</span> j] <span style="color:#ff79c6">=</span> (ret[i <span style="color:#ff79c6">+</span> j] <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1ll</span> <span style="color:#ff79c6">*</span> x[i] <span style="color:#ff79c6">*</span> y[j]) <span style="color:#ff79c6">%</span> P;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">return</span> ret;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        Getlen(tx <span style="color:#ff79c6">+</span> ty);
+</span></span><span style="display:flex;"><span>        Dft(x, <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        Dft(y, <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> l; <span style="color:#ff79c6">++</span>i) x[i] <span style="color:#ff79c6">=</span> mul(x[i], y[i]);
+</span></span><span style="display:flex;"><span>        Dft(x, <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        x.resize(tx <span style="color:#ff79c6">+</span> ty <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> x;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> POLY;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1e5</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">10</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> fac[N], ifac[N];
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">init</span>(<span style="color:#8be9fd">int</span> n) {
+</span></span><span style="display:flex;"><span>    fac[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>i) fac[i] <span style="color:#ff79c6">=</span> mul(fac[i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>], i);
+</span></span><span style="display:flex;"><span>    ifac[n] <span style="color:#ff79c6">=</span> inv(fac[n]);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> n; i; <span style="color:#ff79c6">--</span>i) ifac[i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> mul(ifac[i], i);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Poly <span style="color:#50fa7b">Inv</span>(<span style="color:#ff79c6">const</span> Poly<span style="color:#ff79c6">&amp;</span> F) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> F.size();
+</span></span><span style="display:flex;"><span>    Poly mut(n <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">1</span>), G(n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) mut[i <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> mul(mut[i], F[i]);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> x <span style="color:#ff79c6">=</span> inv(mut[n]);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>, t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">~</span>i; t <span style="color:#ff79c6">=</span> mul(t, F[i]), <span style="color:#ff79c6">--</span>i) {
+</span></span><span style="display:flex;"><span>        G[i] <span style="color:#ff79c6">=</span> mul(mul(mut[i], t), x);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> G;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Poly <span style="color:#50fa7b">Inter</span>(Poly F, <span style="color:#8be9fd">int</span> c) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> F.size() <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        F[i] <span style="color:#ff79c6">=</span> mul(F[i], mul(ifac[i], ifac[n <span style="color:#ff79c6">-</span> i]));
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> ((n <span style="color:#ff79c6">-</span> i) <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) F[i] <span style="color:#ff79c6">=</span> P <span style="color:#ff79c6">-</span> F[i];
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    Poly G(<span style="color:#bd93f9">2</span> <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;=</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">*</span> n; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        G[i] <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">-</span> n <span style="color:#ff79c6">+</span> c;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (G[i] <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) G[i] <span style="color:#ff79c6">+=</span> P;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    G <span style="color:#ff79c6">=</span> Inv(G);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    F <span style="color:#ff79c6">=</span> F <span style="color:#ff79c6">*</span> G;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>i) t <span style="color:#ff79c6">=</span> mul(t, sub(c, i));
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        F[i] <span style="color:#ff79c6">=</span> mul(F[i <span style="color:#ff79c6">+</span> n], t);
+</span></span><span style="display:flex;"><span>        t <span style="color:#ff79c6">=</span> mul(t, mul(c <span style="color:#ff79c6">+</span> i <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, G[i]));
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    F.resize(n <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> F;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> n, m;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">solve</span>() {
+</span></span><span style="display:flex;"><span>    cin <span style="color:#ff79c6">&gt;&gt;</span> n <span style="color:#ff79c6">&gt;&gt;</span> m;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>        cout <span style="color:#ff79c6">&lt;&lt;</span> m <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> B <span style="color:#ff79c6">=</span> sqrt(m);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (B <span style="color:#ff79c6">*</span> (B <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">&gt;</span> m) B<span style="color:#ff79c6">--</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, r <span style="color:#ff79c6">=</span> m <span style="color:#ff79c6">-</span> B <span style="color:#ff79c6">*</span> (B <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>), t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;=</span> r; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (i) t <span style="color:#ff79c6">=</span> mul(t, n <span style="color:#ff79c6">-</span> i <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        ans <span style="color:#ff79c6">=</span> add(ans, mul(ifac[i], t));
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    t <span style="color:#ff79c6">=</span> mul(t, ifac[r]);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> merge <span style="color:#ff79c6">=</span> [<span style="color:#ff79c6">&amp;</span>](Poly<span style="color:#ff79c6">&amp;</span> F, Poly G) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#ff79c6">auto</span> <span style="color:#8be9fd;font-style:italic">x</span> : G) F.push_back(x);
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>    Poly F{r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>, r <span style="color:#ff79c6">+</span> B <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>}, G{n <span style="color:#ff79c6">-</span> r, n <span style="color:#ff79c6">-</span> r <span style="color:#ff79c6">-</span> B}, H{n <span style="color:#ff79c6">-</span> r, n <span style="color:#ff79c6">-</span> r <span style="color:#ff79c6">-</span> B};
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> inv_B <span style="color:#ff79c6">=</span> inv(B);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> __lg(B) <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">~</span>k; <span style="color:#ff79c6">--</span>k) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> d(B <span style="color:#ff79c6">&gt;&gt;</span> k);
+</span></span><span style="display:flex;"><span>        merge(F, Inter(F, (d <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>        merge(G, Inter(G, (d <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>        merge(H, Inter(H, (d <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>        Poly F0 <span style="color:#ff79c6">=</span> Inter(F, mul(d <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>, inv_B));
+</span></span><span style="display:flex;"><span>        Poly G0 <span style="color:#ff79c6">=</span> Inter(G, mul(d <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>, inv_B));
+</span></span><span style="display:flex;"><span>        Poly H0 <span style="color:#ff79c6">=</span> Inter(H, mul(d <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>, inv_B));
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> (<span style="color:#8be9fd">int</span>)F.size(); <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>            H[i] <span style="color:#ff79c6">=</span> add(mul(G[i], H0[i]), mul(H[i], F0[i]));
+</span></span><span style="display:flex;"><span>            F[i] <span style="color:#ff79c6">=</span> mul(F[i], F0[i]);
+</span></span><span style="display:flex;"><span>            G[i] <span style="color:#ff79c6">=</span> mul(G[i], G0[i]);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (d <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> (<span style="color:#8be9fd">int</span>)F.size(); <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>                H[i] <span style="color:#ff79c6">=</span> add(mul(G[i], n <span style="color:#ff79c6">-</span> r <span style="color:#ff79c6">-</span> i <span style="color:#ff79c6">*</span> B <span style="color:#ff79c6">-</span> d <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>), mul(H[i], r <span style="color:#ff79c6">+</span> i <span style="color:#ff79c6">*</span> B <span style="color:#ff79c6">+</span> d));
+</span></span><span style="display:flex;"><span>                G[i] <span style="color:#ff79c6">=</span> mul(G[i], n <span style="color:#ff79c6">-</span> r <span style="color:#ff79c6">-</span> i <span style="color:#ff79c6">*</span> B <span style="color:#ff79c6">-</span> d <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>                F[i] <span style="color:#ff79c6">=</span> mul(F[i], r <span style="color:#ff79c6">+</span> i <span style="color:#ff79c6">*</span> B <span style="color:#ff79c6">+</span> d);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        } <span style="color:#ff79c6">else</span> {
+</span></span><span style="display:flex;"><span>            F.pop_back();
+</span></span><span style="display:flex;"><span>            G.pop_back();
+</span></span><span style="display:flex;"><span>            H.pop_back();
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    F <span style="color:#ff79c6">=</span> Inv(F);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> (<span style="color:#8be9fd">int</span>)F.size(); t <span style="color:#ff79c6">=</span> mul(t, mul(F[i], G[i])), <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        ans <span style="color:#ff79c6">=</span> add(ans, mul(mul(F[i], H[i]), t));
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> ans <span style="color:#ff79c6">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    init(<span style="color:#bd93f9">100000</span>);
+</span></span><span style="display:flex;"><span>    Prework();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> T;
+</span></span><span style="display:flex;"><span>    cin <span style="color:#ff79c6">&gt;&gt;</span> T;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (T<span style="color:#ff79c6">--</span>) solve();
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h1 id="7-xor-的均匀性结论">7 XOR 的均匀性结论</h1>
+<p>把数看成向量空间 $\mathbb{F}_2^m$ 中的元素。若 $X_1,\dots,X_t$ 独立且均匀分布在 $\{0,\dots,2^m-1\}$ 上，令 $k = 2^m$，则</p>
+$$
 S = X_1 \oplus \cdots \oplus X_t
-$$<p>在整个空间上仍然均匀分布。也就是说，对任意 $y$ 都有：</p>$$
+$$<p>在整个空间上仍然均匀分布。也就是说，对任意 $y$ 都有：</p>
+$$
 \Pr[S = y] = \frac{1}{k}
-$$<p>对应的计数版结论：</p><p>满足</p>$$
+$$<p>对应的计数版结论：</p>
+<p>满足</p>
+$$
 x_1 \oplus \cdots \oplus x_t = y
-$$<p>的 $t$ 元组一共有</p>$$
+$$<p>的 $t$ 元组一共有</p>
+$$
 k^{t-1}
-$$<p>个。因为前 $t-1$ 个可以任取，最后一个被唯一确定。</p><h1 id=8-一些竞赛中的常见结论>8 一些竞赛中的常见结论</h1><h2 id=81-中位数聚段把相同值的--个出现挪成一段的最小相邻交换数>8.1 中位数聚段：把相同值的 $k$ 个出现挪成一段的最小相邻交换数</h2><p>设某个值在原数组中的下标（0-based）为：</p>$$
+$$<p>个。因为前 $t-1$ 个可以任取，最后一个被唯一确定。</p>
+<h1 id="8-一些竞赛中的常见结论">8 一些竞赛中的常见结论</h1>
+<h2 id="81-中位数聚段把相同值的--个出现挪成一段的最小相邻交换数">8.1 中位数聚段：把相同值的 $k$ 个出现挪成一段的最小相邻交换数</h2>
+<p>设某个值在原数组中的下标（0-based）为：</p>
+$$
 p_0 < p_1 < \cdots < p_{k-1}
-$$<p>令</p>$$
+$$<p>令</p>
+$$
 q_i = p_i - i
-$$<p>取 $q$ 的中位数 $m = \mathrm{median}(q_0,\dots,q_{k-1})$，则把这 $k$ 个元素挪到一段所需的最小相邻交换次数为：</p>$$
+$$<p>取 $q$ 的中位数 $m = \mathrm{median}(q_0,\dots,q_{k-1})$，则把这 $k$ 个元素挪到一段所需的最小相邻交换次数为：</p>
+$$
 \sum_{i=0}^{k-1} |q_i - m|
-$$<p>最优目标段为：</p>$$
+$$<p>最优目标段为：</p>
+$$
 [t, t+k-1], \qquad t = m
-$$<p>证明非常直接：</p>$$
+$$<p>证明非常直接：</p>
+$$
 \sum_{i=0}^{k-1} |p_i - (t+i)| =
 \sum_{i=0}^{k-1} |(p_i-i)-t|
-$$<p>这是一个对 $t$ 的 L1 最优化问题，因此最优解由中位数给出。</p><p>典型应用：</p><ul><li>只有两种数，把同类元素聚在一起</li><li>统计若干相同颜色聚成块的最少交换次数</li></ul><h2 id=82-多种颜色都要各自聚成连续块子集-dp--sos-dp>8.2 多种颜色都要各自聚成连续块：子集 DP / SOS DP</h2><p>题意模型：</p><ul><li>给定长度 $n$ 的颜色序列</li><li>颜色种类数 $\le 20$</li><li>允许相邻交换，代价为交换次数</li><li>要求每种颜色最终都变成一段连续块</li><li>块的相对顺序任意</li></ul><h3 id=关键结论>关键结论</h3><p>若最终块顺序为 $\pi=[T_1,\dots,T_k]$，定义</p>$$
+$$<p>这是一个对 $t$ 的 L1 最优化问题，因此最优解由中位数给出。</p>
+<p>典型应用：</p>
+<ul>
+<li>只有两种数，把同类元素聚在一起</li>
+<li>统计若干相同颜色聚成块的最少交换次数</li>
+</ul>
+<h2 id="82-多种颜色都要各自聚成连续块子集-dp--sos-dp">8.2 多种颜色都要各自聚成连续块：子集 DP / SOS DP</h2>
+<p>题意模型：</p>
+<ul>
+<li>给定长度 $n$ 的颜色序列</li>
+<li>颜色种类数 $\le 20$</li>
+<li>允许相邻交换，代价为交换次数</li>
+<li>要求每种颜色最终都变成一段连续块</li>
+<li>块的相对顺序任意</li>
+</ul>
+<h3 id="关键结论">关键结论</h3>
+<p>若最终块顺序为 $\pi=[T_1,\dots,T_k]$，定义</p>
+$$
 \mathrm{cnt}[i][j] = \text{原串中 “i 在 j 前” 的对数}
-$$<p>则该顺序的最小相邻交换次数为：</p>$$
+$$<p>则该顺序的最小相邻交换次数为：</p>
+$$
 \boxed{
 \mathrm{cost}(\pi) =
 \sum_{1 \le s < t \le k}\mathrm{cnt}[\pi_t][\pi_s]
 }
-$$<p>原因是：每一对“后块元素站在前块元素前面”的逆序对，至少要被交换一次，而一次相邻交换最多修正一对。</p><h3 id=子集-dp-形式>子集 DP 形式</h3><p>令：</p>$$
+$$<p>原因是：每一对“后块元素站在前块元素前面”的逆序对，至少要被交换一次，而一次相邻交换最多修正一对。</p>
+<h3 id="子集-dp-形式">子集 DP 形式</h3>
+<p>令：</p>
+$$
 h[S] = \text{把集合 } S \text{ 内颜色排到左侧的最小代价}
-$$<p>把最后放到最右端的颜色记为 $c \in S$，则新增代价为：</p>$$
+$$<p>把最后放到最右端的颜色记为 $c \in S$，则新增代价为：</p>
+$$
 W^{(c)}[S\setminus\{c\}] =
 \sum_{i\in S\setminus\{c\}} \mathrm{cnt}[c][i]
-$$<p>于是：</p>$$
+$$<p>于是：</p>
+$$
 h[S] =
 \min_{c\in S}
 \left(
 h[S\setminus\{c\}] + W^{(c)}[S\setminus\{c\}]
 \right)
-$$<p>复杂度：</p>$$
+$$<p>复杂度：</p>
+$$
 O(nk + k2^k)
-$$<p>代码：</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n;
-</span></span><span style=display:flex><span>    cin <span style=color:#ff79c6>&gt;&gt;</span> n;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> a(n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) cin <span style=color:#ff79c6>&gt;&gt;</span> a[i];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> id(<span style=color:#bd93f9>21</span>, <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>x</span> : a) <span style=color:#ff79c6>if</span> (id[x] <span style=color:#ff79c6>==</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) id[x] <span style=color:#ff79c6>=</span> k<span style=color:#ff79c6>++</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span><span style=color:#ff79c6>&amp;</span> <span style=color:#8be9fd;font-style:italic>x</span> : a) x <span style=color:#ff79c6>=</span> id[x];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (k <span style=color:#ff79c6>&lt;=</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>        cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;&gt;</span> cnt(k, vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span>(k, <span style=color:#bd93f9>0</span>));
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> seen(k, <span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>x</span> : a) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> y <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; y <span style=color:#ff79c6>&lt;</span> k; <span style=color:#ff79c6>++</span>y) <span style=color:#ff79c6>if</span> (y <span style=color:#ff79c6>!=</span> x) {
-</span></span><span style=display:flex><span>            cnt[y][x] <span style=color:#ff79c6>+=</span> seen[y];
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        seen[x]<span style=color:#ff79c6>++</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> k;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;&gt;</span> add(k, vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span>(N, <span style=color:#bd93f9>0</span>));
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> c <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; c <span style=color:#ff79c6>&lt;</span> k; <span style=color:#ff79c6>++</span>c) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> S <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; S <span style=color:#ff79c6>&lt;</span> N; <span style=color:#ff79c6>++</span>S) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> __builtin_ctz(S);
-</span></span><span style=display:flex><span>            add[c][S] <span style=color:#ff79c6>=</span> add[c][S <span style=color:#ff79c6>^</span> (<span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> i)] <span style=color:#ff79c6>+</span> cnt[c][i];
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>const</span> ll INF <span style=color:#ff79c6>=</span> (<span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>62</span>);
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> dp(N, INF);
-</span></span><span style=display:flex><span>    dp[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> S <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; S <span style=color:#ff79c6>&lt;</span> N; <span style=color:#ff79c6>++</span>S) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> c <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; c <span style=color:#ff79c6>&lt;</span> k; <span style=color:#ff79c6>++</span>c) <span style=color:#ff79c6>if</span> ((S <span style=color:#ff79c6>&gt;&gt;</span> c) <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> T <span style=color:#ff79c6>=</span> S <span style=color:#ff79c6>^</span> (<span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> c);
-</span></span><span style=display:flex><span>            dp[S] <span style=color:#ff79c6>=</span> min(dp[S], dp[T] <span style=color:#ff79c6>+</span> add[c][T]);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> dp[N <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-常用>1 常用</a></li><li><a href=#2-lucas-定理>2 Lucas 定理</a><ul><li><a href=#mod-2-的推论>mod 2 的推论</a></li></ul></li><li><a href=#3-不定方程解的数量>3 不定方程解的数量</a><ul><li><a href=#1-直接容斥>1) 直接容斥</a></li><li><a href=#2-对称上界所有>2) 对称上界：所有 $u'_j = k$</a></li><li><a href=#3-一般上下界推荐生成函数--截断卷积>3) 一般上下界：推荐生成函数 / 截断卷积</a></li></ul></li><li><a href=#4-分拆计数平面分拆>4 分拆计数（平面分拆）</a><ul><li><a href=#41-普通分拆>4.1 普通分拆</a></li><li><a href=#42-平面分拆>4.2 平面分拆</a></li><li><a href=#43-盒子里的平面分拆>4.3 盒子里的平面分拆</a></li><li><a href=#44-macmahon-盒子公式>4.4 MacMahon 盒子公式</a></li><li><a href=#45-对应原题>4.5 对应原题</a></li></ul></li><li><a href=#5--路径数量怎么求>5 $u\to v$ 路径数量怎么求</a><ul><li><a href=#51-图是-dag-时>5.1 图是 DAG 时</a></li><li><a href=#52-一般有向图先-scc-压缩>5.2 一般有向图：先 SCC 压缩</a></li></ul></li><li><a href=#6-多项式平移--连续点值平移>6 多项式平移 / 连续点值平移</a><ul><li><a href=#61-模素数意义下二项式前缀和>6.1 模素数意义下二项式前缀和</a></li></ul></li><li><a href=#7-xor-的均匀性结论>7 XOR 的均匀性结论</a></li><li><a href=#8-一些竞赛中的常见结论>8 一些竞赛中的常见结论</a><ul><li><a href=#81-中位数聚段把相同值的--个出现挪成一段的最小相邻交换数>8.1 中位数聚段：把相同值的 $k$ 个出现挪成一段的最小相邻交换数</a></li><li><a href=#82-多种颜色都要各自聚成连续块子集-dp--sos-dp>8.2 多种颜色都要各自聚成连续块：子集 DP / SOS DP</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const t=document.querySelector(".nav-toggle"),n=document.querySelector("#site-navigation");if(!t||!n)return;function e(e){document.documentElement.classList.toggle("nav-open",e),t.setAttribute("aria-expanded",String(e))}t.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),n.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0})})()</script></body></html>
+$$<p>代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n;
+</span></span><span style="display:flex;"><span>    cin <span style="color:#ff79c6">&gt;&gt;</span> n;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> a(n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) cin <span style="color:#ff79c6">&gt;&gt;</span> a[i];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> id(<span style="color:#bd93f9">21</span>, <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">x</span> : a) <span style="color:#ff79c6">if</span> (id[x] <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) id[x] <span style="color:#ff79c6">=</span> k<span style="color:#ff79c6">++</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span><span style="color:#ff79c6">&amp;</span> <span style="color:#8be9fd;font-style:italic">x</span> : a) x <span style="color:#ff79c6">=</span> id[x];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (k <span style="color:#ff79c6">&lt;=</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>        cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;&gt;</span> cnt(k, vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span>(k, <span style="color:#bd93f9">0</span>));
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> seen(k, <span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">x</span> : a) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> y <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; y <span style="color:#ff79c6">&lt;</span> k; <span style="color:#ff79c6">++</span>y) <span style="color:#ff79c6">if</span> (y <span style="color:#ff79c6">!=</span> x) {
+</span></span><span style="display:flex;"><span>            cnt[y][x] <span style="color:#ff79c6">+=</span> seen[y];
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        seen[x]<span style="color:#ff79c6">++</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> k;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;&gt;</span> add(k, vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span>(N, <span style="color:#bd93f9">0</span>));
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> c <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; c <span style="color:#ff79c6">&lt;</span> k; <span style="color:#ff79c6">++</span>c) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> S <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; S <span style="color:#ff79c6">&lt;</span> N; <span style="color:#ff79c6">++</span>S) {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> __builtin_ctz(S);
+</span></span><span style="display:flex;"><span>            add[c][S] <span style="color:#ff79c6">=</span> add[c][S <span style="color:#ff79c6">^</span> (<span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> i)] <span style="color:#ff79c6">+</span> cnt[c][i];
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">const</span> ll INF <span style="color:#ff79c6">=</span> (<span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">62</span>);
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> dp(N, INF);
+</span></span><span style="display:flex;"><span>    dp[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> S <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; S <span style="color:#ff79c6">&lt;</span> N; <span style="color:#ff79c6">++</span>S) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> c <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; c <span style="color:#ff79c6">&lt;</span> k; <span style="color:#ff79c6">++</span>c) <span style="color:#ff79c6">if</span> ((S <span style="color:#ff79c6">&gt;&gt;</span> c) <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> T <span style="color:#ff79c6">=</span> S <span style="color:#ff79c6">^</span> (<span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> c);
+</span></span><span style="display:flex;"><span>            dp[S] <span style="color:#ff79c6">=</span> min(dp[S], dp[T] <span style="color:#ff79c6">+</span> add[c][T]);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> dp[N <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div>
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-常用">1 常用</a></li>
+    <li><a href="#2-lucas-定理">2 Lucas 定理</a>
+      <ul>
+        <li><a href="#mod-2-的推论">mod 2 的推论</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-不定方程解的数量">3 不定方程解的数量</a>
+      <ul>
+        <li><a href="#1-直接容斥">1) 直接容斥</a></li>
+        <li><a href="#2-对称上界所有">2) 对称上界：所有 $u'_j = k$</a></li>
+        <li><a href="#3-一般上下界推荐生成函数--截断卷积">3) 一般上下界：推荐生成函数 / 截断卷积</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-分拆计数平面分拆">4 分拆计数（平面分拆）</a>
+      <ul>
+        <li><a href="#41-普通分拆">4.1 普通分拆</a></li>
+        <li><a href="#42-平面分拆">4.2 平面分拆</a></li>
+        <li><a href="#43-盒子里的平面分拆">4.3 盒子里的平面分拆</a></li>
+        <li><a href="#44-macmahon-盒子公式">4.4 MacMahon 盒子公式</a></li>
+        <li><a href="#45-对应原题">4.5 对应原题</a></li>
+      </ul>
+    </li>
+    <li><a href="#5--路径数量怎么求">5 $u\to v$ 路径数量怎么求</a>
+      <ul>
+        <li><a href="#51-图是-dag-时">5.1 图是 DAG 时</a></li>
+        <li><a href="#52-一般有向图先-scc-压缩">5.2 一般有向图：先 SCC 压缩</a></li>
+      </ul>
+    </li>
+    <li><a href="#6-多项式平移--连续点值平移">6 多项式平移 / 连续点值平移</a>
+      <ul>
+        <li><a href="#61-模素数意义下二项式前缀和">6.1 模素数意义下二项式前缀和</a></li>
+      </ul>
+    </li>
+    <li><a href="#7-xor-的均匀性结论">7 XOR 的均匀性结论</a></li>
+    <li><a href="#8-一些竞赛中的常见结论">8 一些竞赛中的常见结论</a>
+      <ul>
+        <li><a href="#81-中位数聚段把相同值的--个出现挪成一段的最小相邻交换数">8.1 中位数聚段：把相同值的 $k$ 个出现挪成一段的最小相邻交换数</a></li>
+        <li><a href="#82-多种颜色都要各自聚成连续块子集-dp--sos-dp">8.2 多种颜色都要各自聚成连续块：子集 DP / SOS DP</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const tocPanel = document.querySelector('.article-toc');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      let ticking = false;
+
+      function updateActiveTocLink() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
+          }
+        }
+      }
+
+      function updateTocBoundary() {
+        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
+          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
+          return;
+        }
+
+        const footer = document.querySelector('.site-footer');
+        if (!footer) return;
+
+        const bottomGap = 24;
+        const tocBottom = 86 + tocPanel.offsetHeight;
+        const footerTop = footer.getBoundingClientRect().top;
+        const overlap = tocBottom + bottomGap - footerTop;
+
+        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateTocBoundary();
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      
+      setTimeout(function() {
+        updateTocBoundary();
+        updateActiveTocLink();
+      }, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(next, true);
+        });
+      })();
+    </script>
+  </body>
+</html>

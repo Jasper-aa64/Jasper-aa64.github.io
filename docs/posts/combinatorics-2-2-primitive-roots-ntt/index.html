@@ -1,375 +1,836 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT | Jasper's Technical Notebook</title><meta name=description content="Order and primitive roots (Euler's theorem, BSGS, exBSGS), discrete index as logarithm analogue, SGU 261 Discrete Roots, NTT theory and templates, divide-and-conquer NTT (product tree), Wannafly D team selection, Nowcoder 50F generating functions."><link rel=canonical href=https://jmaaa32.github.io/posts/combinatorics-2-2-primitive-roots-ntt/><script>document.documentElement.classList.add("has-js")</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
-<span><strong>Jasper's Technical Notebook</strong>
-<small>Algorithms, systems, and engineering notes</small>
-</span></a><button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
-<span></span>
-<span></span>
-<span></span></button><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
-<a class="nav-link is-active" href=/posts/>Posts</a>
-<a class=nav-link href=/archives/>Archives</a>
-<a class=nav-link href=/categories/>Categories</a>
-<a class=nav-link href=/tags/>Tags</a>
-<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT</h1><div class=article-meta><time datetime=2026-04-25>Apr 25, 2026</time>
-<span>·</span>
-<span>Combinatorics</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
-<a class=chip href=/tags/combinatorics/>#combinatorics</a>
-<a class=chip href=/tags/ntt/>#ntt</a>
-<a class=chip href=/tags/primitive-root/>#primitive-root</a>
-<a class=chip href=/tags/bsgs/>#bsgs</a>
-<a class=chip href=/tags/discrete-log/>#discrete-log</a>
-<a class=chip href=/tags/divide-and-conquer/>#divide-and-conquer</a>
-<a class=chip href=/tags/generating-function/>#generating-function</a>
-<a class=chip href=/tags/fft/>#fft</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#1-order-and-primitive-roots>1 Order and Primitive Roots</a></li><li><a href=#2-properties-of-the-order>2 Properties of the Order</a></li><li><a href=#3-existence-and-testing-of-primitive-roots>3 Existence and Testing of Primitive Roots</a></li><li><a href=#4-discrete-index-discrete-logarithm>4 Discrete Index (Discrete Logarithm)</a></li><li><a href=#5-number-theoretic-transform-ntt>5 Number Theoretic Transform (NTT)</a><ul><li><a href=#51-template>5.1 Template</a></li><li><a href=#52-faster-version-precomputed-roots>5.2 Faster version (precomputed roots)</a></li></ul></li><li><a href=#6-divide-and-conquer-fft--ntt>6 Divide-and-Conquer FFT / NTT</a></li></ul></nav></div></details><div class="article-content prose"><h1 id=1-order-and-primitive-roots>1 Order and Primitive Roots</h1><blockquote><p><strong>[Theorem — Euler&rsquo;s Theorem]</strong></p><p>If positive integers $m,a$ satisfy $\gcd(a,m)=1$, then $a^{\varphi(m)}\equiv1\pmod{m}$.</p><ul><li>The sequence $a^1,a^2,a^3,\dots$ is periodic modulo $m$ with period dividing $\varphi(m)$.</li><li>This need not be the shortest period. For example, $2^1,2^2,2^3,\dots\pmod7$ gives $2,4,1,2,4,\dots$, which has period 3, not $\varphi(7)=6$.</li></ul></blockquote><blockquote><p><strong>[Definition — Order]</strong></p><p>Let $\gcd(a,m)=1$. The <strong>order</strong> of $a$ modulo $m$ is the smallest positive integer $n$ with $a^n\equiv1\pmod{m}$, denoted $\delta_m(a)$.</p></blockquote><blockquote><p><strong>[Definition — Primitive Root]</strong></p><p>If $\delta_m(a)=\varphi(m)$, then $a$ is a <strong>primitive root</strong> modulo $m$.</p><p>For example, 3 is a primitive root modulo 7: $\delta_7(3)=\varphi(7)=6$.</p></blockquote><h1 id=2-properties-of-the-order>2 Properties of the Order</h1>$$
+<!doctype html>
+<html lang="en-us">
+  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT | Jasper&#39;s Technical Notebook</title>
+    <meta name="description" content="Order and primitive roots (Euler&#39;s theorem, BSGS, exBSGS), discrete index as logarithm analogue, SGU 261 Discrete Roots, NTT theory and templates, divide-and-conquer NTT (product tree), Wannafly D team selection, Nowcoder 50F generating functions.">
+    <link rel="canonical" href="http://localhost:1313/posts/combinatorics-2-2-primitive-roots-ntt/">
+    <script>
+      (function() {
+        document.documentElement.classList.add("has-js");
+        try {
+          const stored = window.localStorage.getItem("theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
+        } catch (error) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/css/site.css">
+    
+      <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          options: {
+            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+          }
+        };
+      </script>
+      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+    
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="container header-inner">
+          <a class="brand" href="/">
+            <span class="brand-mark">J</span>
+            <span>
+              <strong>Jasper&#39;s Technical Notebook</strong>
+              <small>Algorithms, systems, and engineering notes</small>
+            </span>
+          </a>
+          <div class="header-actions">
+            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+              <span class="theme-toggle-icon" aria-hidden="true"></span>
+              <span class="sr-only">Switch theme</span>
+            </button>
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          </div>
+          <nav class="site-nav" id="site-navigation">
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/">Home</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link is-active" href="/posts/">Posts</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/archives/">Archives</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/categories/">Categories</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/tags/">Tags</a>
+            
+              
+              
+              
+              
+              
+              <a class="nav-link" href="/about/">About</a>
+            
+          </nav>
+        </div>
+      </header>
+
+      <main class="container main-content">
+        
+  <article class="article-shell">
+    <header class="article-header">
+      <span class="eyebrow">Posts</span>
+      <h1>Combinatorics #2.2: Primitive Roots, Discrete Logarithm, NTT, Divide-and-Conquer NTT</h1>
+      
+        <div class="article-meta">
+          <time datetime="2026-04-25">Apr 25, 2026</time>
+          
+            <span>·</span>
+            <span>Combinatorics</span>
+          
+        </div>
+        
+          <div class="chip-row">
+            
+              <a class="chip" href="/tags/math/">#math</a>
+            
+              <a class="chip" href="/tags/combinatorics/">#combinatorics</a>
+            
+              <a class="chip" href="/tags/ntt/">#ntt</a>
+            
+              <a class="chip" href="/tags/primitive-root/">#primitive-root</a>
+            
+              <a class="chip" href="/tags/bsgs/">#bsgs</a>
+            
+              <a class="chip" href="/tags/discrete-log/">#discrete-log</a>
+            
+              <a class="chip" href="/tags/divide-and-conquer/">#divide-and-conquer</a>
+            
+              <a class="chip" href="/tags/generating-function/">#generating-function</a>
+            
+              <a class="chip" href="/tags/fft/">#fft</a>
+            
+          </div>
+        
+      
+    </header>
+
+    <div class="article-layout">
+      
+        <details class="mobile-toc">
+          <summary>On this page</summary>
+          <div class="mobile-toc-panel">
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-order-and-primitive-roots">1 Order and Primitive Roots</a></li>
+    <li><a href="#2-properties-of-the-order">2 Properties of the Order</a></li>
+    <li><a href="#3-existence-and-testing-of-primitive-roots">3 Existence and Testing of Primitive Roots</a></li>
+    <li><a href="#4-discrete-index-discrete-logarithm">4 Discrete Index (Discrete Logarithm)</a></li>
+    <li><a href="#5-number-theoretic-transform-ntt">5 Number Theoretic Transform (NTT)</a>
+      <ul>
+        <li><a href="#51-template">5.1 Template</a></li>
+        <li><a href="#52-faster-version-precomputed-roots">5.2 Faster version (precomputed roots)</a></li>
+      </ul>
+    </li>
+    <li><a href="#6-divide-and-conquer-fft--ntt">6 Divide-and-Conquer FFT / NTT</a></li>
+  </ul>
+</nav>
+          </div>
+        </details>
+      
+      <div class="article-content prose">
+        <h1 id="1-order-and-primitive-roots">1 Order and Primitive Roots</h1>
+<blockquote>
+<p><strong>[Theorem — Euler&rsquo;s Theorem]</strong></p>
+<p>If positive integers $m,a$ satisfy $\gcd(a,m)=1$, then $a^{\varphi(m)}\equiv1\pmod{m}$.</p>
+<ul>
+<li>The sequence $a^1,a^2,a^3,\dots$ is periodic modulo $m$ with period dividing $\varphi(m)$.</li>
+<li>This need not be the shortest period. For example, $2^1,2^2,2^3,\dots\pmod7$ gives $2,4,1,2,4,\dots$, which has period 3, not $\varphi(7)=6$.</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>[Definition — Order]</strong></p>
+<p>Let $\gcd(a,m)=1$. The <strong>order</strong> of $a$ modulo $m$ is the smallest positive integer $n$ with $a^n\equiv1\pmod{m}$, denoted $\delta_m(a)$.</p>
+</blockquote>
+<blockquote>
+<p><strong>[Definition — Primitive Root]</strong></p>
+<p>If $\delta_m(a)=\varphi(m)$, then $a$ is a <strong>primitive root</strong> modulo $m$.</p>
+<p>For example, 3 is a primitive root modulo 7: $\delta_7(3)=\varphi(7)=6$.</p>
+</blockquote>
+<h1 id="2-properties-of-the-order">2 Properties of the Order</h1>
+$$
 \begin{split}&\text{Assume}\ \gcd(a,m)=1,\ \delta=\delta_m(a).\ \text{Then:}\\ &\quad\bullet\ a^0,a^1,\dots,a^{\delta-1}\ \text{are pairwise distinct modulo}\ m\\ &\quad\bullet\ a^\gamma\equiv a^{\gamma'}\pmod{m}\iff\gamma\equiv\gamma'\pmod{\delta}\\ &\quad\bullet\ \delta\mid\varphi(m)\end{split}
-$$<h1 id=3-existence-and-testing-of-primitive-roots>3 Existence and Testing of Primitive Roots</h1><blockquote><p><strong>[Theorem — Existence of Primitive Roots]</strong></p><p>A primitive root exists modulo $m$ if and only if $m\in\{2,4,p^a,2p^a\}$ for some odd prime $p$.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std; <span style=color:#ff79c6>using</span> i64 <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>bool</span> <span style=color:#50fa7b>isPrimePower</span>(i64 x){
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (x <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>false</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (i64 p <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; p <span style=color:#ff79c6>*</span> p <span style=color:#ff79c6>&lt;=</span> x; <span style=color:#ff79c6>++</span>p){
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (x <span style=color:#ff79c6>%</span> p <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>){
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>while</span> (x <span style=color:#ff79c6>%</span> p <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) x <span style=color:#ff79c6>/=</span> p;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>return</span> x <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>bool</span> <span style=color:#50fa7b>hasPrimitiveRoot</span>(i64 n){
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>2</span>) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>false</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>2</span> <span style=color:#ff79c6>||</span> n <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>4</span>) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> isPrimePower(n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>%</span> <span style=color:#bd93f9>4</span> <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>false</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> isPrimePower(n <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span>);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (i64 n; cin <span style=color:#ff79c6>&gt;&gt;</span> n; )
-</span></span><span style=display:flex><span>        cout <span style=color:#ff79c6>&lt;&lt;</span> (hasPrimitiveRoot(n) <span style=color:#ff79c6>?</span> <span style=color:#f1fa8c>&#34;YES</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span> <span style=color:#ff79c6>:</span> <span style=color:#f1fa8c>&#34;NO</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>);
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><blockquote><p><strong>[Theorem — Characterization of Primitive Roots]</strong></p><p>Let $m>1$ and $\gcd(g,m)=1$. Then $g$ is a primitive root modulo $m$ if and only if for every prime factor $q_i$ of $\varphi(m)$:</p>$$g^{\varphi(m)/q_i}\not\equiv 1\pmod{m}$$<p><strong>Intuition:</strong> If the exponent cannot be reduced by removing any single prime factor, the order must already equal $\varphi(m)$.</p></blockquote><blockquote><p><strong>[Example — Luogu P6091: Primitive Root]</strong></p><p>Given $n$, find all primitive roots of $n$. With output parameter $d$: if there are $c$ primitive roots $g_1\lt g_2\lt\cdots\lt g_c$, output $g_d,g_{2d},\ldots,g_{\lfloor c/d\rfloor d}$.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include&lt;bits/stdc++.h&gt;
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1000000</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>7</span>;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> pr[N], ph[N], fc[<span style=color:#bd93f9>9</span>], u[<span style=color:#bd93f9>11</span>], v[<span style=color:#bd93f9>11</span>];
-</span></span><span style=display:flex><span><span style=color:#8be9fd>bool</span> f[N], b[N], p[N], q[N];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>init</span>(<span style=color:#8be9fd>int</span> n) {
-</span></span><span style=display:flex><span>    b[<span style=color:#bd93f9>2</span>] <span style=color:#ff79c6>=</span> b[<span style=color:#bd93f9>4</span>] <span style=color:#ff79c6>=</span> ph[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>f[i]) { pr[<span style=color:#ff79c6>++</span>t] <span style=color:#ff79c6>=</span> i; ph[i] <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>; }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, k; j <span style=color:#ff79c6>&lt;=</span> t <span style=color:#ff79c6>&amp;&amp;</span> (k <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>*</span> pr[j]) <span style=color:#ff79c6>&lt;=</span> n; <span style=color:#ff79c6>++</span>j) {
-</span></span><span style=display:flex><span>            f[k] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> pr[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) { ph[k] <span style=color:#ff79c6>=</span> ph[i] <span style=color:#ff79c6>*</span> pr[j]; <span style=color:#ff79c6>break</span>; }
-</span></span><span style=display:flex><span>            ph[k] <span style=color:#ff79c6>=</span> ph[i] <span style=color:#ff79c6>*</span> ph[pr[j]];
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> t; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> x <span style=color:#ff79c6>=</span> pr[i]; x <span style=color:#ff79c6>&lt;=</span> n; x <span style=color:#ff79c6>*=</span> pr[i]) b[x] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> x <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2LL</span> <span style=color:#ff79c6>*</span> pr[i]; x <span style=color:#ff79c6>&lt;=</span> n; x <span style=color:#ff79c6>*=</span> pr[i]) b[x] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>qp</span>(<span style=color:#8be9fd>int</span> a, <span style=color:#8be9fd>int</span> b, <span style=color:#8be9fd>int</span> p) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (b) { <span style=color:#ff79c6>if</span> (b <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>int</span>(<span style=color:#bd93f9>1LL</span><span style=color:#ff79c6>*</span>r<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>p); a <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>int</span>(<span style=color:#bd93f9>1LL</span><span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>p); b <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> T, n <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>, m, d;
-</span></span><span style=display:flex><span>    scanf(<span style=color:#f1fa8c>&#34;%d&#34;</span>, <span style=color:#ff79c6>&amp;</span>T);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> T; <span style=color:#ff79c6>++</span>i) { scanf(<span style=color:#f1fa8c>&#34;%d %d&#34;</span>, <span style=color:#ff79c6>&amp;</span>u[i], <span style=color:#ff79c6>&amp;</span>v[i]); n <span style=color:#ff79c6>=</span> max(n, u[i]); }
-</span></span><span style=display:flex><span>    init(n);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> o <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; o <span style=color:#ff79c6>&lt;=</span> T; <span style=color:#ff79c6>++</span>o) {
-</span></span><span style=display:flex><span>        n <span style=color:#ff79c6>=</span> u[o]; d <span style=color:#ff79c6>=</span> v[o];
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>b[n]) { puts(<span style=color:#f1fa8c>&#34;0</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>); <span style=color:#ff79c6>continue</span>; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>        m <span style=color:#ff79c6>=</span> ph[n];
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> tmp <span style=color:#ff79c6>=</span> m, t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; pr[i]<span style=color:#ff79c6>*</span>pr[i] <span style=color:#ff79c6>&lt;=</span> tmp; <span style=color:#ff79c6>++</span>i)
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (tmp <span style=color:#ff79c6>%</span> pr[i] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) {
-</span></span><span style=display:flex><span>                fc[<span style=color:#ff79c6>++</span>t] <span style=color:#ff79c6>=</span> pr[i];
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>while</span> (tmp <span style=color:#ff79c6>%</span> pr[i] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) tmp <span style=color:#ff79c6>/=</span> pr[i];
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> pr[i]; k <span style=color:#ff79c6>&lt;=</span> m; k <span style=color:#ff79c6>+=</span> pr[i]) p[k] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (tmp <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>1</span>) { fc[<span style=color:#ff79c6>++</span>t] <span style=color:#ff79c6>=</span> tmp; <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> tmp; k <span style=color:#ff79c6>&lt;=</span> m; k <span style=color:#ff79c6>+=</span> tmp) p[k] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> g;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (g <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; ; <span style=color:#ff79c6>++</span>g) {
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>while</span> (qp(g, m, n) <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>++</span>g;
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> i; <span style=color:#ff79c6>for</span> (i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> t; <span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span> (qp(g, m<span style=color:#ff79c6>/</span>fc[i], n) <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>break</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>&gt;</span> t) <span style=color:#ff79c6>break</span>;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> cnt <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, cur <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; k <span style=color:#ff79c6>&lt;=</span> m; <span style=color:#ff79c6>++</span>k) {
-</span></span><span style=display:flex><span>            cur <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>int</span>(<span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> cur <span style=color:#ff79c6>*</span> g <span style=color:#ff79c6>%</span> n);
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>p[k]) { q[cur] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>; <span style=color:#ff79c6>++</span>cnt; } <span style=color:#ff79c6>else</span> { p[k] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>; }
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        printf(<span style=color:#f1fa8c>&#34;%d</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>, cnt);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, seen <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i)
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (q[i]) { q[i] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>; <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>++</span>seen <span style=color:#ff79c6>==</span> d) { printf(<span style=color:#f1fa8c>&#34;%d &#34;</span>, i); seen <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; } }
-</span></span><span style=display:flex><span>        puts(<span style=color:#f1fa8c>&#34;&#34;</span>);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h1 id=4-discrete-index-discrete-logarithm>4 Discrete Index (Discrete Logarithm)</h1><blockquote><p><strong>[Definition — Discrete Index]</strong></p><p>For prime $p$ with primitive root $g$: the elements $g^0,g^1,\dots,g^{p-2}$ are a permutation of $1,\dots,p-1$ modulo $p$. If $g^c\equiv x\pmod{p}$, then $c$ is the <strong>discrete index</strong> of $x$: $\operatorname{ind}_g(x)=c$.</p><p>The index mimics the real logarithm: it converts multiplication into addition modulo $p-1$.</p><p><strong>Computing the index:</strong> Baby-Step Giant-Step <strong>(BSGS)</strong> — solve $a^x\equiv b\pmod m$ for the smallest non-negative $x$.</p><ul><li>Standard BSGS requires $\gcd(a,m)=1$.</li><li>General case: use <strong>exBSGS</strong>.</li></ul></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>qp</span>(ll a,ll e,ll m){ __int128 A<span style=color:#ff79c6>=</span>(a<span style=color:#ff79c6>%</span>m<span style=color:#ff79c6>+</span>m)<span style=color:#ff79c6>%</span>m,r<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>while</span>(e){ <span style=color:#ff79c6>if</span>(e<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>) r<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>*</span>A<span style=color:#ff79c6>%</span>m; A<span style=color:#ff79c6>=</span>A<span style=color:#ff79c6>*</span>A<span style=color:#ff79c6>%</span>m; e<span style=color:#ff79c6>&gt;&gt;=</span><span style=color:#bd93f9>1</span>;} <span style=color:#ff79c6>return</span> (ll)r; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>exgcd</span>(ll a, ll b, ll <span style=color:#ff79c6>&amp;</span>x, ll <span style=color:#ff79c6>&amp;</span>y) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>b) { x <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; y <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>return</span> a <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>?</span> <span style=color:#8be9fd;font-style:italic>a</span> : <span style=color:#ff79c6>-</span>a; }
-</span></span><span style=display:flex><span>    ll x1, y1; ll g <span style=color:#ff79c6>=</span> exgcd(b, a <span style=color:#ff79c6>%</span> b, x1, y1);
-</span></span><span style=display:flex><span>    x <span style=color:#ff79c6>=</span> y1; y <span style=color:#ff79c6>=</span> x1 <span style=color:#ff79c6>-</span> (a <span style=color:#ff79c6>/</span> b) <span style=color:#ff79c6>*</span> y1; <span style=color:#ff79c6>return</span> g;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>modinv</span>(ll a, ll mod) {
-</span></span><span style=display:flex><span>    ll x, y; ll g <span style=color:#ff79c6>=</span> exgcd(a, mod, x, y);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (g <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    x <span style=color:#ff79c6>%=</span> mod; <span style=color:#ff79c6>if</span> (x <span style=color:#ff79c6>&lt;</span> <span style=color:#bd93f9>0</span>) x <span style=color:#ff79c6>+=</span> mod; <span style=color:#ff79c6>return</span> x;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>bsgs</span>(ll a,ll b,ll m){
-</span></span><span style=display:flex><span>    a<span style=color:#ff79c6>%=</span>m; b<span style=color:#ff79c6>%=</span>m; <span style=color:#ff79c6>if</span>(m<span style=color:#ff79c6>==</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>||</span>b<span style=color:#ff79c6>==</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>%</span>m) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    ll n<span style=color:#ff79c6>=</span>(ll)ceil(sqrt((<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>double</span>)m));
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>pair<span style=color:#ff79c6>&lt;</span>ll,ll<span style=color:#ff79c6>&gt;&gt;</span> bs; bs.reserve(n);
-</span></span><span style=display:flex><span>    ll cur<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>%</span>m; <span style=color:#ff79c6>for</span>(ll j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>n;j<span style=color:#ff79c6>++</span>){ bs.push_back({cur,j}); cur<span style=color:#ff79c6>=</span>(ll)((__int128)cur<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>m); }
-</span></span><span style=display:flex><span>    sort(bs.begin(),bs.end());
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>pair<span style=color:#ff79c6>&lt;</span>ll,ll<span style=color:#ff79c6>&gt;&gt;</span> baby; baby.reserve(bs.size());
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#ff79c6>auto</span> <span style=color:#ff79c6>&amp;</span><span style=color:#8be9fd;font-style:italic>p</span>:bs) <span style=color:#ff79c6>if</span>(baby.empty()<span style=color:#ff79c6>||</span>baby.back().first<span style=color:#ff79c6>!=</span>p.first) baby.push_back(p);
-</span></span><span style=display:flex><span>    ll inv_an<span style=color:#ff79c6>=</span>modinv(qp(a,n,m),m); <span style=color:#ff79c6>if</span>(inv_an<span style=color:#ff79c6>==-</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    cur<span style=color:#ff79c6>=</span>b<span style=color:#ff79c6>%</span>m;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(ll i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>n;i<span style=color:#ff79c6>++</span>){
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>auto</span> it<span style=color:#ff79c6>=</span>lower_bound(baby.begin(),baby.end(),make_pair(cur,(ll)<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(it<span style=color:#ff79c6>!=</span>baby.end()<span style=color:#ff79c6>&amp;&amp;</span>it<span style=color:#ff79c6>-&gt;</span>first<span style=color:#ff79c6>==</span>cur) <span style=color:#ff79c6>return</span> i<span style=color:#ff79c6>*</span>n<span style=color:#ff79c6>+</span>it<span style=color:#ff79c6>-&gt;</span>second;
-</span></span><span style=display:flex><span>        cur<span style=color:#ff79c6>=</span>(ll)((__int128)cur<span style=color:#ff79c6>*</span>inv_an<span style=color:#ff79c6>%</span>m);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>ll <span style=color:#50fa7b>exbsgs</span>(ll a,ll b,ll m){
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(m<span style=color:#ff79c6>==</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    a<span style=color:#ff79c6>=</span>(a<span style=color:#ff79c6>%</span>m<span style=color:#ff79c6>+</span>m)<span style=color:#ff79c6>%</span>m; b<span style=color:#ff79c6>=</span>(b<span style=color:#ff79c6>%</span>m<span style=color:#ff79c6>+</span>m)<span style=color:#ff79c6>%</span>m; <span style=color:#ff79c6>if</span>(b<span style=color:#ff79c6>==</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>%</span>m) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(a<span style=color:#ff79c6>%</span>m<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>return</span> b<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>?</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>:-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    ll cnt<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>,t<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>%</span>m;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span>(<span style=color:#8be9fd;font-style:italic>true</span>){
-</span></span><span style=display:flex><span>        ll g<span style=color:#ff79c6>=</span>gcd(a,m); <span style=color:#ff79c6>if</span>(g<span style=color:#ff79c6>==</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>break</span>; <span style=color:#ff79c6>if</span>(b<span style=color:#ff79c6>%</span>g) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        m<span style=color:#ff79c6>/=</span>g; b<span style=color:#ff79c6>/=</span>g; t<span style=color:#ff79c6>=</span>(ll)((__int128)t<span style=color:#ff79c6>*</span>(a<span style=color:#ff79c6>/</span>g)<span style=color:#ff79c6>%</span>m); cnt<span style=color:#ff79c6>++</span>; <span style=color:#ff79c6>if</span>(t<span style=color:#ff79c6>==</span>b) <span style=color:#ff79c6>return</span> cnt;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    ll inv_t<span style=color:#ff79c6>=</span>modinv(t<span style=color:#ff79c6>%</span>m,m); <span style=color:#ff79c6>if</span>(inv_t<span style=color:#ff79c6>==-</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    ll rhs<span style=color:#ff79c6>=</span>(ll)((__int128)b<span style=color:#ff79c6>*</span>inv_t<span style=color:#ff79c6>%</span>m);
-</span></span><span style=display:flex><span>    ll res<span style=color:#ff79c6>=</span>bsgs(a<span style=color:#ff79c6>%</span>m,rhs,m); <span style=color:#ff79c6>return</span> res<span style=color:#ff79c6>==-</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>?-</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>:</span>res<span style=color:#ff79c6>+</span>cnt;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    ll a, b, m;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (cin <span style=color:#ff79c6>&gt;&gt;</span> a <span style=color:#ff79c6>&gt;&gt;</span> b <span style=color:#ff79c6>&gt;&gt;</span> m) {
-</span></span><span style=display:flex><span>        ll x <span style=color:#ff79c6>=</span> exbsgs(a, b, m);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (x <span style=color:#ff79c6>==</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;no solution</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>else</span> cout <span style=color:#ff79c6>&lt;&lt;</span> x <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><blockquote><p><strong>[Key Fact ⭐ — The modulus shifts from P to φ(P)]</strong></p><p>When $P$ is prime, $\operatorname{ord}(g)=P-1=\varphi(P)$. The discrete logarithm map $\operatorname{ind}_g(g^t)=t\pmod{P-1}$ converts multiplication in $\mathbb{F}_P^*$ into addition in $\mathbb{Z}_{P-1}$.</p><p><strong>Why:</strong> The primitive root $g$ satisfies $g^{P-1}\equiv1$ and $g^n\equiv1\iff(P-1)\mid n$. This is the exact point where multiplicative congruence becomes additive congruence modulo the order.</p></blockquote><blockquote><p><strong><a href=https://vjudge.net/problem/SGU-261>Example — SGU 261: Discrete Roots</a></strong></p><p>Find all roots of $x^K\equiv A\pmod{P}$, where $P,K$ are both prime. $(2\le P\le10^9,\ 2\le K\le10^5,\ 0\le A\lt P)$</p><p><strong>Idea:</strong> in the reals, $x^K=A\Rightarrow x=A^{1/K}$. With discrete logarithms, replace $\ln$ with ind (modulus shifts from $P$ to $P-1$):</p>$$K\cdot\operatorname{ind}(x)\equiv\operatorname{ind}(A)\pmod{P-1}$$<p><strong>Algorithm:</strong></p><ol><li><strong>$A=0$:</strong> the only root is $x=0$ (since $P$ is prime).</li><li><strong>$A\ne0$:</strong> write $x=g^t$, $A=g^b$. The equation becomes $Kt\equiv b\pmod{P-1}$.</li><li><strong>Linear congruence:</strong> let $d=\gcd(K,P-1)$. Solvable iff $d\mid b$. The base solution is $t_0\equiv b_1K_1^{-1}\pmod{M_1}$. There are $d$ roots: $x_i=g^{t_0+iM_1}\bmod P$.</li></ol></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>; <span style=color:#ff79c6>using</span> i128 <span style=color:#ff79c6>=</span> __int128_t;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4>// (qp, exgcd, modinv, factorize_distinct, primitive_root, bsgs defined above)
-</span></span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    ll P, K, A; cin <span style=color:#ff79c6>&gt;&gt;</span> P <span style=color:#ff79c6>&gt;&gt;</span> K <span style=color:#ff79c6>&gt;&gt;</span> A;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (A <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) { cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>0</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    ll g <span style=color:#ff79c6>=</span> primitive_root(P);
-</span></span><span style=display:flex><span>    ll indA <span style=color:#ff79c6>=</span> bsgs(g, A, P);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (indA <span style=color:#ff79c6>==</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) { cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    ll mod <span style=color:#ff79c6>=</span> P <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    ll d <span style=color:#ff79c6>=</span> gcd(K, mod);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (indA <span style=color:#ff79c6>%</span> d <span style=color:#ff79c6>!=</span> <span style=color:#bd93f9>0</span>) { cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    ll K1 <span style=color:#ff79c6>=</span> K<span style=color:#ff79c6>/</span>d, M1 <span style=color:#ff79c6>=</span> mod<span style=color:#ff79c6>/</span>d, indA1 <span style=color:#ff79c6>=</span> indA<span style=color:#ff79c6>/</span>d;
-</span></span><span style=display:flex><span>    ll x, y; exgcd(K1, M1, x, y);
-</span></span><span style=display:flex><span>    x <span style=color:#ff79c6>=</span> (x<span style=color:#ff79c6>%</span>mod <span style=color:#ff79c6>+</span> mod)<span style=color:#ff79c6>%</span>mod;
-</span></span><span style=display:flex><span>    ll base_t <span style=color:#ff79c6>=</span> (i128)indA1 <span style=color:#ff79c6>*</span> x <span style=color:#ff79c6>%</span> M1;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    set<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> roots;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (ll i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> d; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        ll t <span style=color:#ff79c6>=</span> (base_t <span style=color:#ff79c6>+</span> i <span style=color:#ff79c6>*</span> M1) <span style=color:#ff79c6>%</span> (P <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        roots.insert(qp(g, t, P));
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> roots.size() <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#ff79c6>auto</span> <span style=color:#8be9fd;font-style:italic>r</span> : roots) cout <span style=color:#ff79c6>&lt;&lt;</span> r <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39; &#39;</span>;
-</span></span><span style=display:flex><span>    cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=5-number-theoretic-transform-ntt>5 Number Theoretic Transform (NTT)</h1><p>Replace the complex roots of unity $\omega_n$ with modular primitive roots. The DFT/IDFT derivation still holds over $\mathbb{Z}_p$ instead of $\mathbb{C}$.</p><ul><li><strong>Advantages:</strong> fast; exact (integer arithmetic, no floating-point error)</li><li><strong>Limitation:</strong> the modulus must be a prime of the form $p=r\cdot2^t+1$</li></ul><p>Common NTT-friendly primes (all have primitive root $g=3$):</p><table><thead><tr><th>Prime</th><th>Factored form</th><th>Max array size</th></tr></thead><tbody><tr><td>998244353</td><td>$119\cdot2^{23}+1$</td><td>$\sim8\times10^6$</td></tr><tr><td>1004535809</td><td>$479\cdot2^{21}+1$</td><td>$>10^9$ (as value)</td></tr><tr><td>65537</td><td>$2^{16}+1$</td><td>$65536$</td></tr></tbody></table><h2 id=51-template>5.1 Template</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> M <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>998244353</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> _g <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>3</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>qp</span>(<span style=color:#8be9fd>int</span> a, ll e<span style=color:#ff79c6>=</span>M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>2</span>) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (e) { <span style=color:#ff79c6>if</span> (e <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> (ll)r<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M; a <span style=color:#ff79c6>=</span> (ll)a<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M; e <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>ntt</span>(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> a, <span style=color:#8be9fd>int</span> invert) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> a.size();
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> rev(n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        rev[i] <span style=color:#ff79c6>=</span> (rev[i<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>|</span> ((i<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>*</span> (n<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>&lt;</span> rev[i]) swap(a[i], a[rev[i]]);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> len <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; len <span style=color:#ff79c6>&lt;=</span> n; len <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> wn <span style=color:#ff79c6>=</span> qp(_g, (M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>/</span>len);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (invert) wn <span style=color:#ff79c6>=</span> qp(wn);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; i <span style=color:#ff79c6>+=</span> len) {
-</span></span><span style=display:flex><span>            ll w <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> len<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>; <span style=color:#ff79c6>++</span>j) {
-</span></span><span style=display:flex><span>                <span style=color:#8be9fd>int</span> u <span style=color:#ff79c6>=</span> a[i<span style=color:#ff79c6>+</span>j], v <span style=color:#ff79c6>=</span> (ll)a[i<span style=color:#ff79c6>+</span>j<span style=color:#ff79c6>+</span>len<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>]<span style=color:#ff79c6>*</span>w<span style=color:#ff79c6>%</span>M;
-</span></span><span style=display:flex><span>                a[i<span style=color:#ff79c6>+</span>j] <span style=color:#ff79c6>=</span> u<span style=color:#ff79c6>+</span>v <span style=color:#ff79c6>&lt;</span> M <span style=color:#ff79c6>?</span> u<span style=color:#ff79c6>+</span><span style=color:#8be9fd;font-style:italic>v</span> : u<span style=color:#ff79c6>+</span>v<span style=color:#ff79c6>-</span>M;
-</span></span><span style=display:flex><span>                a[i<span style=color:#ff79c6>+</span>j<span style=color:#ff79c6>+</span>len<span style=color:#ff79c6>/</span><span style=color:#bd93f9>2</span>] <span style=color:#ff79c6>=</span> u<span style=color:#ff79c6>-</span>v <span style=color:#ff79c6>&gt;=</span> <span style=color:#bd93f9>0</span> <span style=color:#ff79c6>?</span> u<span style=color:#ff79c6>-</span><span style=color:#8be9fd;font-style:italic>v</span> : u<span style=color:#ff79c6>-</span>v<span style=color:#ff79c6>+</span>M;
-</span></span><span style=display:flex><span>                w <span style=color:#ff79c6>=</span> w<span style=color:#ff79c6>*</span>wn<span style=color:#ff79c6>%</span>M;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (invert) { <span style=color:#8be9fd>int</span> inv_n <span style=color:#ff79c6>=</span> qp(n); <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#ff79c6>&amp;</span><span style=color:#8be9fd;font-style:italic>x</span> : a) x <span style=color:#ff79c6>=</span> (ll)x<span style=color:#ff79c6>*</span>inv_n<span style=color:#ff79c6>%</span>M; }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> multiply(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> a, vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> b) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> sz <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (sz <span style=color:#ff79c6>&lt;</span> (<span style=color:#8be9fd>int</span>)a.size() <span style=color:#ff79c6>+</span> (<span style=color:#8be9fd>int</span>)b.size() <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>) sz <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    a.resize(sz); b.resize(sz);
-</span></span><span style=display:flex><span>    ntt(a, <span style=color:#bd93f9>0</span>); ntt(b, <span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> sz; <span style=color:#ff79c6>++</span>i) a[i] <span style=color:#ff79c6>=</span> (ll)a[i]<span style=color:#ff79c6>*</span>b[i]<span style=color:#ff79c6>%</span>M;
-</span></span><span style=display:flex><span>    ntt(a, <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> a;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h2 id=52-faster-version-precomputed-roots>5.2 Faster version (precomputed roots)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> M <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>998244353</span>; <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> _g <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>3</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>qp</span>(<span style=color:#8be9fd>int</span> a, ll e<span style=color:#ff79c6>=</span>M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>2</span>) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> r <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (e) { <span style=color:#ff79c6>if</span> (e <span style=color:#ff79c6>&amp;</span> <span style=color:#bd93f9>1</span>) r <span style=color:#ff79c6>=</span> (ll)r<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M; a <span style=color:#ff79c6>=</span> (ll)a<span style=color:#ff79c6>*</span>a<span style=color:#ff79c6>%</span>M; e <span style=color:#ff79c6>&gt;&gt;=</span> <span style=color:#bd93f9>1</span>; }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> r;
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>ntt</span>(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> <span style=color:#ff79c6>&amp;</span>a, <span style=color:#8be9fd>bool</span> inv) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> a.size();
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (n <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span>;
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> L <span style=color:#ff79c6>=</span> __builtin_ctz(n);
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> rev(n); rev[<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;</span> n; i<span style=color:#ff79c6>++</span>) rev[i] <span style=color:#ff79c6>=</span> (rev[i<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>|</span> ((i<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>&lt;&lt;</span>(L<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>&lt;</span> rev[i]) swap(a[i], a[rev[i]]);
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>static</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> roots{<span style=color:#bd93f9>0</span>, <span style=color:#bd93f9>1</span>};
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> ((<span style=color:#8be9fd>int</span>)roots.size() <span style=color:#ff79c6>&lt;</span> n) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> k <span style=color:#ff79c6>=</span> __builtin_ctz(roots.size());
-</span></span><span style=display:flex><span>        roots.resize(n);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span> ((<span style=color:#bd93f9>1</span> <span style=color:#ff79c6>&lt;&lt;</span> k) <span style=color:#ff79c6>&lt;</span> n) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> e <span style=color:#ff79c6>=</span> qp(_g, (M<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>&gt;&gt;</span> (k<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>));
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span>(k<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>); i <span style=color:#ff79c6>&lt;</span> (<span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span>k); i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>                roots[<span style=color:#bd93f9>2</span><span style=color:#ff79c6>*</span>i] <span style=color:#ff79c6>=</span> roots[i];
-</span></span><span style=display:flex><span>                roots[<span style=color:#bd93f9>2</span><span style=color:#ff79c6>*</span>i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> (ll)roots[i]<span style=color:#ff79c6>*</span>e<span style=color:#ff79c6>%</span>M;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>            k<span style=color:#ff79c6>++</span>;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> len <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; len <span style=color:#ff79c6>&lt;</span> n; len <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>)
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; i <span style=color:#ff79c6>+=</span> len<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>1</span>)
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> len; j<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>                <span style=color:#8be9fd>int</span> u <span style=color:#ff79c6>=</span> a[i<span style=color:#ff79c6>+</span>j], v <span style=color:#ff79c6>=</span> (ll)a[i<span style=color:#ff79c6>+</span>j<span style=color:#ff79c6>+</span>len]<span style=color:#ff79c6>*</span>roots[len<span style=color:#ff79c6>+</span>j]<span style=color:#ff79c6>%</span>M;
-</span></span><span style=display:flex><span>                a[i<span style=color:#ff79c6>+</span>j] <span style=color:#ff79c6>=</span> u<span style=color:#ff79c6>+</span>v<span style=color:#ff79c6>&lt;</span>M<span style=color:#ff79c6>?</span>u<span style=color:#ff79c6>+</span><span style=color:#8be9fd;font-style:italic>v</span>:u<span style=color:#ff79c6>+</span>v<span style=color:#ff79c6>-</span>M;
-</span></span><span style=display:flex><span>                a[i<span style=color:#ff79c6>+</span>j<span style=color:#ff79c6>+</span>len] <span style=color:#ff79c6>=</span> u<span style=color:#ff79c6>-</span>v<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>?</span>u<span style=color:#ff79c6>-</span><span style=color:#8be9fd;font-style:italic>v</span>:u<span style=color:#ff79c6>-</span>v<span style=color:#ff79c6>+</span>M;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (inv) {
-</span></span><span style=display:flex><span>        reverse(a.begin()<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, a.end());
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> inv_n <span style=color:#ff79c6>=</span> qp(n);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> <span style=color:#ff79c6>&amp;</span><span style=color:#8be9fd;font-style:italic>x</span> : a) x <span style=color:#ff79c6>=</span> (ll)x<span style=color:#ff79c6>*</span>inv_n<span style=color:#ff79c6>%</span>M;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> multiply(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> a, vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> b) {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> sz <span style=color:#ff79c6>=</span> (<span style=color:#8be9fd>int</span>)a.size()<span style=color:#ff79c6>+</span>(<span style=color:#8be9fd>int</span>)b.size()<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>, n <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (n <span style=color:#ff79c6>&lt;</span> sz) n <span style=color:#ff79c6>&lt;&lt;=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    a.resize(n); b.resize(n);
-</span></span><span style=display:flex><span>    ntt(a, <span style=color:#8be9fd;font-style:italic>false</span>); ntt(b, <span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; i<span style=color:#ff79c6>++</span>) a[i] <span style=color:#ff79c6>=</span> (ll)a[i]<span style=color:#ff79c6>*</span>b[i]<span style=color:#ff79c6>%</span>M;
-</span></span><span style=display:flex><span>    ntt(a, <span style=color:#8be9fd;font-style:italic>true</span>); a.resize(sz);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> a;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=6-divide-and-conquer-fft--ntt>6 Divide-and-Conquer FFT / NTT</h1><blockquote><p><strong>[Problem 1: Product of linear factors]</strong></p><p>Compute $f(x)=\prod_{i=1}^n(x-a_i)\bmod 998244353$, $n\le10^5$.</p><p>The naïve $O(n^2)$ approach multiplies one factor at a time. Correct approach: <strong>Divide-and-Conquer NTT (Product Tree)</strong></p><ol><li><strong>Build a segment tree:</strong> leaf $[i,i]$ holds $(x-a_i)$; internal node $[l,r]$ holds the product of its children.</li><li><strong>Merge children</strong> with NTT polynomial multiplication at cost $O(d\log d)$.</li><li><strong>Complexity:</strong> tree height $O(\log n)$, total degree per level $O(n)$ → $O(n\log^2 n)$ overall.</li></ol></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> P<span style=color:#ff79c6>=</span><span style=color:#bd93f9>998244353</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#6272a4>// (ntt, multiply omitted)
-</span></span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> build(<span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> A){
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(l<span style=color:#ff79c6>==</span>r) <span style=color:#ff79c6>return</span> { (<span style=color:#ff79c6>-</span>A[l]<span style=color:#ff79c6>+</span>P)<span style=color:#ff79c6>%</span>P, <span style=color:#bd93f9>1</span> };
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m<span style=color:#ff79c6>=</span>(l<span style=color:#ff79c6>+</span>r)<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#50fa7b>multiply</span>(build(l,m,A), build(m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,r,A));
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n; cin<span style=color:#ff79c6>&gt;&gt;</span>n;
-</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> A(n);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>n;i<span style=color:#ff79c6>++</span>) cin<span style=color:#ff79c6>&gt;&gt;</span>A[i];
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> F <span style=color:#ff79c6>=</span> build(<span style=color:#bd93f9>0</span>,n<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>,A);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>n;i<span style=color:#ff79c6>++</span>) cout<span style=color:#ff79c6>&lt;&lt;</span>F[i]<span style=color:#ff79c6>&lt;&lt;</span>(i<span style=color:#ff79c6>==</span>n<span style=color:#ff79c6>?</span><span style=color:#f1fa8c>&#39;\n&#39;</span><span style=color:#ff79c6>:</span><span style=color:#f1fa8c>&#39; &#39;</span>);
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><blockquote><p><strong>[Problem 2: General product of polynomials]</strong></p><p>Compute $f(x)=\prod_{i=1}^n f_i(x)\bmod 998244353$, $\sum\deg(f_i)\le10^5$.</p><p>Multiplying sequentially gives $O(n^2\log n)$ — worse than brute force.</p><ul><li><strong>Approach 1:</strong> Divide-and-conquer NTT, $O(n\log^2 n)$.</li><li><strong>Approach 2:</strong> Huffman-style NTT — always merge the two lowest-degree polynomials, same complexity.</li></ul></blockquote><p><strong>Divide-and-conquer version:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> build(<span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;&amp;</span> F) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (l <span style=color:#ff79c6>==</span> r) <span style=color:#ff79c6>return</span> F[l];
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m <span style=color:#ff79c6>=</span> (l<span style=color:#ff79c6>+</span>r)<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#50fa7b>multiply</span>(build(l,m,F), build(m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,r,F));
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><p><strong>Huffman version:</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>Cmp</span> {
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> <span style=color:#50fa7b>operator</span>()(<span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> a, <span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&amp;</span> b) <span style=color:#ff79c6>const</span> {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> a.size() <span style=color:#ff79c6>&gt;</span> b.size();
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>};
-</span></span><span style=display:flex><span>priority_queue<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span>, vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;</span>, Cmp<span style=color:#ff79c6>&gt;</span> pq;
-</span></span><span style=display:flex><span><span style=color:#6272a4>// ... push all f_i into pq, then:
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>while</span> (pq.size() <span style=color:#ff79c6>&gt;</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> A <span style=color:#ff79c6>=</span> move(pq.top()); pq.pop();
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> B <span style=color:#ff79c6>=</span> move(pq.top()); pq.pop();
-</span></span><span style=display:flex><span>    pq.push(multiply(A, B));
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><blockquote><p><strong><a href=https://ac.nowcoder.com/acm/contest/133/D>Example — Wannafly Contest 20 D: Choosing Teammates</a></strong></p><p>$m$ groups, group $i$ has $s_i$ people. Choose exactly $k$ people with at least 1 from each group. Count ways modulo 998244353. People are distinguishable. $(m\le k\le\sum s_i=n\le10^5)$</p><p><strong>Stars-and-bars vs. distinguishable:</strong> In stars-and-bars, identical balls give $\binom{k+m-1}{m-1}$. Here people are distinct, so group $i$ generates:</p>$$F_i(x)=(1+x)^{s_i}-1\qquad\text{(subtract the "pick nobody" constant)}$$<p>Answer: $[x^k]\prod_i F_i(x)$. Brute-force DP is $O(nk)\approx10^{10}$ — infeasible. Use <strong>divide-and-conquer NTT</strong> in $O(n\log n\cdot\log m)$.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> build(<span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r) {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (l <span style=color:#ff79c6>==</span> r) <span style=color:#ff79c6>return</span> polys[l];
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m <span style=color:#ff79c6>=</span> (l <span style=color:#ff79c6>+</span> r) <span style=color:#ff79c6>&gt;&gt;</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#50fa7b>multiply_capped</span>(build(l,m), build(m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,r), K);
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><blockquote><p><strong><a href=https://ac.nowcoder.com/acm/contest/1080/F>Example — Nowcoder Practice 50 F</a></strong></p><p>$n$ matches; match $i$ has $a_i$ Protoss and $b_i$ Zerg units. Each match you choose Protoss or Zerg:</p><ul><li>Choosing Zerg: $2^{b_i}-1$ deployment options, contributes 0 to Protoss count.</li><li>Choosing Protoss: $\binom{a_i}{t}$ ways to deploy $t\in[1,a_i]$ units, contributing $t$ to Protoss count.</li></ul><p>Match $i$ generating function: $G_i(x)=(1+x)^{a_i}+2^{b_i}-2$</p><p>Compute $F(x)=\prod_i G_i(x)$ and output all coefficients modulo 998244353.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#6272a4>// build G_i for each match, then divide-and-conquer NTT:
-</span></span></span><span style=display:flex><span>vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;</span> G(n);
-</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;</span> n; i<span style=color:#ff79c6>++</span>) {
-</span></span><span style=display:flex><span>    G[i].assign(a[i]<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>, <span style=color:#bd93f9>0</span>);
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> z <span style=color:#ff79c6>=</span> (qp(<span style=color:#bd93f9>2</span>, b[i]) <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span> <span style=color:#ff79c6>+</span> MOD) <span style=color:#ff79c6>%</span> MOD;
-</span></span><span style=display:flex><span>    G[i][<span style=color:#bd93f9>0</span>] <span style=color:#ff79c6>=</span> z;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; t <span style=color:#ff79c6>&lt;=</span> a[i]; t<span style=color:#ff79c6>++</span>) G[i][t] <span style=color:#ff79c6>=</span> C(a[i], t);
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>function<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span>(<span style=color:#8be9fd>int</span>,<span style=color:#8be9fd>int</span>)<span style=color:#ff79c6>&gt;</span> solve <span style=color:#ff79c6>=</span> [<span style=color:#ff79c6>&amp;</span>](<span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r) <span style=color:#ff79c6>-&gt;</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> {
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span> (l <span style=color:#ff79c6>==</span> r) <span style=color:#ff79c6>return</span> G[l];
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m <span style=color:#ff79c6>=</span> (l<span style=color:#ff79c6>+</span>r)<span style=color:#ff79c6>&gt;&gt;</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#50fa7b>multiply</span>(solve(l,m), solve(m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,r));
-</span></span><span style=display:flex><span>};
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#ff79c6>auto</span> F <span style=color:#ff79c6>=</span> solve(<span style=color:#bd93f9>0</span>, n<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>F.resize(S<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span><span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; i <span style=color:#ff79c6>&lt;=</span> S; i<span style=color:#ff79c6>++</span>) cout <span style=color:#ff79c6>&lt;&lt;</span> F[i] <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39; &#39;</span>;
-</span></span></code></pre></div></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-order-and-primitive-roots>1 Order and Primitive Roots</a></li><li><a href=#2-properties-of-the-order>2 Properties of the Order</a></li><li><a href=#3-existence-and-testing-of-primitive-roots>3 Existence and Testing of Primitive Roots</a></li><li><a href=#4-discrete-index-discrete-logarithm>4 Discrete Index (Discrete Logarithm)</a></li><li><a href=#5-number-theoretic-transform-ntt>5 Number Theoretic Transform (NTT)</a><ul><li><a href=#51-template>5.1 Template</a></li><li><a href=#52-faster-version-precomputed-roots>5.2 Faster version (precomputed roots)</a></li></ul></li><li><a href=#6-divide-and-conquer-fft--ntt>6 Divide-and-Conquer FFT / NTT</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
-<a href=/posts/>Posts</a>
-<a href=/archives/>Archives</a>
-<a href=/tags/>Tags</a></div></footer></div><script>(function(){const t=document.querySelector(".nav-toggle"),n=document.querySelector("#site-navigation");if(!t||!n)return;function e(e){document.documentElement.classList.toggle("nav-open",e),t.setAttribute("aria-expanded",String(e))}t.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),n.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0})})()</script></body></html>
+$$<h1 id="3-existence-and-testing-of-primitive-roots">3 Existence and Testing of Primitive Roots</h1>
+<blockquote>
+<p><strong>[Theorem — Existence of Primitive Roots]</strong></p>
+<p>A primitive root exists modulo $m$ if and only if $m\in\{2,4,p^a,2p^a\}$ for some odd prime $p$.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std; <span style="color:#ff79c6">using</span> i64 <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">bool</span> <span style="color:#50fa7b">isPrimePower</span>(i64 x){
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (x <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">2</span>) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">false</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (i64 p <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; p <span style="color:#ff79c6">*</span> p <span style="color:#ff79c6">&lt;=</span> x; <span style="color:#ff79c6">++</span>p){
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (x <span style="color:#ff79c6">%</span> p <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>){
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">while</span> (x <span style="color:#ff79c6">%</span> p <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) x <span style="color:#ff79c6">/=</span> p;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">return</span> x <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">bool</span> <span style="color:#50fa7b">hasPrimitiveRoot</span>(i64 n){
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">2</span>) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">false</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">2</span> <span style="color:#ff79c6">||</span> n <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">4</span>) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> isPrimePower(n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">%</span> <span style="color:#bd93f9">4</span> <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">false</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> isPrimePower(n <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (i64 n; cin <span style="color:#ff79c6">&gt;&gt;</span> n; )
+</span></span><span style="display:flex;"><span>        cout <span style="color:#ff79c6">&lt;&lt;</span> (hasPrimitiveRoot(n) <span style="color:#ff79c6">?</span> <span style="color:#f1fa8c">&#34;YES</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span> <span style="color:#ff79c6">:</span> <span style="color:#f1fa8c">&#34;NO</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><blockquote>
+<p><strong>[Theorem — Characterization of Primitive Roots]</strong></p>
+<p>Let $m>1$ and $\gcd(g,m)=1$. Then $g$ is a primitive root modulo $m$ if and only if for every prime factor $q_i$ of $\varphi(m)$:</p>
+$$g^{\varphi(m)/q_i}\not\equiv 1\pmod{m}$$<p><strong>Intuition:</strong> If the exponent cannot be reduced by removing any single prime factor, the order must already equal $\varphi(m)$.</p>
+</blockquote>
+<blockquote>
+<p><strong>[Example — Luogu P6091: Primitive Root]</strong></p>
+<p>Given $n$, find all primitive roots of $n$. With output parameter $d$: if there are $c$ primitive roots $g_1\lt g_2\lt\cdots\lt g_c$, output $g_d,g_{2d},\ldots,g_{\lfloor c/d\rfloor d}$.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include&lt;bits/stdc++.h&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1000000</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">7</span>;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> pr[N], ph[N], fc[<span style="color:#bd93f9">9</span>], u[<span style="color:#bd93f9">11</span>], v[<span style="color:#bd93f9">11</span>];
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">bool</span> f[N], b[N], p[N], q[N];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">init</span>(<span style="color:#8be9fd">int</span> n) {
+</span></span><span style="display:flex;"><span>    b[<span style="color:#bd93f9">2</span>] <span style="color:#ff79c6">=</span> b[<span style="color:#bd93f9">4</span>] <span style="color:#ff79c6">=</span> ph[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>f[i]) { pr[<span style="color:#ff79c6">++</span>t] <span style="color:#ff79c6">=</span> i; ph[i] <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>; }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>, k; j <span style="color:#ff79c6">&lt;=</span> t <span style="color:#ff79c6">&amp;&amp;</span> (k <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">*</span> pr[j]) <span style="color:#ff79c6">&lt;=</span> n; <span style="color:#ff79c6">++</span>j) {
+</span></span><span style="display:flex;"><span>            f[k] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">%</span> pr[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) { ph[k] <span style="color:#ff79c6">=</span> ph[i] <span style="color:#ff79c6">*</span> pr[j]; <span style="color:#ff79c6">break</span>; }
+</span></span><span style="display:flex;"><span>            ph[k] <span style="color:#ff79c6">=</span> ph[i] <span style="color:#ff79c6">*</span> ph[pr[j]];
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> t; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> x <span style="color:#ff79c6">=</span> pr[i]; x <span style="color:#ff79c6">&lt;=</span> n; x <span style="color:#ff79c6">*=</span> pr[i]) b[x] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> x <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2LL</span> <span style="color:#ff79c6">*</span> pr[i]; x <span style="color:#ff79c6">&lt;=</span> n; x <span style="color:#ff79c6">*=</span> pr[i]) b[x] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">qp</span>(<span style="color:#8be9fd">int</span> a, <span style="color:#8be9fd">int</span> b, <span style="color:#8be9fd">int</span> p) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (b) { <span style="color:#ff79c6">if</span> (b <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">int</span>(<span style="color:#bd93f9">1LL</span><span style="color:#ff79c6">*</span>r<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>p); a <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">int</span>(<span style="color:#bd93f9">1LL</span><span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>p); b <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> T, n <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>, m, d;
+</span></span><span style="display:flex;"><span>    scanf(<span style="color:#f1fa8c">&#34;%d&#34;</span>, <span style="color:#ff79c6">&amp;</span>T);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> T; <span style="color:#ff79c6">++</span>i) { scanf(<span style="color:#f1fa8c">&#34;%d %d&#34;</span>, <span style="color:#ff79c6">&amp;</span>u[i], <span style="color:#ff79c6">&amp;</span>v[i]); n <span style="color:#ff79c6">=</span> max(n, u[i]); }
+</span></span><span style="display:flex;"><span>    init(n);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> o <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; o <span style="color:#ff79c6">&lt;=</span> T; <span style="color:#ff79c6">++</span>o) {
+</span></span><span style="display:flex;"><span>        n <span style="color:#ff79c6">=</span> u[o]; d <span style="color:#ff79c6">=</span> v[o];
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>b[n]) { puts(<span style="color:#f1fa8c">&#34;0</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>); <span style="color:#ff79c6">continue</span>; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        m <span style="color:#ff79c6">=</span> ph[n];
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> tmp <span style="color:#ff79c6">=</span> m, t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; pr[i]<span style="color:#ff79c6">*</span>pr[i] <span style="color:#ff79c6">&lt;=</span> tmp; <span style="color:#ff79c6">++</span>i)
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (tmp <span style="color:#ff79c6">%</span> pr[i] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) {
+</span></span><span style="display:flex;"><span>                fc[<span style="color:#ff79c6">++</span>t] <span style="color:#ff79c6">=</span> pr[i];
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">while</span> (tmp <span style="color:#ff79c6">%</span> pr[i] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) tmp <span style="color:#ff79c6">/=</span> pr[i];
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> pr[i]; k <span style="color:#ff79c6">&lt;=</span> m; k <span style="color:#ff79c6">+=</span> pr[i]) p[k] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (tmp <span style="color:#ff79c6">&gt;</span> <span style="color:#bd93f9">1</span>) { fc[<span style="color:#ff79c6">++</span>t] <span style="color:#ff79c6">=</span> tmp; <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> tmp; k <span style="color:#ff79c6">&lt;=</span> m; k <span style="color:#ff79c6">+=</span> tmp) p[k] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> g;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (g <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; ; <span style="color:#ff79c6">++</span>g) {
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">while</span> (qp(g, m, n) <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">++</span>g;
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> i; <span style="color:#ff79c6">for</span> (i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> t; <span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span> (qp(g, m<span style="color:#ff79c6">/</span>fc[i], n) <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">break</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">&gt;</span> t) <span style="color:#ff79c6">break</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> cnt <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>, cur <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; k <span style="color:#ff79c6">&lt;=</span> m; <span style="color:#ff79c6">++</span>k) {
+</span></span><span style="display:flex;"><span>            cur <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">int</span>(<span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> cur <span style="color:#ff79c6">*</span> g <span style="color:#ff79c6">%</span> n);
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>p[k]) { q[cur] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>; <span style="color:#ff79c6">++</span>cnt; } <span style="color:#ff79c6">else</span> { p[k] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>; }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        printf(<span style="color:#f1fa8c">&#34;%d</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>, cnt);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>, seen <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i)
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (q[i]) { q[i] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>; <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">++</span>seen <span style="color:#ff79c6">==</span> d) { printf(<span style="color:#f1fa8c">&#34;%d &#34;</span>, i); seen <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; } }
+</span></span><span style="display:flex;"><span>        puts(<span style="color:#f1fa8c">&#34;&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h1 id="4-discrete-index-discrete-logarithm">4 Discrete Index (Discrete Logarithm)</h1>
+<blockquote>
+<p><strong>[Definition — Discrete Index]</strong></p>
+<p>For prime $p$ with primitive root $g$: the elements $g^0,g^1,\dots,g^{p-2}$ are a permutation of $1,\dots,p-1$ modulo $p$. If $g^c\equiv x\pmod{p}$, then $c$ is the <strong>discrete index</strong> of $x$: $\operatorname{ind}_g(x)=c$.</p>
+<p>The index mimics the real logarithm: it converts multiplication into addition modulo $p-1$.</p>
+<p><strong>Computing the index:</strong> Baby-Step Giant-Step <strong>(BSGS)</strong> — solve $a^x\equiv b\pmod m$ for the smallest non-negative $x$.</p>
+<ul>
+<li>Standard BSGS requires $\gcd(a,m)=1$.</li>
+<li>General case: use <strong>exBSGS</strong>.</li>
+</ul>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">qp</span>(ll a,ll e,ll m){ __int128 A<span style="color:#ff79c6">=</span>(a<span style="color:#ff79c6">%</span>m<span style="color:#ff79c6">+</span>m)<span style="color:#ff79c6">%</span>m,r<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">while</span>(e){ <span style="color:#ff79c6">if</span>(e<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>) r<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">*</span>A<span style="color:#ff79c6">%</span>m; A<span style="color:#ff79c6">=</span>A<span style="color:#ff79c6">*</span>A<span style="color:#ff79c6">%</span>m; e<span style="color:#ff79c6">&gt;&gt;=</span><span style="color:#bd93f9">1</span>;} <span style="color:#ff79c6">return</span> (ll)r; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">exgcd</span>(ll a, ll b, ll <span style="color:#ff79c6">&amp;</span>x, ll <span style="color:#ff79c6">&amp;</span>y) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>b) { x <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; y <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">return</span> a <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">?</span> <span style="color:#8be9fd;font-style:italic">a</span> : <span style="color:#ff79c6">-</span>a; }
+</span></span><span style="display:flex;"><span>    ll x1, y1; ll g <span style="color:#ff79c6">=</span> exgcd(b, a <span style="color:#ff79c6">%</span> b, x1, y1);
+</span></span><span style="display:flex;"><span>    x <span style="color:#ff79c6">=</span> y1; y <span style="color:#ff79c6">=</span> x1 <span style="color:#ff79c6">-</span> (a <span style="color:#ff79c6">/</span> b) <span style="color:#ff79c6">*</span> y1; <span style="color:#ff79c6">return</span> g;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">modinv</span>(ll a, ll mod) {
+</span></span><span style="display:flex;"><span>    ll x, y; ll g <span style="color:#ff79c6">=</span> exgcd(a, mod, x, y);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (g <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    x <span style="color:#ff79c6">%=</span> mod; <span style="color:#ff79c6">if</span> (x <span style="color:#ff79c6">&lt;</span> <span style="color:#bd93f9">0</span>) x <span style="color:#ff79c6">+=</span> mod; <span style="color:#ff79c6">return</span> x;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">bsgs</span>(ll a,ll b,ll m){
+</span></span><span style="display:flex;"><span>    a<span style="color:#ff79c6">%=</span>m; b<span style="color:#ff79c6">%=</span>m; <span style="color:#ff79c6">if</span>(m<span style="color:#ff79c6">==</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">||</span>b<span style="color:#ff79c6">==</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">%</span>m) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    ll n<span style="color:#ff79c6">=</span>(ll)ceil(sqrt((<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">double</span>)m));
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>pair<span style="color:#ff79c6">&lt;</span>ll,ll<span style="color:#ff79c6">&gt;&gt;</span> bs; bs.reserve(n);
+</span></span><span style="display:flex;"><span>    ll cur<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">%</span>m; <span style="color:#ff79c6">for</span>(ll j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>n;j<span style="color:#ff79c6">++</span>){ bs.push_back({cur,j}); cur<span style="color:#ff79c6">=</span>(ll)((__int128)cur<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>m); }
+</span></span><span style="display:flex;"><span>    sort(bs.begin(),bs.end());
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>pair<span style="color:#ff79c6">&lt;</span>ll,ll<span style="color:#ff79c6">&gt;&gt;</span> baby; baby.reserve(bs.size());
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#ff79c6">auto</span> <span style="color:#ff79c6">&amp;</span><span style="color:#8be9fd;font-style:italic">p</span>:bs) <span style="color:#ff79c6">if</span>(baby.empty()<span style="color:#ff79c6">||</span>baby.back().first<span style="color:#ff79c6">!=</span>p.first) baby.push_back(p);
+</span></span><span style="display:flex;"><span>    ll inv_an<span style="color:#ff79c6">=</span>modinv(qp(a,n,m),m); <span style="color:#ff79c6">if</span>(inv_an<span style="color:#ff79c6">==-</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    cur<span style="color:#ff79c6">=</span>b<span style="color:#ff79c6">%</span>m;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(ll i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>n;i<span style="color:#ff79c6">++</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">auto</span> it<span style="color:#ff79c6">=</span>lower_bound(baby.begin(),baby.end(),make_pair(cur,(ll)<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(it<span style="color:#ff79c6">!=</span>baby.end()<span style="color:#ff79c6">&amp;&amp;</span>it<span style="color:#ff79c6">-&gt;</span>first<span style="color:#ff79c6">==</span>cur) <span style="color:#ff79c6">return</span> i<span style="color:#ff79c6">*</span>n<span style="color:#ff79c6">+</span>it<span style="color:#ff79c6">-&gt;</span>second;
+</span></span><span style="display:flex;"><span>        cur<span style="color:#ff79c6">=</span>(ll)((__int128)cur<span style="color:#ff79c6">*</span>inv_an<span style="color:#ff79c6">%</span>m);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ll <span style="color:#50fa7b">exbsgs</span>(ll a,ll b,ll m){
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(m<span style="color:#ff79c6">==</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    a<span style="color:#ff79c6">=</span>(a<span style="color:#ff79c6">%</span>m<span style="color:#ff79c6">+</span>m)<span style="color:#ff79c6">%</span>m; b<span style="color:#ff79c6">=</span>(b<span style="color:#ff79c6">%</span>m<span style="color:#ff79c6">+</span>m)<span style="color:#ff79c6">%</span>m; <span style="color:#ff79c6">if</span>(b<span style="color:#ff79c6">==</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">%</span>m) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(a<span style="color:#ff79c6">%</span>m<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">return</span> b<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">?</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">:-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    ll cnt<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>,t<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">%</span>m;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span>(<span style="color:#8be9fd;font-style:italic">true</span>){
+</span></span><span style="display:flex;"><span>        ll g<span style="color:#ff79c6">=</span>gcd(a,m); <span style="color:#ff79c6">if</span>(g<span style="color:#ff79c6">==</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">break</span>; <span style="color:#ff79c6">if</span>(b<span style="color:#ff79c6">%</span>g) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        m<span style="color:#ff79c6">/=</span>g; b<span style="color:#ff79c6">/=</span>g; t<span style="color:#ff79c6">=</span>(ll)((__int128)t<span style="color:#ff79c6">*</span>(a<span style="color:#ff79c6">/</span>g)<span style="color:#ff79c6">%</span>m); cnt<span style="color:#ff79c6">++</span>; <span style="color:#ff79c6">if</span>(t<span style="color:#ff79c6">==</span>b) <span style="color:#ff79c6">return</span> cnt;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    ll inv_t<span style="color:#ff79c6">=</span>modinv(t<span style="color:#ff79c6">%</span>m,m); <span style="color:#ff79c6">if</span>(inv_t<span style="color:#ff79c6">==-</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    ll rhs<span style="color:#ff79c6">=</span>(ll)((__int128)b<span style="color:#ff79c6">*</span>inv_t<span style="color:#ff79c6">%</span>m);
+</span></span><span style="display:flex;"><span>    ll res<span style="color:#ff79c6">=</span>bsgs(a<span style="color:#ff79c6">%</span>m,rhs,m); <span style="color:#ff79c6">return</span> res<span style="color:#ff79c6">==-</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">?-</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">:</span>res<span style="color:#ff79c6">+</span>cnt;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    ll a, b, m;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (cin <span style="color:#ff79c6">&gt;&gt;</span> a <span style="color:#ff79c6">&gt;&gt;</span> b <span style="color:#ff79c6">&gt;&gt;</span> m) {
+</span></span><span style="display:flex;"><span>        ll x <span style="color:#ff79c6">=</span> exbsgs(a, b, m);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (x <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;no solution</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">else</span> cout <span style="color:#ff79c6">&lt;&lt;</span> x <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><blockquote>
+<p><strong>[Key Fact ⭐ — The modulus shifts from P to φ(P)]</strong></p>
+<p>When $P$ is prime, $\operatorname{ord}(g)=P-1=\varphi(P)$. The discrete logarithm map $\operatorname{ind}_g(g^t)=t\pmod{P-1}$ converts multiplication in $\mathbb{F}_P^*$ into addition in $\mathbb{Z}_{P-1}$.</p>
+<p><strong>Why:</strong> The primitive root $g$ satisfies $g^{P-1}\equiv1$ and $g^n\equiv1\iff(P-1)\mid n$. This is the exact point where multiplicative congruence becomes additive congruence modulo the order.</p>
+</blockquote>
+<blockquote>
+<p><strong><a href="https://vjudge.net/problem/SGU-261">Example — SGU 261: Discrete Roots</a></strong></p>
+<p>Find all roots of $x^K\equiv A\pmod{P}$, where $P,K$ are both prime. $(2\le P\le10^9,\ 2\le K\le10^5,\ 0\le A\lt P)$</p>
+<p><strong>Idea:</strong> in the reals, $x^K=A\Rightarrow x=A^{1/K}$. With discrete logarithms, replace $\ln$ with ind (modulus shifts from $P$ to $P-1$):</p>
+$$K\cdot\operatorname{ind}(x)\equiv\operatorname{ind}(A)\pmod{P-1}$$<p><strong>Algorithm:</strong></p>
+<ol>
+<li><strong>$A=0$:</strong> the only root is $x=0$ (since $P$ is prime).</li>
+<li><strong>$A\ne0$:</strong> write $x=g^t$, $A=g^b$. The equation becomes $Kt\equiv b\pmod{P-1}$.</li>
+<li><strong>Linear congruence:</strong> let $d=\gcd(K,P-1)$. Solvable iff $d\mid b$. The base solution is $t_0\equiv b_1K_1^{-1}\pmod{M_1}$. There are $d$ roots: $x_i=g^{t_0+iM_1}\bmod P$.</li>
+</ol>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>; <span style="color:#ff79c6">using</span> i128 <span style="color:#ff79c6">=</span> __int128_t;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// (qp, exgcd, modinv, factorize_distinct, primitive_root, bsgs defined above)
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    ll P, K, A; cin <span style="color:#ff79c6">&gt;&gt;</span> P <span style="color:#ff79c6">&gt;&gt;</span> K <span style="color:#ff79c6">&gt;&gt;</span> A;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (A <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) { cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">0</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    ll g <span style="color:#ff79c6">=</span> primitive_root(P);
+</span></span><span style="display:flex;"><span>    ll indA <span style="color:#ff79c6">=</span> bsgs(g, A, P);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (indA <span style="color:#ff79c6">==</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) { cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    ll mod <span style="color:#ff79c6">=</span> P <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    ll d <span style="color:#ff79c6">=</span> gcd(K, mod);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (indA <span style="color:#ff79c6">%</span> d <span style="color:#ff79c6">!=</span> <span style="color:#bd93f9">0</span>) { cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    ll K1 <span style="color:#ff79c6">=</span> K<span style="color:#ff79c6">/</span>d, M1 <span style="color:#ff79c6">=</span> mod<span style="color:#ff79c6">/</span>d, indA1 <span style="color:#ff79c6">=</span> indA<span style="color:#ff79c6">/</span>d;
+</span></span><span style="display:flex;"><span>    ll x, y; exgcd(K1, M1, x, y);
+</span></span><span style="display:flex;"><span>    x <span style="color:#ff79c6">=</span> (x<span style="color:#ff79c6">%</span>mod <span style="color:#ff79c6">+</span> mod)<span style="color:#ff79c6">%</span>mod;
+</span></span><span style="display:flex;"><span>    ll base_t <span style="color:#ff79c6">=</span> (i128)indA1 <span style="color:#ff79c6">*</span> x <span style="color:#ff79c6">%</span> M1;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    set<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> roots;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (ll i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> d; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        ll t <span style="color:#ff79c6">=</span> (base_t <span style="color:#ff79c6">+</span> i <span style="color:#ff79c6">*</span> M1) <span style="color:#ff79c6">%</span> (P <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        roots.insert(qp(g, t, P));
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> roots.size() <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#ff79c6">auto</span> <span style="color:#8be9fd;font-style:italic">r</span> : roots) cout <span style="color:#ff79c6">&lt;&lt;</span> r <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39; &#39;</span>;
+</span></span><span style="display:flex;"><span>    cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="5-number-theoretic-transform-ntt">5 Number Theoretic Transform (NTT)</h1>
+<p>Replace the complex roots of unity $\omega_n$ with modular primitive roots. The DFT/IDFT derivation still holds over $\mathbb{Z}_p$ instead of $\mathbb{C}$.</p>
+<ul>
+<li><strong>Advantages:</strong> fast; exact (integer arithmetic, no floating-point error)</li>
+<li><strong>Limitation:</strong> the modulus must be a prime of the form $p=r\cdot2^t+1$</li>
+</ul>
+<p>Common NTT-friendly primes (all have primitive root $g=3$):</p>
+<table>
+  <thead>
+      <tr>
+          <th>Prime</th>
+          <th>Factored form</th>
+          <th>Max array size</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>998244353</td>
+          <td>$119\cdot2^{23}+1$</td>
+          <td>$\sim8\times10^6$</td>
+      </tr>
+      <tr>
+          <td>1004535809</td>
+          <td>$479\cdot2^{21}+1$</td>
+          <td>$>10^9$ (as value)</td>
+      </tr>
+      <tr>
+          <td>65537</td>
+          <td>$2^{16}+1$</td>
+          <td>$65536$</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="51-template">5.1 Template</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> M <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">998244353</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> _g <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">3</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">qp</span>(<span style="color:#8be9fd">int</span> a, ll e<span style="color:#ff79c6">=</span>M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">2</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (e) { <span style="color:#ff79c6">if</span> (e <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> (ll)r<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M; a <span style="color:#ff79c6">=</span> (ll)a<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M; e <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">ntt</span>(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> a, <span style="color:#8be9fd">int</span> invert) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> a.size();
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> rev(n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        rev[i] <span style="color:#ff79c6">=</span> (rev[i<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">|</span> ((i<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">*</span> (n<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">&lt;</span> rev[i]) swap(a[i], a[rev[i]]);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> len <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; len <span style="color:#ff79c6">&lt;=</span> n; len <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> wn <span style="color:#ff79c6">=</span> qp(_g, (M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">/</span>len);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (invert) wn <span style="color:#ff79c6">=</span> qp(wn);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; i <span style="color:#ff79c6">+=</span> len) {
+</span></span><span style="display:flex;"><span>            ll w <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> len<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>; <span style="color:#ff79c6">++</span>j) {
+</span></span><span style="display:flex;"><span>                <span style="color:#8be9fd">int</span> u <span style="color:#ff79c6">=</span> a[i<span style="color:#ff79c6">+</span>j], v <span style="color:#ff79c6">=</span> (ll)a[i<span style="color:#ff79c6">+</span>j<span style="color:#ff79c6">+</span>len<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>]<span style="color:#ff79c6">*</span>w<span style="color:#ff79c6">%</span>M;
+</span></span><span style="display:flex;"><span>                a[i<span style="color:#ff79c6">+</span>j] <span style="color:#ff79c6">=</span> u<span style="color:#ff79c6">+</span>v <span style="color:#ff79c6">&lt;</span> M <span style="color:#ff79c6">?</span> u<span style="color:#ff79c6">+</span><span style="color:#8be9fd;font-style:italic">v</span> : u<span style="color:#ff79c6">+</span>v<span style="color:#ff79c6">-</span>M;
+</span></span><span style="display:flex;"><span>                a[i<span style="color:#ff79c6">+</span>j<span style="color:#ff79c6">+</span>len<span style="color:#ff79c6">/</span><span style="color:#bd93f9">2</span>] <span style="color:#ff79c6">=</span> u<span style="color:#ff79c6">-</span>v <span style="color:#ff79c6">&gt;=</span> <span style="color:#bd93f9">0</span> <span style="color:#ff79c6">?</span> u<span style="color:#ff79c6">-</span><span style="color:#8be9fd;font-style:italic">v</span> : u<span style="color:#ff79c6">-</span>v<span style="color:#ff79c6">+</span>M;
+</span></span><span style="display:flex;"><span>                w <span style="color:#ff79c6">=</span> w<span style="color:#ff79c6">*</span>wn<span style="color:#ff79c6">%</span>M;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (invert) { <span style="color:#8be9fd">int</span> inv_n <span style="color:#ff79c6">=</span> qp(n); <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#ff79c6">&amp;</span><span style="color:#8be9fd;font-style:italic">x</span> : a) x <span style="color:#ff79c6">=</span> (ll)x<span style="color:#ff79c6">*</span>inv_n<span style="color:#ff79c6">%</span>M; }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> multiply(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> a, vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> b) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> sz <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (sz <span style="color:#ff79c6">&lt;</span> (<span style="color:#8be9fd">int</span>)a.size() <span style="color:#ff79c6">+</span> (<span style="color:#8be9fd">int</span>)b.size() <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>) sz <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    a.resize(sz); b.resize(sz);
+</span></span><span style="display:flex;"><span>    ntt(a, <span style="color:#bd93f9">0</span>); ntt(b, <span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> sz; <span style="color:#ff79c6">++</span>i) a[i] <span style="color:#ff79c6">=</span> (ll)a[i]<span style="color:#ff79c6">*</span>b[i]<span style="color:#ff79c6">%</span>M;
+</span></span><span style="display:flex;"><span>    ntt(a, <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> a;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="52-faster-version-precomputed-roots">5.2 Faster version (precomputed roots)</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> M <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">998244353</span>; <span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> _g <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">3</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">qp</span>(<span style="color:#8be9fd">int</span> a, ll e<span style="color:#ff79c6">=</span>M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">2</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> r <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (e) { <span style="color:#ff79c6">if</span> (e <span style="color:#ff79c6">&amp;</span> <span style="color:#bd93f9">1</span>) r <span style="color:#ff79c6">=</span> (ll)r<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M; a <span style="color:#ff79c6">=</span> (ll)a<span style="color:#ff79c6">*</span>a<span style="color:#ff79c6">%</span>M; e <span style="color:#ff79c6">&gt;&gt;=</span> <span style="color:#bd93f9">1</span>; }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> r;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">ntt</span>(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> <span style="color:#ff79c6">&amp;</span>a, <span style="color:#8be9fd">bool</span> inv) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> a.size();
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (n <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> L <span style="color:#ff79c6">=</span> __builtin_ctz(n);
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> rev(n); rev[<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;</span> n; i<span style="color:#ff79c6">++</span>) rev[i] <span style="color:#ff79c6">=</span> (rev[i<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">|</span> ((i<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">&lt;&lt;</span>(L<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">&lt;</span> rev[i]) swap(a[i], a[rev[i]]);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">static</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> roots{<span style="color:#bd93f9">0</span>, <span style="color:#bd93f9">1</span>};
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> ((<span style="color:#8be9fd">int</span>)roots.size() <span style="color:#ff79c6">&lt;</span> n) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> k <span style="color:#ff79c6">=</span> __builtin_ctz(roots.size());
+</span></span><span style="display:flex;"><span>        roots.resize(n);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">while</span> ((<span style="color:#bd93f9">1</span> <span style="color:#ff79c6">&lt;&lt;</span> k) <span style="color:#ff79c6">&lt;</span> n) {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> e <span style="color:#ff79c6">=</span> qp(_g, (M<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">&gt;&gt;</span> (k<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>));
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span>(k<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>); i <span style="color:#ff79c6">&lt;</span> (<span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span>k); i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>                roots[<span style="color:#bd93f9">2</span><span style="color:#ff79c6">*</span>i] <span style="color:#ff79c6">=</span> roots[i];
+</span></span><span style="display:flex;"><span>                roots[<span style="color:#bd93f9">2</span><span style="color:#ff79c6">*</span>i<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> (ll)roots[i]<span style="color:#ff79c6">*</span>e<span style="color:#ff79c6">%</span>M;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            k<span style="color:#ff79c6">++</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> len <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; len <span style="color:#ff79c6">&lt;</span> n; len <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; i <span style="color:#ff79c6">+=</span> len<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">1</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> len; j<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>                <span style="color:#8be9fd">int</span> u <span style="color:#ff79c6">=</span> a[i<span style="color:#ff79c6">+</span>j], v <span style="color:#ff79c6">=</span> (ll)a[i<span style="color:#ff79c6">+</span>j<span style="color:#ff79c6">+</span>len]<span style="color:#ff79c6">*</span>roots[len<span style="color:#ff79c6">+</span>j]<span style="color:#ff79c6">%</span>M;
+</span></span><span style="display:flex;"><span>                a[i<span style="color:#ff79c6">+</span>j] <span style="color:#ff79c6">=</span> u<span style="color:#ff79c6">+</span>v<span style="color:#ff79c6">&lt;</span>M<span style="color:#ff79c6">?</span>u<span style="color:#ff79c6">+</span><span style="color:#8be9fd;font-style:italic">v</span>:u<span style="color:#ff79c6">+</span>v<span style="color:#ff79c6">-</span>M;
+</span></span><span style="display:flex;"><span>                a[i<span style="color:#ff79c6">+</span>j<span style="color:#ff79c6">+</span>len] <span style="color:#ff79c6">=</span> u<span style="color:#ff79c6">-</span>v<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">?</span>u<span style="color:#ff79c6">-</span><span style="color:#8be9fd;font-style:italic">v</span>:u<span style="color:#ff79c6">-</span>v<span style="color:#ff79c6">+</span>M;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (inv) {
+</span></span><span style="display:flex;"><span>        reverse(a.begin()<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, a.end());
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> inv_n <span style="color:#ff79c6">=</span> qp(n);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> <span style="color:#ff79c6">&amp;</span><span style="color:#8be9fd;font-style:italic">x</span> : a) x <span style="color:#ff79c6">=</span> (ll)x<span style="color:#ff79c6">*</span>inv_n<span style="color:#ff79c6">%</span>M;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> multiply(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> a, vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> b) {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> sz <span style="color:#ff79c6">=</span> (<span style="color:#8be9fd">int</span>)a.size()<span style="color:#ff79c6">+</span>(<span style="color:#8be9fd">int</span>)b.size()<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>, n <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (n <span style="color:#ff79c6">&lt;</span> sz) n <span style="color:#ff79c6">&lt;&lt;=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    a.resize(n); b.resize(n);
+</span></span><span style="display:flex;"><span>    ntt(a, <span style="color:#8be9fd;font-style:italic">false</span>); ntt(b, <span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; i<span style="color:#ff79c6">++</span>) a[i] <span style="color:#ff79c6">=</span> (ll)a[i]<span style="color:#ff79c6">*</span>b[i]<span style="color:#ff79c6">%</span>M;
+</span></span><span style="display:flex;"><span>    ntt(a, <span style="color:#8be9fd;font-style:italic">true</span>); a.resize(sz);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> a;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="6-divide-and-conquer-fft--ntt">6 Divide-and-Conquer FFT / NTT</h1>
+<blockquote>
+<p><strong>[Problem 1: Product of linear factors]</strong></p>
+<p>Compute $f(x)=\prod_{i=1}^n(x-a_i)\bmod 998244353$, $n\le10^5$.</p>
+<p>The naïve $O(n^2)$ approach multiplies one factor at a time. Correct approach: <strong>Divide-and-Conquer NTT (Product Tree)</strong></p>
+<ol>
+<li><strong>Build a segment tree:</strong> leaf $[i,i]$ holds $(x-a_i)$; internal node $[l,r]$ holds the product of its children.</li>
+<li><strong>Merge children</strong> with NTT polynomial multiplication at cost $O(d\log d)$.</li>
+<li><strong>Complexity:</strong> tree height $O(\log n)$, total degree per level $O(n)$ → $O(n\log^2 n)$ overall.</li>
+</ol>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> P<span style="color:#ff79c6">=</span><span style="color:#bd93f9">998244353</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// (ntt, multiply omitted)
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> build(<span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> A){
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(l<span style="color:#ff79c6">==</span>r) <span style="color:#ff79c6">return</span> { (<span style="color:#ff79c6">-</span>A[l]<span style="color:#ff79c6">+</span>P)<span style="color:#ff79c6">%</span>P, <span style="color:#bd93f9">1</span> };
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m<span style="color:#ff79c6">=</span>(l<span style="color:#ff79c6">+</span>r)<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#50fa7b">multiply</span>(build(l,m,A), build(m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,r,A));
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n; cin<span style="color:#ff79c6">&gt;&gt;</span>n;
+</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> A(n);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>n;i<span style="color:#ff79c6">++</span>) cin<span style="color:#ff79c6">&gt;&gt;</span>A[i];
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> F <span style="color:#ff79c6">=</span> build(<span style="color:#bd93f9">0</span>,n<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>,A);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>n;i<span style="color:#ff79c6">++</span>) cout<span style="color:#ff79c6">&lt;&lt;</span>F[i]<span style="color:#ff79c6">&lt;&lt;</span>(i<span style="color:#ff79c6">==</span>n<span style="color:#ff79c6">?</span><span style="color:#f1fa8c">&#39;\n&#39;</span><span style="color:#ff79c6">:</span><span style="color:#f1fa8c">&#39; &#39;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><blockquote>
+<p><strong>[Problem 2: General product of polynomials]</strong></p>
+<p>Compute $f(x)=\prod_{i=1}^n f_i(x)\bmod 998244353$, $\sum\deg(f_i)\le10^5$.</p>
+<p>Multiplying sequentially gives $O(n^2\log n)$ — worse than brute force.</p>
+<ul>
+<li><strong>Approach 1:</strong> Divide-and-conquer NTT, $O(n\log^2 n)$.</li>
+<li><strong>Approach 2:</strong> Huffman-style NTT — always merge the two lowest-degree polynomials, same complexity.</li>
+</ul>
+</blockquote>
+<p><strong>Divide-and-conquer version:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> build(<span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;&amp;</span> F) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (l <span style="color:#ff79c6">==</span> r) <span style="color:#ff79c6">return</span> F[l];
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m <span style="color:#ff79c6">=</span> (l<span style="color:#ff79c6">+</span>r)<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#50fa7b">multiply</span>(build(l,m,F), build(m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,r,F));
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p><strong>Huffman version:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">Cmp</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> <span style="color:#50fa7b">operator</span>()(<span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> a, <span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&amp;</span> b) <span style="color:#ff79c6">const</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> a.size() <span style="color:#ff79c6">&gt;</span> b.size();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span>priority_queue<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span>, vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;</span>, Cmp<span style="color:#ff79c6">&gt;</span> pq;
+</span></span><span style="display:flex;"><span><span style="color:#6272a4">// ... push all f_i into pq, then:
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">while</span> (pq.size() <span style="color:#ff79c6">&gt;</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> A <span style="color:#ff79c6">=</span> move(pq.top()); pq.pop();
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> B <span style="color:#ff79c6">=</span> move(pq.top()); pq.pop();
+</span></span><span style="display:flex;"><span>    pq.push(multiply(A, B));
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><blockquote>
+<p><strong><a href="https://ac.nowcoder.com/acm/contest/133/D">Example — Wannafly Contest 20 D: Choosing Teammates</a></strong></p>
+<p>$m$ groups, group $i$ has $s_i$ people. Choose exactly $k$ people with at least 1 from each group. Count ways modulo 998244353. People are distinguishable. $(m\le k\le\sum s_i=n\le10^5)$</p>
+<p><strong>Stars-and-bars vs. distinguishable:</strong> In stars-and-bars, identical balls give $\binom{k+m-1}{m-1}$. Here people are distinct, so group $i$ generates:</p>
+$$F_i(x)=(1+x)^{s_i}-1\qquad\text{(subtract the "pick nobody" constant)}$$<p>Answer: $[x^k]\prod_i F_i(x)$. Brute-force DP is $O(nk)\approx10^{10}$ — infeasible. Use <strong>divide-and-conquer NTT</strong> in $O(n\log n\cdot\log m)$.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> build(<span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r) {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (l <span style="color:#ff79c6">==</span> r) <span style="color:#ff79c6">return</span> polys[l];
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m <span style="color:#ff79c6">=</span> (l <span style="color:#ff79c6">+</span> r) <span style="color:#ff79c6">&gt;&gt;</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#50fa7b">multiply_capped</span>(build(l,m), build(m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,r), K);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><blockquote>
+<p><strong><a href="https://ac.nowcoder.com/acm/contest/1080/F">Example — Nowcoder Practice 50 F</a></strong></p>
+<p>$n$ matches; match $i$ has $a_i$ Protoss and $b_i$ Zerg units. Each match you choose Protoss or Zerg:</p>
+<ul>
+<li>Choosing Zerg: $2^{b_i}-1$ deployment options, contributes 0 to Protoss count.</li>
+<li>Choosing Protoss: $\binom{a_i}{t}$ ways to deploy $t\in[1,a_i]$ units, contributing $t$ to Protoss count.</li>
+</ul>
+<p>Match $i$ generating function: $G_i(x)=(1+x)^{a_i}+2^{b_i}-2$</p>
+<p>Compute $F(x)=\prod_i G_i(x)$ and output all coefficients modulo 998244353.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#6272a4">// build G_i for each match, then divide-and-conquer NTT:
+</span></span></span><span style="display:flex;"><span>vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;</span> G(n);
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;</span> n; i<span style="color:#ff79c6">++</span>) {
+</span></span><span style="display:flex;"><span>    G[i].assign(a[i]<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>, <span style="color:#bd93f9">0</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> z <span style="color:#ff79c6">=</span> (qp(<span style="color:#bd93f9">2</span>, b[i]) <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span> <span style="color:#ff79c6">+</span> MOD) <span style="color:#ff79c6">%</span> MOD;
+</span></span><span style="display:flex;"><span>    G[i][<span style="color:#bd93f9">0</span>] <span style="color:#ff79c6">=</span> z;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; t <span style="color:#ff79c6">&lt;=</span> a[i]; t<span style="color:#ff79c6">++</span>) G[i][t] <span style="color:#ff79c6">=</span> C(a[i], t);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>function<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span>(<span style="color:#8be9fd">int</span>,<span style="color:#8be9fd">int</span>)<span style="color:#ff79c6">&gt;</span> solve <span style="color:#ff79c6">=</span> [<span style="color:#ff79c6">&amp;</span>](<span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r) <span style="color:#ff79c6">-&gt;</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span> (l <span style="color:#ff79c6">==</span> r) <span style="color:#ff79c6">return</span> G[l];
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m <span style="color:#ff79c6">=</span> (l<span style="color:#ff79c6">+</span>r)<span style="color:#ff79c6">&gt;&gt;</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#50fa7b">multiply</span>(solve(l,m), solve(m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,r));
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">auto</span> F <span style="color:#ff79c6">=</span> solve(<span style="color:#bd93f9">0</span>, n<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>F.resize(S<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; i <span style="color:#ff79c6">&lt;=</span> S; i<span style="color:#ff79c6">++</span>) cout <span style="color:#ff79c6">&lt;&lt;</span> F[i] <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39; &#39;</span>;
+</span></span></code></pre></div>
+      </div>
+      
+        <aside class="article-toc">
+          <div class="toc-card">
+            <span>On this page</span>
+            <nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-order-and-primitive-roots">1 Order and Primitive Roots</a></li>
+    <li><a href="#2-properties-of-the-order">2 Properties of the Order</a></li>
+    <li><a href="#3-existence-and-testing-of-primitive-roots">3 Existence and Testing of Primitive Roots</a></li>
+    <li><a href="#4-discrete-index-discrete-logarithm">4 Discrete Index (Discrete Logarithm)</a></li>
+    <li><a href="#5-number-theoretic-transform-ntt">5 Number Theoretic Transform (NTT)</a>
+      <ul>
+        <li><a href="#51-template">5.1 Template</a></li>
+        <li><a href="#52-faster-version-precomputed-roots">5.2 Faster version (precomputed roots)</a></li>
+      </ul>
+    </li>
+    <li><a href="#6-divide-and-conquer-fft--ntt">6 Divide-and-Conquer FFT / NTT</a></li>
+  </ul>
+</nav>
+          </div>
+        </aside>
+      
+    </div>
+  </article>
+
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tocLinks = document.querySelectorAll('.toc-card a');
+      const tocPanel = document.querySelector('.article-toc');
+      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
+                            .filter(h => h.id);
+      
+      if (headings.length === 0 || tocLinks.length === 0) return;
+
+      let ticking = false;
+
+      function updateActiveTocLink() {
+        const scrollPosition = window.scrollY + 140; 
+        let currentHeading = headings[0];
+
+        for (let i = 0; i < headings.length; i++) {
+          
+          const top = headings[i].getBoundingClientRect().top + window.scrollY;
+          if (scrollPosition >= top) {
+            currentHeading = headings[i];
+          } else {
+            break;
+          }
+        }
+
+        tocLinks.forEach(link => link.classList.remove('active'));
+        if (currentHeading) {
+          const id = currentHeading.getAttribute('id');
+          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
+          if (activeLink) {
+            activeLink.classList.add('active');
+            const toc = activeLink.closest('.article-toc');
+            if (toc) {
+              const padding = 14;
+              const linkTop = activeLink.offsetTop;
+              const linkBottom = linkTop + activeLink.offsetHeight;
+              const viewTop = toc.scrollTop;
+              const viewBottom = viewTop + toc.clientHeight;
+
+              if (linkTop < viewTop + padding) {
+                toc.scrollTop = Math.max(0, linkTop - padding);
+              } else if (linkBottom > viewBottom - padding) {
+                toc.scrollTop = linkBottom - toc.clientHeight + padding;
+              }
+            }
+          }
+        }
+      }
+
+      function updateTocBoundary() {
+        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
+          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
+          return;
+        }
+
+        const footer = document.querySelector('.site-footer');
+        if (!footer) return;
+
+        const bottomGap = 24;
+        const tocBottom = 86 + tocPanel.offsetHeight;
+        const footerTop = footer.getBoundingClientRect().top;
+        const overlap = tocBottom + bottomGap - footerTop;
+
+        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(function() {
+          updateTocBoundary();
+          updateActiveTocLink();
+          ticking = false;
+        });
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll, { passive: true });
+      
+      setTimeout(function() {
+        updateTocBoundary();
+        updateActiveTocLink();
+      }, 50);
+    });
+  </script>
+  
+
+      </main>
+
+      <footer class="site-footer container">
+        <div>
+          <strong>Jasper&#39;s Technical Notebook</strong>
+          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/JMaaa32">GitHub</a>
+          <a href="/posts/">Posts</a>
+          <a href="/archives/">Archives</a>
+          <a href="/tags/">Tags</a>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (function() {
+        const toggle = document.querySelector(".nav-toggle");
+        const nav = document.querySelector("#site-navigation");
+        if (!toggle || !nav) return;
+
+        function setOpen(open) {
+          document.documentElement.classList.toggle("nav-open", open);
+          toggle.setAttribute("aria-expanded", String(open));
+        }
+
+        toggle.addEventListener("click", function() {
+          setOpen(!document.documentElement.classList.contains("nav-open"));
+        });
+
+        nav.addEventListener("click", function(event) {
+          if (event.target.closest("a")) setOpen(false);
+        });
+
+        window.addEventListener("keydown", function(event) {
+          if (event.key === "Escape") setOpen(false);
+        });
+
+        window.addEventListener("resize", function() {
+          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
+        }, { passive: true });
+
+        const themeToggle = document.querySelector(".theme-toggle");
+        if (!themeToggle) return;
+
+        function applyTheme(theme, persist) {
+          document.documentElement.dataset.theme = theme;
+          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          if (persist) {
+            try {
+              window.localStorage.setItem("theme", theme);
+            } catch (error) {}
+          }
+        }
+
+        applyTheme(document.documentElement.dataset.theme || "light", false);
+        themeToggle.addEventListener("click", function() {
+          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          applyTheme(next, true);
+        });
+      })();
+    </script>
+  </body>
+</html>

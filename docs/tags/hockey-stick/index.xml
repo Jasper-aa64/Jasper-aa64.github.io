@@ -1,1 +1,26 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Hockey-Stick on Jasper's Technical Notebook</title><link>https://jmaaa32.github.io/tags/hockey-stick/</link><description>Recent content in Hockey-Stick on Jasper's Technical Notebook</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Fri, 24 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jmaaa32.github.io/tags/hockey-stick/index.xml" rel="self" type="application/rss+xml"/><item><title>Combinatorics #1.1: Permutations and Combinations</title><link>https://jmaaa32.github.io/posts/combinatorics-1-1-permutations-combinations/</link><pubDate>Fri, 24 Apr 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/posts/combinatorics-1-1-permutations-combinations/</guid><description>Hockey Stick identity, addition/multiplication principles, binomial identities, example problems: bitonic sequences, multiset permutations, multi-layer coloring DP, CCPC Subpermutation.</description></item><item><title>Combinatorics D1: Diophantine Equations</title><link>https://jmaaa32.github.io/posts/combinatorics-d1-diophantine-equations/</link><pubDate>Fri, 24 Apr 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/posts/combinatorics-d1-diophantine-equations/</guid><description>Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;amp;C NTT, equal-cap formula, and a full worked example on CF 2127F.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Hockey-Stick on Jasper&#39;s Technical Notebook</title>
+    <link>http://localhost:1313/tags/hockey-stick/</link>
+    <description>Recent content in Hockey-Stick on Jasper&#39;s Technical Notebook</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 24 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/hockey-stick/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Combinatorics #1.1: Permutations and Combinations</title>
+      <link>http://localhost:1313/posts/combinatorics-1-1-permutations-combinations/</link>
+      <pubDate>Fri, 24 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/combinatorics-1-1-permutations-combinations/</guid>
+      <description>Hockey Stick identity, addition/multiplication principles, binomial identities, example problems: bitonic sequences, multiset permutations, multi-layer coloring DP, CCPC Subpermutation.</description>
+    </item>
+    <item>
+      <title>Combinatorics D1: Diophantine Equations</title>
+      <link>http://localhost:1313/posts/combinatorics-d1-diophantine-equations/</link>
+      <pubDate>Fri, 24 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/combinatorics-d1-diophantine-equations/</guid>
+      <description>Stars and bars, bounded Diophantine equations via inclusion-exclusion, prefix-sum DP, D&amp;amp;C NTT, equal-cap formula, and a full worked example on CF 2127F.</description>
+    </item>
+  </channel>
+</rss>
