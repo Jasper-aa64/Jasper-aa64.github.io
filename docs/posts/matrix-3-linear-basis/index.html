@@ -1,753 +1,306 @@
-<!doctype html>
-<html lang="en-us">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method | Jasper&#39;s Technical Notebook</title>
-    <meta name="description" content="XOR linear basis over GF(2): construction, max/min XOR, k-th value, range basis; examples including median of XOR subsets, zero-XOR partitioning (CF 1101G), and XOR-divisibility counting; Simplex method for linear programming.">
-    <link rel="canonical" href="http://localhost:1313/posts/matrix-3-linear-basis/">
-    <script>
-      (function() {
-        document.documentElement.classList.add("has-js");
-        try {
-          const stored = window.localStorage.getItem("theme");
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="/css/site.css">
-    
-      <script>
-        window.MathJax = {
-          tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']],
-            processEscapes: true
-          },
-          options: {
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-          }
-        };
-      </script>
-      <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
-    
-  </head>
-  <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <div class="container header-inner">
-          <a class="brand" href="/">
-            <span class="brand-mark">J</span>
-            <span>
-              <strong>Jasper&#39;s Technical Notebook</strong>
-              <small>Algorithms, systems, and engineering notes</small>
-            </span>
-          </a>
-          <div class="header-actions">
-            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
-              <span class="theme-toggle-icon" aria-hidden="true"></span>
-              <span class="sr-only">Switch theme</span>
-            </button>
-            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <nav class="site-nav" id="site-navigation">
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/">Home</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link is-active" href="/posts/">Posts</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/archives/">Archives</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/categories/">Categories</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/tags/">Tags</a>
-            
-              
-              
-              
-              
-              
-              <a class="nav-link" href="/about/">About</a>
-            
-          </nav>
-        </div>
-      </header>
-
-      <main class="container main-content">
-        
-  <article class="article-shell">
-    <header class="article-header">
-      <span class="eyebrow">Posts</span>
-      <h1>Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method</h1>
-      
-        <div class="article-meta">
-          <time datetime="2026-04-28">Apr 28, 2026</time>
-          
-            <span>·</span>
-            <span>Matrix</span>
-          
-        </div>
-        
-          <div class="chip-row">
-            
-              <a class="chip" href="/tags/math/">#math</a>
-            
-              <a class="chip" href="/tags/matrix/">#matrix</a>
-            
-              <a class="chip" href="/tags/linear-basis/">#linear-basis</a>
-            
-              <a class="chip" href="/tags/xor/">#xor</a>
-            
-              <a class="chip" href="/tags/gf2/">#gf2</a>
-            
-              <a class="chip" href="/tags/simplex/">#simplex</a>
-            
-              <a class="chip" href="/tags/linear-programming/">#linear-programming</a>
-            
-          </div>
-        
-      
-    </header>
-
-    <div class="article-layout">
-      
-        <details class="mobile-toc">
-          <summary>On this page</summary>
-          <div class="mobile-toc-panel">
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#1-linear-basis-xor-basis">1 Linear Basis (XOR Basis)</a>
-      <ul>
-        <li><a href="#11-basis-of-a-vector-space">1.1 Basis of a Vector Space</a></li>
-        <li><a href="#12-xor-linear-basis">1.2 XOR Linear Basis</a></li>
-        <li><a href="#13-complexity">1.3 Complexity</a></li>
-        <li><a href="#14-template">1.4 Template</a></li>
-        <li><a href="#15-examples">1.5 Examples</a></li>
-      </ul>
-    </li>
-    <li><a href="#2-simplex-method-for-linear-programming">2 Simplex Method for Linear Programming</a></li>
-  </ul>
-</nav>
-          </div>
-        </details>
-      
-      <div class="article-content prose">
-        <p>(Continues from <a href="../matrix-2-gaussian-elimination">Matrix #2</a>)</p>
-<h1 id="1-linear-basis-xor-basis">1 Linear Basis (XOR Basis)</h1>
-<h2 id="11-basis-of-a-vector-space">1.1 Basis of a Vector Space</h2>
-<p>The <strong>maximal linearly independent set</strong> of a vector space is called a basis.</p>
-<h2 id="12-xor-linear-basis">1.2 XOR Linear Basis</h2>
-<p>A linear basis over $\mathbb{Z}_2^k$: a set $\{b_1,\ldots,b_r\}$ that is linearly independent over $\mathbb{Z}_2$ and spans the same achievable XOR values as the original set $S$.</p>
-<p><strong>Applications:</strong></p>
-<ul>
-<li>Count distinct XOR values achievable by subsets of $S$</li>
-<li>Count subsets with XOR sum equal to a given value $T$</li>
-<li>Find maximum/minimum XOR achievable by any subset</li>
-<li>$k$-th smallest XOR value in the span</li>
-</ul>
-<p><strong>Representation:</strong> treat each integer as a $k$-bit binary vector; XOR corresponds to addition in $(\mathbb{Z}_2,+)$.</p>
-<h3 id="121-definition-and-construction">1.2.1 Definition and Construction</h3>
-<p>Given $S=\{a_1,\ldots,a_n\}$, the basis $\{b_1,\ldots,b_r\}$ satisfies:</p>
-<ul>
-<li>$\{b_i\}$ are linearly independent over $\mathbb{Z}_2$</li>
-<li>Every $a_j\in S$ can be written as $a_j=\bigoplus_{i\in I}b_i$</li>
-</ul>
-<p><strong>Insertion algorithm</strong> (high-bit first, analogous to Gaussian elimination):</p>
-<pre tabindex="0"><code>for bit i from high to low:
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Matrix #3: Linear Basis (XOR Basis) & Simplex Method | Jasper's Technical Notebook</title><meta name=description content="XOR linear basis over GF(2): construction, max/min XOR, k-th value, range basis; examples including median of XOR subsets, zero-XOR partitioning (CF 1101G), and XOR-divisibility counting; Simplex method for linear programming."><link rel=canonical href=https://jmaaa32.github.io/posts/matrix-3-linear-basis/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script>window.MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]],displayMath:[["$$","$$"],["\\[","\\]"]],processEscapes:!0},options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script defer src=/assets/mathjax/es5/tex-chtml.js></script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<span><strong>Jasper's Technical Notebook</strong>
+<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
+<span class=theme-toggle-icon aria-hidden=true></span>
+<span class=sr-only>Switch theme</span>
+</button>
+<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
+<span></span>
+<span></span>
+<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
+<a class="nav-link is-active" href=/posts/>Posts</a>
+<a class=nav-link href=/archives/>Archives</a>
+<a class=nav-link href=/categories/>Categories</a>
+<a class=nav-link href=/tags/>Tags</a>
+<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>Matrix #3: Linear Basis (XOR Basis) & Simplex Method</h1><div class=article-meta><time datetime=2026-04-28>Apr 28, 2026</time>
+<span>·</span>
+<span>Matrix</span></div><div class=chip-row><a class=chip href=/tags/math/>#math</a>
+<a class=chip href=/tags/matrix/>#matrix</a>
+<a class=chip href=/tags/linear-basis/>#linear-basis</a>
+<a class=chip href=/tags/xor/>#xor</a>
+<a class=chip href=/tags/gf2/>#gf2</a>
+<a class=chip href=/tags/simplex/>#simplex</a>
+<a class=chip href=/tags/linear-programming/>#linear-programming</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#1-linear-basis-xor-basis>1 Linear Basis (XOR Basis)</a><ul><li><a href=#11-basis-of-a-vector-space>1.1 Basis of a Vector Space</a></li><li><a href=#12-xor-linear-basis>1.2 XOR Linear Basis</a></li><li><a href=#13-complexity>1.3 Complexity</a></li><li><a href=#14-template>1.4 Template</a></li><li><a href=#15-examples>1.5 Examples</a></li></ul></li><li><a href=#2-simplex-method-for-linear-programming>2 Simplex Method for Linear Programming</a></li></ul></nav></div></details><div class="article-content prose"><p>(Continues from <a href=../matrix-2-gaussian-elimination>Matrix #2</a>)</p><h1 id=1-linear-basis-xor-basis>1 Linear Basis (XOR Basis)</h1><h2 id=11-basis-of-a-vector-space>1.1 Basis of a Vector Space</h2><p>The <strong>maximal linearly independent set</strong> of a vector space is called a basis.</p><h2 id=12-xor-linear-basis>1.2 XOR Linear Basis</h2><p>A linear basis over $\mathbb{Z}_2^k$: a set $\{b_1,\ldots,b_r\}$ that is linearly independent over $\mathbb{Z}_2$ and spans the same achievable XOR values as the original set $S$.</p><p><strong>Applications:</strong></p><ul><li>Count distinct XOR values achievable by subsets of $S$</li><li>Count subsets with XOR sum equal to a given value $T$</li><li>Find maximum/minimum XOR achievable by any subset</li><li>$k$-th smallest XOR value in the span</li></ul><p><strong>Representation:</strong> treat each integer as a $k$-bit binary vector; XOR corresponds to addition in $(\mathbb{Z}_2,+)$.</p><h3 id=121-definition-and-construction>1.2.1 Definition and Construction</h3><p>Given $S=\{a_1,\ldots,a_n\}$, the basis $\{b_1,\ldots,b_r\}$ satisfies:</p><ul><li>$\{b_i\}$ are linearly independent over $\mathbb{Z}_2$</li><li>Every $a_j\in S$ can be written as $a_j=\bigoplus_{i\in I}b_i$</li></ul><p><strong>Insertion algorithm</strong> (high-bit first, analogous to Gaussian elimination):</p><pre tabindex=0><code>for bit i from high to low:
     if bit i of x is 0: skip
     if b[i] == 0: place x as b[i], done
     else: x ^= b[i]
 if x == 0: linearly dependent (zero = true)
-</code></pre><p>Each insertion tries at most $B$ XOR steps. Total construction: $O(nB)$.</p>
-<p><strong>Dimension and freedom:</strong></p>
-<ul>
-<li>$\mathrm{rank}$ = number of non-zero basis vectors.</li>
-<li>The basis spans exactly $2^{\mathrm{rank}}$ distinct XOR values.</li>
-</ul>
-<h3 id="122-applications">1.2.2 Applications</h3>
-<p><strong>1. Count distinct XOR values and subset counts</strong></p>
-<ul>
-<li>Distinct achievable XOR sums: $2^{\mathrm{rank}}$</li>
-<li>Subsets with XOR $= T$ (let $f=n-r$):
-<ul>
-<li>$T$ not representable: answer $=0$</li>
-<li>$T$ representable: answer $=2^f=2^{n-r}$</li>
-</ul>
-</li>
-<li>Subsets with XOR $=0$ (including empty set): $2^f$; excluding empty set: $2^f-1$</li>
-</ul>
-<p><strong>2. Maximum/minimum XOR</strong></p>
-<ul>
-<li><strong>Maximum:</strong> maintain <code>res=0</code>; from high to low bit, XOR with any basis vector that increases the value.</li>
-<li><strong>Minimum non-zero XOR:</strong> after normalisation, the smallest basis vector.</li>
-</ul>
-<h2 id="13-complexity">1.3 Complexity</h2>
-<table>
-  <thead>
-      <tr>
-          <th>Operation</th>
-          <th>Complexity</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td>Build from $n$ integers</td>
-          <td>$O(nB)$, $B$ = bit width</td>
-      </tr>
-      <tr>
-          <td>Insert/query single value</td>
-          <td>$O(B)$</td>
-      </tr>
-      <tr>
-          <td>Max/min XOR</td>
-          <td>$O(B)$</td>
-      </tr>
-      <tr>
-          <td>Count representable subsets</td>
-          <td>$O(B)$</td>
-      </tr>
-  </tbody>
-</table>
-<h2 id="14-template">1.4 Template</h2>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">LB</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">static</span> <span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> LOG <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">60</span>;   <span style="color:#6272a4">// covers up to ~1e18
-</span></span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">mutable</span> ll b[LOG<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]{};       <span style="color:#6272a4">// b[i]: basis vector with highest bit at position i
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> rk <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;                  <span style="color:#6272a4">// rank
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> zero <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>;           <span style="color:#6272a4">// true if some non-empty subset XORs to 0
-</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">mutable</span> <span style="color:#8be9fd">bool</span> dirty <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">false</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">clear</span>(){ memset(b,<span style="color:#bd93f9">0</span>,<span style="color:#ff79c6">sizeof</span> b); rk<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; zero<span style="color:#ff79c6">=</span><span style="color:#8be9fd;font-style:italic">false</span>; dirty<span style="color:#ff79c6">=</span><span style="color:#8be9fd;font-style:italic">false</span>; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Insert x; returns true if rank increases
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> <span style="color:#50fa7b">ins</span>(ll x){
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span>LOG;i<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>i) <span style="color:#ff79c6">if</span>((x<span style="color:#ff79c6">&gt;&gt;</span>i)<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1LL</span>){
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>b[i]){ b[i]<span style="color:#ff79c6">=</span>x; <span style="color:#ff79c6">++</span>rk; dirty<span style="color:#ff79c6">=</span><span style="color:#8be9fd;font-style:italic">true</span>; <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">true</span>; }
-</span></span><span style="display:flex;"><span>            x<span style="color:#ff79c6">^=</span>b[i];
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        zero<span style="color:#ff79c6">=</span><span style="color:#8be9fd;font-style:italic">true</span>; <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">false</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> <span style="color:#50fa7b">rank</span>(){ <span style="color:#8be9fd">int</span> r<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>LOG;<span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span>(b[i]) <span style="color:#ff79c6">++</span>r; <span style="color:#ff79c6">return</span> r; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Normalise: clear lower bits of each basis vector (RREF lower half)
-</span></span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Required before kth_all / minelem
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">norm</span>(){
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>LOG;<span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span>(b[i])
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>i;<span style="color:#ff79c6">++</span>j) <span style="color:#ff79c6">if</span>(b[j]<span style="color:#ff79c6">&amp;&amp;</span>((b[i]<span style="color:#ff79c6">&gt;&gt;</span>j)<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1LL</span>)) b[i]<span style="color:#ff79c6">^=</span>b[j];
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Check if x is representable
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> <span style="color:#50fa7b">can</span>(ll x){
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span>LOG;i<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>i) <span style="color:#ff79c6">if</span>((x<span style="color:#ff79c6">&gt;&gt;</span>i)<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1LL</span>){ <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>b[i]) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">false</span>; x<span style="color:#ff79c6">^=</span>b[i]; }
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">true</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Maximum/minimum XOR with optional seed
-</span></span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">maxxor</span>(ll seed<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        ll v<span style="color:#ff79c6">=</span>seed; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span>LOG;i<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>i) <span style="color:#ff79c6">if</span>(b[i]<span style="color:#ff79c6">&amp;&amp;</span>((v<span style="color:#ff79c6">^</span>b[i])<span style="color:#ff79c6">&gt;</span>v)) v<span style="color:#ff79c6">^=</span>b[i]; <span style="color:#ff79c6">return</span> v;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">minxor</span>(ll seed) <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        ll v<span style="color:#ff79c6">=</span>seed; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span>LOG;i<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>i) <span style="color:#ff79c6">if</span>(b[i]<span style="color:#ff79c6">&amp;&amp;</span>((v<span style="color:#ff79c6">^</span>b[i])<span style="color:#ff79c6">&lt;</span>v)) v<span style="color:#ff79c6">^=</span>b[i]; <span style="color:#ff79c6">return</span> v;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Minimum representable element (requires normalisation)
-</span></span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">minelem</span>() <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        ensure_norm(); <span style="color:#ff79c6">if</span>(rk<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">||</span>zero) <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>LOG;<span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span>(b[i]) <span style="color:#ff79c6">return</span> b[i]; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Collect basis vectors from lowest to highest pivot (requires normalisation)
-</span></span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> low2high() <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        ensure_norm(); vector<span style="color:#ff79c6">&lt;</span>ll<span style="color:#ff79c6">&gt;</span> v; v.reserve(rk);
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>LOG;<span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span>(b[i]) v.push_back(b[i]); <span style="color:#ff79c6">return</span> v;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// k-th smallest in the span including 0 (1-indexed); -1 on out-of-range
-</span></span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">kth_all</span>(ll k) <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        ensure_norm(); <span style="color:#ff79c6">if</span>(k<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(rk<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">61</span>) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>        ull tot<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1ULL</span><span style="color:#ff79c6">&lt;&lt;</span>rk; <span style="color:#ff79c6">if</span>((ull)k<span style="color:#ff79c6">&gt;</span>tot) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">auto</span> v<span style="color:#ff79c6">=</span>low2high(); ull mask<span style="color:#ff79c6">=</span>(ull)k<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>; ll ans<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>(<span style="color:#8be9fd">int</span>)v.size();<span style="color:#ff79c6">++</span>i){ <span style="color:#ff79c6">if</span>(mask<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1ULL</span>) ans<span style="color:#ff79c6">^=</span>v[i]; mask<span style="color:#ff79c6">&gt;&gt;=</span><span style="color:#bd93f9">1ULL</span>; }
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> ans;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// k-th smallest among non-empty subsets (1-indexed)
-</span></span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">kth_nonempty</span>(ll k) <span style="color:#ff79c6">const</span> { <span style="color:#ff79c6">return</span> kth_all(k<span style="color:#ff79c6">+</span>(<span style="color:#ff79c6">!</span>zero)); }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// k-th largest (1-indexed, k=1 = maximum)
-</span></span></span><span style="display:flex;"><span>    ll <span style="color:#50fa7b">kth_largest</span>(ll k) <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(rk<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">61</span>) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>; ull tot<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1ULL</span><span style="color:#ff79c6">&lt;&lt;</span>rk;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(k<span style="color:#ff79c6">&lt;</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">||</span>(ull)k<span style="color:#ff79c6">&gt;</span>tot) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>; <span style="color:#ff79c6">return</span> kth_all((ll)(tot<span style="color:#ff79c6">-</span>(ull)k<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>));
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Merge another basis
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">merge</span>(<span style="color:#ff79c6">const</span> LB<span style="color:#ff79c6">&amp;</span> o){ <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>LOG;<span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span>(o.b[i]) ins(o.b[i]); }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">private</span><span style="color:#ff79c6">:</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> ensure_norm() <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>dirty) <span style="color:#ff79c6">return</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>LOG;<span style="color:#ff79c6">++</span>i) <span style="color:#ff79c6">if</span>(b[i])
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>i;<span style="color:#ff79c6">++</span>j) <span style="color:#ff79c6">if</span>(b[j]<span style="color:#ff79c6">&amp;&amp;</span>((b[i]<span style="color:#ff79c6">&gt;&gt;</span>j)<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1LL</span>)) b[i]<span style="color:#ff79c6">^=</span>b[j];
-</span></span><span style="display:flex;"><span>        dirty<span style="color:#ff79c6">=</span><span style="color:#8be9fd;font-style:italic">false</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>} S;
-</span></span></code></pre></div><h3 id="141-range-xor-basis">1.4.1 Range XOR Basis</h3>
-<p>Supports: max XOR over any subarray $[l,r]$.</p>
-<p><strong>Idea:</strong> maintain a prefix basis where each basis vector also records its <strong>position</strong> (the latest index in the original array from which it was inserted). When answering $[l,r]$, only use basis vectors with position $\geq l$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">template</span><span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span> MAXN, <span style="color:#8be9fd">int</span> LOG<span style="color:#ff79c6">=</span><span style="color:#bd93f9">30</span><span style="color:#ff79c6">&gt;</span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">RangeXorBasis</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">uint32_t</span> bas[MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>][LOG<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]{};
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> pos[MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>][LOG<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]{};
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">init</span>(){ n<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; memset(bas[<span style="color:#bd93f9">0</span>],<span style="color:#bd93f9">0</span>,<span style="color:#ff79c6">sizeof</span> bas[<span style="color:#bd93f9">0</span>]); memset(pos[<span style="color:#bd93f9">0</span>],<span style="color:#bd93f9">0</span>,<span style="color:#ff79c6">sizeof</span> pos[<span style="color:#bd93f9">0</span>]); }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">build</span>(<span style="color:#ff79c6">const</span> vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">uint32_t</span><span style="color:#ff79c6">&gt;&amp;</span> a, <span style="color:#8be9fd">int</span> _n){ init(); <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;i<span style="color:#ff79c6">&lt;=</span>_n;<span style="color:#ff79c6">++</span>i) push(a[i]); }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">push</span>(<span style="color:#8be9fd">uint32_t</span> x){
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">++</span>n;
-</span></span><span style="display:flex;"><span>        memcpy(bas[n],bas[n<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>],<span style="color:#ff79c6">sizeof</span> bas[n]); memcpy(pos[n],pos[n<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>],<span style="color:#ff79c6">sizeof</span> pos[n]);
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> p<span style="color:#ff79c6">=</span>n;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> k<span style="color:#ff79c6">=</span>LOG;k<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>k){
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(((x<span style="color:#ff79c6">&gt;&gt;</span>k)<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1U</span>)<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">continue</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>bas[n][k]){ bas[n][k]<span style="color:#ff79c6">=</span>x; pos[n][k]<span style="color:#ff79c6">=</span>p; <span style="color:#ff79c6">break</span>; }
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(pos[n][k]<span style="color:#ff79c6">&lt;</span>p){ swap(bas[n][k],x); swap(pos[n][k],p); }
-</span></span><span style="display:flex;"><span>            x<span style="color:#ff79c6">^=</span>bas[n][k];
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">uint32_t</span> <span style="color:#50fa7b">maxxor</span>(<span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r, <span style="color:#8be9fd">uint32_t</span> seed<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">uint32_t</span> v<span style="color:#ff79c6">=</span>seed;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> k<span style="color:#ff79c6">=</span>LOG;k<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>k) <span style="color:#ff79c6">if</span>(pos[r][k]<span style="color:#ff79c6">&gt;=</span>l) v<span style="color:#ff79c6">=</span>max(v,v<span style="color:#ff79c6">^</span>bas[r][k]);
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> v;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> <span style="color:#50fa7b">can</span>(<span style="color:#8be9fd">int</span> l, <span style="color:#8be9fd">int</span> r, <span style="color:#8be9fd">uint32_t</span> x) <span style="color:#ff79c6">const</span> {
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> k<span style="color:#ff79c6">=</span>LOG;k<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>k){
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(((x<span style="color:#ff79c6">&gt;&gt;</span>k)<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1U</span>)<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">continue</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(pos[r][k]<span style="color:#ff79c6">&lt;</span>l) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">false</span>;
-</span></span><span style="display:flex;"><span>            x<span style="color:#ff79c6">^=</span>bas[r][k];
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">true</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>};
-</span></span></code></pre></div><h2 id="15-examples">1.5 Examples</h2>
-<h3 id="median-of-xor-subset-values-nowcoder">Median of XOR Subset Values (Nowcoder)</h3>
-<blockquote>
-<p>Given array of length $N$, find the median of all $2^N-1$ non-empty subset XOR values ($N\leq10^5$, values $\leq10^9$).</p>
-</blockquote>
-<p><strong>Conclusion:</strong> build basis with rank $r$. The median is the <strong>highest pivot basis vector</strong> (after normalisation).</p>
-<p>Equivalently: <code>kth_all(2^{r-1}+1)</code> in the &ldquo;including-0&rdquo; sorted sequence.</p>
-<p><strong>Why:</strong> Each of the $2^r$ distinct XOR values appears $2^{N-r}$ times in the full multiset (0 appears $2^{N-r}-1$ times for non-empty). Total $2^N-1$ is odd; the median position $2^{N-1}$ falls on the $2^{r-1}$-th distinct positive value:
-</p>
-$$\left\lceil\frac{2^{N-1}-(2^{N-r}-1)}{2^{N-r}}\right\rceil=\left\lceil 2^{r-1}-1+\frac{1}{2^{N-r}}\right\rceil=2^{r-1}$$<p>Including the offset from 0: rank <code>2^{r-1}+1</code> in the &ldquo;with-0&rdquo; sequence.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
-</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> N; cin<span style="color:#ff79c6">&gt;&gt;</span>N;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>N;<span style="color:#ff79c6">++</span>i){ <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> x; cin<span style="color:#ff79c6">&gt;&gt;</span>x; S.ins(x); }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(S.rk<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span>){ cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">0</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">auto</span> vec<span style="color:#ff79c6">=</span>S.low2high();   <span style="color:#6272a4">// ensure_norm() called inside
-</span></span></span><span style="display:flex;"><span>    cout<span style="color:#ff79c6">&lt;&lt;</span>vec.back()<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>;  <span style="color:#6272a4">// highest pivot = median
-</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h3 id="cf-1101g--zero-xor-subset-less">CF 1101G — Zero XOR Subset-less</h3>
-<blockquote>
-<p>Given $a_1,\ldots,a_n$, find the maximum number of contiguous segments such that no non-empty subset of segments XORs to 0. $(1\leq n\leq2\times10^5)$</p>
-</blockquote>
-<p><strong>Setup:</strong> Let $S(i)=a_1\oplus\cdots\oplus a_i$, $S(0)=0$. Segment $[l,r]$ has XOR $= S(r)\oplus S(l-1)$.</p>
-<p><strong>Key reduction:</strong> choosing a set of cut-points $J\ni\{0,n\}$ that divides the array into segments satisfies the condition iff:</p>
-<blockquote>
-<p>No non-empty even-sized subset of $J$ XORs to 0.</p>
-</blockquote>
-<p>Since $S(0)=0$: adding/removing $S(0)$ maps even-sized subsets to odd-sized and vice versa. The condition is equivalent to: <strong>$J\setminus\{0\}$ is linearly independent</strong> in the XOR sense — i.e., no non-empty subset of $J\setminus\{0\}$ XORs to 0.</p>
-<p>Therefore the maximum number of segments equals $\mathrm{rank}\{S(0),S(1),\ldots,S(n)\}$.</p>
-<p><strong>Necessary condition:</strong> $S(n)\neq0$ (the whole array must have non-zero XOR); otherwise output $-1$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">XorBasis</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">static</span> <span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> LOG<span style="color:#ff79c6">=</span><span style="color:#bd93f9">31</span>;   <span style="color:#6272a4">// a_i &lt;= 1e9
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> b[LOG<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]{}, rnk<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">insert</span>(<span style="color:#8be9fd">int</span> x){
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> k<span style="color:#ff79c6">=</span>LOG;k<span style="color:#ff79c6">&gt;=</span><span style="color:#bd93f9">0</span>;<span style="color:#ff79c6">--</span>k){
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(((x<span style="color:#ff79c6">&gt;&gt;</span>k)<span style="color:#ff79c6">&amp;</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span>) <span style="color:#ff79c6">continue</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>b[k]){ b[k]<span style="color:#ff79c6">=</span>x; <span style="color:#ff79c6">++</span>rnk; <span style="color:#ff79c6">return</span>; }
-</span></span><span style="display:flex;"><span>            x<span style="color:#ff79c6">^=</span>b[k];
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>};
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
-</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n; cin<span style="color:#ff79c6">&gt;&gt;</span>n; vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> a(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;i<span style="color:#ff79c6">&lt;=</span>n;<span style="color:#ff79c6">++</span>i) cin<span style="color:#ff79c6">&gt;&gt;</span>a[i];
-</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> pref(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;i<span style="color:#ff79c6">&lt;=</span>n;<span style="color:#ff79c6">++</span>i) pref[i]<span style="color:#ff79c6">=</span>pref[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">^</span>a[i];
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(pref[n]<span style="color:#ff79c6">==</span><span style="color:#bd93f9">0</span>){ cout<span style="color:#ff79c6">&lt;&lt;-</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>; <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>; }
-</span></span><span style="display:flex;"><span>    XorBasis B;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;=</span>n;<span style="color:#ff79c6">++</span>i) B.insert(pref[i]);
-</span></span><span style="display:flex;"><span>    cout<span style="color:#ff79c6">&lt;&lt;</span>B.rnk<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h3 id="cf-gym-104768-c--xor-divisibility">CF Gym 104768 C — XOR Divisibility</h3>
-<blockquote>
-<p>Given multiset, count non-empty subsets where every element divides the XOR sum. (Answer mod $998244353$)</p>
-</blockquote>
-<p><strong>Step 1: only two possible XOR values</strong></p>
-<p>All elements $\leq M=\max(S)$, so the XOR sum $g\lt2M$. Since $\mathrm{lcm}(S)\geq M$, we have $0\leq g\lt 2\mathrm{lcm}$. Thus:
-</p>
-$$g\in\{0,\,\mathrm{lcm}(S)\}$$<p><strong>Step 2: if $g\neq0$ then $\mathrm{lcm}=M$</strong></p>
-<p>If $\mathrm{lcm}>M$ then $\mathrm{lcm}\geq2M>g$, contradiction. So $g=\mathrm{lcm}=M$.</p>
-<p><strong>Step 3: count = A + B</strong></p>
-<ul>
-<li><strong>A (XOR = 0):</strong> $2^{n-r}-1$ non-empty subsets, where $r$ = rank of the entire array&rsquo;s XOR basis.</li>
-<li><strong>B (XOR = M):</strong> for each distinct value $M$ appearing in the array:
-<ul>
-<li>Let $D(M)=\{a_i:a_i\mid M\}$ with $m(M)=|D(M)|$ (with multiplicity).</li>
-<li>Let $r(M)=\mathrm{rank}$ of the set of distinct divisors of $M$ that appear in the array.</li>
-<li>Contribution: $2^{m(M)-r(M)}$ (each achievable XOR value in the span appears equally, and $M$ is achievable since $M\in D(M)$).</li>
-</ul>
-</li>
-</ul>
-<p>Build divisor lists: for each element $d$, iterate its multiples $M$ and add $d$ to $M$&rsquo;s divisor list. Harmonic series, $O(n\log n)$.</p>
-<p>Total complexity: $O(n\log n\cdot B)$ where $B=20$ bits suffices for values $\leq2\times10^5$.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
-</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> T; cin<span style="color:#ff79c6">&gt;&gt;</span>T;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> MAXN<span style="color:#ff79c6">=</span><span style="color:#bd93f9">200000</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">static</span> <span style="color:#8be9fd">int</span> pw2[MAXN<span style="color:#ff79c6">+</span><span style="color:#bd93f9">5</span>]; pw2[<span style="color:#bd93f9">0</span>]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;i<span style="color:#ff79c6">&lt;=</span>MAXN;<span style="color:#ff79c6">++</span>i){ pw2[i]<span style="color:#ff79c6">=</span>(pw2[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#bd93f9">1</span>); <span style="color:#ff79c6">if</span>(pw2[i]<span style="color:#ff79c6">&gt;=</span>P) pw2[i]<span style="color:#ff79c6">-=</span>P; }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span>(T<span style="color:#ff79c6">--</span>){
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> n; cin<span style="color:#ff79c6">&gt;&gt;</span>n; vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> a(n); <span style="color:#8be9fd">int</span> Mx<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>n;<span style="color:#ff79c6">++</span>i){ cin<span style="color:#ff79c6">&gt;&gt;</span>a[i]; Mx<span style="color:#ff79c6">=</span>max(Mx,a[i]); }
-</span></span><span style="display:flex;"><span>        vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> cnt(Mx<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>,<span style="color:#bd93f9">0</span>); <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">x</span>:a) <span style="color:#ff79c6">++</span>cnt[x];
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        LB all; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">x</span>:a) all.ins(x);
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> r_all<span style="color:#ff79c6">=</span>all.rank();
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> vis; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> v<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;v<span style="color:#ff79c6">&lt;=</span>Mx;<span style="color:#ff79c6">++</span>v) <span style="color:#ff79c6">if</span>(cnt[v]) vis.push_back(v);
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#6272a4">// for each divisor d, collect its multiples M that appear in array
-</span></span></span><span style="display:flex;"><span>        vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;&gt;</span> ds(Mx<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">d</span>:vis) <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> m<span style="color:#ff79c6">=</span>d;m<span style="color:#ff79c6">&lt;=</span>Mx;m<span style="color:#ff79c6">+=</span>d) <span style="color:#ff79c6">if</span>(cnt[m]) ds[m].push_back(d);
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        ll ans<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>        ans<span style="color:#ff79c6">=</span>(pw2[n<span style="color:#ff79c6">-</span>r_all]<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">+</span>P)<span style="color:#ff79c6">%</span>P;   <span style="color:#6272a4">// part A
-</span></span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">M</span>:vis){
-</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> mcnt<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">d</span>:ds[M]) mcnt<span style="color:#ff79c6">+=</span>cnt[d];
-</span></span><span style="display:flex;"><span>            LB lb; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> <span style="color:#8be9fd;font-style:italic">d</span>:ds[M]) lb.ins(d);
-</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> rM<span style="color:#ff79c6">=</span>lb.rank();
-</span></span><span style="display:flex;"><span>            ans<span style="color:#ff79c6">=</span>(ans<span style="color:#ff79c6">+</span>pw2[mcnt<span style="color:#ff79c6">-</span>rM])<span style="color:#ff79c6">%</span>P;   <span style="color:#6272a4">// part B
-</span></span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        cout<span style="color:#ff79c6">&lt;&lt;</span>ans<span style="color:#ff79c6">%</span>P<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#39;\n&#39;</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><hr>
-<h1 id="2-simplex-method-for-linear-programming">2 Simplex Method for Linear Programming</h1>
-<p><strong>Problem:</strong> maximise $c^\top x$ subject to $Ax\leq b$, $x\geq0$.</p>
-<p><strong>Method:</strong> iterate over vertices (basic feasible solutions) of the feasible polytope, improving the objective at each step.</p>
-<p><strong>Handling unconstrained variables:</strong> split $y=y^+-y^-$ with $y^+,y^-\geq0$.</p>
-<p><strong>Complexity:</strong> exponential worst case, near-polynomial in practice.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
-</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">double</span> INF<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1e18</span>, EPS<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1e-9</span>;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#ff79c6">struct</span> <span style="color:#50fa7b">Simplex</span> {
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> n,m; vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">int</span><span style="color:#ff79c6">&gt;</span> B,N; vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;&gt;</span> D;
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    Simplex(vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;&gt;&amp;</span> A, vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;&amp;</span> b, vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;&amp;</span> c)
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">:</span>n(c.size()),m(b.size()),B(m),N(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>),D(m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">2</span>,vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;</span>(n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">2</span>)){
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m;i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>n;j<span style="color:#ff79c6">++</span>) D[i][j]<span style="color:#ff79c6">=</span>A[i][j];
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m;i<span style="color:#ff79c6">++</span>){ B[i]<span style="color:#ff79c6">=</span>n<span style="color:#ff79c6">+</span>i; D[i][n]<span style="color:#ff79c6">=-</span><span style="color:#bd93f9">1</span>; D[i][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">=</span>b[i]; }
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>n;j<span style="color:#ff79c6">++</span>){ N[j]<span style="color:#ff79c6">=</span>j; D[m][j]<span style="color:#ff79c6">=-</span>c[j]; }
-</span></span><span style="display:flex;"><span>        N[n]<span style="color:#ff79c6">=-</span><span style="color:#bd93f9">1</span>; D[m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>][n]<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">void</span> <span style="color:#50fa7b">Pivot</span>(<span style="color:#8be9fd">int</span> r,<span style="color:#8be9fd">int</span> s){
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">double</span> inv<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1.0</span><span style="color:#ff79c6">/</span>D[r][s];
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">2</span>;i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span>(i<span style="color:#ff79c6">!=</span>r)
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">2</span>;j<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span>(j<span style="color:#ff79c6">!=</span>s)
-</span></span><span style="display:flex;"><span>                D[i][j]<span style="color:#ff79c6">-=</span>D[r][j]<span style="color:#ff79c6">*</span>D[i][s]<span style="color:#ff79c6">*</span>inv;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">2</span>;j<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span>(j<span style="color:#ff79c6">!=</span>s) D[r][j]<span style="color:#ff79c6">*=</span>inv;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">2</span>;i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span>(i<span style="color:#ff79c6">!=</span>r) D[i][s]<span style="color:#ff79c6">*=-</span>inv;
-</span></span><span style="display:flex;"><span>        D[r][s]<span style="color:#ff79c6">=</span>inv; swap(B[r],N[s]);
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">bool</span> <span style="color:#50fa7b">Simplex1</span>(<span style="color:#8be9fd">int</span> phase){
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> x<span style="color:#ff79c6">=</span>(phase<span style="color:#ff79c6">==</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">?</span>m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">:</span>m);
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">while</span>(<span style="color:#8be9fd;font-style:italic">true</span>){
-</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> s<span style="color:#ff79c6">=-</span><span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;=</span>n;j<span style="color:#ff79c6">++</span>){
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span>(phase<span style="color:#ff79c6">==</span><span style="color:#bd93f9">2</span><span style="color:#ff79c6">&amp;&amp;</span>N[j]<span style="color:#ff79c6">==-</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">continue</span>;
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span>(s<span style="color:#ff79c6">==-</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">||</span>D[x][j]<span style="color:#ff79c6">&lt;</span>D[x][s]<span style="color:#ff79c6">-</span>EPS<span style="color:#ff79c6">||</span>(abs(D[x][j]<span style="color:#ff79c6">-</span>D[x][s])<span style="color:#ff79c6">&lt;</span>EPS<span style="color:#ff79c6">&amp;&amp;</span>N[j]<span style="color:#ff79c6">&lt;</span>N[s])) s<span style="color:#ff79c6">=</span>j;
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(D[x][s]<span style="color:#ff79c6">&gt;-</span>EPS) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">true</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> r<span style="color:#ff79c6">=-</span><span style="color:#bd93f9">1</span>;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m;i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span>(D[i][s]<span style="color:#ff79c6">&gt;</span>EPS){
-</span></span><span style="display:flex;"><span>                <span style="color:#8be9fd">double</span> val<span style="color:#ff79c6">=</span>D[i][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">/</span>D[i][s];
-</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">if</span>(r<span style="color:#ff79c6">==-</span><span style="color:#bd93f9">1</span><span style="color:#ff79c6">||</span>val<span style="color:#ff79c6">&lt;</span>D[r][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">/</span>D[r][s]<span style="color:#ff79c6">-</span>EPS<span style="color:#ff79c6">||</span>
-</span></span><span style="display:flex;"><span>                   (abs(val<span style="color:#ff79c6">-</span>D[r][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">/</span>D[r][s])<span style="color:#ff79c6">&lt;</span>EPS<span style="color:#ff79c6">&amp;&amp;</span>B[i]<span style="color:#ff79c6">&lt;</span>B[r])) r<span style="color:#ff79c6">=</span>i;
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(r<span style="color:#ff79c6">==-</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">return</span> <span style="color:#8be9fd;font-style:italic">false</span>;
-</span></span><span style="display:flex;"><span>            Pivot(r,s);
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span>    <span style="color:#6272a4">// Returns optimal value; -INF = infeasible, +INF = unbounded
-</span></span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">double</span> <span style="color:#50fa7b">Solve</span>(vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;&amp;</span> x){
-</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> r<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>;i<span style="color:#ff79c6">&lt;</span>m;i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span>(D[i][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">&lt;</span>D[r][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]) r<span style="color:#ff79c6">=</span>i;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(D[r][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">&lt;-</span>EPS){
-</span></span><span style="display:flex;"><span>            Pivot(r,n); <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>Simplex1(<span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">||</span>D[m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>]<span style="color:#ff79c6">&lt;-</span>EPS) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span>INF;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(abs(D[m<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>])<span style="color:#ff79c6">&gt;</span>EPS) <span style="color:#ff79c6">return</span> <span style="color:#ff79c6">-</span>INF;
-</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(find(B.begin(),B.end(),<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">!=</span>B.end()){
-</span></span><span style="display:flex;"><span>                <span style="color:#8be9fd">int</span> rr<span style="color:#ff79c6">=</span>find(B.begin(),B.end(),<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>)<span style="color:#ff79c6">-</span>B.begin();
-</span></span><span style="display:flex;"><span>                <span style="color:#8be9fd">int</span> ss<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>; <span style="color:#ff79c6">while</span>(ss<span style="color:#ff79c6">&lt;=</span>n<span style="color:#ff79c6">&amp;&amp;</span>abs(D[rr][ss])<span style="color:#ff79c6">&lt;</span>EPS) ss<span style="color:#ff79c6">++</span>; Pivot(rr,ss);
-</span></span><span style="display:flex;"><span>            }
-</span></span><span style="display:flex;"><span>        }
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>Simplex1(<span style="color:#bd93f9">2</span>)) <span style="color:#ff79c6">return</span> INF;
-</span></span><span style="display:flex;"><span>        x.assign(n,<span style="color:#bd93f9">0</span>); <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m;i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">if</span>(B[i]<span style="color:#ff79c6">&lt;</span>n) x[B[i]]<span style="color:#ff79c6">=</span>D[i][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>];
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">return</span> D[m][n<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>];
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>};
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
-</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>); cin.tie(<span style="color:#ff79c6">nullptr</span>);
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> m,n; cin<span style="color:#ff79c6">&gt;&gt;</span>m<span style="color:#ff79c6">&gt;&gt;</span>n;
-</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span>vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;&gt;</span> A(m,vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;</span>(n));
-</span></span><span style="display:flex;"><span>    vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;</span> b(m),c(n);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m;i<span style="color:#ff79c6">++</span>) <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>n;j<span style="color:#ff79c6">++</span>) cin<span style="color:#ff79c6">&gt;&gt;</span>A[i][j];
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;i<span style="color:#ff79c6">&lt;</span>m;i<span style="color:#ff79c6">++</span>) cin<span style="color:#ff79c6">&gt;&gt;</span>b[i];
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j<span style="color:#ff79c6">=</span><span style="color:#bd93f9">0</span>;j<span style="color:#ff79c6">&lt;</span>n;j<span style="color:#ff79c6">++</span>) cin<span style="color:#ff79c6">&gt;&gt;</span>c[j];
-</span></span><span style="display:flex;"><span>    Simplex solver(A,b,c); vector<span style="color:#ff79c6">&lt;</span><span style="color:#8be9fd">double</span><span style="color:#ff79c6">&gt;</span> x;
-</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">double</span> val<span style="color:#ff79c6">=</span>solver.Solve(x);
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">if</span>(val<span style="color:#ff79c6">==-</span>INF) cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;No solution</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">else</span> <span style="color:#ff79c6">if</span>(val<span style="color:#ff79c6">==</span>INF) cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;Unbounded</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">else</span>{
-</span></span><span style="display:flex;"><span>        cout<span style="color:#ff79c6">&lt;&lt;</span>fixed<span style="color:#ff79c6">&lt;&lt;</span>setprecision(<span style="color:#bd93f9">9</span>)<span style="color:#ff79c6">&lt;&lt;</span>val<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
-</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">double</span> <span style="color:#8be9fd;font-style:italic">xi</span>:x) cout<span style="color:#ff79c6">&lt;&lt;</span>xi<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34; &#34;</span>; cout<span style="color:#ff79c6">&lt;&lt;</span><span style="color:#f1fa8c">&#34;</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>;
-</span></span><span style="display:flex;"><span>    }
-</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><blockquote>
-<p><strong>Input format:</strong> <code>m n</code> (constraints, variables), then $m\times n$ matrix $A$, then vector $b$, then vector $c$.</p>
-</blockquote>
-
-      </div>
-      
-        <aside class="article-toc">
-          <div class="toc-card">
-            <span>On this page</span>
-            <nav id="TableOfContents">
-  <ul>
-    <li><a href="#1-linear-basis-xor-basis">1 Linear Basis (XOR Basis)</a>
-      <ul>
-        <li><a href="#11-basis-of-a-vector-space">1.1 Basis of a Vector Space</a></li>
-        <li><a href="#12-xor-linear-basis">1.2 XOR Linear Basis</a></li>
-        <li><a href="#13-complexity">1.3 Complexity</a></li>
-        <li><a href="#14-template">1.4 Template</a></li>
-        <li><a href="#15-examples">1.5 Examples</a></li>
-      </ul>
-    </li>
-    <li><a href="#2-simplex-method-for-linear-programming">2 Simplex Method for Linear Programming</a></li>
-  </ul>
-</nav>
-          </div>
-        </aside>
-      
-    </div>
-  </article>
-
-  
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const tocLinks = document.querySelectorAll('.toc-card a');
-      const tocPanel = document.querySelector('.article-toc');
-      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
-                            .filter(h => h.id);
-      
-      if (headings.length === 0 || tocLinks.length === 0) return;
-
-      let ticking = false;
-
-      function updateActiveTocLink() {
-        const scrollPosition = window.scrollY + 140; 
-        let currentHeading = headings[0];
-
-        for (let i = 0; i < headings.length; i++) {
-          
-          const top = headings[i].getBoundingClientRect().top + window.scrollY;
-          if (scrollPosition >= top) {
-            currentHeading = headings[i];
-          } else {
-            break;
-          }
-        }
-
-        tocLinks.forEach(link => link.classList.remove('active'));
-        if (currentHeading) {
-          const id = currentHeading.getAttribute('id');
-          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
-          if (activeLink) {
-            activeLink.classList.add('active');
-            const toc = activeLink.closest('.article-toc');
-            if (toc) {
-              const padding = 14;
-              const linkTop = activeLink.offsetTop;
-              const linkBottom = linkTop + activeLink.offsetHeight;
-              const viewTop = toc.scrollTop;
-              const viewBottom = viewTop + toc.clientHeight;
-
-              if (linkTop < viewTop + padding) {
-                toc.scrollTop = Math.max(0, linkTop - padding);
-              } else if (linkBottom > viewBottom - padding) {
-                toc.scrollTop = linkBottom - toc.clientHeight + padding;
-              }
-            }
-          }
-        }
-      }
-
-      function updateTocBoundary() {
-        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
-          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
-          return;
-        }
-
-        const footer = document.querySelector('.site-footer');
-        if (!footer) return;
-
-        const bottomGap = 24;
-        const tocBottom = 86 + tocPanel.offsetHeight;
-        const footerTop = footer.getBoundingClientRect().top;
-        const overlap = tocBottom + bottomGap - footerTop;
-
-        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
-      }
-
-      function onScroll() {
-        if (ticking) return;
-        ticking = true;
-        window.requestAnimationFrame(function() {
-          updateTocBoundary();
-          updateActiveTocLink();
-          ticking = false;
-        });
-      }
-
-      window.addEventListener('scroll', onScroll, { passive: true });
-      window.addEventListener('resize', onScroll, { passive: true });
-      
-      setTimeout(function() {
-        updateTocBoundary();
-        updateActiveTocLink();
-      }, 50);
-    });
-  </script>
-  
-
-      </main>
-
-      <footer class="site-footer container">
-        <div>
-          <strong>Jasper&#39;s Technical Notebook</strong>
-          <p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p>
-        </div>
-        <div class="footer-links">
-          <a href="https://github.com/JMaaa32">GitHub</a>
-          <a href="/posts/">Posts</a>
-          <a href="/archives/">Archives</a>
-          <a href="/tags/">Tags</a>
-        </div>
-      </footer>
-    </div>
-    <script>
-      (function() {
-        const toggle = document.querySelector(".nav-toggle");
-        const nav = document.querySelector("#site-navigation");
-        if (!toggle || !nav) return;
-
-        function setOpen(open) {
-          document.documentElement.classList.toggle("nav-open", open);
-          toggle.setAttribute("aria-expanded", String(open));
-        }
-
-        toggle.addEventListener("click", function() {
-          setOpen(!document.documentElement.classList.contains("nav-open"));
-        });
-
-        nav.addEventListener("click", function(event) {
-          if (event.target.closest("a")) setOpen(false);
-        });
-
-        window.addEventListener("keydown", function(event) {
-          if (event.key === "Escape") setOpen(false);
-        });
-
-        window.addEventListener("resize", function() {
-          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
-        }, { passive: true });
-
-        const themeToggle = document.querySelector(".theme-toggle");
-        if (!themeToggle) return;
-
-        function applyTheme(theme, persist) {
-          document.documentElement.dataset.theme = theme;
-          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
-          if (persist) {
-            try {
-              window.localStorage.setItem("theme", theme);
-            } catch (error) {}
-          }
-        }
-
-        applyTheme(document.documentElement.dataset.theme || "light", false);
-        themeToggle.addEventListener("click", function() {
-          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-          applyTheme(next, true);
-        });
-      })();
-    </script>
-  </body>
-</html>
+</code></pre><p>Each insertion tries at most $B$ XOR steps. Total construction: $O(nB)$.</p><p><strong>Dimension and freedom:</strong></p><ul><li>$\mathrm{rank}$ = number of non-zero basis vectors.</li><li>The basis spans exactly $2^{\mathrm{rank}}$ distinct XOR values.</li></ul><h3 id=122-applications>1.2.2 Applications</h3><p><strong>1. Count distinct XOR values and subset counts</strong></p><ul><li>Distinct achievable XOR sums: $2^{\mathrm{rank}}$</li><li>Subsets with XOR $= T$ (let $f=n-r$):<ul><li>$T$ not representable: answer $=0$</li><li>$T$ representable: answer $=2^f=2^{n-r}$</li></ul></li><li>Subsets with XOR $=0$ (including empty set): $2^f$; excluding empty set: $2^f-1$</li></ul><p><strong>2. Maximum/minimum XOR</strong></p><ul><li><strong>Maximum:</strong> maintain <code>res=0</code>; from high to low bit, XOR with any basis vector that increases the value.</li><li><strong>Minimum non-zero XOR:</strong> after normalisation, the smallest basis vector.</li></ul><h2 id=13-complexity>1.3 Complexity</h2><table><thead><tr><th>Operation</th><th>Complexity</th></tr></thead><tbody><tr><td>Build from $n$ integers</td><td>$O(nB)$, $B$ = bit width</td></tr><tr><td>Insert/query single value</td><td>$O(B)$</td></tr><tr><td>Max/min XOR</td><td>$O(B)$</td></tr><tr><td>Count representable subsets</td><td>$O(B)$</td></tr></tbody></table><h2 id=14-template>1.4 Template</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>LB</span> {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>static</span> <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> LOG <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>60</span>;   <span style=color:#6272a4>// covers up to ~1e18
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>mutable</span> ll b[LOG<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]{};       <span style=color:#6272a4>// b[i]: basis vector with highest bit at position i
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> rk <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;                  <span style=color:#6272a4>// rank
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> zero <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>;           <span style=color:#6272a4>// true if some non-empty subset XORs to 0
+</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>mutable</span> <span style=color:#8be9fd>bool</span> dirty <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>false</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>clear</span>(){ memset(b,<span style=color:#bd93f9>0</span>,<span style=color:#ff79c6>sizeof</span> b); rk<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; zero<span style=color:#ff79c6>=</span><span style=color:#8be9fd;font-style:italic>false</span>; dirty<span style=color:#ff79c6>=</span><span style=color:#8be9fd;font-style:italic>false</span>; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Insert x; returns true if rank increases
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> <span style=color:#50fa7b>ins</span>(ll x){
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span>LOG;i<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>i) <span style=color:#ff79c6>if</span>((x<span style=color:#ff79c6>&gt;&gt;</span>i)<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1LL</span>){
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>b[i]){ b[i]<span style=color:#ff79c6>=</span>x; <span style=color:#ff79c6>++</span>rk; dirty<span style=color:#ff79c6>=</span><span style=color:#8be9fd;font-style:italic>true</span>; <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>true</span>; }
+</span></span><span style=display:flex><span>            x<span style=color:#ff79c6>^=</span>b[i];
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        zero<span style=color:#ff79c6>=</span><span style=color:#8be9fd;font-style:italic>true</span>; <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>false</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> <span style=color:#50fa7b>rank</span>(){ <span style=color:#8be9fd>int</span> r<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>LOG;<span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span>(b[i]) <span style=color:#ff79c6>++</span>r; <span style=color:#ff79c6>return</span> r; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Normalise: clear lower bits of each basis vector (RREF lower half)
+</span></span></span><span style=display:flex><span>    <span style=color:#6272a4>// Required before kth_all / minelem
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>norm</span>(){
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>LOG;<span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span>(b[i])
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>i;<span style=color:#ff79c6>++</span>j) <span style=color:#ff79c6>if</span>(b[j]<span style=color:#ff79c6>&amp;&amp;</span>((b[i]<span style=color:#ff79c6>&gt;&gt;</span>j)<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1LL</span>)) b[i]<span style=color:#ff79c6>^=</span>b[j];
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Check if x is representable
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> <span style=color:#50fa7b>can</span>(ll x){
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span>LOG;i<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>i) <span style=color:#ff79c6>if</span>((x<span style=color:#ff79c6>&gt;&gt;</span>i)<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1LL</span>){ <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>b[i]) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>false</span>; x<span style=color:#ff79c6>^=</span>b[i]; }
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>true</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Maximum/minimum XOR with optional seed
+</span></span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>maxxor</span>(ll seed<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        ll v<span style=color:#ff79c6>=</span>seed; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span>LOG;i<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>i) <span style=color:#ff79c6>if</span>(b[i]<span style=color:#ff79c6>&amp;&amp;</span>((v<span style=color:#ff79c6>^</span>b[i])<span style=color:#ff79c6>&gt;</span>v)) v<span style=color:#ff79c6>^=</span>b[i]; <span style=color:#ff79c6>return</span> v;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>minxor</span>(ll seed) <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        ll v<span style=color:#ff79c6>=</span>seed; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span>LOG;i<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>i) <span style=color:#ff79c6>if</span>(b[i]<span style=color:#ff79c6>&amp;&amp;</span>((v<span style=color:#ff79c6>^</span>b[i])<span style=color:#ff79c6>&lt;</span>v)) v<span style=color:#ff79c6>^=</span>b[i]; <span style=color:#ff79c6>return</span> v;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Minimum representable element (requires normalisation)
+</span></span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>minelem</span>() <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        ensure_norm(); <span style=color:#ff79c6>if</span>(rk<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>||</span>zero) <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>LOG;<span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span>(b[i]) <span style=color:#ff79c6>return</span> b[i]; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Collect basis vectors from lowest to highest pivot (requires normalisation)
+</span></span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> low2high() <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        ensure_norm(); vector<span style=color:#ff79c6>&lt;</span>ll<span style=color:#ff79c6>&gt;</span> v; v.reserve(rk);
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>LOG;<span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span>(b[i]) v.push_back(b[i]); <span style=color:#ff79c6>return</span> v;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// k-th smallest in the span including 0 (1-indexed); -1 on out-of-range
+</span></span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>kth_all</span>(ll k) <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        ensure_norm(); <span style=color:#ff79c6>if</span>(k<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(rk<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>61</span>) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>        ull tot<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1ULL</span><span style=color:#ff79c6>&lt;&lt;</span>rk; <span style=color:#ff79c6>if</span>((ull)k<span style=color:#ff79c6>&gt;</span>tot) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>auto</span> v<span style=color:#ff79c6>=</span>low2high(); ull mask<span style=color:#ff79c6>=</span>(ull)k<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>; ll ans<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>(<span style=color:#8be9fd>int</span>)v.size();<span style=color:#ff79c6>++</span>i){ <span style=color:#ff79c6>if</span>(mask<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1ULL</span>) ans<span style=color:#ff79c6>^=</span>v[i]; mask<span style=color:#ff79c6>&gt;&gt;=</span><span style=color:#bd93f9>1ULL</span>; }
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> ans;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// k-th smallest among non-empty subsets (1-indexed)
+</span></span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>kth_nonempty</span>(ll k) <span style=color:#ff79c6>const</span> { <span style=color:#ff79c6>return</span> kth_all(k<span style=color:#ff79c6>+</span>(<span style=color:#ff79c6>!</span>zero)); }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// k-th largest (1-indexed, k=1 = maximum)
+</span></span></span><span style=display:flex><span>    ll <span style=color:#50fa7b>kth_largest</span>(ll k) <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(rk<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>61</span>) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>; ull tot<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1ULL</span><span style=color:#ff79c6>&lt;&lt;</span>rk;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(k<span style=color:#ff79c6>&lt;</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>||</span>(ull)k<span style=color:#ff79c6>&gt;</span>tot) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>; <span style=color:#ff79c6>return</span> kth_all((ll)(tot<span style=color:#ff79c6>-</span>(ull)k<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>));
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Merge another basis
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>merge</span>(<span style=color:#ff79c6>const</span> LB<span style=color:#ff79c6>&amp;</span> o){ <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>LOG;<span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span>(o.b[i]) ins(o.b[i]); }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>private</span><span style=color:#ff79c6>:</span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> ensure_norm() <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>dirty) <span style=color:#ff79c6>return</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>LOG;<span style=color:#ff79c6>++</span>i) <span style=color:#ff79c6>if</span>(b[i])
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>i;<span style=color:#ff79c6>++</span>j) <span style=color:#ff79c6>if</span>(b[j]<span style=color:#ff79c6>&amp;&amp;</span>((b[i]<span style=color:#ff79c6>&gt;&gt;</span>j)<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1LL</span>)) b[i]<span style=color:#ff79c6>^=</span>b[j];
+</span></span><span style=display:flex><span>        dirty<span style=color:#ff79c6>=</span><span style=color:#8be9fd;font-style:italic>false</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>} S;
+</span></span></code></pre></div><h3 id=141-range-xor-basis>1.4.1 Range XOR Basis</h3><p>Supports: max XOR over any subarray $[l,r]$.</p><p><strong>Idea:</strong> maintain a prefix basis where each basis vector also records its <strong>position</strong> (the latest index in the original array from which it was inserted). When answering $[l,r]$, only use basis vectors with position $\geq l$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>template</span><span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span> MAXN, <span style=color:#8be9fd>int</span> LOG<span style=color:#ff79c6>=</span><span style=color:#bd93f9>30</span><span style=color:#ff79c6>&gt;</span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>RangeXorBasis</span> {
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>uint32_t</span> bas[MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>][LOG<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]{};
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> pos[MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>][LOG<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]{};
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>init</span>(){ n<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; memset(bas[<span style=color:#bd93f9>0</span>],<span style=color:#bd93f9>0</span>,<span style=color:#ff79c6>sizeof</span> bas[<span style=color:#bd93f9>0</span>]); memset(pos[<span style=color:#bd93f9>0</span>],<span style=color:#bd93f9>0</span>,<span style=color:#ff79c6>sizeof</span> pos[<span style=color:#bd93f9>0</span>]); }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>build</span>(<span style=color:#ff79c6>const</span> vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>uint32_t</span><span style=color:#ff79c6>&gt;&amp;</span> a, <span style=color:#8be9fd>int</span> _n){ init(); <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;i<span style=color:#ff79c6>&lt;=</span>_n;<span style=color:#ff79c6>++</span>i) push(a[i]); }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>push</span>(<span style=color:#8be9fd>uint32_t</span> x){
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>++</span>n;
+</span></span><span style=display:flex><span>        memcpy(bas[n],bas[n<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>],<span style=color:#ff79c6>sizeof</span> bas[n]); memcpy(pos[n],pos[n<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>],<span style=color:#ff79c6>sizeof</span> pos[n]);
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> p<span style=color:#ff79c6>=</span>n;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> k<span style=color:#ff79c6>=</span>LOG;k<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>k){
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(((x<span style=color:#ff79c6>&gt;&gt;</span>k)<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1U</span>)<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>continue</span>;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>bas[n][k]){ bas[n][k]<span style=color:#ff79c6>=</span>x; pos[n][k]<span style=color:#ff79c6>=</span>p; <span style=color:#ff79c6>break</span>; }
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(pos[n][k]<span style=color:#ff79c6>&lt;</span>p){ swap(bas[n][k],x); swap(pos[n][k],p); }
+</span></span><span style=display:flex><span>            x<span style=color:#ff79c6>^=</span>bas[n][k];
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>uint32_t</span> <span style=color:#50fa7b>maxxor</span>(<span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r, <span style=color:#8be9fd>uint32_t</span> seed<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>uint32_t</span> v<span style=color:#ff79c6>=</span>seed;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> k<span style=color:#ff79c6>=</span>LOG;k<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>k) <span style=color:#ff79c6>if</span>(pos[r][k]<span style=color:#ff79c6>&gt;=</span>l) v<span style=color:#ff79c6>=</span>max(v,v<span style=color:#ff79c6>^</span>bas[r][k]);
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> v;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> <span style=color:#50fa7b>can</span>(<span style=color:#8be9fd>int</span> l, <span style=color:#8be9fd>int</span> r, <span style=color:#8be9fd>uint32_t</span> x) <span style=color:#ff79c6>const</span> {
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> k<span style=color:#ff79c6>=</span>LOG;k<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>k){
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(((x<span style=color:#ff79c6>&gt;&gt;</span>k)<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1U</span>)<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>continue</span>;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(pos[r][k]<span style=color:#ff79c6>&lt;</span>l) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>false</span>;
+</span></span><span style=display:flex><span>            x<span style=color:#ff79c6>^=</span>bas[r][k];
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>true</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>};
+</span></span></code></pre></div><h2 id=15-examples>1.5 Examples</h2><h3 id=median-of-xor-subset-values-nowcoder>Median of XOR Subset Values (Nowcoder)</h3><blockquote><p>Given array of length $N$, find the median of all $2^N-1$ non-empty subset XOR values ($N\leq10^5$, values $\leq10^9$).</p></blockquote><p><strong>Conclusion:</strong> build basis with rank $r$. The median is the <strong>highest pivot basis vector</strong> (after normalisation).</p><p>Equivalently: <code>kth_all(2^{r-1}+1)</code> in the &ldquo;including-0&rdquo; sorted sequence.</p><p><strong>Why:</strong> Each of the $2^r$ distinct XOR values appears $2^{N-r}$ times in the full multiset (0 appears $2^{N-r}-1$ times for non-empty). Total $2^N-1$ is odd; the median position $2^{N-1}$ falls on the $2^{r-1}$-th distinct positive value:</p>$$\left\lceil\frac{2^{N-1}-(2^{N-r}-1)}{2^{N-r}}\right\rceil=\left\lceil 2^{r-1}-1+\frac{1}{2^{N-r}}\right\rceil=2^{r-1}$$<p>Including the offset from 0: rank <code>2^{r-1}+1</code> in the &ldquo;with-0&rdquo; sequence.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
+</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> N; cin<span style=color:#ff79c6>&gt;&gt;</span>N;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>N;<span style=color:#ff79c6>++</span>i){ <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> x; cin<span style=color:#ff79c6>&gt;&gt;</span>x; S.ins(x); }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(S.rk<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span>){ cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>0</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>auto</span> vec<span style=color:#ff79c6>=</span>S.low2high();   <span style=color:#6272a4>// ensure_norm() called inside
+</span></span></span><span style=display:flex><span>    cout<span style=color:#ff79c6>&lt;&lt;</span>vec.back()<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>;  <span style=color:#6272a4>// highest pivot = median
+</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h3 id=cf-1101g--zero-xor-subset-less>CF 1101G — Zero XOR Subset-less</h3><blockquote><p>Given $a_1,\ldots,a_n$, find the maximum number of contiguous segments such that no non-empty subset of segments XORs to 0. $(1\leq n\leq2\times10^5)$</p></blockquote><p><strong>Setup:</strong> Let $S(i)=a_1\oplus\cdots\oplus a_i$, $S(0)=0$. Segment $[l,r]$ has XOR $= S(r)\oplus S(l-1)$.</p><p><strong>Key reduction:</strong> choosing a set of cut-points $J\ni\{0,n\}$ that divides the array into segments satisfies the condition iff:</p><blockquote><p>No non-empty even-sized subset of $J$ XORs to 0.</p></blockquote><p>Since $S(0)=0$: adding/removing $S(0)$ maps even-sized subsets to odd-sized and vice versa. The condition is equivalent to: <strong>$J\setminus\{0\}$ is linearly independent</strong> in the XOR sense — i.e., no non-empty subset of $J\setminus\{0\}$ XORs to 0.</p><p>Therefore the maximum number of segments equals $\mathrm{rank}\{S(0),S(1),\ldots,S(n)\}$.</p><p><strong>Necessary condition:</strong> $S(n)\neq0$ (the whole array must have non-zero XOR); otherwise output $-1$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>XorBasis</span> {
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>static</span> <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> LOG<span style=color:#ff79c6>=</span><span style=color:#bd93f9>31</span>;   <span style=color:#6272a4>// a_i &lt;= 1e9
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> b[LOG<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]{}, rnk<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>insert</span>(<span style=color:#8be9fd>int</span> x){
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> k<span style=color:#ff79c6>=</span>LOG;k<span style=color:#ff79c6>&gt;=</span><span style=color:#bd93f9>0</span>;<span style=color:#ff79c6>--</span>k){
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(((x<span style=color:#ff79c6>&gt;&gt;</span>k)<span style=color:#ff79c6>&amp;</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span>) <span style=color:#ff79c6>continue</span>;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>b[k]){ b[k]<span style=color:#ff79c6>=</span>x; <span style=color:#ff79c6>++</span>rnk; <span style=color:#ff79c6>return</span>; }
+</span></span><span style=display:flex><span>            x<span style=color:#ff79c6>^=</span>b[k];
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
+</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n; cin<span style=color:#ff79c6>&gt;&gt;</span>n; vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> a(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;i<span style=color:#ff79c6>&lt;=</span>n;<span style=color:#ff79c6>++</span>i) cin<span style=color:#ff79c6>&gt;&gt;</span>a[i];
+</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> pref(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;i<span style=color:#ff79c6>&lt;=</span>n;<span style=color:#ff79c6>++</span>i) pref[i]<span style=color:#ff79c6>=</span>pref[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>^</span>a[i];
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(pref[n]<span style=color:#ff79c6>==</span><span style=color:#bd93f9>0</span>){ cout<span style=color:#ff79c6>&lt;&lt;-</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>; <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>; }
+</span></span><span style=display:flex><span>    XorBasis B;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;=</span>n;<span style=color:#ff79c6>++</span>i) B.insert(pref[i]);
+</span></span><span style=display:flex><span>    cout<span style=color:#ff79c6>&lt;&lt;</span>B.rnk<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h3 id=cf-gym-104768-c--xor-divisibility>CF Gym 104768 C — XOR Divisibility</h3><blockquote><p>Given multiset, count non-empty subsets where every element divides the XOR sum. (Answer mod $998244353$)</p></blockquote><p><strong>Step 1: only two possible XOR values</strong></p><p>All elements $\leq M=\max(S)$, so the XOR sum $g\lt2M$. Since $\mathrm{lcm}(S)\geq M$, we have $0\leq g\lt 2\mathrm{lcm}$. Thus:</p>$$g\in\{0,\,\mathrm{lcm}(S)\}$$<p><strong>Step 2: if $g\neq0$ then $\mathrm{lcm}=M$</strong></p><p>If $\mathrm{lcm}>M$ then $\mathrm{lcm}\geq2M>g$, contradiction. So $g=\mathrm{lcm}=M$.</p><p><strong>Step 3: count = A + B</strong></p><ul><li><strong>A (XOR = 0):</strong> $2^{n-r}-1$ non-empty subsets, where $r$ = rank of the entire array&rsquo;s XOR basis.</li><li><strong>B (XOR = M):</strong> for each distinct value $M$ appearing in the array:<ul><li>Let $D(M)=\{a_i:a_i\mid M\}$ with $m(M)=|D(M)|$ (with multiplicity).</li><li>Let $r(M)=\mathrm{rank}$ of the set of distinct divisors of $M$ that appear in the array.</li><li>Contribution: $2^{m(M)-r(M)}$ (each achievable XOR value in the span appears equally, and $M$ is achievable since $M\in D(M)$).</li></ul></li></ul><p>Build divisor lists: for each element $d$, iterate its multiples $M$ and add $d$ to $M$&rsquo;s divisor list. Harmonic series, $O(n\log n)$.</p><p>Total complexity: $O(n\log n\cdot B)$ where $B=20$ bits suffices for values $\leq2\times10^5$.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
+</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> T; cin<span style=color:#ff79c6>&gt;&gt;</span>T;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> MAXN<span style=color:#ff79c6>=</span><span style=color:#bd93f9>200000</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>static</span> <span style=color:#8be9fd>int</span> pw2[MAXN<span style=color:#ff79c6>+</span><span style=color:#bd93f9>5</span>]; pw2[<span style=color:#bd93f9>0</span>]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;i<span style=color:#ff79c6>&lt;=</span>MAXN;<span style=color:#ff79c6>++</span>i){ pw2[i]<span style=color:#ff79c6>=</span>(pw2[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#bd93f9>1</span>); <span style=color:#ff79c6>if</span>(pw2[i]<span style=color:#ff79c6>&gt;=</span>P) pw2[i]<span style=color:#ff79c6>-=</span>P; }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span>(T<span style=color:#ff79c6>--</span>){
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> n; cin<span style=color:#ff79c6>&gt;&gt;</span>n; vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> a(n); <span style=color:#8be9fd>int</span> Mx<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>n;<span style=color:#ff79c6>++</span>i){ cin<span style=color:#ff79c6>&gt;&gt;</span>a[i]; Mx<span style=color:#ff79c6>=</span>max(Mx,a[i]); }
+</span></span><span style=display:flex><span>        vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> cnt(Mx<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>,<span style=color:#bd93f9>0</span>); <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>x</span>:a) <span style=color:#ff79c6>++</span>cnt[x];
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        LB all; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>x</span>:a) all.ins(x);
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> r_all<span style=color:#ff79c6>=</span>all.rank();
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> vis; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> v<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;v<span style=color:#ff79c6>&lt;=</span>Mx;<span style=color:#ff79c6>++</span>v) <span style=color:#ff79c6>if</span>(cnt[v]) vis.push_back(v);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#6272a4>// for each divisor d, collect its multiples M that appear in array
+</span></span></span><span style=display:flex><span>        vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;&gt;</span> ds(Mx<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>d</span>:vis) <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> m<span style=color:#ff79c6>=</span>d;m<span style=color:#ff79c6>&lt;=</span>Mx;m<span style=color:#ff79c6>+=</span>d) <span style=color:#ff79c6>if</span>(cnt[m]) ds[m].push_back(d);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        ll ans<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>        ans<span style=color:#ff79c6>=</span>(pw2[n<span style=color:#ff79c6>-</span>r_all]<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>+</span>P)<span style=color:#ff79c6>%</span>P;   <span style=color:#6272a4>// part A
+</span></span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>M</span>:vis){
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> mcnt<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>d</span>:ds[M]) mcnt<span style=color:#ff79c6>+=</span>cnt[d];
+</span></span><span style=display:flex><span>            LB lb; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> <span style=color:#8be9fd;font-style:italic>d</span>:ds[M]) lb.ins(d);
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> rM<span style=color:#ff79c6>=</span>lb.rank();
+</span></span><span style=display:flex><span>            ans<span style=color:#ff79c6>=</span>(ans<span style=color:#ff79c6>+</span>pw2[mcnt<span style=color:#ff79c6>-</span>rM])<span style=color:#ff79c6>%</span>P;   <span style=color:#6272a4>// part B
+</span></span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        cout<span style=color:#ff79c6>&lt;&lt;</span>ans<span style=color:#ff79c6>%</span>P<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#39;\n&#39;</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><hr><h1 id=2-simplex-method-for-linear-programming>2 Simplex Method for Linear Programming</h1><p><strong>Problem:</strong> maximise $c^\top x$ subject to $Ax\leq b$, $x\geq0$.</p><p><strong>Method:</strong> iterate over vertices (basic feasible solutions) of the feasible polytope, improving the objective at each step.</p><p><strong>Handling unconstrained variables:</strong> split $y=y^+-y^-$ with $y^+,y^-\geq0$.</p><p><strong>Complexity:</strong> exponential worst case, near-polynomial in practice.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
+</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
+</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>double</span> INF<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1e18</span>, EPS<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1e-9</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#ff79c6>struct</span> <span style=color:#50fa7b>Simplex</span> {
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> n,m; vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>int</span><span style=color:#ff79c6>&gt;</span> B,N; vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;&gt;</span> D;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    Simplex(vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;&gt;&amp;</span> A, vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;&amp;</span> b, vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;&amp;</span> c)
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>:</span>n(c.size()),m(b.size()),B(m),N(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>),D(m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>2</span>,vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;</span>(n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>2</span>)){
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m;i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>n;j<span style=color:#ff79c6>++</span>) D[i][j]<span style=color:#ff79c6>=</span>A[i][j];
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m;i<span style=color:#ff79c6>++</span>){ B[i]<span style=color:#ff79c6>=</span>n<span style=color:#ff79c6>+</span>i; D[i][n]<span style=color:#ff79c6>=-</span><span style=color:#bd93f9>1</span>; D[i][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>=</span>b[i]; }
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>n;j<span style=color:#ff79c6>++</span>){ N[j]<span style=color:#ff79c6>=</span>j; D[m][j]<span style=color:#ff79c6>=-</span>c[j]; }
+</span></span><span style=display:flex><span>        N[n]<span style=color:#ff79c6>=-</span><span style=color:#bd93f9>1</span>; D[m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>][n]<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>void</span> <span style=color:#50fa7b>Pivot</span>(<span style=color:#8be9fd>int</span> r,<span style=color:#8be9fd>int</span> s){
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>double</span> inv<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1.0</span><span style=color:#ff79c6>/</span>D[r][s];
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>2</span>;i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span>(i<span style=color:#ff79c6>!=</span>r)
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>2</span>;j<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span>(j<span style=color:#ff79c6>!=</span>s)
+</span></span><span style=display:flex><span>                D[i][j]<span style=color:#ff79c6>-=</span>D[r][j]<span style=color:#ff79c6>*</span>D[i][s]<span style=color:#ff79c6>*</span>inv;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>2</span>;j<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span>(j<span style=color:#ff79c6>!=</span>s) D[r][j]<span style=color:#ff79c6>*=</span>inv;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>2</span>;i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span>(i<span style=color:#ff79c6>!=</span>r) D[i][s]<span style=color:#ff79c6>*=-</span>inv;
+</span></span><span style=display:flex><span>        D[r][s]<span style=color:#ff79c6>=</span>inv; swap(B[r],N[s]);
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>bool</span> <span style=color:#50fa7b>Simplex1</span>(<span style=color:#8be9fd>int</span> phase){
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> x<span style=color:#ff79c6>=</span>(phase<span style=color:#ff79c6>==</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>?</span>m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>:</span>m);
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>while</span>(<span style=color:#8be9fd;font-style:italic>true</span>){
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> s<span style=color:#ff79c6>=-</span><span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;=</span>n;j<span style=color:#ff79c6>++</span>){
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span>(phase<span style=color:#ff79c6>==</span><span style=color:#bd93f9>2</span><span style=color:#ff79c6>&amp;&amp;</span>N[j]<span style=color:#ff79c6>==-</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>continue</span>;
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span>(s<span style=color:#ff79c6>==-</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>||</span>D[x][j]<span style=color:#ff79c6>&lt;</span>D[x][s]<span style=color:#ff79c6>-</span>EPS<span style=color:#ff79c6>||</span>(abs(D[x][j]<span style=color:#ff79c6>-</span>D[x][s])<span style=color:#ff79c6>&lt;</span>EPS<span style=color:#ff79c6>&amp;&amp;</span>N[j]<span style=color:#ff79c6>&lt;</span>N[s])) s<span style=color:#ff79c6>=</span>j;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(D[x][s]<span style=color:#ff79c6>&gt;-</span>EPS) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>true</span>;
+</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> r<span style=color:#ff79c6>=-</span><span style=color:#bd93f9>1</span>;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m;i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span>(D[i][s]<span style=color:#ff79c6>&gt;</span>EPS){
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd>double</span> val<span style=color:#ff79c6>=</span>D[i][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>/</span>D[i][s];
+</span></span><span style=display:flex><span>                <span style=color:#ff79c6>if</span>(r<span style=color:#ff79c6>==-</span><span style=color:#bd93f9>1</span><span style=color:#ff79c6>||</span>val<span style=color:#ff79c6>&lt;</span>D[r][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>/</span>D[r][s]<span style=color:#ff79c6>-</span>EPS<span style=color:#ff79c6>||</span>
+</span></span><span style=display:flex><span>                   (abs(val<span style=color:#ff79c6>-</span>D[r][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>/</span>D[r][s])<span style=color:#ff79c6>&lt;</span>EPS<span style=color:#ff79c6>&amp;&amp;</span>B[i]<span style=color:#ff79c6>&lt;</span>B[r])) r<span style=color:#ff79c6>=</span>i;
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(r<span style=color:#ff79c6>==-</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>return</span> <span style=color:#8be9fd;font-style:italic>false</span>;
+</span></span><span style=display:flex><span>            Pivot(r,s);
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#6272a4>// Returns optimal value; -INF = infeasible, +INF = unbounded
+</span></span></span><span style=display:flex><span>    <span style=color:#8be9fd>double</span> <span style=color:#50fa7b>Solve</span>(vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;&amp;</span> x){
+</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> r<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>;i<span style=color:#ff79c6>&lt;</span>m;i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span>(D[i][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>&lt;</span>D[r][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]) r<span style=color:#ff79c6>=</span>i;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(D[r][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>&lt;-</span>EPS){
+</span></span><span style=display:flex><span>            Pivot(r,n); <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>Simplex1(<span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>||</span>D[m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>]<span style=color:#ff79c6>&lt;-</span>EPS) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span>INF;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(abs(D[m<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>])<span style=color:#ff79c6>&gt;</span>EPS) <span style=color:#ff79c6>return</span> <span style=color:#ff79c6>-</span>INF;
+</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(find(B.begin(),B.end(),<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>!=</span>B.end()){
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd>int</span> rr<span style=color:#ff79c6>=</span>find(B.begin(),B.end(),<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>)<span style=color:#ff79c6>-</span>B.begin();
+</span></span><span style=display:flex><span>                <span style=color:#8be9fd>int</span> ss<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>; <span style=color:#ff79c6>while</span>(ss<span style=color:#ff79c6>&lt;=</span>n<span style=color:#ff79c6>&amp;&amp;</span>abs(D[rr][ss])<span style=color:#ff79c6>&lt;</span>EPS) ss<span style=color:#ff79c6>++</span>; Pivot(rr,ss);
+</span></span><span style=display:flex><span>            }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>Simplex1(<span style=color:#bd93f9>2</span>)) <span style=color:#ff79c6>return</span> INF;
+</span></span><span style=display:flex><span>        x.assign(n,<span style=color:#bd93f9>0</span>); <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m;i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>if</span>(B[i]<span style=color:#ff79c6>&lt;</span>n) x[B[i]]<span style=color:#ff79c6>=</span>D[i][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>];
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>return</span> D[m][n<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>];
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
+</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>); cin.tie(<span style=color:#ff79c6>nullptr</span>);
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> m,n; cin<span style=color:#ff79c6>&gt;&gt;</span>m<span style=color:#ff79c6>&gt;&gt;</span>n;
+</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span>vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;&gt;</span> A(m,vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;</span>(n));
+</span></span><span style=display:flex><span>    vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;</span> b(m),c(n);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m;i<span style=color:#ff79c6>++</span>) <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>n;j<span style=color:#ff79c6>++</span>) cin<span style=color:#ff79c6>&gt;&gt;</span>A[i][j];
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;i<span style=color:#ff79c6>&lt;</span>m;i<span style=color:#ff79c6>++</span>) cin<span style=color:#ff79c6>&gt;&gt;</span>b[i];
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j<span style=color:#ff79c6>=</span><span style=color:#bd93f9>0</span>;j<span style=color:#ff79c6>&lt;</span>n;j<span style=color:#ff79c6>++</span>) cin<span style=color:#ff79c6>&gt;&gt;</span>c[j];
+</span></span><span style=display:flex><span>    Simplex solver(A,b,c); vector<span style=color:#ff79c6>&lt;</span><span style=color:#8be9fd>double</span><span style=color:#ff79c6>&gt;</span> x;
+</span></span><span style=display:flex><span>    <span style=color:#8be9fd>double</span> val<span style=color:#ff79c6>=</span>solver.Solve(x);
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>if</span>(val<span style=color:#ff79c6>==-</span>INF) cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;No solution</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>else</span> <span style=color:#ff79c6>if</span>(val<span style=color:#ff79c6>==</span>INF) cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;Unbounded</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>else</span>{
+</span></span><span style=display:flex><span>        cout<span style=color:#ff79c6>&lt;&lt;</span>fixed<span style=color:#ff79c6>&lt;&lt;</span>setprecision(<span style=color:#bd93f9>9</span>)<span style=color:#ff79c6>&lt;&lt;</span>val<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
+</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>double</span> <span style=color:#8be9fd;font-style:italic>xi</span>:x) cout<span style=color:#ff79c6>&lt;&lt;</span>xi<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34; &#34;</span>; cout<span style=color:#ff79c6>&lt;&lt;</span><span style=color:#f1fa8c>&#34;</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>;
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><blockquote><p><strong>Input format:</strong> <code>m n</code> (constraints, variables), then $m\times n$ matrix $A$, then vector $b$, then vector $c$.</p></blockquote></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#1-linear-basis-xor-basis>1 Linear Basis (XOR Basis)</a><ul><li><a href=#11-basis-of-a-vector-space>1.1 Basis of a Vector Space</a></li><li><a href=#12-xor-linear-basis>1.2 XOR Linear Basis</a></li><li><a href=#13-complexity>1.3 Complexity</a></li><li><a href=#14-template>1.4 Template</a></li><li><a href=#15-examples>1.5 Examples</a></li></ul></li><li><a href=#2-simplex-method-for-linear-programming>2 Simplex Method for Linear Programming</a></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+<a href=/posts/>Posts</a>
+<a href=/archives/>Archives</a>
+<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";o(e,!0)})})()</script></body></html>
