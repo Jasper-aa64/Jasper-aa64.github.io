@@ -23,25 +23,46 @@
 &=\sum_{i=1}^n\sum_{j=1}^m\sum_{d\mid\gcd(i,j)}\mu(d)\\
 &=\sum_{d=1}^{\min(n,m)}\mu(d)\sum_{i=1}^n[d\mid i]\sum_{j=1}^m[d\mid j]\\
 &=\sum_{d=1}^{\min(n,m)}\mu(d)\Bigl\lfloor\frac{n}{d}\Bigr\rfloor\Bigl\lfloor\frac{m}{d}\Bigr\rfloor
-\end{align}$$<p>The last sum is evaluated in $O\!\left(\sqrt{\min(n,m)}\right)$ via divisibility blocking.</p><h3 id=example-1-luogu-p3455-poi2007-zap-queries>Example 1: Luogu P3455 [POI2007] ZAP-Queries</h3>$$\text{Compute }\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k],\quad 1\leq T,n,m,k\leq5\times10^4$$<ul><li>Trick 1: reduce to $\sum_{i=1}^{\lfloor n/k\rfloor}\sum_{j=1}^{\lfloor m/k\rfloor}[\gcd(i,j)=1]$.</li><li>Trick 2: $=\displaystyle\sum_{d=1}^{\min(\lfloor n/k\rfloor,\lfloor m/k\rfloor)}\mu(d)\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor\Bigl\lfloor\frac{\lfloor m/k\rfloor}{d}\Bigr\rfloor$.</li></ul><blockquote><p><strong>Supplementary identity:</strong> $\displaystyle\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor=\Bigl\lfloor\frac{n}{kd}\Bigr\rfloor$. The two forms are equivalent; the right-hand form is cleaner in derivations, the left-hand form is more natural in code.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> t;
-</span></span><span style=display:flex><span>    read(t);
-</span></span><span style=display:flex><span>    get_mu(<span style=color:#bd93f9>50000</span>);
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span>(t<span style=color:#ff79c6>--</span>){
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>static</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> a, b, d;
-</span></span><span style=display:flex><span>        read(a); read(b); read(d);
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>static</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> max_rep, ans;
-</span></span><span style=display:flex><span>        max_rep <span style=color:#ff79c6>=</span> min(a, b); ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> l<span style=color:#ff79c6>=</span><span style=color:#bd93f9>1</span>, r; l<span style=color:#ff79c6>&lt;=</span>max_rep; l<span style=color:#ff79c6>=</span>r<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>){
-</span></span><span style=display:flex><span>            r <span style=color:#ff79c6>=</span> min(a<span style=color:#ff79c6>/</span>(a<span style=color:#ff79c6>/</span>l), b<span style=color:#ff79c6>/</span>(b<span style=color:#ff79c6>/</span>l));
-</span></span><span style=display:flex><span>            ans <span style=color:#ff79c6>+=</span> (a<span style=color:#ff79c6>/</span>(l<span style=color:#ff79c6>*</span>d)) <span style=color:#ff79c6>*</span> (b<span style=color:#ff79c6>/</span>(l<span style=color:#ff79c6>*</span>d)) <span style=color:#ff79c6>*</span> (sum[r] <span style=color:#ff79c6>-</span> sum[l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        printf(<span style=color:#f1fa8c>&#34;%lld</span><span style=color:#f1fa8c>\n</span><span style=color:#f1fa8c>&#34;</span>, ans);
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><h3 id=example-2-luogu-p2522-haoi2011-problem-b>Example 2: Luogu P2522 [HAOI2011] Problem b</h3>$$\text{Compute }\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k],\quad 1\leq T,x,y,n,m,k\leq5\times10^4$$<p>Reduce to four $(1,\cdot)$-based queries via 2D prefix-sum inclusion-exclusion:</p>$$\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k]
-=\sum_{1..n;1..m}-\sum_{1..x-1;1..m}-\sum_{1..n;1..y-1}+\sum_{1..x-1;1..y-1}$$<hr><h1 id=3-trick-3--reduce-a-general--sum-to--form>3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</h1><blockquote><p>Replace the inner expression $f(\gcd(i,j))$ by $f(d)\cdot[\gcd(i',j')=1]$ by factoring out $d=\gcd(i,j)$.</p></blockquote><p>The most common Möbius pattern: $\displaystyle\sum_{i=1}^n\sum_{j=1}^mf(\gcd(i,j))$.</p><p>Set $d=\gcd(i,j)$, $i=i'd$, $j=j'd$; then $\gcd(i',j')=1$ (otherwise $d$ is not maximal).</p><p>Add an outer loop over $d$ and shrink the inner ranges (Trick 1):</p>$$\begin{align}
+\end{align}$$<p>The last sum is evaluated in $O\!\left(\sqrt{\min(n,m)}\right)$ via divisibility blocking.</p>
+<h3 id="example-1-luogu-p3455-poi2007-zap-queries">Example 1: Luogu P3455 [POI2007] ZAP-Queries</h3>
+$$\text{Compute }\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k],\quad 1\leq T,n,m,k\leq5\times10^4$$<ul>
+<li>Trick 1: reduce to $\sum_{i=1}^{\lfloor n/k\rfloor}\sum_{j=1}^{\lfloor m/k\rfloor}[\gcd(i,j)=1]$.</li>
+<li>Trick 2: $=\displaystyle\sum_{d=1}^{\min(\lfloor n/k\rfloor,\lfloor m/k\rfloor)}\mu(d)\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor\Bigl\lfloor\frac{\lfloor m/k\rfloor}{d}\Bigr\rfloor$.</li>
+</ul>
+<blockquote>
+<p><strong>Supplementary identity:</strong> $\displaystyle\Bigl\lfloor\frac{\lfloor n/k\rfloor}{d}\Bigr\rfloor=\Bigl\lfloor\frac{n}{kd}\Bigr\rfloor$. The two forms are equivalent; the right-hand form is cleaner in derivations, the left-hand form is more natural in code.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> t;
+</span></span><span style="display:flex;"><span>    read(t);
+</span></span><span style="display:flex;"><span>    get_mu(<span style="color:#bd93f9">50000</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span>(t<span style="color:#ff79c6">--</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">static</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> a, b, d;
+</span></span><span style="display:flex;"><span>        read(a); read(b); read(d);
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">static</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> max_rep, ans;
+</span></span><span style="display:flex;"><span>        max_rep <span style="color:#ff79c6">=</span> min(a, b); ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> l<span style="color:#ff79c6">=</span><span style="color:#bd93f9">1</span>, r; l<span style="color:#ff79c6">&lt;=</span>max_rep; l<span style="color:#ff79c6">=</span>r<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>){
+</span></span><span style="display:flex;"><span>            r <span style="color:#ff79c6">=</span> min(a<span style="color:#ff79c6">/</span>(a<span style="color:#ff79c6">/</span>l), b<span style="color:#ff79c6">/</span>(b<span style="color:#ff79c6">/</span>l));
+</span></span><span style="display:flex;"><span>            ans <span style="color:#ff79c6">+=</span> (a<span style="color:#ff79c6">/</span>(l<span style="color:#ff79c6">*</span>d)) <span style="color:#ff79c6">*</span> (b<span style="color:#ff79c6">/</span>(l<span style="color:#ff79c6">*</span>d)) <span style="color:#ff79c6">*</span> (sum[r] <span style="color:#ff79c6">-</span> sum[l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        printf(<span style="color:#f1fa8c">&#34;%lld</span><span style="color:#f1fa8c">\n</span><span style="color:#f1fa8c">&#34;</span>, ans);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="example-2-luogu-p2522-haoi2011-problem-b">Example 2: Luogu P2522 [HAOI2011] Problem b</h3>
+$$\text{Compute }\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k],\quad 1\leq T,x,y,n,m,k\leq5\times10^4$$<p>Reduce to four $(1,\cdot)$-based queries via 2D prefix-sum inclusion-exclusion:
+</p>
+$$\sum_{i=x}^n\sum_{j=y}^m[\gcd(i,j)=k]
+=\sum_{1..n;1..m}-\sum_{1..x-1;1..m}-\sum_{1..n;1..y-1}+\sum_{1..x-1;1..y-1}$$<hr>
+<h1 id="3-trick-3--reduce-a-general--sum-to--form">3 Trick 3 — Reduce a General $f(\gcd)$ Sum to $[\gcd=1]$ Form</h1>
+<blockquote>
+<p>Replace the inner expression $f(\gcd(i,j))$ by $f(d)\cdot[\gcd(i',j')=1]$ by factoring out $d=\gcd(i,j)$.</p>
+</blockquote>
+<p>The most common Möbius pattern: $\displaystyle\sum_{i=1}^n\sum_{j=1}^mf(\gcd(i,j))$.</p>
+<p>Set $d=\gcd(i,j)$, $i=i'd$, $j=j'd$; then $\gcd(i',j')=1$ (otherwise $d$ is not maximal).</p>
+<p>Add an outer loop over $d$ and shrink the inner ranges (Trick 1):
+</p>
+$$\begin{align}
 \sum_{i=1}^n\sum_{j=1}^mf(\gcd(i,j))
 &=\sum_{d=1}^{\min(n,m)}\sum_{i'=1}^{\lfloor n/d\rfloor}\sum_{j'=1}^{\lfloor m/d\rfloor}f(\gcd(i'd,j'd))\cdot[\gcd(i',j')=1]\\
 &=\sum_{d=1}^{n}\sum_{i=1}^{\lfloor n/d\rfloor}\sum_{j=1}^{\lfloor m/d\rfloor}f(d)\cdot[\gcd(i,j)=1]

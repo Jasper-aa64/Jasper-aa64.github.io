@@ -1,1 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Newton on Jasper's Technical Notebook</title><link>https://jmaaa32.github.io/tags/newton/</link><description>Recent content in Newton on Jasper's Technical Notebook</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Sat, 25 Apr 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jmaaa32.github.io/tags/newton/index.xml" rel="self" type="application/rss+xml"/><item><title>Combinatorics #3.2: More Operations on Formal Power Series</title><link>https://jmaaa32.github.io/posts/combinatorics-3-2-more-operations-on-formal-power-series/</link><pubDate>Sat, 25 Apr 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/posts/combinatorics-3-2-more-operations-on-formal-power-series/</guid><description>Newton iteration for polynomial inverse and square root, derivative/integral/composition of formal power series, logarithm and exponential of series, and worked examples including CF438E and a bad-modulus complete-knapsack generating function.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Newton on Jasper&#39;s Technical Notebook</title>
+    <link>http://localhost:1313/tags/newton/</link>
+    <description>Recent content in Newton on Jasper&#39;s Technical Notebook</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 25 Apr 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/newton/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Combinatorics #3.2: More Operations on Formal Power Series</title>
+      <link>http://localhost:1313/posts/combinatorics-3-2-more-operations-on-formal-power-series/</link>
+      <pubDate>Sat, 25 Apr 2026 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/posts/combinatorics-3-2-more-operations-on-formal-power-series/</guid>
+      <description>Newton iteration for polynomial inverse and square root, derivative/integral/composition of formal power series, logarithm and exponential of series, and worked examples including CF438E and a bad-modulus complete-knapsack generating function.</description>
+    </item>
+  </channel>
+</rss>

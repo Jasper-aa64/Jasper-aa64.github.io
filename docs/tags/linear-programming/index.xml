@@ -1,1 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Linear-Programming on Jasper's Technical Notebook</title><link>https://jmaaa32.github.io/tags/linear-programming/</link><description>Recent content in Linear-Programming on Jasper's Technical Notebook</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Tue, 28 Apr 2026 00:00:00 +0800</lastBuildDate><atom:link href="https://jmaaa32.github.io/tags/linear-programming/index.xml" rel="self" type="application/rss+xml"/><item><title>Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method</title><link>https://jmaaa32.github.io/posts/matrix-3-linear-basis/</link><pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate><guid>https://jmaaa32.github.io/posts/matrix-3-linear-basis/</guid><description>XOR linear basis: full template with kth, range basis, normalisation; Nowcoder median example; CF 1101G prefix-XOR rank; gym 104768 C XOR-divisibility; Simplex LP solver.</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Linear-Programming on Jasper&#39;s Technical Notebook</title>
+    <link>http://localhost:1313/tags/linear-programming/</link>
+    <description>Recent content in Linear-Programming on Jasper&#39;s Technical Notebook</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 28 Apr 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/linear-programming/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Matrix #3: Linear Basis (XOR Basis) &amp; Simplex Method</title>
+      <link>http://localhost:1313/posts/matrix-3-linear-basis/</link>
+      <pubDate>Tue, 28 Apr 2026 00:00:00 +0800</pubDate>
+      <guid>http://localhost:1313/posts/matrix-3-linear-basis/</guid>
+      <description>XOR linear basis: full template with kth, range basis, normalisation; Nowcoder median example; CF 1101G prefix-XOR rank; gym 104768 C XOR-divisibility; Simplex LP solver.</description>
+    </item>
+  </channel>
+</rss>

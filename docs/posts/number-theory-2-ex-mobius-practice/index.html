@@ -81,130 +81,164 @@ $(1\leq n,m\leq10^7)$</p></blockquote><p>Assume $n\leq m$. Rewrite $\text{lcm}(i
 </span></span><span style=display:flex><span>ans[d<span style=color:#ff79c6>*</span>(k<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)] <span style=color:#ff79c6>-=</span> d<span style=color:#ff79c6>^</span><span style=color:#bd93f9>2</span> <span style=color:#ff79c6>*</span> s(k)   <span style=color:#6272a4>// if d*(k+1) &lt;= N
 </span></span></span></code></pre></div><p>Then prefix-sum <code>ans[]</code> to get all $\text{Ans}(1..N)$. Each query is $O(1)$.</p><p><strong>Complexity:</strong> $O(N\log N)$ precomputation; works for $N=5\times10^5$.</p><blockquote><p><strong>General technique:</strong> to compute $H(n)=\sum_{d=1}^n f(d)\,g(\lfloor n/d\rfloor)$ for all $n=1..N$ simultaneously:</p><p>For each $d$ and $k=1..\lfloor N/d\rfloor$, when $n\in[dk,\,d(k+1)-1]$ the value $\lfloor n/d\rfloor=k$ is constant and adds $f(d)g(k)$ to every $n$ in the block. Use a difference array:</p><pre tabindex=0><code>diff[d*k]       += f(d)*g(k)
 diff[d*(k+1)]   -= f(d)*g(k)   // if d*(k+1) &lt;= N
-</code></pre><p>Final prefix sum gives $H[n]$.</p></blockquote><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>typedef</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span> LL;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>constexpr</span> <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>5e5</span> <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>10</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> T, n;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> primes[N], cnt;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>bool</span> vis[N];
-</span></span><span style=display:flex><span>LL phi[N];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>seive</span>(){
-</span></span><span style=display:flex><span>    phi[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;</span> N; i<span style=color:#ff79c6>++</span>){
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span>(<span style=color:#ff79c6>!</span>vis[i]){
-</span></span><span style=display:flex><span>            primes[cnt<span style=color:#ff79c6>++</span>] <span style=color:#ff79c6>=</span> i;
-</span></span><span style=display:flex><span>            phi[i] <span style=color:#ff79c6>=</span> i <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> cnt <span style=color:#ff79c6>&amp;&amp;</span> <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> primes[j] <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>&lt;</span> N; j<span style=color:#ff79c6>++</span>){
-</span></span><span style=display:flex><span>            LL t <span style=color:#ff79c6>=</span> primes[j] <span style=color:#ff79c6>*</span> i;
-</span></span><span style=display:flex><span>            vis[t] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(i <span style=color:#ff79c6>%</span> primes[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>){
-</span></span><span style=display:flex><span>                phi[t] <span style=color:#ff79c6>=</span> phi[i] <span style=color:#ff79c6>*</span> primes[j];
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>break</span>;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>            phi[t] <span style=color:#ff79c6>=</span> phi[i] <span style=color:#ff79c6>*</span> (primes[j] <span style=color:#ff79c6>-</span> <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span>LL h[N], g[N], s[N], ans[N];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>init</span>(){
-</span></span><span style=display:flex><span>    seive();
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> d <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; d <span style=color:#ff79c6>&lt;</span> N; d<span style=color:#ff79c6>++</span>) h[d] <span style=color:#ff79c6>=</span> d <span style=color:#ff79c6>*</span> phi[d];
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> d <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; d <span style=color:#ff79c6>&lt;</span> N; d<span style=color:#ff79c6>++</span>)
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> d; n <span style=color:#ff79c6>&lt;</span> N; n <span style=color:#ff79c6>+=</span> d)
-</span></span><span style=display:flex><span>            g[n] <span style=color:#ff79c6>+=</span> h[d];                        <span style=color:#6272a4>// g[n] = sum_{d|n} d*phi[d]
-</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> n <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; n <span style=color:#ff79c6>&lt;</span> N; n<span style=color:#ff79c6>++</span>)
-</span></span><span style=display:flex><span>        s[n] <span style=color:#ff79c6>=</span> s[n<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>+</span> (g[n] <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>*</span> n <span style=color:#ff79c6>/</span> <span style=color:#bd93f9>2</span>;     <span style=color:#6272a4>// s[n] = sum_{t=1}^n lcm-row sum
-</span></span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> d <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; d <span style=color:#ff79c6>&lt;</span> N; d<span style=color:#ff79c6>++</span>){
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> i <span style=color:#ff79c6>*</span> d <span style=color:#ff79c6>&lt;</span> N; i<span style=color:#ff79c6>++</span>){
-</span></span><span style=display:flex><span>            LL tmp <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> d <span style=color:#ff79c6>*</span> d <span style=color:#ff79c6>*</span> s[i];
-</span></span><span style=display:flex><span>            ans[d<span style=color:#ff79c6>*</span>i] <span style=color:#ff79c6>+=</span> tmp;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span>(d <span style=color:#ff79c6>*</span> (i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>) <span style=color:#ff79c6>&lt;</span> N) ans[d<span style=color:#ff79c6>*</span>(i<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>)] <span style=color:#ff79c6>-=</span> tmp;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;</span> N; i<span style=color:#ff79c6>++</span>) ans[i] <span style=color:#ff79c6>+=</span> ans[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>];  <span style=color:#6272a4>// prefix sum to get Ans(n)
-</span></span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>(){
-</span></span><span style=display:flex><span>    init();
-</span></span><span style=display:flex><span>    cin <span style=color:#ff79c6>&gt;&gt;</span> T;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span>(<span style=color:#8be9fd>int</span> t <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; t <span style=color:#ff79c6>&lt;=</span> T; t<span style=color:#ff79c6>++</span>){
-</span></span><span style=display:flex><span>        cin <span style=color:#ff79c6>&gt;&gt;</span> n;
-</span></span><span style=display:flex><span>        cout <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;Case #&#34;</span> <span style=color:#ff79c6>&lt;&lt;</span> t <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#34;: &#34;</span> <span style=color:#ff79c6>&lt;&lt;</span> (<span style=color:#8be9fd>unsigned</span>)ans[n] <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39;\n&#39;</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=2-classical-example>2 Classical Example</h1><h2 id=21-sdoi2015--sum-of-divisor-counts>2.1 SDOI2015 — Sum of Divisor Counts</h2><blockquote><p>Compute (multiple test cases):</p>$$\sum_{i=1}^n\sum_{j=1}^m d(i\cdot j)\quad(1\leq n,m,T\leq5\times10^4)$$<p>where $d(n)=\sum_{d\mid n}1$ is the number-of-divisors function.</p></blockquote><p><strong>Key identity.</strong> For any positive integers $x,y$:</p>$$d(xy)=\sum_{a\mid x}\sum_{b\mid y}[\gcd(a,b)=1]$$<p><em>(Proof sketch: each divisor of $xy$ corresponds to distributing prime-power exponents between $x$ and $y$; the coprimality condition ensures no prime is counted in both $a$ and $b$.)</em></p><p><strong>Möbius inversion to remove the GCD condition:</strong></p>$$\begin{align}
+</code></pre><p>Final prefix sum gives $H[n]$.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">typedef</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span> LL;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">constexpr</span> <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">5e5</span> <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">10</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> T, n;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> primes[N], cnt;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">bool</span> vis[N];
+</span></span><span style="display:flex;"><span>LL phi[N];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">seive</span>(){
+</span></span><span style="display:flex;"><span>    phi[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;</span> N; i<span style="color:#ff79c6">++</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span>(<span style="color:#ff79c6">!</span>vis[i]){
+</span></span><span style="display:flex;"><span>            primes[cnt<span style="color:#ff79c6">++</span>] <span style="color:#ff79c6">=</span> i;
+</span></span><span style="display:flex;"><span>            phi[i] <span style="color:#ff79c6">=</span> i <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> cnt <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> primes[j] <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">&lt;</span> N; j<span style="color:#ff79c6">++</span>){
+</span></span><span style="display:flex;"><span>            LL t <span style="color:#ff79c6">=</span> primes[j] <span style="color:#ff79c6">*</span> i;
+</span></span><span style="display:flex;"><span>            vis[t] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(i <span style="color:#ff79c6">%</span> primes[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>){
+</span></span><span style="display:flex;"><span>                phi[t] <span style="color:#ff79c6">=</span> phi[i] <span style="color:#ff79c6">*</span> primes[j];
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">break</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            phi[t] <span style="color:#ff79c6">=</span> phi[i] <span style="color:#ff79c6">*</span> (primes[j] <span style="color:#ff79c6">-</span> <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>LL h[N], g[N], s[N], ans[N];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">init</span>(){
+</span></span><span style="display:flex;"><span>    seive();
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> d <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; d <span style="color:#ff79c6">&lt;</span> N; d<span style="color:#ff79c6">++</span>) h[d] <span style="color:#ff79c6">=</span> d <span style="color:#ff79c6">*</span> phi[d];
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> d <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; d <span style="color:#ff79c6">&lt;</span> N; d<span style="color:#ff79c6">++</span>)
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> d; n <span style="color:#ff79c6">&lt;</span> N; n <span style="color:#ff79c6">+=</span> d)
+</span></span><span style="display:flex;"><span>            g[n] <span style="color:#ff79c6">+=</span> h[d];                        <span style="color:#6272a4">// g[n] = sum_{d|n} d*phi[d]
+</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> n <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; n <span style="color:#ff79c6">&lt;</span> N; n<span style="color:#ff79c6">++</span>)
+</span></span><span style="display:flex;"><span>        s[n] <span style="color:#ff79c6">=</span> s[n<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">+</span> (g[n] <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">*</span> n <span style="color:#ff79c6">/</span> <span style="color:#bd93f9">2</span>;     <span style="color:#6272a4">// s[n] = sum_{t=1}^n lcm-row sum
+</span></span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> d <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; d <span style="color:#ff79c6">&lt;</span> N; d<span style="color:#ff79c6">++</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> i <span style="color:#ff79c6">*</span> d <span style="color:#ff79c6">&lt;</span> N; i<span style="color:#ff79c6">++</span>){
+</span></span><span style="display:flex;"><span>            LL tmp <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> d <span style="color:#ff79c6">*</span> d <span style="color:#ff79c6">*</span> s[i];
+</span></span><span style="display:flex;"><span>            ans[d<span style="color:#ff79c6">*</span>i] <span style="color:#ff79c6">+=</span> tmp;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span>(d <span style="color:#ff79c6">*</span> (i<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>) <span style="color:#ff79c6">&lt;</span> N) ans[d<span style="color:#ff79c6">*</span>(i<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>)] <span style="color:#ff79c6">-=</span> tmp;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;</span> N; i<span style="color:#ff79c6">++</span>) ans[i] <span style="color:#ff79c6">+=</span> ans[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>];  <span style="color:#6272a4">// prefix sum to get Ans(n)
+</span></span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>(){
+</span></span><span style="display:flex;"><span>    init();
+</span></span><span style="display:flex;"><span>    cin <span style="color:#ff79c6">&gt;&gt;</span> T;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span>(<span style="color:#8be9fd">int</span> t <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; t <span style="color:#ff79c6">&lt;=</span> T; t<span style="color:#ff79c6">++</span>){
+</span></span><span style="display:flex;"><span>        cin <span style="color:#ff79c6">&gt;&gt;</span> n;
+</span></span><span style="display:flex;"><span>        cout <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;Case #&#34;</span> <span style="color:#ff79c6">&lt;&lt;</span> t <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#34;: &#34;</span> <span style="color:#ff79c6">&lt;&lt;</span> (<span style="color:#8be9fd">unsigned</span>)ans[n] <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39;\n&#39;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="2-classical-example">2 Classical Example</h1>
+<h2 id="21-sdoi2015--sum-of-divisor-counts">2.1 SDOI2015 — Sum of Divisor Counts</h2>
+<blockquote>
+<p>Compute (multiple test cases):
+</p>
+$$\sum_{i=1}^n\sum_{j=1}^m d(i\cdot j)\quad(1\leq n,m,T\leq5\times10^4)$$<p>
+where $d(n)=\sum_{d\mid n}1$ is the number-of-divisors function.</p>
+</blockquote>
+<p><strong>Key identity.</strong> For any positive integers $x,y$:
+</p>
+$$d(xy)=\sum_{a\mid x}\sum_{b\mid y}[\gcd(a,b)=1]$$<p><em>(Proof sketch: each divisor of $xy$ corresponds to distributing prime-power exponents between $x$ and $y$; the coprimality condition ensures no prime is counted in both $a$ and $b$.)</em></p>
+<p><strong>Möbius inversion to remove the GCD condition:</strong>
+</p>
+$$\begin{align}
 d(xy)&=\sum_{a\mid x}\sum_{b\mid y}\sum_{k\mid\gcd(a,b)}\mu(k)\\
 &=\sum_{k=1}^{\min(x,y)}\mu(k)\sum_{\substack{a\mid x\\k\mid a}}1\;\sum_{\substack{b\mid y\\k\mid b}}1\\
 &=\sum_{\substack{k\mid x\\k\mid y}}\mu(k)\,d\!\left(\frac{x}{k}\right)d\!\left(\frac{y}{k}\right)
-\end{align}$$<p>Substitute into the double sum and swap:</p>$$\sum_{i\leq n}\sum_{j\leq m}d(ij)
+\end{align}$$<p>Substitute into the double sum and swap:
+</p>
+$$\sum_{i\leq n}\sum_{j\leq m}d(ij)
 =\sum_{k=1}^{\min(n,m)}\mu(k)\Bigl(\sum_{\substack{i\leq n\\k\mid i}}d(i/k)\Bigr)\Bigl(\sum_{\substack{j\leq m\\k\mid j}}d(j/k)\Bigr)
-=\boxed{\sum_{k=1}^{\min(n,m)}\mu(k)\,S\!\left(\Bigl\lfloor\frac{n}{k}\Bigr\rfloor\right)S\!\left(\Bigl\lfloor\frac{m}{k}\Bigr\rfloor\right)}$$<p>where $S(t)=\sum_{x=1}^t d(x)$.</p><p><strong>Precomputation</strong> (all in $O(N)$, $N=5\times10^4$):</p><ul><li>Linear sieve for $\mu$ and prefix sums $\text{preMu}$.</li><li>Divisor count $d$ as a multiplicative function via linear sieve ($\text{calc\_f}(p,k)=k+1$).</li><li>Prefix sums $S$.</li></ul><p><strong>Query:</strong> divisibility blocking over $k$; each block $[l,r]$ with constant $\lfloor n/k\rfloor,\lfloor m/k\rfloor$ contributes $(\text{preMu}[r]-\text{preMu}[l-1])\cdot S(n/l)\cdot S(m/l)$.</p><p><strong>Complexity:</strong> $O(N)$ preprocessing, $O(\sqrt{\min(n,m)})$ per query.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-cpp data-lang=cpp><span style=display:flex><span><span style=color:#ff79c6>#include</span> <span style=color:#ff79c6>&lt;bits/stdc++.h&gt;</span><span style=color:#ff79c6>
-</span></span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> <span style=color:#ff79c6>namespace</span> std;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>using</span> ll <span style=color:#ff79c6>=</span> <span style=color:#8be9fd>long</span> <span style=color:#8be9fd>long</span>;
-</span></span><span style=display:flex><span><span style=color:#ff79c6>const</span> <span style=color:#8be9fd>int</span> N <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>50000</span>;
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> p[N], pcnt;
-</span></span><span style=display:flex><span><span style=color:#8be9fd>bool</span> vis[N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>];
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> mu[N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>], preMu[N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>];
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> d[N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>], cnt[N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>];   <span style=color:#6272a4>// cnt[n] = exponent of smallest prime factor of n
-</span></span></span><span style=display:flex><span>ll S[N<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>];
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>calc_f</span>(<span style=color:#8be9fd>int</span> p, <span style=color:#8be9fd>int</span> k){ <span style=color:#ff79c6>return</span> k <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>; }  <span style=color:#6272a4>// d(p^k) = k+1
-</span></span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>void</span> <span style=color:#50fa7b>sieveAll</span>() {
-</span></span><span style=display:flex><span>    mu[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; d[<span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>; i <span style=color:#ff79c6>&lt;=</span> N; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>if</span> (<span style=color:#ff79c6>!</span>vis[i]) {
-</span></span><span style=display:flex><span>            p[pcnt<span style=color:#ff79c6>++</span>] <span style=color:#ff79c6>=</span> i;
-</span></span><span style=display:flex><span>            mu[i] <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            d[i] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>2</span>;    <span style=color:#6272a4>// d(p^1) = 2
-</span></span></span><span style=display:flex><span>            cnt[i] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> j <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>; j <span style=color:#ff79c6>&lt;</span> pcnt <span style=color:#ff79c6>&amp;&amp;</span> <span style=color:#bd93f9>1LL</span><span style=color:#ff79c6>*</span>p[j]<span style=color:#ff79c6>*</span>i <span style=color:#ff79c6>&lt;=</span> N; <span style=color:#ff79c6>++</span>j) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> x <span style=color:#ff79c6>=</span> p[j] <span style=color:#ff79c6>*</span> i;
-</span></span><span style=display:flex><span>            vis[x] <span style=color:#ff79c6>=</span> <span style=color:#8be9fd;font-style:italic>true</span>;
-</span></span><span style=display:flex><span>            <span style=color:#ff79c6>if</span> (i <span style=color:#ff79c6>%</span> p[j] <span style=color:#ff79c6>==</span> <span style=color:#bd93f9>0</span>) {
-</span></span><span style=display:flex><span>                mu[x] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>                cnt[x] <span style=color:#ff79c6>=</span> cnt[i] <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>                d[x] <span style=color:#ff79c6>=</span> d[i] <span style=color:#ff79c6>/</span> calc_f(p[j], cnt[i]) <span style=color:#ff79c6>*</span> calc_f(p[j], cnt[i]<span style=color:#ff79c6>+</span><span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>                <span style=color:#ff79c6>break</span>;
-</span></span><span style=display:flex><span>            }
-</span></span><span style=display:flex><span>            mu[x] <span style=color:#ff79c6>=</span> <span style=color:#ff79c6>-</span>mu[i];
-</span></span><span style=display:flex><span>            cnt[x] <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>;
-</span></span><span style=display:flex><span>            d[x] <span style=color:#ff79c6>=</span> d[i] <span style=color:#ff79c6>*</span> calc_f(p[j], <span style=color:#bd93f9>1</span>);
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> i <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>; i <span style=color:#ff79c6>&lt;=</span> N; <span style=color:#ff79c6>++</span>i) {
-</span></span><span style=display:flex><span>        preMu[i] <span style=color:#ff79c6>=</span> preMu[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>+</span> mu[i];
-</span></span><span style=display:flex><span>        S[i] <span style=color:#ff79c6>=</span> S[i<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>] <span style=color:#ff79c6>+</span> d[i];
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>}
-</span></span><span style=display:flex><span>
-</span></span><span style=display:flex><span><span style=color:#8be9fd>int</span> <span style=color:#50fa7b>main</span>() {
-</span></span><span style=display:flex><span>    ios<span style=color:#ff79c6>::</span>sync_with_stdio(<span style=color:#8be9fd;font-style:italic>false</span>);
-</span></span><span style=display:flex><span>    cin.tie(<span style=color:#ff79c6>nullptr</span>);
-</span></span><span style=display:flex><span>    sieveAll();
-</span></span><span style=display:flex><span>    <span style=color:#8be9fd>int</span> T; cin <span style=color:#ff79c6>&gt;&gt;</span> T;
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>while</span> (T<span style=color:#ff79c6>--</span>) {
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> n, m; cin <span style=color:#ff79c6>&gt;&gt;</span> n <span style=color:#ff79c6>&gt;&gt;</span> m;
-</span></span><span style=display:flex><span>        <span style=color:#8be9fd>int</span> L <span style=color:#ff79c6>=</span> min(n, m);
-</span></span><span style=display:flex><span>        ll ans <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>        <span style=color:#ff79c6>for</span> (<span style=color:#8be9fd>int</span> l <span style=color:#ff79c6>=</span> <span style=color:#bd93f9>1</span>, r; l <span style=color:#ff79c6>&lt;=</span> L; l <span style=color:#ff79c6>=</span> r <span style=color:#ff79c6>+</span> <span style=color:#bd93f9>1</span>) {
-</span></span><span style=display:flex><span>            <span style=color:#8be9fd>int</span> vn <span style=color:#ff79c6>=</span> n <span style=color:#ff79c6>/</span> l, vm <span style=color:#ff79c6>=</span> m <span style=color:#ff79c6>/</span> l;
-</span></span><span style=display:flex><span>            r <span style=color:#ff79c6>=</span> min(n <span style=color:#ff79c6>/</span> vn, m <span style=color:#ff79c6>/</span> vm);
-</span></span><span style=display:flex><span>            ans <span style=color:#ff79c6>+=</span> <span style=color:#bd93f9>1LL</span> <span style=color:#ff79c6>*</span> (preMu[r] <span style=color:#ff79c6>-</span> preMu[l<span style=color:#ff79c6>-</span><span style=color:#bd93f9>1</span>]) <span style=color:#ff79c6>*</span> S[vn] <span style=color:#ff79c6>*</span> S[vm];
-</span></span><span style=display:flex><span>        }
-</span></span><span style=display:flex><span>        cout <span style=color:#ff79c6>&lt;&lt;</span> ans <span style=color:#ff79c6>&lt;&lt;</span> <span style=color:#f1fa8c>&#39;\n&#39;</span>;
-</span></span><span style=display:flex><span>    }
-</span></span><span style=display:flex><span>    <span style=color:#ff79c6>return</span> <span style=color:#bd93f9>0</span>;
-</span></span><span style=display:flex><span>}
-</span></span></code></pre></div><hr><h1 id=3-other-problems>3 Other Problems</h1><h2 id=31-2025-icpc-network-round-b--creating-chaos-identity-proof>3.1 2025 ICPC Network Round B — Creating Chaos (identity proof)</h2><p><strong>Approach:</strong> always keep $k$ consecutive elements.</p><p><strong>Key identity:</strong></p>$$\gcd(x,n)=\sum_{\substack{d\mid x\\d\mid n}}\varphi(d)$$<p><strong>Proof:</strong> from $\sum_{d\mid m}\varphi(d)=m$, substitute $m=\gcd(x,n)$.</p>$$\begin{aligned}
+=\boxed{\sum_{k=1}^{\min(n,m)}\mu(k)\,S\!\left(\Bigl\lfloor\frac{n}{k}\Bigr\rfloor\right)S\!\left(\Bigl\lfloor\frac{m}{k}\Bigr\rfloor\right)}$$<p>where $S(t)=\sum_{x=1}^t d(x)$.</p>
+<p><strong>Precomputation</strong> (all in $O(N)$, $N=5\times10^4$):</p>
+<ul>
+<li>Linear sieve for $\mu$ and prefix sums $\text{preMu}$.</li>
+<li>Divisor count $d$ as a multiplicative function via linear sieve ($\text{calc\_f}(p,k)=k+1$).</li>
+<li>Prefix sums $S$.</li>
+</ul>
+<p><strong>Query:</strong> divisibility blocking over $k$; each block $[l,r]$ with constant $\lfloor n/k\rfloor,\lfloor m/k\rfloor$ contributes $(\text{preMu}[r]-\text{preMu}[l-1])\cdot S(n/l)\cdot S(m/l)$.</p>
+<p><strong>Complexity:</strong> $O(N)$ preprocessing, $O(\sqrt{\min(n,m)})$ per query.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#282a36;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#ff79c6">#include</span> <span style="color:#ff79c6">&lt;bits/stdc++.h&gt;</span><span style="color:#ff79c6">
+</span></span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> <span style="color:#ff79c6">namespace</span> std;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">using</span> ll <span style="color:#ff79c6">=</span> <span style="color:#8be9fd">long</span> <span style="color:#8be9fd">long</span>;
+</span></span><span style="display:flex;"><span><span style="color:#ff79c6">const</span> <span style="color:#8be9fd">int</span> N <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">50000</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> p[N], pcnt;
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">bool</span> vis[N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>];
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> mu[N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>], preMu[N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>];
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> d[N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>], cnt[N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>];   <span style="color:#6272a4">// cnt[n] = exponent of smallest prime factor of n
+</span></span></span><span style="display:flex;"><span>ll S[N<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">calc_f</span>(<span style="color:#8be9fd">int</span> p, <span style="color:#8be9fd">int</span> k){ <span style="color:#ff79c6">return</span> k <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>; }  <span style="color:#6272a4">// d(p^k) = k+1
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">void</span> <span style="color:#50fa7b">sieveAll</span>() {
+</span></span><span style="display:flex;"><span>    mu[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; d[<span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>; i <span style="color:#ff79c6">&lt;=</span> N; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">if</span> (<span style="color:#ff79c6">!</span>vis[i]) {
+</span></span><span style="display:flex;"><span>            p[pcnt<span style="color:#ff79c6">++</span>] <span style="color:#ff79c6">=</span> i;
+</span></span><span style="display:flex;"><span>            mu[i] <span style="color:#ff79c6">=</span> <span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            d[i] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">2</span>;    <span style="color:#6272a4">// d(p^1) = 2
+</span></span></span><span style="display:flex;"><span>            cnt[i] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> j <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>; j <span style="color:#ff79c6">&lt;</span> pcnt <span style="color:#ff79c6">&amp;&amp;</span> <span style="color:#bd93f9">1LL</span><span style="color:#ff79c6">*</span>p[j]<span style="color:#ff79c6">*</span>i <span style="color:#ff79c6">&lt;=</span> N; <span style="color:#ff79c6">++</span>j) {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> x <span style="color:#ff79c6">=</span> p[j] <span style="color:#ff79c6">*</span> i;
+</span></span><span style="display:flex;"><span>            vis[x] <span style="color:#ff79c6">=</span> <span style="color:#8be9fd;font-style:italic">true</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#ff79c6">if</span> (i <span style="color:#ff79c6">%</span> p[j] <span style="color:#ff79c6">==</span> <span style="color:#bd93f9">0</span>) {
+</span></span><span style="display:flex;"><span>                mu[x] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>                cnt[x] <span style="color:#ff79c6">=</span> cnt[i] <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>                d[x] <span style="color:#ff79c6">=</span> d[i] <span style="color:#ff79c6">/</span> calc_f(p[j], cnt[i]) <span style="color:#ff79c6">*</span> calc_f(p[j], cnt[i]<span style="color:#ff79c6">+</span><span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>                <span style="color:#ff79c6">break</span>;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>            mu[x] <span style="color:#ff79c6">=</span> <span style="color:#ff79c6">-</span>mu[i];
+</span></span><span style="display:flex;"><span>            cnt[x] <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>;
+</span></span><span style="display:flex;"><span>            d[x] <span style="color:#ff79c6">=</span> d[i] <span style="color:#ff79c6">*</span> calc_f(p[j], <span style="color:#bd93f9">1</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> i <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>; i <span style="color:#ff79c6">&lt;=</span> N; <span style="color:#ff79c6">++</span>i) {
+</span></span><span style="display:flex;"><span>        preMu[i] <span style="color:#ff79c6">=</span> preMu[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">+</span> mu[i];
+</span></span><span style="display:flex;"><span>        S[i] <span style="color:#ff79c6">=</span> S[i<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>] <span style="color:#ff79c6">+</span> d[i];
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#8be9fd">int</span> <span style="color:#50fa7b">main</span>() {
+</span></span><span style="display:flex;"><span>    ios<span style="color:#ff79c6">::</span>sync_with_stdio(<span style="color:#8be9fd;font-style:italic">false</span>);
+</span></span><span style="display:flex;"><span>    cin.tie(<span style="color:#ff79c6">nullptr</span>);
+</span></span><span style="display:flex;"><span>    sieveAll();
+</span></span><span style="display:flex;"><span>    <span style="color:#8be9fd">int</span> T; cin <span style="color:#ff79c6">&gt;&gt;</span> T;
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">while</span> (T<span style="color:#ff79c6">--</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> n, m; cin <span style="color:#ff79c6">&gt;&gt;</span> n <span style="color:#ff79c6">&gt;&gt;</span> m;
+</span></span><span style="display:flex;"><span>        <span style="color:#8be9fd">int</span> L <span style="color:#ff79c6">=</span> min(n, m);
+</span></span><span style="display:flex;"><span>        ll ans <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#ff79c6">for</span> (<span style="color:#8be9fd">int</span> l <span style="color:#ff79c6">=</span> <span style="color:#bd93f9">1</span>, r; l <span style="color:#ff79c6">&lt;=</span> L; l <span style="color:#ff79c6">=</span> r <span style="color:#ff79c6">+</span> <span style="color:#bd93f9">1</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#8be9fd">int</span> vn <span style="color:#ff79c6">=</span> n <span style="color:#ff79c6">/</span> l, vm <span style="color:#ff79c6">=</span> m <span style="color:#ff79c6">/</span> l;
+</span></span><span style="display:flex;"><span>            r <span style="color:#ff79c6">=</span> min(n <span style="color:#ff79c6">/</span> vn, m <span style="color:#ff79c6">/</span> vm);
+</span></span><span style="display:flex;"><span>            ans <span style="color:#ff79c6">+=</span> <span style="color:#bd93f9">1LL</span> <span style="color:#ff79c6">*</span> (preMu[r] <span style="color:#ff79c6">-</span> preMu[l<span style="color:#ff79c6">-</span><span style="color:#bd93f9">1</span>]) <span style="color:#ff79c6">*</span> S[vn] <span style="color:#ff79c6">*</span> S[vm];
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        cout <span style="color:#ff79c6">&lt;&lt;</span> ans <span style="color:#ff79c6">&lt;&lt;</span> <span style="color:#f1fa8c">&#39;\n&#39;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#ff79c6">return</span> <span style="color:#bd93f9">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><hr>
+<h1 id="3-other-problems">3 Other Problems</h1>
+<h2 id="31-2025-icpc-network-round-b--creating-chaos-identity-proof">3.1 2025 ICPC Network Round B — Creating Chaos (identity proof)</h2>
+<p><strong>Approach:</strong> always keep $k$ consecutive elements.</p>
+<p><strong>Key identity:</strong>
+</p>
+$$\gcd(x,n)=\sum_{\substack{d\mid x\\d\mid n}}\varphi(d)$$<p><strong>Proof:</strong> from $\sum_{d\mid m}\varphi(d)=m$, substitute $m=\gcd(x,n)$.</p>
+$$\begin{aligned}
 F(S)&=\sum_{1\leq i\lt j\leq m}\gcd(|a_i-a_j|,n)
 =\sum_{1\leq i\lt j\leq m}\sum_{d\mid n}\varphi(d)\,[d\mid(a_i-a_j)]\\
 &=\sum_{d\mid n}\varphi(d)\sum_{i=1}^{n-k-1}\sum_{j=i+1}^{n-k}[(a_i-a_j)\bmod d=0]
