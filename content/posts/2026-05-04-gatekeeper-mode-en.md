@@ -41,7 +41,7 @@ tags: [ai, code-review, quality-gate, automation, critic]
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![GateKeeper Mode hero — quality gate before code](/assets/images/gatekeeper/gatekeeper-hero.png)
+![GateKeeper Mode hero — quality gate before code](/images/gatekeeper/gatekeeper-hero.png)
 
 ---
 
@@ -124,7 +124,7 @@ The Critic does not need to explain why it rejected. It only needs to say: these
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![Timeline comparison — Ordinary AI Review vs GateKeeper Mode](/assets/images/gatekeeper/timeline-comparison.png)
+![Timeline comparison — Ordinary AI Review vs GateKeeper Mode](/images/gatekeeper/timeline-comparison.png)
 
 ---
 
@@ -232,7 +232,7 @@ The four gates are sequential. You must pass one before entering the next. This 
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![Four sequential gates — the earlier the failure, the lower the cost](/assets/images/gatekeeper/four-gates.png)
+![Four sequential gates — the earlier the failure, the lower the cost](/images/gatekeeper/four-gates.png)
 
 ---
 
@@ -478,7 +478,7 @@ This ESCALATE is a valuable result, not a process failure. **GateKeeper is not j
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![-DNDEBUG vulnerability — Release vs Debug Build](/assets/images/gatekeeper/debug-vulnerability.png)
+![-DNDEBUG vulnerability — Release vs Debug Build](/images/gatekeeper/debug-vulnerability.png)
 
 ---
 
