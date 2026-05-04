@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Automation on Jasper&#39;s Technical Notebook</title>
+    <link>https://jmaaa32.github.io/tags/automation/</link>
+    <description>Recent content in Automation on Jasper&#39;s Technical Notebook</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 04 May 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://jmaaa32.github.io/tags/automation/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>GateKeeper Mode: Building a Quality Gate Before Letting AI Touch Your Code</title>
+      <link>https://jmaaa32.github.io/posts/gatekeeper-mode-building-a-quality-gate-before-letting-ai-touch-your-code/</link>
+      <pubDate>Mon, 04 May 2026 00:00:00 +0000</pubDate>
+      <guid>https://jmaaa32.github.io/posts/gatekeeper-mode-building-a-quality-gate-before-letting-ai-touch-your-code/</guid>
+      <description>&lt;h1 id=&#34;gatekeeper-mode-building-a-quality-gate-before-letting-ai-touch-your-code&#34;&gt;GateKeeper Mode: Building a Quality Gate Before Letting AI Touch Your Code&lt;/h1&gt;&#xA;&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;Core thesis&lt;/strong&gt;: Once AI can write code, the bottleneck is no longer &amp;ldquo;can it produce a patch?&amp;rdquo; — it&amp;rsquo;s &amp;ldquo;can the system prove that patch should be accepted?&amp;rdquo;&lt;/p&gt;&#xA;&lt;/blockquote&gt;&#xA;&lt;!--&#xA;╔══════════════════════════════════════════════════════════════════╗&#xA;║  🖼  ILLUSTRATION #1  ——  Hero image (text-to-image)            ║&#xA;╠══════════════════════════════════════════════════════════════════╣&#xA;║                                                                  ║&#xA;║  Create a 16:9 hand-drawn technical blog illustration.           ║&#xA;║  Style: off-white graph-paper background, pencil sketch          ║&#xA;║  aesthetic, muted watercolor in pale green, amber, light blue,   ║&#xA;║  soft red. No dark gradients, no glossy SaaS UI, no neon colors. ║&#xA;║                                                                  ║&#xA;║  Topic: A quality gate workflow that intercepts AI-generated     ║&#xA;║  code patches before they enter a codebase.                      ║&#xA;║                                                                  ║&#xA;║  Main metaphor: A customs checkpoint on a conveyor belt road.    ║&#xA;║  On the left, boxes labeled &#34;AI Patch&#34; arrive on a belt.         ║&#xA;║  In the center, a checkpoint booth with a checklist stamp.       ║&#xA;║  On the right, approved boxes proceed to &#34;CODEBASE&#34;;             ║&#xA;║  rejected boxes loop back with a curved red arrow.               ║&#xA;║                                                                  ║&#xA;║  Text to include:                                                ║&#xA;║  - Title: &#34;GateKeeper Mode&#34;                                      ║&#xA;║  - Subtitle: &#34;Quality gate before code&#34;                          ║&#xA;║  - Labels: &#34;Critic-Prep&#34;, &#34;Builder&#34;, &#34;Executor&#34;, &#34;Critic-Review&#34; ║&#xA;║                                                                  ║&#xA;║  Composition: single left-to-right pipeline with four labeled    ║&#xA;║  stations on a notebook page background.                         ║&#xA;║                                                                  ║&#xA;║  Avoid dark gradients, glossy SaaS UI, neon colors,              ║&#xA;║  photorealism, generic AI imagery. All text large and legible.   ║&#xA;╚══════════════════════════════════════════════════════════════════╝&#xA;--&gt;&#xA;&lt;p&gt;&lt;img src=&#34;https://jmaaa32.github.io/assets/images/gatekeeper/gatekeeper-hero.png&#34; alt=&#34;GateKeeper Mode hero — quality gate before code&#34;&gt;&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
