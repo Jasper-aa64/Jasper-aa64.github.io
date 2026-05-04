@@ -428,6 +428,7 @@ code, pre { font-family: var(--mono); }
 :root[data-theme="dark"] .home-avatar-light { display: none; }
 :root[data-theme="dark"] .home-avatar-dark {
   display: block;
+  bottom: -45px;
   filter: drop-shadow(0 20px 32px rgba(0, 0, 0, .34));
 }
 .hero-sketch-lines {
@@ -1007,7 +1008,7 @@ code, pre { font-family: var(--mono); }
 }
 .article-layout {
   display: grid;
-  grid-template-columns: minmax(0, 880px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
   align-items: stretch;
   padding-left: clamp(0px, 3vw, 56px);
