@@ -975,10 +975,22 @@ code, pre { font-family: var(--mono); }
 
 /* Article */
 .article-shell {
+  --article-gutter: 40px;
+  --article-toc-width: 270px;
+  --article-toc-gap: clamp(28px, 3vw, 64px);
+  width: calc(100vw - 80px);
   max-width: none;
+  margin-left: calc(50% - 50vw + var(--article-gutter));
+  margin-right: 0;
+}
+@media (min-width: 1800px) {
+  .article-shell {
+    width: 1720px;
+    margin-left: -200px;
+  }
 }
 .article-header {
-  max-width: 920px;
+  max-width: min(1080px, calc(100% - var(--article-toc-width) - var(--article-toc-gap)));
   margin-bottom: 34px;
   padding-bottom: 24px;
   border-bottom: 1px solid var(--line-soft);
@@ -1012,7 +1024,7 @@ code, pre { font-family: var(--mono); }
   gap: 0;
   align-items: stretch;
   padding-left: clamp(0px, 3vw, 56px);
-  padding-right: 326px;
+  padding-right: calc(var(--article-toc-width) + var(--article-toc-gap));
 }
 .article-content {
   min-width: 0;
@@ -1023,8 +1035,8 @@ code, pre { font-family: var(--mono); }
 .article-toc {
   min-width: 0;
   position: fixed;
-  width: 270px;
-  right: max(20px, calc((100vw - var(--container)) / 2));
+  width: var(--article-toc-width);
+  right: var(--article-gutter);
   top: 86px;
   transform: translateY(var(--toc-shift, 0px));
   align-self: start;
@@ -1033,6 +1045,11 @@ code, pre { font-family: var(--mono); }
   scrollbar-width: none;
 }
 .article-toc::-webkit-scrollbar { display: none; }
+@media (min-width: 1800px) {
+  .article-toc {
+    right: calc(50vw - 860px);
+  }
+}
 .toc-card {
   position: static;
   padding: 0 0 0 18px;
@@ -1093,6 +1110,9 @@ code, pre { font-family: var(--mono); }
   color: #24364f;
   font-size: 1.04rem;
   line-height: 1.82;
+}
+.article-content.prose {
+  max-width: none;
 }
 :root[data-theme="dark"] .prose {
   color: var(--text);
@@ -1316,14 +1336,30 @@ code, pre { font-family: var(--mono); }
   .article-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
-    padding-right: 288px;
+    padding-right: calc(var(--article-toc-width) + var(--article-toc-gap));
+  }
+}
+
+@media (max-width: 1280px) {
+  .article-shell {
+    --article-gutter: 28px;
+    --article-toc-width: 248px;
+    --article-toc-gap: 28px;
+    width: calc(100vw - 56px);
   }
 }
 
 @media (max-width: 900px) {
+  .article-shell {
+    width: 100%;
+    margin-inline: 0;
+  }
   .article-header,
   .article-layout {
     padding-left: 0;
+  }
+  .article-header {
+    max-width: none;
   }
   .article-layout {
     grid-template-columns: minmax(0, 1fr);
