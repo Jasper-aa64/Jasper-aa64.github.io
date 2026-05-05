@@ -57,17 +57,22 @@
       let ticking = false;
 
       function updateActiveTocLink() {
-        const scrollPosition = window.scrollY + 140; // offset for sticky header
+        const headerOffset = 120;
+        const probe = Math.min(window.innerHeight * 0.42, 360);
+        const targetLine = headerOffset + probe;
         let currentHeading = headings[0];
 
         for (let i = 0; i < headings.length; i++) {
-          // getBoundingClientRect is relative to viewport, so we add window.scrollY
-          const top = headings[i].getBoundingClientRect().top + window.scrollY;
-          if (scrollPosition >= top) {
+          const rect = headings[i].getBoundingClientRect();
+          if (rect.top <= targetLine) {
             currentHeading = headings[i];
           } else {
             break;
           }
+        }
+
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8) {
+          currentHeading = headings[headings.length - 1];
         }
 
         tocLinks.forEach(link => link.classList.remove('active'));

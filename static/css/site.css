@@ -1096,8 +1096,8 @@ code, pre { font-family: var(--mono); }
   background: rgba(234, 241, 255, .62);
 }
 :root[data-theme="dark"] .toc-card a:hover {
-  color: var(--text-strong);
-  background: rgba(184, 91, 97, .24);
+  color: #fff5f1;
+  background: rgba(184, 91, 97, .14);
 }
 .toc-card a.active {
   color: var(--accent-deep);
@@ -1105,14 +1105,19 @@ code, pre { font-family: var(--mono); }
   font-weight: 680;
 }
 :root[data-theme="dark"] .toc-card a.active {
-  color: #ffe4e6;
+  color: #ffd8dc;
   background:
-    linear-gradient(90deg, rgba(184, 91, 97, .34), rgba(184, 91, 97, .18)),
-    rgba(36, 32, 31, .72);
-  text-shadow: 0 1px 8px rgba(0, 0, 0, .38);
+    linear-gradient(90deg, rgba(184, 91, 97, .18), rgba(184, 91, 97, .07)),
+    rgba(18, 16, 15, .34);
+  outline: 1px solid rgba(239, 178, 182, .28);
+  outline-offset: -1px;
+  text-shadow: none;
 }
 .toc-card a.active {
   box-shadow: inset 2px 0 0 var(--accent);
+}
+:root[data-theme="dark"] .toc-card a.active {
+  box-shadow: inset 3px 0 0 #e07882;
 }
 
 /* Prose */
