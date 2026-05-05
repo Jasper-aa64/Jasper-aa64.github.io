@@ -67,71 +67,122 @@ This works fine for simple tasks. But it hides several assumptions that will exp
 
 **Agent modified files outside the intended scope.** Without an explicit boundary, an agent will happily touch files it considers "related." Those changes sometimes don't cause errors but quietly alter system behavior.
 
-**Multi-turn conversation drift that's hard to trace.** After three rounds, who changed what, why they changed it, and what the last failure was — all of that is scattered through conversation history and takes real time to reconstruct.
-
 None of these problems exist because AI is not smart enough. They are workflow design problems. AI can already produce plausible patches. The real challenge is: **do you have a system that can deterministically tell you whether a given patch should be accepted?**
 
 ---
 
-## 2. Internal Adversarial Review
+## 2. What a Complete Run Looks Like
 
-GateKeeper Mode is not a better prompt. It is a workflow with separated roles. The key design decision is: **split the Critic's work into two distinct points in time**.
+Before getting into the design, let's make clear what the actual flow looks like — as the person using it, you only need to do one thing: **write a brief (task description)**. Everything else is script-driven.
 
-In an ordinary AI review workflow, the Critic appears after the patch: it sees the implementation, then forms an opinion. This means the Critic's judgment is already influenced by how the Builder chose to implement things — it sees something that works, reads as reasonable, and the bar for criticism naturally rises.
+**A complete GateKeeper run, step by step:**
 
-GateKeeper Mode moves the Critic's work earlier:
+**① You write the brief**  
+A markdown file: what to change, why, which files are allowed to be touched (`allowed_files.txt`).
 
-| Ordinary AI Review | GateKeeper Mode |
-|---|---|
-| Critic appears after the patch | Critic defines evidence standard before the patch |
-| Review is impression-based | Review is checklist + deterministic evidence |
-| Tests are optional background | Executor is a hard gate — exit code decides |
-| Approval can be vague | Malformed approval defaults to reject |
-| Human re-reads everything | Human reads only final_decision.md |
-| One-shot interaction | Reject carries evidence into retry; Builder sees the failure reason |
+**② Critic-Prep runs first** (before Builder starts)  
+The Critic reads the brief and writes acceptance criteria as a checklist — specific down to function signatures, edge cases, which files must not be touched. **The Builder never sees this checklist.**
 
-**The burden of proof is on the patch, not on the rejection.**
+**③ Builder works in an isolated git worktree**  
+Builder reads the brief, writes the patch, commits to an isolated branch. It has no idea what the checklist says — only what the task requires.
 
-The Critic does not need to explain why it rejected. It only needs to say: these three checklist items have no corresponding evidence. If the Builder's patch didn't satisfy those items, it should be rejected — no further justification required. Absence of evidence is the default verdict: FAILED.
+**④ Executor runs deterministic checks**  
+Build + unit tests + evaluator script. A non-zero exit code triggers REJECT immediately, before entering the next stage.
 
-<!--
-╔══════════════════════════════════════════════════════════════════╗
-║  🖼  ILLUSTRATION #2  ——  Timeline comparison (text-to-image)   ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  Create a 16:9 hand-drawn technical comparison diagram.          ║
-║  Style: off-white graph-paper background, pencil sketch,         ║
-║  muted watercolor in pale green, amber, light blue, soft red.    ║
-║                                                                  ║
-║  Layout: Two horizontal timelines stacked vertically,            ║
-║  separated by a thin dividing line labeled "vs".                 ║
-║                                                                  ║
-║  Top timeline — "Ordinary AI Review":                            ║
-║    [Builder] → [Executor] → [Critic] → [Human Review]           ║
-║    The Critic box is drawn in soft red/amber with a note:        ║
-║    "Impression-based / influenced by patch"                      ║
-║                                                                  ║
-║  Bottom timeline — "GateKeeper Mode":                            ║
-║    [Critic-Prep] → [Builder] → [Executor] → [Critic-Review]     ║
-║                   → [Judge] → [final_decision.md]               ║
-║    The Critic-Prep box is drawn in pale green with a note:       ║
-║    "Standard set first / independent of patch"                   ║
-║    An arrow loops from Judge back to Builder labeled "RETRY".    ║
-║                                                                  ║
-║  Key annotation in the center:                                   ║
-║  "Critic's work moved before the patch exists"                   ║
-║                                                                  ║
-║  No photorealism, no gradients, all text legible.                ║
-╚══════════════════════════════════════════════════════════════════╝
--->
+> Where do the tests come from? Two cases:  
+> **When modifying existing code**, the existing test suite is run — if the modification breaks something, it gets caught.  
+> **When adding new features**, the brief requires Builder to deliver both code and tests together; the Critic checklist explicitly lists "test function must exist and pass."  
+> The evaluator script is a fixed set of commands written by a human in advance. Regardless of what the patch changed, it only runs those fixed commands — new tests just need to be in the same file and invoked by `main()` to be executed automatically.
 
-![Timeline comparison — Ordinary AI Review vs GateKeeper Mode](/images/gatekeeper/timeline-comparison.png)
+**⑤ Critic-Review verifies each checklist item against evidence**  
+Reads patch.diff + eval.log. Each checklist item either has direct evidence, or is marked FAILED. There is no such thing as "looks roughly right."
+
+**⑥ Judge writes final_decision.md**  
+- `APPROVE`: all gates passed, patch is merged
+- `REJECT`: which gate failed, exact reason — packaged and sent back to Builder for the next round (up to 3 attempts)
+- `ESCALATE`: retry limit exceeded — you receive the complete evidence package and decide the next step yourself
+
+**The only file you need to read is the last one: `final_decision.md`.**
 
 ---
 
-## 3. From GateKeeper Lite to Full GateKeeper Mode
+Here is the full workflow diagram:
 
-This design evolved incrementally. It didn't start out this complete.
+```mermaid
+flowchart TD
+    Task([Task brief + acceptance criteria]) --> Orchestrator{Orchestrator}
+
+    Orchestrator -->|Critic-Prep| C1[Critic<br/>reads brief + target files<br/>writes review checklist]
+    Orchestrator -->|Builder| B1[Builder<br/>reads brief + target files]
+    B1 --> B2[Builder<br/>writes patch]
+    B2 --> B3{Self-check: patch satisfies brief?}
+    B3 -->|no| B2
+    B3 -->|yes — commit| Exec
+
+    Exec[Executor<br/>cmake --build]
+    Exec --> T1{Build passes?}
+    T1 -->|fail| Rej
+    T1 -->|pass| T2[Run unit tests]
+    T2 --> T3{All tests pass?}
+    T3 -->|fail| Rej
+    T3 -->|pass| T4[Run semantic invariant check]
+    T4 --> T5{Output matches baseline?}
+    T5 -->|mismatch| Rej
+    T5 -->|matches| C2
+
+    C1 -.shared checklist.-> C2
+    C2[Critic-Review<br/>verifies each checklist item<br/>against patch + execution log]
+    C2 --> C3{Default reject:<br/>any checklist item<br/>lacks direct evidence?}
+    C3 -->|yes — must reject| Rej
+    C3 -->|no — every item has evidence| Pkg
+
+    Rej[REJECT<br/>log + Critic notes + failed gate]
+    Rej -->|attempt N+1<br/>max 3| B2
+    Rej -.->|retry limit exceeded| Esc([ESCALATE to human])
+
+    Pkg[Decision package<br/>diff + execution log + verdict]
+    Pkg --> Human([Human reads only final verdict])
+    Esc --> Human
+
+    classDef builder fill:#cfe8ff,stroke:#1f6feb,color:#000
+    classDef critic fill:#ffd6d6,stroke:#cf222e,color:#000
+    classDef gate fill:#fff3b0,stroke:#bf8700,color:#000
+    classDef terminal fill:#c6f6c6,stroke:#1a7f37,color:#000
+    class B1,B2,B3 builder
+    class C1,C2,C3,Rej critic
+    class Exec,T1,T2,T3,T4,T5 gate
+    class Task,Pkg,Human,Esc,Orchestrator terminal
+```
+
+Three roles, color-coded, with completely separated responsibilities:
+
+| Color | Role | Objective |
+|-------|------|-----------|
+| Blue | Builder | Implement the task as best it can |
+| Red | Critic | Find every gap it can |
+| Yellow | Executor | Replace LLM judgment with machine output |
+
+**The most critical design decision: Critic defaults to reject.** A Critic that defaults to "looks fine" has no value — it is just an echo chamber. The system must place the burden of proof on the patch, not on the rejection.
+
+---
+
+## 3. Why Not Let One Agent Do All Three?
+
+This question deserves its own section, because "why not just have a single Claude write and review" is something almost everyone asks.
+
+| Responsibility | If handled by the same agent |
+|----------------|------------------------------|
+| Builder | It produces a patch optimized for "looks reasonable" |
+| Critic | It is defending its own implementation |
+| Executor | It reports "what the agent says happened," not "what the machine actually measured" |
+
+Three failure modes collapse into one: the entire loop becomes a self-confirming narrative.
+
+**The Executor must be deterministic machine output** (build succeeded/failed, tests passed/failed) — not LLM judgment. This is the most fundamental difference between GateKeeper and "let AI check whether it got it right."
+
+---
+
+## 4. Critic-Prep: The Key Upgrade
 
 The earliest version (Lite) looked like this:
 
@@ -139,25 +190,25 @@ The earliest version (Lite) looked like this:
 Builder → Executor → Critic
 ```
 
-Builder writes code, Executor runs tests, Critic reviews after it has both the patch and the execution log. This is already much better than purely manual: execution results are deterministic, the Critic's review has a log to reference, and the human only needs to read the Critic's conclusion.
+This is already much better than purely manual: execution results are deterministic, the Critic's review has a log to reference, and the human only needs to read the Critic's conclusion.
 
-But there's an inherent contradiction: the Critic's evaluation standard forms only after seeing the patch. It's very hard to be truly independent of the Builder's implementation choices. Seeing something that "works," it naturally approaches from "is there something wrong here?" rather than "does this implementation satisfy each pre-defined requirement?"
+But there's an inherent contradiction: **the Critic's evaluation standard forms only after seeing the patch.** It's very hard to be truly independent of the Builder's implementation choices. Seeing something that "works," it naturally approaches from "is there something wrong?" rather than "does this satisfy each pre-defined requirement?"
 
-The key upgrade in the full version is adding **Critic-Prep**:
+The full version adds **Critic-Prep**:
 
 ```
 Critic-Prep → Builder → Executor → Critic-Review
 ```
 
-Critic-Prep happens before the Builder starts. It reads the brief (task description) and the list of allowed files, and writes an acceptance checklist. This checklist is not a vague wish list — it is a specific, item-by-item set of evidence standards, precise down to function signatures, expected return values for edge cases, and which files must not be touched.
+Critic-Prep happens before the Builder starts. It reads the brief and the list of allowed files, and writes an acceptance checklist — precise down to function signatures, expected return values for edge cases, and which files must not be touched.
 
-Then the Builder writes code with no knowledge that the checklist exists. This is intentional: the Builder can't see the checklist, so its implementation won't be guided by the checklist's phrasing, and the Critic-Review's judgment won't be contaminated by the Builder's implementation style.
+Then the Builder writes code with no knowledge that the checklist exists. **This is intentional: the Builder can't see the checklist, so its implementation won't be guided by the checklist's phrasing, and the Critic-Review's judgment won't be contaminated by the Builder's implementation style.**
 
-**The Critic is valuable precisely because it defines the evidence standard before the Builder can influence it.**
+The Critic is valuable precisely because it defines the evidence standard before the Builder can influence it.
 
 ---
 
-## 4. Local CLI Implementation
+## 5. Tool Division
 
 This entire workflow runs locally. No framework required.
 
@@ -165,18 +216,18 @@ This entire workflow runs locally. No framework required.
 |------|------|-------|
 | Builder | Claude Code (CLI) | Writes the patch, isolated in a git worktree, never sees the checklist |
 | Critic-Prep | Codex (CLI) | Reads brief + allowed_files, writes acceptance checklist |
-| Executor | Shell script | Compile + test + evaluator, exit code decides pass/fail |
+| Executor | Shell script | Build + test + evaluator, exit code decides pass/fail |
 | Critic-Review | Codex (CLI) | Reads patch.diff + eval.log, verifies each checklist item against evidence |
 | Judge | Shell script | Parses Critic output, writes final_decision.md, decides APPROVE / REJECT / ESCALATE |
 | Human | User | Reads only final_decision.md — no need to watch every intermediate turn |
 
 Each GateKeeper run executes in an isolated git worktree and produces: `critic_checklist.md`, `patch.diff`, `eval.log`, `critic_review.md`, `final_decision.md`. These files are the complete evidence chain, and the only basis for later traceability.
 
-Why not AutoGen or LangGraph? Not because they're bad — but before there is deterministic evidence that the workflow's semantics are correct, introducing a framework only makes debugging harder. Get the semantics right with visible files and logs first, then consider migration. Visible artifacts are easier to debug than framework abstractions. That's not a preference; it's hard experience.
+Why not AutoGen or LangGraph? Not because they're bad — but before there is deterministic evidence that the workflow's semantics are correct, introducing a framework only makes debugging harder. Get the semantics right with visible files and logs first, then consider migration.
 
 ---
 
-## 5. The Four Gates
+## 6. The Four Gates
 
 The full pipeline has four deterministic gates. Any one of them failing triggers a REJECT:
 
@@ -194,11 +245,11 @@ The full pipeline has four deterministic gates. Any one of them failing triggers
                  Vague "broadly satisfies" does not count; missing evidence → FAILED
 ```
 
-The four gates are sequential. You must pass one before entering the next. This means scope-gate failures don't waste Executor time, and Executor failures don't waste Critic-Review time. The earlier a failure is found, the lower the cost.
+The four gates are sequential. You must pass one before entering the next. The earlier a failure is found, the lower the cost.
 
 <!--
 ╔══════════════════════════════════════════════════════════════════╗
-║  🖼  ILLUSTRATION #3  ——  Four gates pipeline (text-to-image)   ║
+║  🖼  ILLUSTRATION #2  ——  Four gates pipeline (text-to-image)   ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
 ║  Create a 16:9 hand-drawn pipeline diagram.                      ║
@@ -237,7 +288,7 @@ The four gates are sequential. You must pass one before entering the next. This 
 
 ---
 
-## 6. Real Runs
+## 7. Real Runs
 
 **Small examples first to validate each path, then a real C++ project.** Scenarios one through four use intentionally simplified Python tasks — the goal is to make each path (one-pass, retry, ESCALATE, semantic reject) independently verifiable without introducing real-project compilation noise. Scenarios five and six are the results on a real project.
 
@@ -321,8 +372,6 @@ final_decision.md:
   Attempt 2: REJECT — Gate: EXECUTOR
 ```
 
-Cleanup commands and paths to all intermediate artifacts are included, waiting for human intervention.
-
 ESCALATE is not "the process broke." It's the system saying: this task is beyond what can be handled automatically at this time, a human needs to look at it. `final_decision.md` gives the human a complete evidence chain — every round's eval.log, Critic-Review's item-by-item judgment, Judge's parsing result. The human reviews the evidence package; they do not need to re-read conversation history. ESCALATE's value is that it is a clear stopping point, not a silent failure endpoint.
 
 ---
@@ -351,7 +400,9 @@ Verdict: REJECT
 
 The Builder wrote `except Exception`, which swallows every exception — including type errors, attribute errors, and other failures that callers should know about. Tests pass because the tests only cover the normal path and the divide-by-zero path; they never touch the constraint "only catch this specific exception."
 
-**This is the core value of Critic-Prep.** It wrote "only catch a specific exception" into the checklist before seeing any code. That constraint is hidden and non-negotiable for the Builder. Without that pre-written checklist, this kind of semantic problem almost always slips through review — "4/4 tests pass, code reads reasonably" — the bar for approval is too low. This scenario also validates something more important: if you only look at the Executor gate, you'd think the patch already passed. Semantic correctness requires the Critic gate. Neither gate alone is sufficient.
+**This is the core value of Critic-Prep.** It wrote "only catch a specific exception" into the checklist before seeing any code. Without that pre-written checklist, this kind of semantic problem almost always slips through review — "4/4 tests pass, code reads reasonably" — the bar for approval is too low.
+
+This scenario also validates something more important: **if you only look at the Executor gate, you'd think the patch already passed. Semantic correctness requires the Critic gate. Neither gate alone is sufficient.**
 
 ---
 
@@ -375,7 +426,7 @@ Critic-Prep pre-wrote a 13-item checklist:
 ...（13 items total）
 ```
 
-The checklist covers file scope (only `test_order_book.cpp` may be changed), the test function name, three specific verification points in the test logic, build pass status, and a constraint that production files must not be touched. Every item is something that can be found as direct evidence in `patch.diff` or `eval.log` — not a single item is a subjective "broadly satisfies" judgment.
+The checklist covers file scope, the test function name, three specific verification points in the test logic, build pass status, and a constraint that production files must not be touched. Every item is something that can be found as direct evidence in `patch.diff` or `eval.log` — not a single item is a subjective "broadly satisfies" judgment.
 
 ```
 Attempt 1: REJECT — Gate: CRITIC
@@ -386,9 +437,9 @@ Attempt 2: APPROVE — Gate: CRITIC
   All checklist items have direct evidence.
 ```
 
-In Attempt 1, the Builder verified the remaining quantity but didn't explicitly assert that the executed quantity equals the expected value — the invariant `executed_quantity + remaining_volume == total_submitted_quantity` had its `remaining_volume` side checked but not the `executed_quantity` side. Critic-Prep's checklist had this item explicitly, so the omission was precisely located. Attempt 2 added the missing assertion and passed.
+In Attempt 1, the Builder verified the remaining quantity but didn't explicitly assert that the executed quantity equals the expected value — the invariant `executed_quantity + remaining_volume == total_submitted_quantity` had its right side checked but not the left. Critic-Prep's checklist had this item explicitly, so the omission was precisely located. Attempt 2 added the missing assertion and passed.
 
-This kind of omission is extremely easy to miss in an ordinary code review: the implementation looks complete, the tests pass, and only cross-checking against the pre-written acceptance standard item by item reveals "it asserted remaining, not executed."
+This kind of omission is extremely easy to miss in an ordinary code review: the implementation looks complete, the tests pass, and only cross-checking against the pre-written acceptance standard item by item reveals the gap.
 
 Git commit: `b0712a6 feat(cpp-trader): Add volume consistency invariant test`
 
@@ -400,7 +451,7 @@ Git commit: `b0712a6 feat(cpp-trader): Add volume consistency invariant test`
 
 This is the most valuable scenario in this article, and the most honest one.
 
-**Task**: Fix the strategy layer's ownership validation and fill accounting. More complex than the invariant test — involves multiple files, requires the strategy layer logic to cooperate.
+**Task**: Fix the strategy layer's ownership validation and fill accounting. More complex than the invariant test — involves multiple files.
 
 ```
 final_decision.md:
@@ -418,7 +469,7 @@ final_decision.md:
   Attempt 3: REJECT — Gate: EXECUTOR (exit code 1)
 ```
 
-Attempt 1's Critic identified a critical clue (written by Codex):
+Attempt 1's Critic identified a critical clue:
 
 ```
 Checklist item: MomentumStrategy::on_trade ignores unrelated trades
@@ -442,11 +493,11 @@ This sentence points to the root cause.
 
 The fix is straightforward: the evaluator was updated to build tests in Debug/ASan mode; the Release build is used only for benchmark smoke testing.
 
-This ESCALATE is a valuable result, not a process failure. **GateKeeper is not just a patch filter — it is a tool for debugging the quality system itself.** Without the Critic insisting on evidence, the `-DNDEBUG` problem could have persisted indefinitely in "behavior is strange but tests are green" form, leaving a silent hole in every subsequent test result. Three ESCALATEs that exposed the evaluator's own quality issue — that outcome is worth more than any single APPROVE.
+This ESCALATE is a valuable result, not a process failure. **GateKeeper is not just a patch filter — it is a tool for debugging the quality system itself.** Without the Critic insisting on evidence, the `-DNDEBUG` problem could have persisted indefinitely in "behavior is strange but tests are green" form. Three ESCALATEs that exposed the evaluator's own quality issue — that outcome is worth more than any single APPROVE.
 
 <!--
 ╔══════════════════════════════════════════════════════════════════╗
-║  🖼  ILLUSTRATION #4  ——  -DNDEBUG vulnerability (text-to-image)║
+║  🖼  ILLUSTRATION #3  ——  -DNDEBUG vulnerability (text-to-image)║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
 ║  Create a 16:9 hand-drawn technical diagram.                     ║
@@ -483,7 +534,7 @@ This ESCALATE is a valuable result, not a process failure. **GateKeeper is not j
 
 ---
 
-## 7. Callback Ordering: A Design Bug Exposed Along the Way
+## 8. Callback Ordering: A Design Bug Exposed Along the Way
 
 The strategy accounting task also surfaced a synchronous design issue unrelated to the GateKeeper workflow itself — but one that only got taken seriously because the workflow forced a close look at the evidence.
 
@@ -500,15 +551,11 @@ submit_order()
 
 This is not a multithreaded race. It is a synchronous callback reentrancy ordering problem. When `on_trade` is called, `submit_order()` hasn't returned yet, so the caller doesn't have the `order_id`. The strategy, when it receives a fill callback, has no way to determine whether that fill belongs to an order it submitted. The bug causes no exceptions; tests pass (while assertions are disabled) — it lives as "behavior is strange but logs look normal."
 
-The fix is a two-phase API: `prepare_order()` returns the `order_id` synchronously first; the strategy records it, then calls `submit_prepared_order()` to trigger matching. Only after that does ownership verification have a correct temporal anchor point.
-
-This bug was not something GateKeeper was designed to detect, nor was it GateKeeper that introduced it. But if not for insisting on seeing evidence during the ownership validation run, it would likely have continued to exist quietly for a long time. Critic-Prep's checklist required "evidence that `on_trade` correctly identifies its own fills" — that requirement forced the implementer to face the ordering problem head-on, with no way to route around it.
+The fix is a two-phase API: `prepare_order()` returns the `order_id` synchronously first; the strategy records it, then calls `submit_prepared_order()` to trigger matching. Critic-Prep's checklist required "evidence that `on_trade` correctly identifies its own fills" — that requirement forced the implementer to face the ordering problem head-on, with no way to route around it.
 
 ---
 
-## 8. What This Doesn't Solve Yet
-
-Honesty about the boundaries:
+## 9. What This Doesn't Solve Yet
 
 **It is not a stronger-prompt technique.** GateKeeper Mode changes workflow structure, not the quality of a single conversation. If your task requires a smarter agent, this system doesn't solve that problem.
 
@@ -516,21 +563,21 @@ Honesty about the boundaries:
 
 **It cannot prove an agent is always correct.** A passing patch is "a patch accepted under the current checklist and test coverage" — it is not "an eternally correct patch." These two things are different and should not be conflated.
 
-**The Attacker role is not yet wired in.** The full design would have an Attacker role, before Critic-Review, that actively tries to break the patch with boundary inputs and adversarially constructed scenarios, passing its results as additional evidence to the Critic. That hasn't been implemented. The current quality gates are all defensive — none are actively adversarial. This is the next thing to build.
+**The Attacker role is not yet wired in.** The full design would have an Attacker role, before Critic-Review, that actively tries to break the patch with boundary inputs and passes its results as additional evidence to the Critic. The current quality gates are all defensive — none are actively adversarial.
 
 And the most important of all:
 
 > **An Executor gate is only as strong as the commands it runs. If tests depend on `assert()`, running them under `-DNDEBUG` turns the quality gate into a smoke test.**
 
-This is not a GateKeeper problem — it is the user's responsibility. GateKeeper's value is in making that weakness visible. But fixing it requires the user to act. Visibility is a precondition; action is the user's job.
+This is not a GateKeeper problem — it is the user's responsibility. GateKeeper's value is in making that weakness visible. But fixing it requires the user to act.
 
 ---
 
-## 9. Why This Matters for Agent-Assisted Optimization
+## 10. Why This Matters for Agent-Assisted Optimization
 
 If you want an agent to help with performance optimization — reduce memory allocations, optimize hot paths, adjust data structure layouts — you need to confirm one thing first: **do you have the ability to prove that the code's behavior after the optimization is consistent with before?**
 
-Performance optimization is, at its core, changing the implementation without changing the semantics. If your correctness gates are still fuzzy, test results passing after an optimization only tell you "it runs" — they don't tell you "the semantics didn't change." You're likely to end up with a version that runs faster but whose behavior has quietly shifted, and tracing which step introduced the problem becomes very difficult. That kind of drift almost never surfaces immediately: the performance numbers look good, the tests are still green, and the problem appears in production as a low-probability anomaly with a broken traceability chain.
+Performance optimization is, at its core, changing the implementation without changing the semantics. If your correctness gates are still fuzzy, test results passing after an optimization only tell you "it runs" — they don't tell you "the semantics didn't change." You're likely to end up with a version that runs faster but whose behavior has quietly shifted, and tracing which step introduced the problem becomes very difficult.
 
 **Before correctness and evidence gates are in place, you should not let an agent do performance optimization.**
 
@@ -542,7 +589,7 @@ This is the subject of Blog 2. The infrastructure GateKeeper Mode provides — d
 
 The scripts, brief templates, and complete run records for all six scenarios are in the `gatekeeper_runs/` directory (each subdirectory is named by run timestamp, with the full artifact chain preserved). Each run directory contains the complete evidence chain from brief to final verdict: `critic_checklist.md` → `patch.diff` → `eval.log` → `critic_review.md` → `final_decision.md`.
 
-Start with a small task where you already have tests: write a brief, let Critic-Prep generate the checklist, then let Builder work — but before reading the Builder's implementation, read the checklist first. That ordering itself will let you feel the difference between "evidence standard precedes the patch" and "reviewing after the patch already exists." If the feel is off, adjust; but experience it once first.
+Start with a small task where you already have tests: write a brief, let Critic-Prep generate the checklist, then let Builder work — but **before reading the Builder's implementation, read the checklist first**. That ordering itself will let you feel the difference between "evidence standard precedes the patch" and "reviewing after the patch already exists."
 
 ---
 
