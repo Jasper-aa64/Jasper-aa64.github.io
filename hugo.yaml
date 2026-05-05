@@ -1,4 +1,4 @@
-baseURL: "https://jmaaa32.github.io/"
+baseURL: "https://jasper-aa64.github.io/"
 languageCode: "en-us"
 title: "Jasper's Technical Notebook"
 defaultContentLanguage: "en"
@@ -43,7 +43,7 @@ params:
   description: "A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."
   heroTitle: "A working index for technical notes."
   heroText: "Algorithms now, engineering and systems notes over time. Written for lookup, review, and reuse."
-  github: "https://github.com/JMaaa32"
+  github: "https://github.com/Jasper-aa64"
 
 markup:
   goldmark:
