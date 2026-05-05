@@ -49,6 +49,9 @@
     document.addEventListener("DOMContentLoaded", function() {
       const tocLinks = document.querySelectorAll('.toc-card a');
       const tocPanel = document.querySelector('.article-toc');
+      const tocIds = new Set(Array.from(tocLinks)
+        .map(link => decodeURIComponent(link.getAttribute('href') || '').replace(/^#/, ''))
+        .filter(Boolean));
       const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
                             .filter(h => h.id);
       
@@ -77,7 +80,12 @@
 
         tocLinks.forEach(link => link.classList.remove('active'));
         if (currentHeading) {
-          const id = currentHeading.getAttribute('id');
+          let id = currentHeading.getAttribute('id');
+          let index = headings.indexOf(currentHeading);
+          while (id && !tocIds.has(id) && index > 0) {
+            index -= 1;
+            id = headings[index].getAttribute('id');
+          }
           const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
           if (activeLink) {
             activeLink.classList.add('active');
