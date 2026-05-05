@@ -1191,9 +1191,7 @@ code, pre { font-family: var(--mono); }
   padding: .9rem 1rem;
 }
 :root[data-theme="dark"] .prose blockquote {
-  background:
-    linear-gradient(90deg, rgba(184, 91, 97, .18), rgba(255, 250, 244, .028)),
-    linear-gradient(180deg, rgba(31, 28, 27, .98), rgba(24, 22, 21, .98));
+  background: #1b1717;
   border: 1px solid rgba(255, 250, 244, .07);
   border-left-color: #e07882;
   color: #f6ebe7;
