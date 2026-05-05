@@ -4,6 +4,7 @@ date: 2026-05-04
 categories: [AI, Workflow]
 tags: [ai, code-review, quality-gate, automation, critic]
 toc: true
+mermaid: true
 ---
 
 # GateKeeper Mode: Building a Quality Gate Before Letting AI Touch Your Code
