@@ -33,4 +33,39 @@
 ║ photorealism, generic AI imagery. All text large and legible. ║
 ╚══════════════════════════════════════════════════════════════════╝
 --&gt;
-&lt;p&gt;&lt;img src="https://jmaaa32.github.io/images/gatekeeper/gatekeeper-hero.png" alt="GateKeeper Mode hero — quality gate before code"&gt;&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;&lt;img src="https://jmaaa32.github.io/images/gatekeeper/gatekeeper-hero.png" alt="GateKeeper Mode hero — quality gate before code"&gt;&lt;/p&gt;</description></item><item><title>GateKeeper Mode：在 AI 改代码之前，先建质量门禁</title><link>https://jmaaa32.github.io/posts/gatekeeper-mode%E5%9C%A8-ai-%E6%94%B9%E4%BB%A3%E7%A0%81%E4%B9%8B%E5%89%8D%E5%85%88%E5%BB%BA%E8%B4%A8%E9%87%8F%E9%97%A8%E7%A6%81/</link><pubDate>Mon, 04 May 2026 00:00:00 +0000</pubDate><guid>https://jmaaa32.github.io/posts/gatekeeper-mode%E5%9C%A8-ai-%E6%94%B9%E4%BB%A3%E7%A0%81%E4%B9%8B%E5%89%8D%E5%85%88%E5%BB%BA%E8%B4%A8%E9%87%8F%E9%97%A8%E7%A6%81/</guid><description>&lt;h1 id="gatekeeper-mode在-ai-改代码之前先建质量门禁"&gt;GateKeeper Mode：在 AI 改代码之前，先建质量门禁&lt;/h1&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;核心主张&lt;/strong&gt;：当 AI 能写代码之后，瓶颈不再是&amp;quot;它能不能写出 patch&amp;quot;，而是&amp;quot;系统能不能证明这个 patch 应该被接受&amp;quot;。&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;!--
+╔══════════════════════════════════════════════════════════════════╗
+║ 🖼 ILLUSTRATION #1 —— 文章题图（文生图） ║
+╠══════════════════════════════════════════════════════════════════╣
+║ ║
+║ Create a 16:9 hand-drawn technical blog illustration. ║
+║ Style: off-white graph-paper background, pencil sketch ║
+║ aesthetic, muted watercolor in pale green, amber, light blue, ║
+║ soft red. No dark gradients, no glossy SaaS UI, no neon colors. ║
+║ ║
+║ Topic: A quality gate workflow that intercepts AI-generated ║
+║ code patches before they enter a codebase. ║
+║ ║
+║ Main metaphor: A customs checkpoint on a conveyor belt road. ║
+║ On the left, boxes labeled "AI Patch" arrive on a belt. ║
+║ In the center, a checkpoint booth with a checklist stamp. ║
+║ On the right, approved boxes proceed to "CODEBASE"; ║
+║ rejected boxes loop back with a curved red arrow. ║
+║ ║
+║ Text to include: ║
+║ - Title: "GateKeeper Mode" ║
+║ - Subtitle: "质量门禁先于代码" ║
+║ - Labels: "Critic-Prep", "Builder", "Executor", "Critic-Review" ║
+║ ║
+║ Composition: single left-to-right pipeline with four labeled ║
+║ stations on a notebook page background. ║
+║ ║
+║ Avoid dark gradients, glossy SaaS UI, neon colors, ║
+║ photorealism, generic AI imagery. All text large and legible. ║
+╚══════════════════════════════════════════════════════════════════╝
+--&gt;
+&lt;p&gt;&lt;img src="https://jmaaa32.github.io/images/gatekeeper/gatekeeper-hero.png" alt="GateKeeper Mode 题图 — 质量门禁先于代码"&gt;&lt;/p&gt;</description></item></channel></rss>

@@ -1,0 +1,165 @@
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>GateKeeper Mode：在 AI 改代码之前，先建质量门禁 | Jasper's Technical Notebook</title><meta name=description content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."><link rel=canonical href=https://jmaaa32.github.io/posts/gatekeeper-mode%E5%9C%A8-ai-%E6%94%B9%E4%BB%A3%E7%A0%81%E4%B9%8B%E5%89%8D%E5%85%88%E5%BB%BA%E8%B4%A8%E9%87%8F%E9%97%A8%E7%A6%81/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script type=module>
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        document.querySelectorAll('pre code.language-mermaid').forEach(function(el) {
+          var pre = el.parentElement;
+          var div = document.createElement('div');
+          div.className = 'mermaid';
+          div.textContent = el.textContent;
+          pre.parentNode.replaceChild(div, pre);
+        });
+        var isDark = document.documentElement.dataset.theme === 'dark';
+        mermaid.initialize({ startOnLoad: true, theme: isDark ? 'dark' : 'neutral' });
+      </script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<span><strong>Jasper's Technical Notebook</strong>
+<small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
+<span class=theme-toggle-icon aria-hidden=true></span>
+<span class=sr-only>Switch theme</span>
+</button>
+<button class=nav-toggle type=button aria-controls=site-navigation aria-expanded=false aria-label="Toggle navigation">
+<span></span>
+<span></span>
+<span></span></button></div><nav class=site-nav id=site-navigation><a class=nav-link href=/>Home</a>
+<a class="nav-link is-active" href=/posts/>Posts</a>
+<a class=nav-link href=/archives/>Archives</a>
+<a class=nav-link href=/categories/>Categories</a>
+<a class=nav-link href=/tags/>Tags</a>
+<a class=nav-link href=/about/>About</a></nav></div></header><main class="container main-content"><article class=article-shell><header class=article-header><span class=eyebrow>Posts</span><h1>GateKeeper Mode：在 AI 改代码之前，先建质量门禁</h1><div class=article-meta><time datetime=2026-05-04>May 4, 2026</time>
+<span>·</span>
+<span>AI, Workflow</span></div><div class=chip-row><a class=chip href=/tags/ai/>#ai</a>
+<a class=chip href=/tags/code-review/>#code-review</a>
+<a class=chip href=/tags/quality-gate/>#quality-gate</a>
+<a class=chip href=/tags/automation/>#automation</a>
+<a class=chip href=/tags/critic/>#critic</a></div></header><div class=article-layout><details class=mobile-toc><summary>On this page</summary><div class=mobile-toc-panel><nav id=TableOfContents><ul><li><a href=#gatekeeper-mode在-ai-改代码之前先建质量门禁>GateKeeper Mode：在 AI 改代码之前，先建质量门禁</a><ul><li><a href=#1-为什么ai-写了代码不是难点>1. 为什么"AI 写了代码"不是难点</a></li><li><a href=#2-一次完整的运行是什么样的>2. 一次完整的运行是什么样的</a></li><li><a href=#3-为什么不能让一个-agent-同时做这三件事>3. 为什么不能让一个 agent 同时做这三件事</a></li><li><a href=#4-critic-prep最关键的升级>4. Critic-Prep：最关键的升级</a></li><li><a href=#5-工具分工>5. 工具分工</a></li><li><a href=#6-四个门禁>6. 四个门禁</a></li><li><a href=#7-真实运行结果>7. 真实运行结果</a></li><li><a href=#8-顺带暴露的设计-bug>8. 顺带暴露的设计 bug</a></li><li><a href=#9-这套方案还不能解决什么>9. 这套方案还不能解决什么</a></li><li><a href=#10-为什么这对-agent-优化很重要>10. 为什么这对 Agent 优化很重要</a></li><li><a href=#如果你想试>如果你想试</a></li></ul></li></ul></nav></div></details><div class="article-content prose"><h1 id=gatekeeper-mode在-ai-改代码之前先建质量门禁>GateKeeper Mode：在 AI 改代码之前，先建质量门禁</h1><blockquote><p><strong>核心主张</strong>：当 AI 能写代码之后，瓶颈不再是"它能不能写出 patch"，而是"系统能不能证明这个 patch 应该被接受"。</p></blockquote><p><img src=/images/gatekeeper/gatekeeper-hero.png alt="GateKeeper Mode 题图 — 质量门禁先于代码"></p><hr><h2 id=1-为什么ai-写了代码不是难点>1. 为什么"AI 写了代码"不是难点</h2><p>如果你用 AI 辅助写过一段时间代码，你大概跑过类似这样的流程：</p><ol><li>写一个 prompt，让 agent 实现某个功能</li><li>让另一个 agent（或同一个）扫一下 diff，看有没有问题</li><li>自己快速过一遍改动</li><li>跑测试，通过了就 merge</li></ol><p>这个流程在简单任务上没什么问题。但它隐藏着几个会在规模扩大时集体爆发的假设。</p><p><strong>友好评审偏见。</strong> 让 AI 评审 AI 写的代码，评审者天然倾向于认可而不是质疑。它看到一个能跑通的实现，读起来又合理，通常不会主动追问"这个 except Exception 是不是 catch 了太多东西"。它没有动机挑毛病，也没有一个独立于 patch 之前的标准来对照。</p><p><strong>测试通过 ≠ 行为正确。</strong> 测试覆盖的是"测试写了什么"，不是"需求要求什么"。如果你的需求是"只能 catch <code>ZeroDivisionError</code>，不能过度 catch"，写一组 4/4 全过的测试完全不能证明这一点。测试通过是证据，不是满足所有要求的证明。</p><p><strong>缺少证据被当成可以接受。</strong> 如果 Critic 没找到问题，通常解释为"没有问题"，而不是"没有找到问题的证据"。两件事不一样。</p><p><strong>手动 review 疲劳。</strong> 当你真的想认真看 diff 时，往往已经读了十几轮对话记录，注意力早就不在关键地方了。</p><p><strong>Agent 改了范围外的文件。</strong> 没有明确限制的情况下，agent 很可能顺手改了它觉得"相关"的文件。这些改动有时候不会报错，但会悄悄改变系统行为。</p><p>这些问题并不是 AI 不够聪明造成的。它们是工作流设计的问题。AI 已经能写出合理的 patch，现在的挑战是：<strong>你有没有一个系统，能确定性地告诉你这个 patch 是否应该被接受？</strong></p><hr><h2 id=2-一次完整的运行是什么样的>2. 一次完整的运行是什么样的</h2><p>在解释设计之前，先说清楚实际流程长什么样——你作为使用者只需要做一件事：<strong>写一份 brief（任务说明）</strong>。剩下的由脚本驱动。</p><p><strong>一次 GateKeeper 运行的完整步骤：</strong></p><p><strong>① 你写 brief</strong><br>一个 markdown 文件：要改什么、为什么改、允许动哪些文件（<code>allowed_files.txt</code>）。</p><p><strong>② Critic-Prep 先跑</strong>（在 Builder 开始之前）<br>Critic 读 brief，把验收标准写成 checklist——具体到函数签名、边界情况、哪些文件不能被动。<strong>Builder 完全看不到这个 checklist。</strong></p><p><strong>③ Builder 在隔离的 git worktree 里工作</strong><br>Builder 读 brief，写 patch，提交到独立分支。它不知道 checklist 是什么，只知道任务要求。</p><p><strong>④ Executor 跑确定性检查</strong><br>编译 + 单元测试 + 评估器脚本。Exit code 非零直接触发 REJECT，不进入下一步。</p><blockquote><p>测试从哪来？两种情况：<br><strong>改现有代码时</strong>，跑项目里原有的测试套件，改坏了就抓到；
+<strong>新增功能时</strong>，brief 要求 Builder 把代码和测试一起交，Critic checklist 里会明确列出"测试函数必须存在且通过"。<br>评估器脚本是人预先写好的固定命令，不管 patch 改了什么，它只跑固定的几条指令——新写的测试只要在同一个文件里并被 <code>main()</code> 调用，就自动执行到。</p></blockquote><p><strong>⑤ Critic-Review 对照 checklist 逐项核查</strong><br>读 patch.diff + eval.log，每个 checklist item 要么有直接证据，要么标 FAILED。没有"看起来差不多"这种说法。</p><p><strong>⑥ Judge 写 final_decision.md</strong></p><ul><li><code>APPROVE</code>：所有 gate 通过，patch 合并</li><li><code>REJECT</code>：哪个 gate 失败、具体原因打包给 Builder，进入下一轮（最多 3 次）</li><li><code>ESCALATE</code>：超过重试上限，你收到完整的证据包，自己决定下一步</li></ul><p><strong>你需要看的只有最后一个文件：<code>final_decision.md</code>。</strong></p><hr><p>下面是完整的流程图：</p><pre tabindex=0><code class=language-mermaid data-lang=mermaid>flowchart TD
+    Task([Task brief + acceptance criteria]) --&gt; Orchestrator{Orchestrator}
+
+    Orchestrator --&gt;|Critic-Prep| C1[Critic&lt;br/&gt;读 brief + 目标文件&lt;br/&gt;写 review checklist]
+    Orchestrator --&gt;|Builder| B1[Builder&lt;br/&gt;读 brief + 目标文件]
+    B1 --&gt; B2[Builder&lt;br/&gt;写 patch]
+    B2 --&gt; B3{自检：patch 是否符合 brief?}
+    B3 --&gt;|不符合| B2
+    B3 --&gt;|符合 — 提交| Exec
+
+    Exec[Executor&lt;br/&gt;cmake --build]
+    Exec --&gt; T1{构建通过?}
+    T1 --&gt;|失败| Rej
+    T1 --&gt;|通过| T2[跑单元测试]
+    T2 --&gt; T3{所有测试通过?}
+    T3 --&gt;|失败| Rej
+    T3 --&gt;|通过| T4[跑语义不变量检查]
+    T4 --&gt; T5{输出与 baseline 一致?}
+    T5 --&gt;|不一致| Rej
+    T5 --&gt;|一致| C2
+
+    C1 -.共享 checklist.-&gt; C2
+    C2[Critic-Review&lt;br/&gt;对照 checklist 逐项核查&lt;br/&gt;patch + 执行日志]
+    C2 --&gt; C3{默认拒绝：&lt;br/&gt;有 checklist item&lt;br/&gt;缺少直接证据?}
+    C3 --&gt;|有 — 必须拒绝| Rej
+    C3 --&gt;|没有 — 每项都有证据| Pkg
+
+    Rej[REJECT&lt;br/&gt;日志 + Critic 笔记 + 失败 gate]
+    Rej --&gt;|第 N+1 次尝试&lt;br/&gt;最多 3 次| B2
+    Rej -.-&gt;|超过重试上限| Esc([ESCALATE 给人])
+
+    Pkg[决策包&lt;br/&gt;diff + 执行命令 + 裁决]
+    Pkg --&gt; Human([人只读最终裁决])
+    Esc --&gt; Human
+
+    classDef builder fill:#cfe8ff,stroke:#1f6feb,color:#000
+    classDef critic fill:#ffd6d6,stroke:#cf222e,color:#000
+    classDef gate fill:#fff3b0,stroke:#bf8700,color:#000
+    classDef terminal fill:#c6f6c6,stroke:#1a7f37,color:#000
+    class B1,B2,B3 builder
+    class C1,C2,C3,Rej critic
+    class Exec,T1,T2,T3,T4,T5 gate
+    class Task,Pkg,Human,Esc,Orchestrator terminal
+</code></pre><p>图里有三种角色，颜色不同，职责完全分离：</p><table><thead><tr><th>颜色</th><th>角色</th><th>目标</th></tr></thead><tbody><tr><td>蓝色</td><td>Builder</td><td>尽力实现任务</td></tr><tr><td>红色</td><td>Critic</td><td>尽力找漏洞</td></tr><tr><td>黄色</td><td>Executor</td><td>用机器输出替代 LLM 判断</td></tr></tbody></table><p><strong>最关键的设计：Critic 默认拒绝。</strong> 一个默认"看起来没问题"的 Critic 没有任何价值，它只是个附和者。系统必须强制把举证责任压在 patch 上，而不是压在 rejection 上。</p><hr><h2 id=3-为什么不能让一个-agent-同时做这三件事>3. 为什么不能让一个 agent 同时做这三件事</h2><p>这个问题值得单独回答，因为"为什么不直接让一个 Claude 又写又审"这个疑问几乎人人都有。</p><table><thead><tr><th>职责</th><th>如果由同一个 agent 完成</th></tr></thead><tbody><tr><td>Builder</td><td>它写出一个追求"看起来合理"的 patch</td></tr><tr><td>Critic</td><td>它在为自己的实现做辩护</td></tr><tr><td>Executor</td><td>它报告的是"agent 说发生了什么"，不是"机器实际测到了什么"</td></tr></tbody></table><p>三种失败模式合并成一种：整个循环变成自我确认叙事。</p><p><strong>Executor 必须是确定性的机器输出</strong>（编译成功/失败、测试通过/失败），不能是 LLM 的判断。这是 GateKeeper 和"让 AI 自己看看对不对"最本质的区别。</p><hr><h2 id=4-critic-prep最关键的升级>4. Critic-Prep：最关键的升级</h2><p>早期版本（Lite）是这样的：</p><pre tabindex=0><code>Builder → Executor → Critic
+</code></pre><p>这已经比纯手动好——执行结果是确定性的，Critic 的评审有日志可以引用。但问题在于：<strong>Critic 的判断标准在看到 patch 之后才形成。</strong> 它很难真正独立于 Builder 的实现方式。</p><p>完整版本加入了 <strong>Critic-Prep</strong>：</p><pre tabindex=0><code>Critic-Prep → Builder → Executor → Critic-Review
+</code></pre><p>Critic-Prep 发生在 Builder 开始工作之前。它读 brief 和允许修改的文件范围，把验收 checklist 写出来——精确到函数签名、边界情况的期望返回值、哪些文件不能被动。</p><p>然后 Builder 在完全不知道 checklist 存在的情况下写代码。<strong>这是故意的：Builder 看不到 checklist，所以它的实现不会被 checklist 的措辞引导，Critic-Review 的评审结果也就不会被 Builder 的实现风格污染。</strong></p><p>Critic 有价值，恰恰是因为它在 Builder 影响之前就定义了证据标准。</p><hr><h2 id=5-工具分工>5. 工具分工</h2><p>这套 workflow 完全在本地跑，没有引入任何框架。</p><table><thead><tr><th>角色</th><th>工具</th><th>说明</th></tr></thead><tbody><tr><td>Builder</td><td>Claude Code（CLI）</td><td>写 patch，在 git worktree 隔离，看不到 checklist</td></tr><tr><td>Critic-Prep</td><td>Codex（CLI）</td><td>读 brief + allowed_files，写验收 checklist</td></tr><tr><td>Executor</td><td>Shell 脚本</td><td>编译、测试、评估器，exit code 决定通过/失败</td></tr><tr><td>Critic-Review</td><td>Codex（CLI）</td><td>读 patch.diff + eval.log，对照 checklist 逐项核查</td></tr><tr><td>Judge</td><td>Shell 脚本</td><td>解析 Critic 输出，写 final_decision.md，决定 APPROVE / REJECT / ESCALATE</td></tr><tr><td>人</td><td>用户</td><td>只读 final_decision.md，不需要盯每一轮对话</td></tr></tbody></table><p>每次 GateKeeper run 在独立的 git worktree 里执行，产出的 artifact 包括：<code>critic_checklist.md</code>、<code>patch.diff</code>、<code>eval.log</code>、<code>critic_review.md</code>、<code>final_decision.md</code>。这些文件是完整的证据链，也是事后追溯的唯一依据。</p><p>为什么不用 AutoGen 或 LangGraph？不是因为它们不好，而是在还没有确定性证据证明 workflow 的语义正确之前，引入框架只会增加调试难度。先用可见的文件和日志把语义搞清楚，再考虑迁移。</p><hr><h2 id=6-四个门禁>6. 四个门禁</h2><p>整个流程有四个确定性门禁，任何一个失败都会触发 REJECT：</p><pre tabindex=0><code>① scope gate:    allowed_files.txt 限制 Builder 能改哪些文件
+                 超出范围的修改直接 REJECT，不进入 Executor
+
+② setup gate:    critic_checklist.md 必须存在且包含有效 items
+                 Critic-Prep 没跑成功就不允许 Builder 开始
+
+③ executor gate: 编译 + 测试 + 评估器的 exit code
+                 任何一个非零退出 → REJECT，进入重试
+
+④ critic gate:   每个 checklist item 必须有对应的直接证据
+                 模糊的&#34;大体满足&#34;不算证据，缺少证据默认 FAILED
+</code></pre><p>四个门禁是串行的。通过前一个才能进入下一个。失败越早发现，成本越低。</p><p><img src=/images/gatekeeper/four-gates.png alt="四个门禁串行流程 — 失败越早发现，成本越低"></p><hr><h2 id=7-真实运行结果>7. 真实运行结果</h2><p><strong>先用最小例子验证每条路径，再切到真实 C++ 项目。</strong> 场景一到四是刻意简化的 Python 任务，目的是让一次通过、重试、ESCALATE、语义拒绝这四条路径在不引入真实项目编译噪声的情况下单独可验证。场景五和六才是真实项目的运行结果。</p><hr><h3 id=场景一一次通过approve-on-attempt-1>场景一：一次通过（APPROVE on attempt 1）</h3><p><strong>运行目录</strong>：<code>gatekeeper_runs/20260503-173556/</code></p><p><strong>任务</strong>：在 <code>python-utils/safe_add.py</code> 写一个 <code>safe_add</code> 函数，处理 <code>None</code> 输入。</p><p>Critic-Prep 在 Builder 开始前预写了包含 10 项的 checklist：</p><pre tabindex=0><code>- [ ] File python-utils/safe_add.py defines function safe_add
+- [ ] Function signature is exactly safe_add(a: float | None, b: float | None) -&gt; float
+- [ ] safe_add(10.0, 2.0) returns 12.0
+- [ ] safe_add(None, 2.0) returns 0.0
+- [ ] safe_add(10.0, None) returns 0.0
+- [ ] safe_add(None, None) returns 0.0
+- [ ] safe_add(-5.0, 3.0) returns -2.0
+- [ ] File python-utils/test_safe_add.py exists and includes tests for all required cases
+- [ ] Evaluator script scripts/evaluators/evaluate_safe_add.sh passes in executor log
+- [ ] No files outside the allowed list are modified
+</code></pre><p>这 10 项覆盖了精确的函数签名、所有边界情况的期望返回值、测试文件存在性、评估器通过状态、文件范围约束。Builder 没有理解歧义的空间。</p><pre tabindex=0><code>final_decision.md:
+  Final verdict: APPROVE
+  Attempts used: 1 / 3
+  Gate: CRITIC — All checklist items have direct evidence
+</code></pre><p>Attempt 1 直接通过。当证据标准足够清晰，一次通过不是运气，是必然。</p><hr><h3 id=场景二确定性重试retry--approve>场景二：确定性重试（RETRY → APPROVE）</h3><p><strong>运行目录</strong>：<code>gatekeeper_runs/20260503-173731/</code></p><p><strong>任务</strong>：刻意设计成 Attempt 1 必然失败（evaluator 第一次执行返回 exit 1），用于验证重试机制本身是否工作。</p><p>Attempt 1 的 <code>eval.log</code> 末尾：</p><pre tabindex=0><code>Attempt number: 1
+FAIL: First attempt intentionally fails to trigger retry
+This is a deterministic test for retry logic.
+</code></pre><p>Judge 解析到 EXECUTOR gate 失败，触发重试。Builder 收到 Attempt 1 的失败原因——包括完整的 <code>eval.log</code> 和 Critic-Review 里的具体失败项——重新实现。</p><pre tabindex=0><code>final_decision.md:
+  Final verdict: APPROVE
+  Attempts used: 2 / 3
+
+  Attempt 1: REJECT — Gate: EXECUTOR (exit code 1)
+  Attempt 2: APPROVE — Gate: CRITIC
+</code></pre><p>重试机制的关键设计：REJECT 不只是返回"失败"，它把完整的证据携带给下一轮 Builder。Builder 下一轮看到的是：哪个 gate 失败了、失败原因是什么、哪些 checklist item 没有找到证据。这比单纯的"重试"有信息量得多——Builder 不是盲目重试，而是带着诊断结果重试。</p><hr><h3 id=场景三超出重试上限escalate>场景三：超出重试上限（ESCALATE）</h3><p><strong>运行目录</strong>：<code>gatekeeper_runs/20260503-173917/</code></p><p><strong>任务</strong>：两次都确定性失败（<code>max_attempts=2</code>），验证 ESCALATE 路径。</p><pre tabindex=0><code>final_decision.md:
+  Final verdict: ESCALATE
+  Attempts used: 2 / 2
+
+  Attempt 1: REJECT — Gate: EXECUTOR
+  Attempt 2: REJECT — Gate: EXECUTOR
+</code></pre><p>ESCALATE 不是"流程出错了"，而是系统在说：这个任务超出了当前可以自动处理的范围，需要人来看。<code>final_decision.md</code> 附带 cleanup 命令和所有中间 artifact 的路径，方便直接定位问题。人审查证据包，不需要重新读对话历史。</p><hr><h3 id=场景四语义-reject测试通过critic-仍然拒绝>场景四：语义 Reject（测试通过，Critic 仍然拒绝）</h3><p><strong>运行目录</strong>：<code>gatekeeper_runs/20260503-153929/</code></p><p>这是最能说明 Critic gate 价值的场景。</p><p><strong>任务</strong>：实现 <code>safe_divide</code>，要求只捕获 <code>ZeroDivisionError</code>，不能过度 catch。</p><p><strong>Executor 结果</strong>：4/4 测试全部通过。</p><p><strong>Critic-Review 的判断</strong>：</p><pre tabindex=0><code>Verdict: REJECT
+
+3. Function catches ONLY ZeroDivisionError
+   Evidence: FAILED — Patch shows except Exception:
+
+6. No over-catching of unrelated exceptions
+   Evidence: FAILED — except Exception: catches too much
+</code></pre><p>Builder 写了 <code>except Exception</code>，这会把所有异常都吞掉——包括类型错误、属性错误这类调用方应该知道的问题。测试通过，因为测试只测了正常路径和除零路径，完全没有覆盖"只捕获特定异常"这条约束。</p><p><strong>这是 Critic-Prep 的核心价值所在。</strong> 它在看任何代码之前就把"只捕获特定异常"写进了 checklist。没有这个预写的 checklist，这种语义问题在评审里几乎一定会被忽略——&ldquo;4/4 测试通过，代码看起来也合理&rdquo;，批准的门槛太低了。</p><p>这个场景还验证了一件更重要的事：<strong>如果你只看 Executor gate，你会以为 patch 已经通过了。语义正确性需要 Critic gate，两个门禁缺一不可。</strong></p><hr><h3 id=场景五真实-c-项目cpp-trader-backtester>场景五：真实 C++ 项目（cpp-trader-backtester）</h3><p><strong>运行目录</strong>：<code>gatekeeper_runs/20260503-205323/</code></p><p><strong>任务</strong>：为 C++ 订单簿项目添加 volume consistency invariant 测试。真实项目，真实 C++ 编译，Debug/ASan 构建。</p><p>Critic-Prep 预写了 13 项 checklist：</p><pre tabindex=0><code>- [ ] Only cpp-trader-backtester/src/test_order_book.cpp is modified
+- [ ] New function test_volume_invariant() exists
+- [ ] Test records executed quantity via set_trade_callback
+- [ ] Test verifies remaining resting volume after matching
+- [ ] Test explicitly checks: executed_quantity + remaining_volume == total_submitted_quantity
+- [ ] Build passes according to evaluate_cpp_trader.sh
+- [ ] All order book tests pass
+- [ ] No production files are changed
+...（共 13 项）
+</code></pre><p>checklist 覆盖了文件范围、测试函数名、测试逻辑的三个具体验证点、构建通过状态、生产文件不能被改动。每一项都是可以在 patch.diff 或 eval.log 里找到直接证据的，没有一项是"大体满足就算"的主观判断。</p><pre tabindex=0><code>Attempt 1: REJECT — Gate: CRITIC
+  Missing explicit verification that executed quantity
+  equals expected matched quantity.
+
+Attempt 2: APPROVE — Gate: CRITIC
+  All checklist items have direct evidence.
+</code></pre><p>Builder 在 Attempt 1 里验证了剩余量，但没有显式断言成交量等于期望值——<code>executed_quantity + remaining_volume == total_submitted_quantity</code> 这个等式只验证了右边，没有验证左边。Critic-Prep 的 checklist 里有这一项，遗漏被准确定位。Attempt 2 补上了这个断言，通过。</p><p>这类遗漏在普通 code review 里极容易漏掉：实现看起来完整、测试也通过了，只有对照预先写下的验收标准逐项检查，才能发现这个漏洞。</p><p>Git commit：<code>b0712a6 feat(cpp-trader): Add volume consistency invariant test</code></p><hr><h3 id=场景六stress-test-escalate暴露评估器自身的弱点>场景六：Stress Test ESCALATE（暴露评估器自身的弱点）</h3><p><strong>运行目录</strong>：<code>gatekeeper_runs/20260503-214848/</code></p><p>这是整篇文章最有价值的场景，也是最诚实的部分。</p><p><strong>任务</strong>：修复 strategy 层的 ownership 验证和 fill accounting。比 invariant 测试更复杂，涉及多个文件。</p><pre tabindex=0><code>final_decision.md:
+  Final verdict: ESCALATE
+  Attempts used: 3 / 3
+
+  Attempt 1: REJECT — Gate: CRITIC
+    Missing evidence that production strategy tests verify owned buy/sell fills.
+    Executor log suggests assertions were disabled.
+
+  Attempt 2: REJECT — Gate: CRITIC
+    Owned fill behavior is not proven; executor output shows expected position
+    updates did not occur while tests still reported PASS.
+
+  Attempt 3: REJECT — Gate: EXECUTOR (exit code 1)
+</code></pre><p>Attempt 1 的 Critic 发现了一条关键线索：</p><pre tabindex=0><code>Checklist item: MomentumStrategy::on_trade ignores unrelated trades
+Evidence: FAILED — executor log shows assertions were disabled via -DNDEBUG.
+Tests that passed may not have actually checked the assertions.
+</code></pre><p>这句话指向了根本问题。</p><hr><blockquote><p>⚠️ <strong>评估器一直在用 Release 模式编译测试。</strong></p><p>项目的 Release flags 里有 <code>-DNDEBUG</code>，C 标准规定 <code>assert()</code> 在 <code>-DNDEBUG</code> 下被预处理掉，变成空语句。所有依赖 <code>assert()</code> 的测试检查，<strong>实际上一行都没有运行</strong>。</p><p>测试报告 PASS，是因为测试里除了 <code>assert()</code> 之外没有其他失败路径——这等价于把所有断言全部删掉再跑测试：当然全过，但什么都没有检验。</p><p><strong>评估器的质量门禁，实际上只是冒烟测试。</strong></p></blockquote><hr><p>修复是直接的：评估器改为 Debug/ASan 模式跑测试，Release 构建只用于 benchmark 的烟雾测试。</p><p>这次 ESCALATE 是有价值的结果，不是流程失败。<strong>GateKeeper 不只是 patch 过滤器：它是调试质量系统本身的工具。</strong> 如果没有 Critic 在证据层面较真，<code>-DNDEBUG</code> 这个问题可能会以"行为奇怪但测试通过"的方式潜伏很长时间。三次 ESCALATE 暴露了评估器自身的质量问题——这件事本身比任何一次 APPROVE 都有价值。</p><p><img src=/images/gatekeeper/debug-vulnerability.png alt="-DNDEBUG 漏洞对比 — Release vs Debug Build"></p><hr><h2 id=8-顺带暴露的设计-bug>8. 顺带暴露的设计 bug</h2><p>strategy accounting 任务在调试过程中还暴露了一个同步设计问题，和 GateKeeper workflow 本身无关，但通过它的运行才有机会被认真对待。</p><p>问题出在调用顺序上：</p><pre tabindex=0><code>submit_order()
+  → add_order()
+    → match_order()
+      → execute_trade()
+        → trade_callback_()    # Strategy::on_trade 在这里执行
+  → return order_id            # 已经太晚了，strategy 无法预先注册 id
+</code></pre><p>这不是多线程竞争，是同步回调的重入顺序问题。当 <code>on_trade</code> 被调用时，<code>submit_order()</code> 还没返回，调用方还拿不到 <code>order_id</code>。Strategy 在收到 fill 回调时，没有办法判断这笔成交是否属于自己提交的订单。这个 bug 不会触发任何异常，测试在 <code>assert()</code> 被禁用的情况下全部通过——它以"行为奇怪但日志正常"的方式存在。</p><p>解决方案是两阶段 API：<code>prepare_order()</code> 先同步返回 <code>order_id</code>，strategy 记录之后再调用 <code>submit_prepared_order()</code> 触发撮合。Critic-Prep 写下的 checklist 要求"有证据证明 on_trade 能正确识别自己的 fill"，这条要求强迫实现者必须面对时序问题，没有绕开的空间。</p><hr><h2 id=9-这套方案还不能解决什么>9. 这套方案还不能解决什么</h2><p><strong>它不是更强的 prompt 技术。</strong> GateKeeper Mode 改变的是 workflow 结构，不是单次对话的质量。如果你的任务需要一个更聪明的 agent，这套方案解决不了这个问题。</p><p><strong>它不能替代领域测试。</strong> GateKeeper 保证 checklist 里的项有证据，但 checklist 的质量取决于 Critic-Prep 的输入。如果 brief 写得不完整，checklist 就不会覆盖所有需求。评估器测了什么，就只能保证什么。</p><p><strong>它不能证明 agent 永远正确。</strong> 通过的 patch 是"在当前 checklist 和测试覆盖下被接受的 patch"，不是"永远正确的 patch"。这两件事不一样，不应该混淆。</p><p><strong>Attacker 还没接入。</strong> 完整的设计里，Attacker 角色应该在 Critic-Review 之前主动用边界输入攻击 patch，把攻击结果作为额外证据送给 Critic。当前的质量门禁只有防御性的，没有主动攻击性的。</p><p>最后一条，也是最重要的一条：</p><blockquote><p><strong>一个 Executor 门禁只有它运行的命令那么强。如果测试依赖 <code>assert()</code>，在 <code>-DNDEBUG</code> 下运行就把质量门禁变成了冒烟测试。</strong></p></blockquote><p>这不是 GateKeeper 的问题，是使用者的责任。GateKeeper 的价值在于让这种弱点变得可见——但修复需要使用者动手。</p><hr><h2 id=10-为什么这对-agent-优化很重要>10. 为什么这对 Agent 优化很重要</h2><p>如果你想让 agent 帮你做性能优化——减少内存分配、优化热路径、调整数据结构布局——你需要先确认一件事：<strong>你有没有能力证明优化之后的代码行为和优化之前一致？</strong></p><p>性能优化的本质是在不改变语义的前提下改变实现。如果正确性门禁还是模糊的，优化之后的测试通过只能说明"能跑通"，不能说明"语义没变"。你很可能得到一个跑得更快但行为已经悄悄变了的版本，还很难追溯是哪一步引入了问题。</p><p><strong>在正确性和证据门禁就位之前，不应该让 agent 做性能优化。</strong></p><p>这是 Blog 2 的主题。GateKeeper Mode 的这套基础建设——确定性的 scope gate、独立的 Critic-Prep、有证据的 checklist、Debug/ASan 构建的 Executor——是让 agent 安全地进行性能优化的前提条件。把正确性证明做好，性能优化才有意义；跳过这一步，agent 优化是在一个没有地基的地方盖楼。</p><hr><h2 id=如果你想试>如果你想试</h2><p>脚本、brief 模板和六个场景的完整运行记录在 <code>gatekeeper_runs/</code> 目录下（每个子目录按运行时间戳命名，artifact 链完整保留）。每个 run 目录包含从 brief 到最终裁决的完整证据链：<code>critic_checklist.md</code> → <code>patch.diff</code> → <code>eval.log</code> → <code>critic_review.md</code> → <code>final_decision.md</code>。</p><p>从一个你已经有测试的小任务开始：写一个 brief，让 Critic-Prep 生成 checklist，再让 Builder 工作——<strong>在看 Builder 的实现之前，先读一遍 checklist</strong>。这个顺序本身就能让你感受到"证据标准先于 patch"和"有了 patch 再回头评审"之间的区别。</p><hr><p><em>cpp-trader-backtester 是用于验证 workflow 的 sandbox 项目，不是 HFT 生产系统。文章里展示的所有运行结果来自真实执行，包括那次暴露了 <code>-DNDEBUG</code> 问题的 ESCALATE——那次 ESCALATE 是这篇文章里最有价值的结果，不是最糟糕的。</em></p></div><aside class=article-toc><div class=toc-card><span>On this page</span><nav id=TableOfContents><ul><li><a href=#gatekeeper-mode在-ai-改代码之前先建质量门禁>GateKeeper Mode：在 AI 改代码之前，先建质量门禁</a><ul><li><a href=#1-为什么ai-写了代码不是难点>1. 为什么"AI 写了代码"不是难点</a></li><li><a href=#2-一次完整的运行是什么样的>2. 一次完整的运行是什么样的</a></li><li><a href=#3-为什么不能让一个-agent-同时做这三件事>3. 为什么不能让一个 agent 同时做这三件事</a></li><li><a href=#4-critic-prep最关键的升级>4. Critic-Prep：最关键的升级</a></li><li><a href=#5-工具分工>5. 工具分工</a></li><li><a href=#6-四个门禁>6. 四个门禁</a></li><li><a href=#7-真实运行结果>7. 真实运行结果</a></li><li><a href=#8-顺带暴露的设计-bug>8. 顺带暴露的设计 bug</a></li><li><a href=#9-这套方案还不能解决什么>9. 这套方案还不能解决什么</a></li><li><a href=#10-为什么这对-agent-优化很重要>10. 为什么这对 Agent 优化很重要</a></li><li><a href=#如果你想试>如果你想试</a></li></ul></li></ul></nav></div></aside></div></article><script>document.addEventListener("DOMContentLoaded",function(){const s=document.querySelectorAll(".toc-card a"),e=document.querySelector(".article-toc"),t=Array.from(document.querySelectorAll(".article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6")).filter(e=>e.id);if(t.length===0||s.length===0)return;let n=!1;function o(){const n=window.scrollY+140;let e=t[0];for(let s=0;s<t.length;s++){const o=t[s].getBoundingClientRect().top+window.scrollY;if(n>=o)e=t[s];else break}if(s.forEach(e=>e.classList.remove("active")),e){const n=e.getAttribute("id"),t=document.querySelector(`.toc-card a[href="#${n}"]`);if(t){t.classList.add("active");const e=t.closest(".article-toc");if(e){const n=14,s=t.offsetTop,o=s+t.offsetHeight,i=e.scrollTop,a=i+e.clientHeight;s<i+n?e.scrollTop=Math.max(0,s-n):o>a-n&&(e.scrollTop=o-e.clientHeight+n)}}}}function i(){if(!e||window.matchMedia("(max-width: 900px)").matches){e&&e.style.setProperty("--toc-shift","0px");return}const t=document.querySelector(".site-footer");if(!t)return;const n=24,s=86+e.offsetHeight,o=t.getBoundingClientRect().top,i=s+n-o;e.style.setProperty("--toc-shift",`${Math.min(0,-Math.max(0,i))}px`)}function a(){if(n)return;n=!0,window.requestAnimationFrame(function(){i(),o(),n=!1})}window.addEventListener("scroll",a,{passive:!0}),window.addEventListener("resize",a,{passive:!0}),setTimeout(function(){i(),o()},50)})</script></main><footer class="site-footer container"><div><strong>Jasper's Technical Notebook</strong><p>A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing.</p></div><div class=footer-links><a href=https://github.com/JMaaa32>GitHub</a>
+<a href=/posts/>Posts</a>
+<a href=/archives/>Archives</a>
+<a href=/tags/>Tags</a></div></footer></div><script>(function(){const n=document.querySelector(".nav-toggle"),s=document.querySelector("#site-navigation");if(!n||!s)return;function e(e){document.documentElement.classList.toggle("nav-open",e),n.setAttribute("aria-expanded",String(e))}n.addEventListener("click",function(){e(!document.documentElement.classList.contains("nav-open"))}),s.addEventListener("click",function(t){t.target.closest("a")&&e(!1)}),window.addEventListener("keydown",function(t){t.key==="Escape"&&e(!1)}),window.addEventListener("resize",function(){window.matchMedia("(min-width: 761px)").matches&&e(!1)},{passive:!0});const t=document.querySelector(".theme-toggle");if(!t)return;function o(e,n){if(document.documentElement.dataset.theme=e,t.setAttribute("aria-pressed",String(e==="dark")),t.setAttribute("aria-label",e==="dark"?"Switch to light theme":"Switch to dark theme"),n)try{window.localStorage.setItem("theme",e)}catch{}}o(document.documentElement.dataset.theme||"light",!1),t.addEventListener("click",function(){const e=document.documentElement.dataset.theme==="dark"?"light":"dark";document.documentElement.classList.add("theme-switching"),o(e,!0),window.setTimeout(function(){document.documentElement.classList.remove("theme-switching")},620)})})()</script></body></html>
