@@ -1,4 +1,15 @@
-<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>GateKeeper Mode: Building a Quality Gate Before Letting AI Touch Your Code | Jasper's Technical Notebook</title><meta name=description content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."><link rel=canonical href=https://jmaaa32.github.io/posts/gatekeeper-mode-building-a-quality-gate-before-letting-ai-touch-your-code/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
+<!doctype html><html lang=en-us><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>GateKeeper Mode: Building a Quality Gate Before Letting AI Touch Your Code | Jasper's Technical Notebook</title><meta name=description content="A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."><link rel=canonical href=https://jmaaa32.github.io/posts/gatekeeper-mode-building-a-quality-gate-before-letting-ai-touch-your-code/><script>(function(){document.documentElement.classList.add("has-js");try{const e=window.localStorage.getItem("theme"),t=window.matchMedia("(prefers-color-scheme: dark)").matches;document.documentElement.dataset.theme=e||(t?"dark":"light")}catch{document.documentElement.dataset.theme="light"}})()</script><link rel=stylesheet href=/css/site.css><script type=module>
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        document.querySelectorAll('pre code.language-mermaid').forEach(function(el) {
+          var pre = el.parentElement;
+          var div = document.createElement('div');
+          div.className = 'mermaid';
+          div.textContent = el.textContent;
+          pre.parentNode.replaceChild(div, pre);
+        });
+        var isDark = document.documentElement.dataset.theme === 'dark';
+        mermaid.initialize({ startOnLoad: true, theme: isDark ? 'dark' : 'neutral' });
+      </script></head><body><div class=page-shell><header class=site-header><div class="container header-inner"><a class=brand href=/><span class=brand-mark>J</span>
 <span><strong>Jasper's Technical Notebook</strong>
 <small>Algorithms, systems, and engineering notes</small></span></a><div class=header-actions><button class=theme-toggle type=button aria-label="Switch theme" aria-pressed=false>
 <span class=theme-toggle-icon aria-hidden=true></span>
