@@ -1095,10 +1095,21 @@ code, pre { font-family: var(--mono); }
   color: var(--accent-deep);
   background: rgba(234, 241, 255, .62);
 }
+:root[data-theme="dark"] .toc-card a:hover {
+  color: var(--text-strong);
+  background: rgba(184, 91, 97, .24);
+}
 .toc-card a.active {
   color: var(--accent-deep);
   background: rgba(234, 241, 255, .46);
   font-weight: 680;
+}
+:root[data-theme="dark"] .toc-card a.active {
+  color: #ffe4e6;
+  background:
+    linear-gradient(90deg, rgba(184, 91, 97, .34), rgba(184, 91, 97, .18)),
+    rgba(36, 32, 31, .72);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .38);
 }
 .toc-card a.active {
   box-shadow: inset 2px 0 0 var(--accent);
@@ -1175,9 +1186,50 @@ code, pre { font-family: var(--mono); }
   padding: .9rem 1rem;
 }
 :root[data-theme="dark"] .prose blockquote {
-  color: var(--muted-strong);
+  background:
+    linear-gradient(90deg, rgba(184, 91, 97, .20), rgba(255, 250, 244, .055)),
+    rgba(34, 31, 30, .86);
+  border-left-color: #e07882;
+  color: #f6ebe7;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 250, 244, .08);
 }
 .prose blockquote p:last-child { margin-bottom: 0; }
+.code-copy-wrap {
+  position: relative;
+}
+.code-copy-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 999px;
+  background: rgba(23, 24, 30, .76);
+  color: #f4f5f7;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  line-height: 1;
+  opacity: 0;
+  padding: 7px 10px;
+  text-transform: uppercase;
+  transform: translateY(-3px);
+  transition: opacity .18s ease, transform .18s ease, background .18s ease, border-color .18s ease;
+}
+.code-copy-wrap:hover .code-copy-button,
+.code-copy-wrap:focus-within .code-copy-button {
+  opacity: 1;
+  transform: translateY(0);
+}
+.code-copy-button:hover {
+  background: rgba(16, 178, 186, .88);
+  border-color: rgba(255, 255, 255, .28);
+}
+.code-copy-button.is-copied {
+  background: rgba(64, 168, 104, .92);
+}
 .prose pre {
   max-width: 100%;
   margin: 1.5em 0;
@@ -1211,11 +1263,20 @@ code, pre { font-family: var(--mono); }
   width: max-content;
   max-width: 100%;
   overflow-x: auto;
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   border-collapse: separate;
   border-spacing: 0;
   border-radius: var(--radius-sm);
+  background: var(--surface);
   font-size: .92rem;
+  box-shadow: 0 12px 30px rgba(23, 24, 30, .08), inset 0 1px 0 rgba(255, 255, 255, .72);
+  transform-origin: top center;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.prose table:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 18px 42px rgba(23, 24, 30, .12), inset 0 1px 0 rgba(255, 255, 255, .82);
+  transform: translateY(-1px);
 }
 .prose th,
 .prose td {
@@ -1223,16 +1284,45 @@ code, pre { font-family: var(--mono); }
   padding: 9px 12px;
   text-align: left;
   vertical-align: top;
+  transition: background-color .16s ease, color .16s ease;
 }
 .prose th {
-  background: var(--surface-subtle);
+  position: sticky;
+  top: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-subtle) 78%, white), var(--surface-subtle));
   color: var(--text-strong);
   font-size: .78rem;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
 }
+.prose tbody tr:hover td,
+.prose table tr:hover td {
+  background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
+}
 .prose tr:last-child td { border-bottom: 0; }
+:root[data-theme="dark"] .prose table {
+  background: rgba(34, 31, 30, .82);
+  border-color: rgba(216, 117, 124, .34);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255, 250, 244, .07);
+}
+:root[data-theme="dark"] .prose table:hover {
+  border-color: rgba(239, 178, 182, .62);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 250, 244, .10);
+}
+:root[data-theme="dark"] .prose th {
+  background:
+    linear-gradient(180deg, rgba(90, 84, 82, .96), rgba(63, 58, 56, .96));
+  color: #fff1ed;
+}
+:root[data-theme="dark"] .prose td {
+  border-bottom-color: rgba(144, 133, 130, .42);
+}
+:root[data-theme="dark"] .prose tbody tr:hover td,
+:root[data-theme="dark"] .prose table tr:hover td {
+  background: rgba(184, 91, 97, .16);
+}
 .prose mjx-container[jax="CHTML"][display="true"] {
   max-width: 100%;
   overflow-x: auto;
