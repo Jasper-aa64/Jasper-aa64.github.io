@@ -1182,23 +1182,29 @@ code, pre { font-family: var(--mono); }
 }
 .prose a:hover { text-decoration-color: currentColor; }
 .prose blockquote {
-  border-left: 3px solid var(--accent);
-  background:
-    repeating-linear-gradient(0deg, transparent 0 28px, color-mix(in srgb, var(--line-soft) 32%, transparent) 29px, transparent 30px),
-    var(--surface-subtle);
+  border: 1px solid color-mix(in srgb, var(--line) 34%, transparent);
+  border-left: 7px solid var(--accent);
+  background: rgba(255, 255, 255, .48);
+  backdrop-filter: blur(20px) saturate(118%);
+  -webkit-backdrop-filter: blur(20px) saturate(118%);
+  border-left-color: var(--accent);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   color: #274263;
+  box-shadow:
+    0 18px 42px rgba(23, 24, 30, .10),
+    inset 0 1px 0 rgba(255, 255, 255, .68);
   padding: .9rem 1rem;
 }
 :root[data-theme="dark"] .prose blockquote {
-  background: #1b1717;
-  border: 1px solid rgba(255, 250, 244, .07);
-  border-left-color: #e07882;
+  background: rgba(50, 28, 29, .58);
+  backdrop-filter: blur(18px) saturate(112%);
+  -webkit-backdrop-filter: blur(18px) saturate(112%);
+  border: 1px solid rgba(239, 178, 182, .16);
+  border-left: 7px solid #e07882;
   color: #f6ebe7;
   box-shadow:
-    0 22px 56px rgba(0, 0, 0, .34),
-    0 2px 10px rgba(0, 0, 0, .20),
-    inset 0 1px 0 rgba(255, 250, 244, .065);
+    0 20px 54px rgba(0, 0, 0, .26),
+    inset 0 1px 0 rgba(255, 250, 244, .10);
 }
 .prose blockquote p:last-child { margin-bottom: 0; }
 .code-copy-wrap {
