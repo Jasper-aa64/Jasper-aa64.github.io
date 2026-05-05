@@ -1269,7 +1269,7 @@ code, pre { font-family: var(--mono); }
   max-width: 100%;
   margin-inline: auto;
   overflow-x: auto;
-  border: 1px solid color-mix(in srgb, var(--muted) 34%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--line) 84%, transparent);
   border-collapse: separate;
   border-spacing: 0;
   border-radius: var(--radius-sm);
@@ -1285,7 +1285,7 @@ code, pre { font-family: var(--mono); }
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
 .prose table:hover {
-  border-color: color-mix(in srgb, var(--accent) 44%, var(--muted));
+  border-color: color-mix(in srgb, var(--line) 96%, var(--accent));
   box-shadow:
     0 18px 40px rgba(23, 24, 30, .11),
     0 1px 0 rgba(23, 24, 30, .05),
