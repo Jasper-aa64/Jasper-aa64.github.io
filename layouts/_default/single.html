@@ -129,6 +129,56 @@
         updateActiveTocLink();
       }, 50);
     });
-  </script>
-  {{ end }}
-{{ end }}
+	  </script>
+	  {{ end }}
+	  <script>
+	    document.addEventListener("DOMContentLoaded", function() {
+	      const blocks = document.querySelectorAll('.article-content pre');
+	      if (blocks.length === 0) return;
+
+	      blocks.forEach(function(pre) {
+	        if (pre.closest('.code-copy-wrap')) return;
+
+	        const wrapper = document.createElement('div');
+	        wrapper.className = 'code-copy-wrap';
+	        pre.parentNode.insertBefore(wrapper, pre);
+	        wrapper.appendChild(pre);
+
+	        const button = document.createElement('button');
+	        button.className = 'code-copy-button';
+	        button.type = 'button';
+	        button.textContent = 'Copy';
+	        button.setAttribute('aria-label', 'Copy code block');
+	        wrapper.appendChild(button);
+
+	        button.addEventListener('click', async function() {
+	          const code = pre.querySelector('code');
+	          const text = code ? code.innerText : pre.innerText;
+
+	          try {
+	            await navigator.clipboard.writeText(text);
+	            button.textContent = 'Copied';
+	            button.classList.add('is-copied');
+	          } catch (error) {
+	            const textarea = document.createElement('textarea');
+	            textarea.value = text;
+	            textarea.setAttribute('readonly', '');
+	            textarea.style.position = 'fixed';
+	            textarea.style.opacity = '0';
+	            document.body.appendChild(textarea);
+	            textarea.select();
+	            document.execCommand('copy');
+	            textarea.remove();
+	            button.textContent = 'Copied';
+	            button.classList.add('is-copied');
+	          }
+
+	          window.setTimeout(function() {
+	            button.textContent = 'Copy';
+	            button.classList.remove('is-copied');
+	          }, 1500);
+	        });
+	      });
+	    });
+	  </script>
+	{{ end }}
