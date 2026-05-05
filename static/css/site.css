@@ -1269,7 +1269,7 @@ code, pre { font-family: var(--mono); }
   max-width: 100%;
   margin-inline: auto;
   overflow-x: auto;
-  border: 1.5px solid color-mix(in srgb, var(--line) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--muted) 34%, transparent);
   border-collapse: separate;
   border-spacing: 0;
   border-radius: var(--radius-sm);
@@ -1278,17 +1278,17 @@ code, pre { font-family: var(--mono); }
     var(--surface);
   font-size: .92rem;
   box-shadow:
-    0 16px 42px rgba(196, 144, 36, .16),
-    0 2px 10px rgba(23, 24, 30, .08),
+    0 14px 34px rgba(23, 24, 30, .08),
+    0 1px 0 rgba(23, 24, 30, .04),
     inset 0 1px 0 rgba(255, 255, 255, .88);
   transform-origin: top center;
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
 .prose table:hover {
-  border-color: var(--accent-line);
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--muted));
   box-shadow:
-    0 22px 52px rgba(196, 144, 36, .22),
-    0 4px 16px rgba(23, 24, 30, .11),
+    0 18px 40px rgba(23, 24, 30, .11),
+    0 1px 0 rgba(23, 24, 30, .05),
     inset 0 1px 0 rgba(255, 255, 255, .95);
   transform: translateY(-1px);
 }
@@ -1304,7 +1304,7 @@ code, pre { font-family: var(--mono); }
   position: sticky;
   top: 0;
   background:
-    linear-gradient(180deg, #fff8e6, color-mix(in srgb, var(--line-soft) 28%, white));
+    linear-gradient(180deg, #f8fafc, #eef2f6);
   color: var(--text-strong);
   font-size: .78rem;
   font-weight: 800;
