@@ -1,5 +1,8 @@
 {{ define "main" }}
   {{ $posts := where site.RegularPages "Section" "posts" }}
+  {{/* Homepage "Recent notes" skips posts with `homepage: false` in front matter (still listed under /posts/ and their category). */}}
+  {{ $recent := slice }}
+  {{ range $posts }}{{ if ne .Params.homepage false }}{{ $recent = $recent | append . }}{{ end }}{{ end }}
   <section class="home-intro">
     <div class="intro-copy">
       <span class="eyebrow">Technical notebook</span>
@@ -90,7 +93,7 @@
       <a class="text-link" href="/archives/">View archive</a>
     </div>
     <div class="post-list">
-      {{ range first 8 $posts }}
+      {{ range first 8 $recent }}
         {{ partial "post-card.html" . }}
       {{ end }}
     </div>
