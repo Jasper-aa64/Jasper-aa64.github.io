@@ -31,3 +31,6 @@ package-lock.json
 # Misc
 _sass/vendors
 assets/js/dist
+
+# Hugo build output (publishDir override; built fresh by CI, not committed)
+docs
