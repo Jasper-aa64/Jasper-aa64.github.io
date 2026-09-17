@@ -1,5 +1,5 @@
 ---
-title: "Trading System Notes #2: One Cache Line, Two Questions — Memory Ordering, False Sharing, and the Cost of a Dependency Chain"
+title: "Trading System Notes #2: Memory Ordering and Cache Lines"
 date: 2026-09-15
 slug: "memory-ordering-false-sharing-dependency-chains"
 description: "Why the store buffer makes your own writes invisible to other cores, why x86 forbids three reorderings and allows one, how release/acquire buys back just enough order, why false sharing is a completely different problem from a stale read, and why loop unrolling has an optimal accumulator count."

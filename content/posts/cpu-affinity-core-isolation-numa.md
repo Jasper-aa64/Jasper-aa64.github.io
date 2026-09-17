@@ -1,5 +1,5 @@
 ---
-title: "Trading System Notes #1: One Core, One Thread — CPU Pinning, the Isolation Stack, and NUMA"
+title: "Trading System Notes #1: CPU Isolation and NUMA"
 date: 2026-09-09
 slug: "cpu-affinity-core-isolation-numa"
 description: "How to clear a single CPU core on a multi-core server so one hot thread owns it outright: why it matters, what isolcpus / nohz_full / rcu_nocbs each silence, how to freeze SMT and frequency, and the NUMA first-touch trap."
