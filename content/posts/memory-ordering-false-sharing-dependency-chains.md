@@ -1,5 +1,5 @@
 ---
-title: "One Cache Line, Two Questions: Memory Ordering, False Sharing, and the Cost of a Dependency Chain"
+title: "Trading System Notes #2: One Cache Line, Two Questions — Memory Ordering, False Sharing, and the Cost of a Dependency Chain"
 date: 2026-09-15
 slug: "memory-ordering-false-sharing-dependency-chains"
 description: "Why the store buffer makes your own writes invisible to other cores, why x86 forbids three reorderings and allows one, how release/acquire buys back just enough order, why false sharing is a completely different problem from a stale read, and why loop unrolling has an optimal accumulator count."
@@ -10,7 +10,7 @@ toc: true
 homepage: false
 ---
 
-# One Cache Line, Two Questions: Memory Ordering, False Sharing, and the Cost of a Dependency Chain
+# Trading System Notes #2: One Cache Line, Two Questions — Memory Ordering, False Sharing, and the Cost of a Dependency Chain
 
 > **One-line thesis**: a store buffer, an invalidate queue, and a 64-byte cache line are one piece of hardware. But they generate two completely independent engineering questions — *is the value I just read correct?* and *how many cycles did it cost to get it?* — and the single most common confusion in this part of systems programming is treating those as the same question.
 
@@ -182,8 +182,8 @@ This has *nothing to do with the CPU's memory model.* It's a pure compiler-level
   <text class="lbl" x="50" y="168" font-weight="700">Store Buffer ("the notebook")</text>
   <text class="cap" x="50" y="184">x=1 queued — instruction retires HERE</text>
   <path class="arrow" d="M100 132 L100 148"/>
-  <path class="rfo" d="M180 171 C 230 171, 260 200, 300 230"/>
-  <text class="cap" x="190" y="200" fill="#c15b3f">RFO sent, async</text>
+  <path class="rfo" d="M310 171 C 350 171, 372 200, 392 228"/>
+  <text class="cap" x="316" y="214" fill="#c15b3f">RFO sent, async</text>
   <text class="gap" x="40" y="240">A already believes x=1 is done.</text>
   <text class="gap" x="40" y="256">No other core can see it yet.</text>
 
