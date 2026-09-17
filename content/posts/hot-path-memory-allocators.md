@@ -207,7 +207,6 @@ Writing "into block 0's data region" is, in reality, writing into block 1's `use
   </defs>
   <rect class="bg" x="0" y="0" width="760" height="420" rx="10"/>
   <text class="title" x="24" y="30">this + 1 lands on the next block's header, not this block's own data</text>
-
   <text class="muted" x="24" y="58" font-size="12" font-weight="700">What blocks[i] indexing actually builds (header_size = 64, illustrative)</text>
   <rect class="hdr" x="24"  y="70" width="64" height="46" rx="4"/>
   <rect class="hdr" x="88"  y="70" width="64" height="46" rx="4"/>
@@ -224,9 +223,7 @@ Writing "into block 0's data region" is, in reality, writing into block 1's `use
   <text class="cap" x="152" y="130" font-size="10" text-anchor="middle">128</text>
   <text class="cap" x="216" y="130" font-size="10" text-anchor="middle">192</text>
   <text class="cap" x="280" y="130" font-size="10" text-anchor="middle">256</text>
-
   <text class="muted" x="24" y="168" font-size="12" font-weight="700">What MemoryBlock::data() actually returns: this + 1 (one header-width past self)</text>
-
   <rect class="hit" x="24"  y="182" width="64" height="46" rx="4"/>
   <rect class="hit" x="88"  y="182" width="64" height="46" rx="4"/>
   <rect class="hit" x="152" y="182" width="64" height="46" rx="4"/>
@@ -234,14 +231,11 @@ Writing "into block 0's data region" is, in reality, writing into block 1's `use
   <text class="lbl" x="30"  y="210" font-size="10">H0.data()</text>
   <text class="lbl" x="94"  y="210" font-size="10">H1.data()</text>
   <text class="lbl" x="158" y="210" font-size="10">H2.data()</text>
-
   <path class="bad" d="M56 182 C 56 150, 120 150, 120 116"/>
   <path class="bad" d="M120 182 C 120 150, 184 150, 184 116"/>
   <path class="bad" d="M184 182 C 184 150, 248 150, 248 116"/>
-
   <text class="gap" x="24" y="250">block[0].data() returns H1's own address —</text>
   <text class="gap" x="24" y="268">writing "into block 0" overwrites H1's used / capacity / is_active.</text>
-
   <rect class="panel" x="24" y="292" width="712" height="108" rx="8"/>
   <text class="title" x="40" y="316" font-size="12.5">Why the shipped demo never catches it</text>
   <text class="cap" x="40" y="338" font-size="11">total_memory_size was computed as if header and data were interleaved per block —</text>
