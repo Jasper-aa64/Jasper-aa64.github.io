@@ -1,9 +1,9 @@
 ---
-title: "Trading System Notes #3: Nothing Happens for the First Time on the Hot Path — Object Pools, Locked Pages, and Polymorphic Allocators"
+title: "Trading System Notes #3: Memory Pools and Allocators"
 date: 2026-09-17
 slug: "hot-path-memory-allocators"
-description: "Why malloc/free's real problem is variance, not speed — and four increasingly general ways to guarantee nothing on the hot path is happening for the first time: an O(1) free-list pool, locked and pre-faulted pages, a bump-allocating arena behind a custom STL allocator (plus a real memory-corruption bug found in the reference implementation), and std::pmr's runtime alternative to all three. Closes with a reference object pool that folds the first two techniques into one class."
-summary: "Every technique in this post does the same thing at a different layer: move an uncertain, kernel-involving operation off the hot path and force it to happen once, upfront, before it can ambush a single request. An object pool replaces malloc's variable-cost search with an always-O(1) free list. mlockall and careful mallopt tuning stop the kernel from quietly taking pages back — and pre-faulting closes the one gap mlock alone leaves open. A hand-rolled arena allocator makes the STL itself cooperate, at the cost of a real bug this post walks through in detail: a memory-layout mismatch between two functions that silently corrupts a neighboring block's metadata, invisible in the shipped demo. std::pmr solves the same STL-cooperation problem the standard library's way — trading compile-time speed for runtime flexibility."
+description: "Why malloc/free's real problem is variance, not speed — and four increasingly general ways to guarantee nothing on the hot path is happening for the first time: an O(1) free-list pool, locked and pre-faulted pages, a bump-allocating arena behind a custom STL allocator, and std::pmr's runtime alternative to all three. Closes with a reference object pool that folds the first two techniques into one class."
+summary: "Every technique in this post does the same thing at a different layer: move an uncertain, kernel-involving operation off the hot path and force it to happen once, upfront, before it can ambush a single request. An object pool replaces malloc's variable-cost search with an always-O(1) free list. mlockall and careful mallopt tuning stop the kernel from quietly taking pages back — and pre-faulting closes the one gap mlock alone leaves open. A hand-rolled arena allocator makes the STL itself cooperate with a custom allocator backed by bump-pointer memory. std::pmr solves the same STL-cooperation problem the standard library's way — trading compile-time speed for runtime flexibility."
 categories: [Systems]
 tags: [cpp, memory-pool, allocator, mlock, tlb-shootdown, pmr, hft, low-latency, stl]
 toc: true
@@ -128,7 +128,7 @@ The sharp, easy-to-get-wrong point: **`isolcpus` does not protect against this.*
 
 ---
 
-## 3. An Arena Behind the STL — and a Bug Hiding in Plain Sight
+## 3. An Arena Behind the STL: A Pointer That Only Moves Forward
 
 The object pool only ever hands out one type, `T`. Real hot-path code wants to use `std::vector`, `std::string`, ordinary STL containers — without those containers ever touching the global heap. That means writing something that satisfies the C++ allocator interface, backed by memory the program already owns.
 
@@ -149,114 +149,6 @@ An arena allocates from a pre-reserved block by tracking one number: how many by
 The arena's backing memory is obtained once, at construction, with `posix_memalign` and `mlock()` — this time locking just the arena's own region, a more surgical complement to section 2's process-wide `mlockall`. But a freshly obtained virtual address range isn't backed by physical memory yet: Linux maps pages lazily, and the actual physical page only gets assigned on the **first write**, via a page fault that traps into the kernel. `mlock` guarantees a page won't be evicted once it's backed — it says nothing about whether the mapping has been established yet. The constructor closes that gap with one line: `memset(raw_memory, 0, total_size)`, touching every page once, at startup, so every fault that was ever going to happen already has. By the time the hot path runs, every page in the arena is not just locked, but *already mapped* — nothing left to discover for the first time.
 
 The allocator that adapts this arena to the STL interface (`allocate`/`deallocate`/`construct`/`destroy`/`rebind`) is mostly boilerplate worth knowing exists rather than dwelling on — with one exception: `deallocate()` is a deliberate no-op, for the same reason `reset()` is the only way to reclaim memory. Construction and destruction of individual objects still happen normally through `construct`/`destroy`; only the *memory* side of the contract is neutered.
-
-### The bug
-
-The reference implementation this section is based on has a genuine memory-corruption bug, and it's worth tracing through carefully because nothing about running its own demo reveals it.
-
-The constructor sizes the backing buffer as `(header_size + block_size) * num_blocks` — a size calculation that implicitly assumes each block's header sits immediately before its own data, back to back: `header0, data0, header1, data1, …`. But the code that actually *addresses* each block, `arena_mem_.blocks[i]`, is a plain array subscript on a `MemoryBlock*` — and C++ array indexing advances by `sizeof(MemoryBlock)` per step, i.e. by `header_size` alone, never by `header_size + block_size`. That means the headers are actually laid out packed together at the very front of the buffer, one right after another — a different, incompatible picture from the one the size calculation assumed.
-
-`MemoryBlock::data()` then computes its own block's data address as `this + 1` — "one header-width past myself." Under the packed-headers layout that `blocks[i]` actually produces, that expression lands **exactly on the next block's header**. Concretely, with an illustrative `header_size = 64` and 4 blocks:
-
-| block `i` | address of `blocks[i]` (packed) | `data()` = `this + 1` |
-|---|---|---|
-| 0 | 0 | **64 — exactly `blocks[1]`'s address** |
-| 1 | 64 | **128 — exactly `blocks[2]`'s address** |
-| 2 | 128 | **192 — exactly `blocks[3]`'s address** |
-
-Writing "into block 0's data region" is, in reality, writing into block 1's `used`/`capacity`/`is_active` fields. Block 1's writes land on block 2's header, and so on down the chain.
-
-<svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MemoryBlock::data() computes this plus one, which lands exactly on the next block's header instead of this block's own data region, silently corrupting neighboring metadata">
-  <style>
-    .bg    { fill: #fbfaf7; }
-    .panel { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
-    .ink   { fill: #1c1b18; }
-    .muted { fill: #6b6558; }
-    .hdr   { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; }
-    .data  { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.2; }
-    .hit   { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.8; }
-    .arrow { stroke: #8a8474; stroke-width: 2; fill: none; marker-end: url(#ah); }
-    .bad   { stroke: #c15b3f; stroke-width: 2.2; fill: none; marker-end: url(#ah2); }
-    .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
-    .lbl   { fill: #3a372f; font-size: 11px; }
-    .cap   { fill: #6b6558; font-size: 10.5px; }
-    .gap   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
-    @media (prefers-color-scheme: dark) {
-      .bg    { fill: #17161b; }
-      .panel { fill: #201f26; stroke: #3a3945; }
-      .ink   { fill: #e9e7ef; }
-      .muted { fill: #a19caf; }
-      .hdr   { fill: #2a2933; stroke: #47454f; }
-      .data  { fill: #23262c; stroke: #3f4650; }
-      .hit   { fill: #4a2f2c; stroke: #8f5a4c; }
-      .arrow { stroke: #9a9384; }
-      .bad   { stroke: #e0795b; }
-      .title { fill: #e9e7ef; }
-      .lbl   { fill: #d7d3c8; }
-      .cap   { fill: #a19caf; }
-      .gap   { fill: #e0795b; }
-    }
-  </style>
-  <defs>
-    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#8a8474"/>
-    </marker>
-    <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#c15b3f"/>
-    </marker>
-  </defs>
-  <rect class="bg" x="0" y="0" width="760" height="420" rx="10"/>
-  <text class="title" x="24" y="30">this + 1 lands on the next block's header, not this block's own data</text>
-  <text class="muted" x="24" y="58" font-size="12" font-weight="700">What blocks[i] indexing actually builds (header_size = 64, illustrative)</text>
-  <rect class="hdr" x="24"  y="70" width="64" height="46" rx="4"/>
-  <rect class="hdr" x="88"  y="70" width="64" height="46" rx="4"/>
-  <rect class="hdr" x="152" y="70" width="64" height="46" rx="4"/>
-  <rect class="hdr" x="216" y="70" width="64" height="46" rx="4"/>
-  <rect class="data" x="280" y="70" width="456" height="46" rx="4"/>
-  <text class="lbl" x="38"  y="98">H0</text>
-  <text class="lbl" x="102" y="98">H1</text>
-  <text class="lbl" x="166" y="98">H2</text>
-  <text class="lbl" x="230" y="98">H3</text>
-  <text class="cap" x="292" y="98">data_start — never actually addressed per block</text>
-  <text class="cap" x="18" y="130" font-size="10" text-anchor="middle">0</text>
-  <text class="cap" x="88" y="130" font-size="10" text-anchor="middle">64</text>
-  <text class="cap" x="152" y="130" font-size="10" text-anchor="middle">128</text>
-  <text class="cap" x="216" y="130" font-size="10" text-anchor="middle">192</text>
-  <text class="cap" x="280" y="130" font-size="10" text-anchor="middle">256</text>
-  <text class="muted" x="24" y="168" font-size="12" font-weight="700">What MemoryBlock::data() actually returns: this + 1 (one header-width past self)</text>
-  <rect class="hit" x="24"  y="182" width="64" height="46" rx="4"/>
-  <rect class="hit" x="88"  y="182" width="64" height="46" rx="4"/>
-  <rect class="hit" x="152" y="182" width="64" height="46" rx="4"/>
-  <rect class="hdr" x="216" y="182" width="64" height="46" rx="4"/>
-  <text class="lbl" x="30"  y="210" font-size="10">H0.data()</text>
-  <text class="lbl" x="94"  y="210" font-size="10">H1.data()</text>
-  <text class="lbl" x="158" y="210" font-size="10">H2.data()</text>
-  <path class="bad" d="M56 182 C 56 150, 120 150, 120 116"/>
-  <path class="bad" d="M120 182 C 120 150, 184 150, 184 116"/>
-  <path class="bad" d="M184 182 C 184 150, 248 150, 248 116"/>
-  <text class="gap" x="24" y="250">block[0].data() returns H1's own address —</text>
-  <text class="gap" x="24" y="268">writing "into block 0" overwrites H1's used / capacity / is_active.</text>
-  <rect class="panel" x="24" y="292" width="712" height="108" rx="8"/>
-  <text class="title" x="40" y="316" font-size="12.5">Why the shipped demo never catches it</text>
-  <text class="cap" x="40" y="338" font-size="11">total_memory_size was computed as if header and data were interleaved per block —</text>
-  <text class="cap" x="40" y="354" font-size="11">but blocks[i] indexing and data_start both assume every header is packed up front.</text>
-  <text class="cap" x="40" y="370" font-size="11" font-weight="700">data() matches neither model. The demo's own allocations are too small to ever roll</text>
-  <text class="cap" x="40" y="386" font-size="11" font-weight="700">over to a second block, so the corrupted header gets written — but never read.</text>
-</svg>
-
-> Figure: the size calculation, the array indexing, and `data()` each encode a different, mutually inconsistent picture of the same buffer. Only the middle one (packed headers) matches what the compiler actually generates for `blocks[i]`, and `data()` was never updated to agree with it. A demo that allocates a handful of ints and short strings never forces a second block into use, so the corrupted header sits there, unread and undetected — a passing demo run is evidence about the inputs you tried, not about the code.
-
-The fix doesn't need a new idea, just using one that was already computed and quietly ignored: `data_start` is calculated correctly at construction time and never referenced again anywhere else in the class. Give each block a `data_ptr` field, set once, at the same point every other per-block field is initialized:
-
-```cpp
-char* data_ptr;
-char* data() { return data_ptr; }   // no more per-call this+1 guesswork
-
-// in the per-block initialization loop:
-block->data_ptr = arena_mem_.data_start + i * block_size;
-```
-
-Each block's real address is computed once, at startup — matching this post's opening thesis exactly, just applied one layer deeper than mlock or pre-faulting: the *address arithmetic itself* is now a fixed fact established before the hot path runs, not something recomputed (incorrectly) on every call.
 
 ---
 
@@ -290,9 +182,13 @@ vec.emplace_back(1);  // undefined behavior
 
 ---
 
-## 5. Putting It Together: A Reference Object Pool
+## 5. Putting It Together: Two Reference Implementations
 
-Sections 1 and 2 compose cleanly into one self-contained thing worth actually keeping around: a fixed-type pool with O(1) alloc/dealloc, backed by memory that's pre-allocated, pre-faulted, and locked before the hot path ever runs. One refinement beyond either version in section 1: instead of a separate `free_list_` array, the "next free slot" index lives *inside* the same slot as `T`, so a single allocation touches one cache line instead of two unrelated arrays.
+Two shapes from the sections above are worth keeping as complete, reusable references: a fixed-type pool for objects with independent lifetimes, and an arena for a batch of objects that all get thrown away together. `std::pmr` isn't a third — it solves a type-compatibility problem, not a performance one, and paying a virtual call on every allocation makes it a worse default than either of these for something that's actually meant to sit on a hot path. Reach for it only when the flexibility is worth that specific cost.
+
+### A Reference Object Pool
+
+Sections 1 and 2 compose cleanly into one self-contained thing: a fixed-type pool with O(1) alloc/dealloc, backed by memory that's pre-allocated, pre-faulted, and locked before the hot path ever runs. One refinement beyond either version in section 1: instead of a separate `free_list_` array, the "next free slot" index lives *inside* the same slot as `T`, so a single allocation touches one cache line instead of two unrelated arrays.
 
 ```cpp
 template <typename T>
@@ -347,9 +243,55 @@ class ObjectPool {
 };
 ```
 
-What each earlier section contributed, concretely: the `next_free`-inside-`Slot` layout and the head-pointer swap are section 1's free list; `aligned_alloc` + `mlock` + the eager `memset` are section 2's "never let the kernel take it back, and never fault on first touch"; the missing piece from section 3's bug — one function's address math disagreeing with another's — has no equivalent failure mode here, because `Slot` is one struct with one layout, not a separately-computed header region and data region that have to agree with each other.
+What each piece contributed, concretely: the `next_free`-inside-`Slot` layout and the head-pointer swap are section 1's free list; `aligned_alloc` + `mlock` + the eager `memset` are section 2's "never let the kernel take it back, and never fault on first touch."
 
-This pool is *not* what sections 3 and 4 are for, on purpose. It hands out exactly one type, individually, with independent lifetimes — reach for the arena (section 3) or `std::pmr` (section 4) instead when the actual need is "let arbitrary STL containers avoid the heap" or "release a whole batch of unrelated allocations at once." Forcing all four techniques into a single class would trade away the property that makes each one fast in its own situation.
+### A Reference Arena
+
+The pool above hands out one type, individually, with independent lifetimes. An arena is for the opposite shape: a batch of allocations — possibly different sizes, possibly different types — that all get released together. Same startup treatment as the pool (one allocation, `mlock`, `memset` to pre-fault), but the allocation logic itself is simpler still: no free list to maintain at all, just a running offset.
+
+```cpp
+class Arena {
+  unsigned char* base_;
+  std::size_t capacity_;
+  std::size_t used_ = 0;
+  bool allow_malloc_fallback_;
+
+ public:
+  explicit Arena(std::size_t capacity, bool allow_malloc_fallback = false)
+      : capacity_(capacity), allow_malloc_fallback_(allow_malloc_fallback) {
+    base_ = static_cast<unsigned char*>(
+        std::aligned_alloc(alignof(std::max_align_t), capacity_));
+    if (!base_) throw std::bad_alloc{};
+
+    mlock(base_, capacity_);           // same locking + pre-faulting as the pool
+    std::memset(base_, 0, capacity_);  // (check mlock's return value in production)
+  }
+
+  ~Arena() {
+    munlock(base_, capacity_);
+    std::free(base_);
+  }
+
+  Arena(const Arena&) = delete;
+  Arena& operator=(const Arena&) = delete;
+
+  void* allocate(std::size_t size, std::size_t alignment = alignof(std::max_align_t)) {
+    std::size_t aligned_used = (used_ + alignment - 1) & ~(alignment - 1);
+    if (aligned_used + size > capacity_) {
+      return allow_malloc_fallback_ ? std::malloc(size) : nullptr;  // arena exhausted
+    }
+    void* ptr = base_ + aligned_used;
+    used_ = aligned_used + size;
+    return ptr;
+  }
+
+  void reset() noexcept { used_ = 0; }  // the only way to reclaim — bulk, not per-allocation
+};
+```
+
+`allocate()` is the whole bump-allocator idea in four lines: round the current offset up to the requested alignment, check it still fits, advance the offset, return the old one. No search, no list to maintain — the "next free position" is always just `used_`. `reset()` is the only reclaim path, matching the arena's whole premise: it doesn't track individual allocations, so it can't release one. One deliberate simplification versus section 3's multi-block design: a single fixed-capacity buffer rather than a chain of pre-reserved blocks — simpler to get right, at the cost of a hard capacity ceiling instead of the ability to keep growing. `allow_malloc_fallback_` is the same escape hatch section 3's arena had for exactly that ceiling.
+
+Pick the pool when objects have independent lifetimes and get freed one at a time. Pick the arena when a whole batch — everything touched while handling one tick, one order, one request — shares a single lifetime and gets thrown away as a unit.
 
 ---
 
@@ -360,10 +302,5 @@ This pool is *not* what sections 3 and 4 are for, on purpose. It hands out exact
 3. **`mlockall` alone has a hole: `munmap` tears down the whole mapping, lock included.** `M_MMAP_MAX`, `M_TRIM_THRESHOLD`, and `M_ARENA_MAX` each close a different path back to the kernel.
 4. **`isolcpus` protects scheduling, not TLB shootdowns.** A cold thread in the same process can still interrupt a perfectly isolated hot core, because the shootdown targets the address space (`mm_cpumask`), not the scheduling class.
 5. **An arena is strictly cheaper than a free list — pure pointer advance, no list maintenance — at the cost of only supporting bulk release.** Pre-faulting with `memset` closes the one gap `mlock` alone leaves: the first write to a fresh page.
-6. **A demo passing tells you about the inputs you tried, not about the code.** The reference arena's `data()` computes the wrong address for every block but one, silently corrupting neighboring headers — invisible because the shipped demo never allocates enough to roll over to a second block.
-7. **`std::pmr` trades section 3's compile-time speed for a uniform, runtime-flexible type** — the same virtual-vs-template tradeoff C++ already has elsewhere, applied to allocation. Its sharpest edge: a `polymorphic_allocator` only points at its resource, so returning a `pmr::vector` built on a local resource is a dangling pointer wearing a value type's clothes.
-8. **Sections 1 and 2 compose into one reusable pool; sections 3 and 4 solve a different problem and don't merge in.** Co-locating the free-list link with `T` turns two cache-line touches into one — the kind of refinement that falls out naturally once the underlying mechanism is actually understood, not copied.
-
----
-
-*The knowledge skeleton for this post — the two object-pool implementations, the mallopt/mlockall tuning, the TLB shootdown mechanism, the pinned-arena allocator, and std::pmr — comes from a close reading of [`zzxscodes/trading-system-notes`](https://github.com/zzxscodes/trading-system-notes). The memory-corruption bug in section 3, its trace-through, and its fix are not from that source; they turned up during that close reading and are original to this post.*
+6. **`std::pmr` trades section 3's compile-time speed for a uniform, runtime-flexible type** — the same virtual-vs-template tradeoff C++ already has elsewhere, applied to allocation. Its sharpest edge: a `polymorphic_allocator` only points at its resource, so returning a `pmr::vector` built on a local resource is a dangling pointer wearing a value type's clothes.
+7. **Two reference shapes cover the practical cases: a pool for independent lifetimes, an arena for a batch released together.** Co-locating the free-list link with `T` turns two cache-line touches into one; the arena drops list maintenance entirely — just a running offset. `std::pmr`'s per-allocation virtual dispatch is why it isn't a third reference implementation here.
