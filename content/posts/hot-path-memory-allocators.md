@@ -20,56 +20,6 @@ homepage: false
 
 Everything in this post is a variation on the same fix: figure out which operation has this property — cost depends on first-touch, or contention, or fragmentation, none of it knowable in advance — and **move it to a point in the program's lifetime where you don't care how long it takes.** Usually that point is startup. Section 1 moves the allocation itself. Section 2 moves the kernel's decision about whether your pages are allowed to leave RAM, and — less obviously — the kernel's decision about whether they're backed by physical memory *at all*. Sections 3 and 4 generalize the same move so it works for arbitrary STL containers, not just a single hand-rolled type, and disagree with each other about where the resulting flexibility should be paid for: at compile time, or at run time.
 
-<!--
-╔══════════════════════════════════════════════════════════════════╗
-║  🖼  ILLUSTRATION  ——  Nothing happens for the first time         ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  Academic graphite pencil illustration on clean white paper.     ║
-║  16:9. Precise technical linework, careful cross-hatching for    ║
-║  shading and depth. Monochrome graphite only — no color, no      ║
-║  watercolor, no graph-paper grid. Scientific-journal /           ║
-║  textbook figure. NOT cartoon, NOT colorful.                     ║
-║                                                                  ║
-║  Topic: four different techniques for making sure nothing on a   ║
-║  latency-critical path is ever being decided, allocated, or      ║
-║  faulted in for the first time — each one prepared in advance.   ║
-║                                                                  ║
-║  Main metaphor: a classical stone colonnade / arcade with four   ║
-║  plinths standing between the columns, each plinth holding one   ║
-║  precisely rendered mechanical object, left to right in a row.   ║
-║                                                                  ║
-║  Layout: arcade / colonnade of four objects in sequence,         ║
-║  left to right, matched visual weight.                           ║
-║                                                                  ║
-║  Objects and labels:                                             ║
-║   - plinth 1: a wooden pegboard with a short chain of numbered   ║
-║     pegs linked in sequence, one peg drawn slightly raised as    ║
-║     "next" — labeled "OBJECT POOL" / "free list, always O(1)"    ║
-║   - plinth 2: a heavy iron strongbox bolted to the stone floor   ║
-║     with a padlock and a taut chain — labeled "LOCKED PAGES" /   ║
-║     "mlock + pre-faulted"                                        ║
-║   - plinth 3: a large paper scroll unrolled across two wooden    ║
-║     spindles, a drafting pen resting partway along the sheet —   ║
-║     labeled "ARENA" / "bump pointer, one scroll at a time"       ║
-║   - plinth 4: a rotating brass selector dial wired by a thin     ║
-║     cable to a small unmarked junction box beside it — labeled   ║
-║     "POLYMORPHIC RESOURCE" / "chosen at runtime"                 ║
-║   - thin ruled banner spanning above all four plinths:           ║
-║     "prepared before the hot path ever runs"                     ║
-║                                                                  ║
-║  Title (top, large): "Nothing Happens for the First Time on      ║
-║  the Hot Path"                                                   ║
-║  Subtitle: "Four ways to make sure the work was already done"    ║
-║  Footer caption: "Prepared, Not Fast."                            ║
-║                                                                  ║
-║  All text in English. No Chinese characters. No color fills.     ║
-║  No gradients. Monochrome graphite only.                         ║
-╚══════════════════════════════════════════════════════════════════╝
--->
-
-![Four plinths in a stone colonnade, each holding a mechanical object representing a different allocator technique, under the banner "prepared before the hot path ever runs"](/images/hot-path-allocators/four-allocators.png)
-
 ---
 
 ## 1. The Object Pool: Trading a Search for a Pointer
@@ -113,6 +63,52 @@ The pool solves "don't ask the allocator for memory on the hot path." It does no
 ### mlockall alone has a hole in it
 
 `mlockall(MCL_CURRENT | MCL_FUTURE)` tells the kernel: every page this process currently holds, and every page it will ever hold, stays resident — never swapped out. That sounds complete. It isn't, because of one detail: **`munmap` doesn't unlock a page, it tears down the entire mapping the lock was attached to.** glibc routes any allocation above `M_MMAP_THRESHOLD` (128 KB by default) through `mmap` instead of the heap, and `free()`-ing that memory calls `munmap` on it immediately — silently discarding whatever `mlockall` had guaranteed, the moment that allocation is released.
+
+<!--
+╔══════════════════════════════════════════════════════════════════╗
+║  🖼  ILLUSTRATION  ——  Torn down, not unlocked                    ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  Academic graphite pencil illustration on clean white paper.     ║
+║  16:9. Precise technical linework, careful cross-hatching for    ║
+║  shading and depth. Monochrome graphite only — no color, no      ║
+║  watercolor, no graph-paper grid. Scientific-journal /           ║
+║  textbook figure. NOT cartoon, NOT colorful.                     ║
+║                                                                  ║
+║  Topic: munmap does not undo a lock on a page — it removes the   ║
+║  entire mapping the lock was attached to, so the lock has        ║
+║  nothing left to hold.                                           ║
+║                                                                  ║
+║  Main metaphor: a two-panel dissection diagram, left and right,  ║
+║  of the exact same stone plinth.                                 ║
+║                                                                  ║
+║  Layout: side-by-side comparison (two-panel), left labeled       ║
+║  "BEFORE", right labeled "AFTER".                                ║
+║                                                                  ║
+║  Objects and labels:                                             ║
+║   - left panel: a heavy iron strongbox sitting on the plinth,    ║
+║     wrapped tight in a chain with a closed padlock — labeled     ║
+║     "mlock() — page resident, chain drawn taut"                  ║
+║   - right panel: the exact same plinth, now bare — the strongbox ║
+║     itself is gone entirely, but the same chain and padlock      ║
+║     still hang in mid-air in the box's old outline, closed and   ║
+║     intact, holding nothing — labeled "munmap() — the box is     ║
+║     gone. The lock never opened; there is simply nothing left    ║
+║     for it to hold."                                             ║
+║   - a faint dotted outline on the right plinth marking exactly   ║
+║     where the strongbox used to sit                              ║
+║                                                                  ║
+║  Title (top, large): "Torn Down, Not Unlocked"                   ║
+║  Subtitle: "munmap doesn't undo a lock — it removes what the     ║
+║  lock was attached to"                                           ║
+║  Footer caption: "Torn Down, Not Unlocked."                      ║
+║                                                                  ║
+║  All text in English. No Chinese characters. No color fills.     ║
+║  No gradients. Monochrome graphite only.                         ║
+╚══════════════════════════════════════════════════════════════════╝
+-->
+
+![Before and after: a locked strongbox on a plinth, then the same plinth with the box gone entirely — only the still-closed chain and padlock hang in mid-air where it used to sit](/images/hot-path-allocators/torn-down-not-unlocked.png)
 
 Closing that hole takes three separate `mallopt` calls, each blocking a different path back to the kernel:
 
