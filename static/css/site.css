@@ -475,6 +475,11 @@ code, pre { font-family: var(--mono); }
     color-mix(in srgb, var(--surface) 88%, var(--surface-subtle));
   box-shadow: var(--shadow-sm);
   cursor: pointer;
+  --card-tx: 0px;
+  --card-ty: 0px;
+  --card-rot: -1.8deg;
+  --card-sc: 1;
+  transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
   transform-origin: 30% 84%;
   will-change: transform, opacity;
   -webkit-appearance: none;
@@ -490,19 +495,24 @@ code, pre { font-family: var(--mono); }
 .hero-card:nth-child(1) {
   z-index: 3;
   opacity: 1;
-  transform: translate3d(0, 0, 0) rotate(-1.8deg) scale(1);
 }
 .hero-card:nth-child(2) {
+  --card-tx: 23px;
+  --card-ty: 18px;
+  --card-rot: 1.4deg;
+  --card-sc: .972;
   z-index: 2;
   opacity: .82;
   border-color: color-mix(in srgb, var(--line) 78%, transparent);
-  transform: translate3d(23px, 18px, 0) rotate(1.4deg) scale(.972);
 }
 .hero-card:nth-child(3) {
+  --card-tx: 43px;
+  --card-ty: 33px;
+  --card-rot: 3.2deg;
+  --card-sc: .944;
   z-index: 1;
   opacity: .56;
   border-color: color-mix(in srgb, var(--line) 66%, transparent);
-  transform: translate3d(43px, 33px, 0) rotate(3.2deg) scale(.944);
 }
 .hero-deck:hover .hero-card:nth-child(1) {
   transform: translate3d(0, -4px, 0) rotate(-2.5deg) scale(1.006);
@@ -621,11 +631,11 @@ code, pre { font-family: var(--mono); }
 .home-hero-panel .site-stats {
   --stats-rotate: -1.2deg;
   position: absolute;
-  top: 68px;
-  left: 4px;
+  top: 96px;
+  left: -6px;
   z-index: 4;
   grid-template-columns: 1fr;
-  width: 172px;
+  width: 150px;
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
   backdrop-filter: blur(10px);
@@ -700,7 +710,7 @@ code, pre { font-family: var(--mono); }
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(-1.8deg) scale(1);
+    transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
   }
 }
 @keyframes heroSecondCardIn {
@@ -718,7 +728,7 @@ code, pre { font-family: var(--mono); }
   }
   100% {
     opacity: .82;
-    transform: translate3d(23px, 18px, 0) rotate(1.4deg) scale(.972);
+    transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
   }
 }
 @keyframes heroThirdCardIn {
@@ -731,7 +741,7 @@ code, pre { font-family: var(--mono); }
   }
   100% {
     opacity: .56;
-    transform: translate3d(43px, 33px, 0) rotate(3.2deg) scale(.944);
+    transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
   }
 }
 @keyframes avatarSketchIn {
@@ -1785,13 +1795,19 @@ code, pre { font-family: var(--mono); }
     inset: 0;
   }
   .hero-card:nth-child(1) {
-    transform: translate3d(0, 0, 0) rotate(-.8deg) scale(1);
+    --card-rot: -.8deg;
   }
   .hero-card:nth-child(2) {
-    transform: translate3d(11px, 12px, 0) rotate(1deg) scale(.975);
+    --card-tx: 11px;
+    --card-ty: 12px;
+    --card-rot: 1deg;
+    --card-sc: .975;
   }
   .hero-card:nth-child(3) {
-    transform: translate3d(20px, 22px, 0) rotate(2.2deg) scale(.95);
+    --card-tx: 20px;
+    --card-ty: 22px;
+    --card-rot: 2.2deg;
+    --card-sc: .95;
   }
   .home-avatar {
     --avatar-x: -58%;
@@ -1819,9 +1835,9 @@ code, pre { font-family: var(--mono); }
     width: 58px;
   }
   .home-hero-panel .site-stats {
-    top: 22px;
-    left: 8px;
-    width: 140px;
+    top: 40px;
+    left: 4px;
+    width: 126px;
   }
   .site-stats dt {
     font-size: .68rem;
