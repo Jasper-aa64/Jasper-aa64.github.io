@@ -377,7 +377,7 @@ code, pre { font-family: var(--mono); }
   display: block;
   margin-bottom: 12px;
   color: var(--text-strong);
-  font-family: var(--display);
+  font-family: var(--font);
   font-size: clamp(2.05rem, 2.8vw, 2.6rem);
   font-weight: 650;
   letter-spacing: -.025em;
@@ -425,7 +425,7 @@ code, pre { font-family: var(--mono); }
 }
 .hero-subject-label {
   display: block;
-  font-family: var(--font);
+  font-family: var(--display);
   color: var(--accent-deep);
   font-size: clamp(2.2rem, 3vw, 2.85rem);
   font-weight: 500;
