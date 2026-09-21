@@ -651,7 +651,7 @@ code, pre { font-family: var(--mono); }
   --stats-rotate: -1.2deg;
   position: absolute;
   top: 120px;
-  left: -18px;
+  left: -34px;
   z-index: 4;
   grid-template-columns: 1fr;
   width: 150px;
@@ -1860,7 +1860,7 @@ code, pre { font-family: var(--mono); }
   }
   .home-hero-panel .site-stats {
     top: 48px;
-    left: 0;
+    left: -8px;
     width: 126px;
   }
   .site-stats dt {
