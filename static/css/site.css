@@ -377,14 +377,20 @@ code, pre { font-family: var(--mono); }
   background: var(--surface);
   color: var(--accent-deep);
   font-family: var(--display);
-  font-size: 1.22rem;
+  font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: .02em;
   box-shadow: var(--shadow-sm);
   transform: rotate(-1.2deg);
 }
 .hero-line {
-  display: block;
+  display: inline;
+}
+.hero-line-b {
+  font-style: italic;
+}
+.hero-line-c {
+  color: var(--accent-deep);
 }
 .intro-directions {
   display: flex;
