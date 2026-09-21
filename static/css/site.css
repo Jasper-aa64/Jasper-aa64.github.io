@@ -470,24 +470,19 @@ code, pre { font-family: var(--mono); }
 }
 .home-hero-panel {
   position: relative;
-  display: grid;
-  grid-template-rows: minmax(0, 342px) auto;
-  gap: 14px;
-  min-height: 420px;
+  min-height: 430px;
   isolation: isolate;
 }
 .hero-deck {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 2;
-  width: calc(100% - 34px);
-  height: 342px;
-  margin-left: 0;
   perspective: 1400px;
   cursor: pointer;
 }
 .hero-card {
   position: absolute;
-  inset: 18px 18px 18px 22px;
+  inset: 24px 18px 22px 58px;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -642,13 +637,18 @@ code, pre { font-family: var(--mono); }
   overflow: hidden;
 }
 .home-hero-panel .site-stats {
-  position: relative;
-  z-index: 1;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  width: calc(100% - 34px);
-  border-color: color-mix(in srgb, var(--line) 72%, transparent);
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  box-shadow: var(--shadow-sm);
+  --stats-rotate: -1.2deg;
+  position: absolute;
+  top: 68px;
+  left: 4px;
+  z-index: 4;
+  grid-template-columns: 1fr;
+  width: 172px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 28px rgba(16, 178, 186, .14);
+  transform: rotate(var(--stats-rotate));
 }
 .site-stats div {
   display: grid;
@@ -659,15 +659,6 @@ code, pre { font-family: var(--mono); }
   border-bottom: 1px solid var(--line-soft);
 }
 .site-stats div:last-child { border-bottom: 0; }
-.home-hero-panel .site-stats div {
-  display: block;
-  padding: 11px 14px;
-  border-right: 1px solid var(--line-soft);
-  border-bottom: 0;
-}
-.home-hero-panel .site-stats div:last-child {
-  border-right: 0;
-}
 .site-stats div:hover {
   background: color-mix(in srgb, var(--accent-soft) 80%, transparent);
   transition: background .15s;
@@ -1542,9 +1533,7 @@ code, pre { font-family: var(--mono); }
     gap: 24px;
   }
   .home-hero-panel {
-    width: min(100%, 660px);
-    min-height: 420px;
-    justify-self: end;
+    min-height: 390px;
   }
   .home-avatar {
     right: 8%;
@@ -1554,8 +1543,8 @@ code, pre { font-family: var(--mono); }
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .home-hero-panel .site-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: calc(100% - 34px);
+    grid-template-columns: 1fr;
+    width: 190px;
   }
   .site-stats div {
     display: block;
@@ -1563,12 +1552,12 @@ code, pre { font-family: var(--mono); }
     border-bottom: 0;
   }
   .home-hero-panel .site-stats div {
-    display: block;
-    border-right: 1px solid var(--line-soft);
-    border-bottom: 0;
+    display: grid;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-soft);
   }
   .home-hero-panel .site-stats div:last-child {
-    border-right: 0;
+    border-bottom: 0;
   }
   .site-stats div:last-child { border-right: 0; }
   .topic-grid {
@@ -1812,15 +1801,10 @@ code, pre { font-family: var(--mono); }
     gap: 20px;
   }
   .home-hero-panel {
-    grid-template-rows: minmax(0, 300px) auto;
-    min-height: 374px;
-  }
-  .hero-deck {
-    width: calc(100% - 18px);
-    height: 300px;
+    min-height: 390px;
   }
   .hero-card {
-    inset: 8px 20px 12px 8px;
+    inset: 0;
   }
   .hero-card:nth-child(1) {
     transform: translate3d(0, 0, 0) rotate(-.8deg) scale(1);
@@ -1857,22 +1841,9 @@ code, pre { font-family: var(--mono); }
     width: 58px;
   }
   .home-hero-panel .site-stats {
-    position: relative;
-    width: calc(100% - 18px);
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    transform: none;
-  }
-  .home-hero-panel .site-stats::before {
-    display: none;
-  }
-  .home-hero-panel .site-stats div {
-    display: block;
-    padding: 12px 10px;
-    border-right: 1px solid var(--line-soft);
-    border-bottom: 0;
-  }
-  .home-hero-panel .site-stats div:last-child {
-    border-right: 0;
+    top: 22px;
+    left: 8px;
+    width: 140px;
   }
   .site-stats dt {
     font-size: .68rem;
