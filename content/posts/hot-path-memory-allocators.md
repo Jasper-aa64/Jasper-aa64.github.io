@@ -182,6 +182,100 @@ vec.emplace_back(1);  // undefined behavior
 
 Two shapes from the sections above are worth keeping as complete, reusable references: a fixed-type pool for objects with independent lifetimes, and an arena for a batch of objects that all get thrown away together. `std::pmr` isn't a third — it solves a type-compatibility problem, not a performance one, and paying a virtual call on every allocation makes it a worse default than either of these for something that's actually meant to sit on a hot path. Reach for it only when the flexibility is worth that specific cost.
 
+Zooming out, every section above is really the same question asked again at a different layer: *where does this storage actually come from, and who's managing it?*
+<svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From malloc/free's unpredictable latency, through Object Pool's v1 linear scan being superseded by v2's free list, through allocator-environment tuning, to the Arena's bump pointer, to the STL allocator and std::pmr — ending at memory strategy decoupled from container type" style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
+  <style>
+    .bg  { fill: #fbfaf7; }
+    .ink { fill: #1c1b18; }
+    .muted { fill: #6b6558; }
+    .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .boxN  { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
+    .boxGone { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.8; }
+    .boxGo   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 2; }
+    .edge     { stroke: #b3ab98; stroke-width: 1.6; fill: none; marker-end: url(#ahN2); }
+    .edgeGone { stroke: #b3ab98; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; opacity: 0.75; marker-end: url(#ahN2); }
+    .edgeGo   { stroke: #6f8f3f; stroke-width: 2; fill: none; marker-end: url(#ahGo2); }
+    @media (prefers-color-scheme: dark) {
+      .bg  { fill: #17161b; }
+      .ink { fill: #e9e7ef; }
+      .muted { fill: #a19caf; }
+      .title { fill: #e9e7ef; }
+      .boxN  { fill: #201f26; stroke: #3a3945; }
+      .boxGone { fill: #2a2933; stroke: #47454f; }
+      .boxGo   { fill: #33421f; stroke: #8fb257; }
+      .edge     { stroke: #55525f; }
+      .edgeGone { stroke: #55525f; }
+      .edgeGo   { stroke: #8fb257; }
+    }
+  </style>
+  <defs>
+    <marker id="ahN2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8a8474"/>
+    </marker>
+    <marker id="ahGo2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#6f8f3f"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="640" height="1180" rx="10"/>
+  <text class="title" x="20" y="26">Pool to pmr: the same question — where storage comes from —</text>
+  <text class="title" x="20" y="42">answered five different ways</text>
+  <rect class="boxN" x="180" y="56" width="280" height="56" rx="8"/>
+  <text class="ink" x="320" y="80" font-size="14" font-weight="700" text-anchor="middle">malloc / free</text>
+  <text class="muted" x="320" y="98" font-size="11" text-anchor="middle">unpredictable, variable latency</text>
+  <path class="edge" d="M320,112 L320,154"/>
+  <rect class="boxN" x="190" y="156" width="260" height="50" rx="8"/>
+  <text class="ink" x="320" y="180" font-size="14" font-weight="700" text-anchor="middle">Object Pool</text>
+  <text class="muted" x="320" y="197" font-size="11" text-anchor="middle">§1</text>
+  <path class="edgeGone" d="M300,206 L170,246"/>
+  <path class="edgeGo" d="M340,206 L470,246"/>
+  <rect class="boxGone" x="40" y="248" width="240" height="64" rx="8"/>
+  <text class="muted" x="160" y="272" font-size="12.5" font-weight="700" text-anchor="middle">v1 · linear scan</text>
+  <text class="muted" x="160" y="290" font-size="10.5" text-anchor="middle">O(N) · superseded by v2</text>
+  <rect class="boxGo" x="360" y="248" width="240" height="64" rx="8"/>
+  <text class="ink" x="480" y="272" font-size="12.5" font-weight="700" text-anchor="middle">v2 · explicit free list</text>
+  <text class="ink" x="480" y="290" font-size="10.5" text-anchor="middle">O(N) → O(1)</text>
+  <path class="edgeGo" d="M460,312 L340,354"/>
+  <rect class="boxN" x="170" y="356" width="300" height="64" rx="8"/>
+  <text class="ink" x="320" y="380" font-size="14" font-weight="700" text-anchor="middle">intrusive free list</text>
+  <text class="muted" x="320" y="398" font-size="10.5" text-anchor="middle">next lives inside T, no extra node</text>
+  <path class="edge" d="M320,420 L320,450"/>
+  <rect class="boxN" x="160" y="452" width="320" height="50" rx="8"/>
+  <text class="ink" x="320" y="476" font-size="13.5" font-weight="700" text-anchor="middle">tightening allocator control</text>
+  <text class="muted" x="320" y="493" font-size="11" text-anchor="middle">§2</text>
+  <path class="edge" d="M300,502 L160,542"/>
+  <path class="edge" d="M340,502 L480,542"/>
+  <rect class="boxN" x="40" y="544" width="240" height="64" rx="8"/>
+  <text class="ink" x="160" y="568" font-size="12.5" font-weight="700" text-anchor="middle">glibc tuning</text>
+  <text class="muted" x="160" y="586" font-size="10" text-anchor="middle">M_MMAP_MAX=0 · M_TRIM_THRESHOLD=-1</text>
+  <rect class="boxN" x="360" y="544" width="240" height="64" rx="8"/>
+  <text class="ink" x="480" y="568" font-size="12.5" font-weight="700" text-anchor="middle">mlockall</text>
+  <text class="muted" x="480" y="586" font-size="10" text-anchor="middle">locked into RAM · swappiness=0</text>
+  <path class="edge" d="M180,608 L300,650"/>
+  <path class="edge" d="M460,608 L340,650"/>
+  <rect class="boxN" x="170" y="652" width="300" height="50" rx="8"/>
+  <text class="ink" x="320" y="682" font-size="13.5" font-weight="700" text-anchor="middle">a stable memory environment</text>
+  <path class="edge" d="M320,702 L320,738"/>
+  <rect class="boxN" x="190" y="740" width="260" height="50" rx="8"/>
+  <text class="ink" x="320" y="764" font-size="14" font-weight="700" text-anchor="middle">Arena Allocator</text>
+  <text class="muted" x="320" y="781" font-size="11" text-anchor="middle">§3 · bump-pointer arena</text>
+  <path class="edge" d="M320,790 L320,826"/>
+  <rect class="boxN" x="170" y="828" width="300" height="56" rx="8"/>
+  <text class="ink" x="320" y="852" font-size="14" font-weight="700" text-anchor="middle">bump pointer</text>
+  <text class="muted" x="320" y="870" font-size="10.5" text-anchor="middle">only ever moves forward · O(1) alloc</text>
+  <path class="edge" d="M320,884 L320,920"/>
+  <rect class="boxN" x="150" y="922" width="340" height="50" rx="8"/>
+  <text class="ink" x="320" y="946" font-size="13.5" font-weight="700" text-anchor="middle">STL Allocator</text>
+  <text class="muted" x="320" y="963" font-size="10" text-anchor="middle">custom allocator · compile-time polymorphism</text>
+  <path class="edge" d="M320,972 L320,1008"/>
+  <rect class="boxN" x="190" y="1010" width="260" height="56" rx="8"/>
+  <text class="ink" x="320" y="1034" font-size="14" font-weight="700" text-anchor="middle">std::pmr</text>
+  <text class="muted" x="320" y="1052" font-size="10.5" text-anchor="middle">§4 · run-time polymorphism</text>
+  <path class="edgeGo" d="M320,1066 L320,1100"/>
+  <rect class="boxGo" x="90" y="1102" width="460" height="64" rx="8"/>
+  <text class="ink" x="320" y="1126" font-size="14" font-weight="700" text-anchor="middle">memory strategy decoupled from container type</text>
+  <text class="ink" x="320" y="1144" font-size="10.5" text-anchor="middle">"where memory comes from" and "how it's managed" are independent</text>
+</svg>
+
 ### A Reference Object Pool
 
 Sections 1 and 2 compose cleanly into one self-contained thing: a fixed-type pool with O(1) alloc/dealloc, backed by memory that's pre-allocated, pre-faulted, and locked before the hot path ever runs. One refinement beyond either version in section 1: instead of a separate `free_list_` array, the "next free slot" index lives *inside* the same slot as `T`, so a single allocation touches one cache line instead of two unrelated arrays.

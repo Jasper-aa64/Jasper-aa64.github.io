@@ -172,35 +172,45 @@ Both views are backed by the same pages, so `buf[i]` and `buf[i + N]` are one an
 ║  colorful. Precise and academic.                                 ║
 ║                                                                  ║
 ║  Topic: mapping the same physical memory pages at two            ║
-║  consecutive addresses, so that a write which runs past the end  ║
-║  of a ring buffer simply continues into the second copy instead  ║
-║  of being split in two.                                          ║
+║  consecutive address ranges, so that a write which runs past     ║
+║  the end of a ring buffer simply continues into the second       ║
+║  range and lands on the first pages again, instead of being      ║
+║  split in two.                                                   ║
 ║                                                                  ║
 ║  Main metaphor: a two-panel dissection diagram. Eight identical  ║
 ║  stone floor tiles, numbered 0 to 7, stand for the eight         ║
-║  physical pages of the buffer.                                   ║
+║  physical pages.                                                 ║
 ║                                                                  ║
 ║  Layout: side-by-side comparison (two-panel), left panel headed  ║
 ║  "ONE MAPPING", right panel headed "TWO MAPPINGS, SAME PAGES".   ║
 ║                                                                  ║
 ║  Objects and labels:                                             ║
 ║   - left panel: one row of eight tiles, numbered 0-7, with a     ║
-║     heavy vertical boundary line at the right end of tile 7.     ║
-║     A thick ruled arrow starts on tile 6, runs to the            ║
-║     boundary and stops there; a second, separate arrow           ║
-║     starts again over tile 0 — labeled "one write, cut in        ║
-║     two: two copies"                                             ║
-║   - right panel: a long unbroken row of sixteen tiles —          ║
-║     tiles 0-7, then a second lighter, cross-hatched run of       ║
-║     tiles 0-7 (the mirror). Thin dotted vertical lines drop      ║
-║     from each of the sixteen tiles to a single row of eight      ║
-║     physical tiles underneath, so each physical tile is          ║
-║     joined to exactly two tiles above it. One single long        ║
-║     ruled arrow starts on tile 6 and runs unbroken through       ║
-║     the boundary across the first two mirrored tiles —           ║
+║     heavy vertical wall at the right end of tile 7. A thick      ║
+║     ruled arrow starts on tile 6, runs to the wall and stops;    ║
+║     a second, separate arrow starts again over tile 0 —          ║
+║     labeled "one write, cut in two: two copies"                  ║
+║   - right panel: THREE horizontal rows of eight tiles, stacked   ║
+║     one above the other, each row numbered 0-7 from left to      ║
+║     right. All three rows have the same width and are exactly    ║
+║     aligned, so tile k of every row sits directly above tile     ║
+║     k of the next row.                                           ║
+║       * top row: lightly cross-hatched tiles — labeled           ║
+║         "first view"                                             ║
+║       * middle row: heavy solid stone tiles — labeled            ║
+║         "the physical pages"                                     ║
+║       * bottom row: lightly cross-hatched tiles — labeled        ║
+║         "second view"                                            ║
+║     Straight VERTICAL dotted lines join each tile to the tile    ║
+║     with the SAME number directly above or below it (0 to 0,     ║
+║     1 to 1, ... 7 to 7). No diagonal lines, no crossing lines,   ║
+║     no line ever joins two different numbers.                    ║
+║     One thick ruled arrow starts on tile 6 of the top row and    ║
+║     runs to the right end of that row; a second thick ruled      ║
+║     arrow of the same style runs over tiles 0 and 1 of the       ║
+║     bottom row; a small curved dotted hook joins the end of      ║
+║     the first arrow to the start of the second — together        ║
 ║     labeled "one write, one copy"                                ║
-║   - under the single row of eight physical tiles in the          ║
-║     right panel: labeled "the same eight physical pages"         ║
 ║                                                                  ║
 ║  Title (top, large): "Mirror the Addresses, Not the Data"        ║
 ║  Subtitle: "The same pages mapped twice, back to back — a write  ║
@@ -213,7 +223,7 @@ Both views are backed by the same pages, so `buf[i]` and `buf[i + N]` are one an
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![Two panels. Left: one row of eight numbered stone tiles ending at a wall, with a single write cut into two separate arrows. Right: the same eight tiles mapped twice back to back, dotted lines joining both copies to one row of eight physical pages, and one unbroken arrow crossing the boundary.](/images/lock-free-queue/mirror-the-addresses.png)
+![Two panels. Left: one row of eight numbered stone tiles ending at a wall, with a single write cut into two separate arrows. Right: three aligned rows of the same eight numbered tiles (first view, physical pages, second view) joined by vertical dotted lines between matching numbers, and one write that runs off the end of the first view and continues across the first two tiles of the second view.](/images/lock-free-queue/mirror-the-addresses.png)
 
 **Why the file descriptor?** You can't get this from two `MAP_ANONYMOUS` mappings: each anonymous mapping receives its own fresh, independent pages, and there is nothing for a second mapping to point at. To make two virtual ranges share pages you need a named object both can refer to — an fd here, or a System V shared-memory segment, which plays the same role.
 
