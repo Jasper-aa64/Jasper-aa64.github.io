@@ -461,7 +461,7 @@ code, pre { font-family: var(--mono); }
 }
 .hero-card {
   position: absolute;
-  inset: 24px 10px 20px 18px;
+  inset: 4px 10px 20px 18px;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -671,6 +671,22 @@ code, pre { font-family: var(--mono); }
   font-size: 1.45rem;
   font-weight: 820;
   line-height: 1;
+}
+.home-hero-panel .site-stats div {
+  display: block;
+  padding: 9px 12px;
+  border-right: 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.home-hero-panel .site-stats div:last-child {
+  border-bottom: 0;
+}
+.home-hero-panel .site-stats dt {
+  font-size: .68rem;
+}
+.home-hero-panel .site-stats dd {
+  margin-top: 2px;
+  font-size: 1.2rem;
 }
 .home-intro.is-entering .intro-copy {
   animation: heroTextIn .72s ease both;
@@ -1551,7 +1567,7 @@ code, pre { font-family: var(--mono); }
     border-bottom: 0;
   }
   .home-hero-panel .site-stats div {
-    display: grid;
+    display: block;
     border-right: 0;
     border-bottom: 1px solid var(--line-soft);
   }
@@ -1904,6 +1920,9 @@ code, pre { font-family: var(--mono); }
     border-bottom: 1px solid var(--line-soft);
   }
   .site-stats div:last-child { border-bottom: 0; }
+  .home-hero-panel .site-stats div {
+    display: block;
+  }
   .topic-grid {
     grid-template-columns: 1fr;
   }
