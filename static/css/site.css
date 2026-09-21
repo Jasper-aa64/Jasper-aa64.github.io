@@ -481,8 +481,16 @@ code, pre { font-family: var(--mono); }
   will-change: transform, opacity;
   -webkit-appearance: none;
   appearance: none;
+  -webkit-tap-highlight-color: transparent;
   font: inherit;
   color: inherit;
+}
+.hero-card:focus {
+  outline: none;
+}
+.hero-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 .hero-card svg {
   display: block;
@@ -1757,7 +1765,7 @@ code, pre { font-family: var(--mono); }
     gap: 20px;
   }
   .home-hero-panel {
-    min-height: 390px;
+    min-height: 270px;
   }
   .hero-card {
     inset: 0;
@@ -1803,9 +1811,7 @@ code, pre { font-family: var(--mono); }
     width: 58px;
   }
   .home-hero-panel .site-stats {
-    top: 64px;
-    left: -20px;
-    width: 110px;
+    display: none;
   }
   .site-stats dt {
     font-size: .68rem;
