@@ -1812,14 +1812,21 @@ code, pre { font-family: var(--mono); }
   }
   .hero-kicker {
     margin-bottom: 10px;
+    font-size: 1.5rem;
+  }
+  .hero-subject {
+    min-height: 48px;
+  }
+  .hero-subject-index {
+    font-size: .62rem;
+  }
+  .hero-subject-label {
+    font-size: clamp(1.35rem, 6vw, 1.7rem);
   }
   .hero-subject {
     grid-template-columns: 28px minmax(0, 1fr) 30px;
-    min-height: 52px;
+    min-height: 48px;
     padding: 7px 0;
-  }
-  .hero-subject-label {
-    font-size: clamp(1.75rem, 7.6vw, 2.2rem);
   }
   .intro-copy p {
     max-width: 32ch;
