@@ -196,6 +196,9 @@ code, pre { font-family: var(--mono); }
   line-height: 1.15;
   white-space: nowrap;
 }
+.brand strong.brand-first {
+  color: var(--accent-deep);
+}
 .brand small {
   display: block;
   color: var(--muted);
