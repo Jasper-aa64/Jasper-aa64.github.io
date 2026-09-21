@@ -12,9 +12,11 @@
         <span class="hero-line">low-latency development,</span>
         <span class="hero-line">and AI-assisted engineering.</span>
       </h1>
-      <p class="intro-directions">
-        {{ range site.Params.heroDirections }}<span>{{ . }}</span>{{ end }}
-      </p>
+      <ul class="intro-directions">
+        {{ range $i, $d := site.Params.heroDirections }}
+        <li><span class="dir-num">{{ printf "%02d" (add $i 1) }}</span>{{ $d }}</li>
+        {{ end }}
+      </ul>
     </div>
     <div class="home-hero-panel" aria-label="Notebook profile illustration">
       {{/* Homepage chibi avatars (light/dark) removed 2026-09-21 — kept out until mobile layout is redone. */}}
