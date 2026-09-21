@@ -1977,15 +1977,31 @@ code, pre { font-family: var(--mono); }
     display: block;
   }
   .topic-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
   .topic-card,
   .topic-card:nth-child(odd) {
-    min-height: auto;
+    min-height: 0;
+    padding: 12px 10px;
     border-right: 0;
     border-bottom: 1px solid var(--line-soft);
   }
-  .topic-card:last-child { border-bottom: 0; }
+  .topic-card:nth-child(odd) {
+    border-right: 1px solid var(--line-soft);
+  }
+  .topic-card:nth-last-child(-n+2) { border-bottom: 0; }
+  .topic-card span {
+    font-size: .92rem;
+  }
+  .topic-card strong {
+    font-size: .78rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .content-panel {
     padding: 20px 18px;
   }
