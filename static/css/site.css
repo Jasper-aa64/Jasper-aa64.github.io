@@ -773,8 +773,8 @@ code, pre { font-family: var(--mono); }
     transform: translate3d(28px, 12px, 0) rotate(6deg);
   }
   76% {
-    opacity: 1;
-    transform: translate3d(7px, 2px, 0) rotate(4deg);
+    opacity: .82;
+    transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
   }
   100% {
     opacity: .82;
