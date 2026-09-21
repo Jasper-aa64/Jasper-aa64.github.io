@@ -386,6 +386,9 @@ code, pre { font-family: var(--mono); }
 .hero-line {
   display: inline;
 }
+.hero-line + .hero-line {
+  margin-left: .6em;
+}
 .hero-line-b {
   font-style: italic;
 }
