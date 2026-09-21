@@ -651,7 +651,7 @@ code, pre { font-family: var(--mono); }
   --stats-rotate: -1.2deg;
   position: absolute;
   top: 120px;
-  left: -34px;
+  left: -52px;
   z-index: 4;
   grid-template-columns: 1fr;
   width: 150px;
@@ -699,6 +699,7 @@ code, pre { font-family: var(--mono); }
 .home-intro.is-entering .hero-card:nth-child(3) {
   animation: heroThirdCardIn 1.2s cubic-bezier(.2, .78, .18, 1) .12s both;
 }
+/* site-stats entrance animation removed 2026-09-21 — static from first paint, no movement */
 .home-intro.is-entering .home-avatar {
   animation: avatarSketchIn 1.18s cubic-bezier(.2, .78, .18, 1) .18s both;
 }
@@ -707,9 +708,6 @@ code, pre { font-family: var(--mono); }
 }
 .home-intro.is-entering .hero-sketch-lines span:nth-child(2) { animation-delay: .18s; }
 .home-intro.is-entering .hero-sketch-lines span:nth-child(3) { animation-delay: .3s; }
-.home-intro.is-entering .site-stats {
-  animation: statCardIn .92s cubic-bezier(.2, .78, .18, 1) .3s both;
-}
 @keyframes heroTextIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -1860,7 +1858,7 @@ code, pre { font-family: var(--mono); }
   }
   .home-hero-panel .site-stats {
     top: 48px;
-    left: -8px;
+    left: -14px;
     width: 126px;
   }
   .site-stats dt {
