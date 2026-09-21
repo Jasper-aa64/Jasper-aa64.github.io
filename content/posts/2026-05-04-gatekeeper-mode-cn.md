@@ -1,6 +1,7 @@
 ---
 title: "GateKeeper Mode：在 AI 改代码之前，先建质量门禁"
 date: 2026-05-04
+draft: true
 categories: [AI, Workflow]
 tags: [ai, code-review, quality-gate, automation, critic]
 toc: true

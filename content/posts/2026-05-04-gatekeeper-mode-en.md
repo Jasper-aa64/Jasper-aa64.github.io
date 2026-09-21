@@ -1,6 +1,7 @@
 ---
 title: "GateKeeper Mode: Building a Quality Gate Before Letting AI Touch Your Code"
 date: 2026-05-04
+draft: true
 categories: [AI, Workflow]
 tags: [ai, code-review, quality-gate, automation, critic]
 toc: true
