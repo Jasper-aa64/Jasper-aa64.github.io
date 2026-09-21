@@ -6,11 +6,22 @@
   <section class="home-intro">
     <div class="intro-copy">
       <span class="eyebrow">Technical notebook</span>
-      <h1>
+      <h1 class="hero-heading">
         <span class="hero-kicker">Notes on:</span>
-        <span class="hero-line hero-line-a">algorithms</span>
-        <span class="hero-line hero-line-b">low-latency development</span>
-        <span class="hero-line hero-line-c">AI-assisted engineering</span>
+        <span class="hero-subjects">
+          <span class="hero-subject hero-subject-algorithms">
+            <span class="hero-subject-index" aria-hidden="true">01</span>
+            <span class="hero-subject-label">algorithms</span>
+          </span>
+          <span class="hero-subject hero-subject-latency">
+            <span class="hero-subject-index" aria-hidden="true">02</span>
+            <span class="hero-subject-label">low-latency development</span>
+          </span>
+          <span class="hero-subject hero-subject-ai">
+            <span class="hero-subject-index" aria-hidden="true">03</span>
+            <span class="hero-subject-label">AI-assisted engineering</span>
+          </span>
+        </span>
       </h1>
       <ul class="intro-directions">
         {{ range $i, $d := site.Params.heroDirections }}
@@ -77,21 +88,48 @@
       const deck = document.querySelector(".hero-deck");
       if (!deck) return;
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const syncCards = function() {
+        Array.from(deck.children).forEach(function(card, index) {
+          if (index === 0) {
+            card.removeAttribute("tabindex");
+            card.removeAttribute("aria-hidden");
+            card.setAttribute("aria-label", "Next card");
+          } else {
+            card.setAttribute("tabindex", "-1");
+            card.setAttribute("aria-hidden", "true");
+            card.removeAttribute("aria-label");
+          }
+        });
+      };
       deck.addEventListener("click", function() {
         if (deck.classList.contains("is-dealing")) return;
         deck.classList.add("is-dealing");
         if (reduce) {
           deck.appendChild(deck.firstElementChild);
           deck.classList.remove("is-dealing");
+          syncCards();
           return;
         }
-        window.setTimeout(function() {
-          deck.appendChild(deck.firstElementChild);
+        const front = deck.firstElementChild;
+        let finished = false;
+        const finishDeal = function() {
+          if (finished) return;
+          finished = true;
           deck.classList.add("no-anim");
           deck.classList.remove("is-dealing");
+          deck.appendChild(front);
+          syncCards();
           void deck.offsetWidth;
-          deck.classList.remove("no-anim");
-        }, 640);
+          window.requestAnimationFrame(function() {
+            deck.classList.remove("no-anim");
+          });
+        };
+        front.addEventListener("transitionend", function onEnd(event) {
+          if (event.propertyName !== "transform") return;
+          front.removeEventListener("transitionend", onEnd);
+          finishDeal();
+        });
+        window.setTimeout(finishDeal, 780);
       });
     })();
   </script>
