@@ -1814,7 +1814,7 @@ code, pre { font-family: var(--mono); }
     max-width: 32ch;
   }
   .intro-directions {
-    grid-template-columns: 1fr;
+    display: none;
   }
   .home-intro {
     gap: 20px;
