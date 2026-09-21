@@ -1,9 +1,7 @@
 {{ define "main" }}
   <section class="page-heading">
-    <div class="page-heading-title">
-      <span class="eyebrow">{{ .Kind | humanize }}</span>
-      <h1>{{ .Title }}</h1>
-    </div>
+    <span class="eyebrow">{{ .Kind | humanize }}</span>
+    <h1>{{ .Title }}</h1>
     {{ with .Description }}<p>{{ . }}</p>{{ end }}
   </section>
 
