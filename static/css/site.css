@@ -639,7 +639,7 @@ code, pre { font-family: var(--mono); }
   left: -70px;
   z-index: 4;
   grid-template-columns: 1fr;
-  width: 150px;
+  width: 108px;
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
   backdrop-filter: blur(10px);
@@ -1559,7 +1559,7 @@ code, pre { font-family: var(--mono); }
   }
   .home-hero-panel .site-stats {
     grid-template-columns: 1fr;
-    width: 150px;
+    width: 108px;
   }
   .site-stats div {
     display: block;
@@ -1862,7 +1862,7 @@ code, pre { font-family: var(--mono); }
   .home-hero-panel .site-stats {
     top: 64px;
     left: -20px;
-    width: 126px;
+    width: 100px;
   }
   .site-stats dt {
     font-size: .68rem;
