@@ -24,8 +24,8 @@
         </span>
       </h1>
       <ul class="intro-directions">
-        {{ range $i, $d := site.Params.heroDirections }}
-        <li><span class="dir-num">{{ printf "%02d" (add $i 1) }}</span>{{ $d }}</li>
+        {{ range site.Params.heroDirections }}
+        <li>{{ . }}</li>
         {{ end }}
       </ul>
     </div>
