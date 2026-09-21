@@ -150,7 +150,7 @@ code, pre { font-family: var(--mono); }
   width: min(var(--container), calc(100% - 40px));
   margin-inline: auto;
 }
-.main-content { padding: 38px 0 72px; }
+.main-content { padding: 18px 0 72px; }
 
 /* Header */
 .site-header {
@@ -518,9 +518,6 @@ code, pre { font-family: var(--mono); }
   opacity: .56;
   border-color: color-mix(in srgb, var(--line) 66%, transparent);
 }
-.hero-deck:hover .hero-card:nth-child(1) {
-  transform: translate3d(0, -4px, 0) rotate(-2.5deg) scale(1.006);
-}
 .home-avatar {
   --avatar-x: 0%;
   --avatar-y: 0px;
@@ -639,7 +636,7 @@ code, pre { font-family: var(--mono); }
   left: -70px;
   z-index: 4;
   grid-template-columns: 1fr;
-  width: 108px;
+  width: 124px;
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
   backdrop-filter: blur(10px);
@@ -691,14 +688,12 @@ code, pre { font-family: var(--mono); }
 .home-intro.is-entering .intro-copy {
   animation: heroTextIn .72s ease both;
 }
-.home-intro.is-entering .hero-card:first-child {
-  animation: heroPrimaryCardIn 1.08s cubic-bezier(.2, .78, .18, 1) both;
+.home-intro.is-entering .hero-deck {
+  animation: deckIn .55s ease both;
 }
-.home-intro.is-entering .hero-card:nth-child(2) {
-  animation: heroSecondCardIn 1.14s cubic-bezier(.2, .78, .18, 1) .06s both;
-}
-.home-intro.is-entering .hero-card:nth-child(3) {
-  animation: heroThirdCardIn 1.2s cubic-bezier(.2, .78, .18, 1) .12s both;
+@keyframes deckIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .home-intro.is-entering .site-stats {
   animation: statCardIn .92s cubic-bezier(.2, .78, .18, 1) .3s both;
@@ -714,55 +709,6 @@ code, pre { font-family: var(--mono); }
 @keyframes heroTextIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
-}
-@keyframes heroPrimaryCardIn {
-  0% {
-    opacity: 0;
-    transform: translate3d(78px, 34px, 0) rotate(9deg);
-  }
-  42% {
-    opacity: 1;
-    transform: translate3d(22px, 10px, 0) rotate(2deg);
-  }
-  72% {
-    opacity: 1;
-    transform: translate3d(5px, 2px, 0) rotate(-1.4deg);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
-  }
-}
-@keyframes heroSecondCardIn {
-  0% {
-    opacity: 0;
-    transform: translate3d(96px, 44px, 0) rotate(11deg);
-  }
-  48% {
-    opacity: 1;
-    transform: translate3d(28px, 12px, 0) rotate(6deg);
-  }
-  76% {
-    opacity: 1;
-    transform: translate3d(7px, 2px, 0) rotate(4deg);
-  }
-  100% {
-    opacity: .82;
-    transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
-  }
-}
-@keyframes heroThirdCardIn {
-  0% {
-    opacity: 0;
-    transform: translate3d(112px, 58px, 0) rotate(13deg) scale(.9);
-  }
-  60% {
-    opacity: .4;
-  }
-  100% {
-    opacity: .56;
-    transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
-  }
 }
 @keyframes avatarSketchIn {
   0% {
@@ -794,7 +740,7 @@ code, pre { font-family: var(--mono); }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-intro.is-entering .intro-copy,
-  .home-intro.is-entering .hero-card,
+  .home-intro.is-entering .hero-deck,
   .home-intro.is-entering .home-avatar,
   .home-intro.is-entering .hero-sketch-lines span,
   .home-intro.is-entering .site-stats {
@@ -889,26 +835,23 @@ code, pre { font-family: var(--mono); }
   opacity: .42;
 }
 .page-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 16px;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
+  display: block;
+  max-width: 760px;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--line-soft);
 }
 .page-heading h1 {
   color: var(--text-strong);
   font-family: var(--display);
-  font-size: clamp(1.5rem, 2.2vw, 1.9rem);
+  font-size: clamp(1.7rem, 2.4vw, 2.2rem);
   font-weight: 560;
-  line-height: 1.15;
-  margin: 0;
+  line-height: 1.12;
+  margin: 8px 0 4px;
 }
 .page-heading p {
   color: var(--muted-strong);
   font-size: .95rem;
-  margin: 0;
 }
 .post-list {
   display: grid;
@@ -1559,7 +1502,7 @@ code, pre { font-family: var(--mono); }
   }
   .home-hero-panel .site-stats {
     grid-template-columns: 1fr;
-    width: 108px;
+    width: 124px;
   }
   .site-stats div {
     display: block;
@@ -1862,7 +1805,7 @@ code, pre { font-family: var(--mono); }
   .home-hero-panel .site-stats {
     top: 64px;
     left: -20px;
-    width: 100px;
+    width: 110px;
   }
   .site-stats dt {
     font-size: .68rem;
