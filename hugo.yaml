@@ -41,8 +41,11 @@ params:
   author: "Jasper32"
   tagline: "Algorithms, C++ performance, and AI-assisted engineering"
   description: "A technical notebook for AI-native development, high-performance and low-latency systems, software engineering, and agent evaluation, testing, and trustworthiness."
-  heroTitle: "Notes on algorithms, low-latency development, and AI-assisted engineering."
-  heroText: "AI-native development | high-performance, low-latency systems | software engineering | agent evaluation, testing, and trustworthiness — kept for lookup, review, and reuse."
+  heroDirections:
+    - "AI-native development"
+    - "high-performance, low-latency systems"
+    - "software engineering"
+    - "agent evaluation, testing, and trustworthiness"
   github: "https://github.com/Jasper-aa64"
 
 markup:
