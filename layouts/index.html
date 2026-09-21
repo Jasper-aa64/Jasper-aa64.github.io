@@ -135,7 +135,6 @@
           return [card, { transform: style.transform, opacity: style.opacity }];
         }));
 
-        front.style.zIndex = "4";
         const duration = 760;
         const timing = {
           duration: duration,
@@ -146,22 +145,17 @@
           return card.animate([before.get(card), after.get(card)], timing);
         });
         animations.push(front.animate([
-          { transform: before.get(front).transform, opacity: 1, offset: 0 },
-          { transform: "translate3d(-18%, -4%, 0) rotate(-7deg) scale(1.015)", opacity: 1, offset: .22 },
-          { transform: "translate3d(-112%, 8%, 0) rotate(-17deg) scale(.96)", opacity: 0, offset: .54 },
-          { transform: "translate3d(72px, 48px, 0) rotate(5deg) scale(.91)", opacity: 0, offset: .57 },
-          { transform: after.get(front).transform, opacity: after.get(front).opacity, offset: 1 }
+          { transform: before.get(front).transform, opacity: 1, zIndex: "4", offset: 0 },
+          { transform: "translate3d(-18%, -4%, 0) rotate(-7deg) scale(1.015)", opacity: 1, zIndex: "4", offset: .22 },
+          { transform: "translate3d(-112%, 8%, 0) rotate(-17deg) scale(.96)", opacity: 0, zIndex: "4", offset: .54 },
+          { transform: "translate3d(72px, 48px, 0) rotate(5deg) scale(.91)", opacity: 0, zIndex: "1", offset: .55 },
+          { transform: after.get(front).transform, opacity: after.get(front).opacity, zIndex: "1", offset: 1 }
         ], timing));
-
-        window.setTimeout(function() {
-          front.style.zIndex = "";
-        }, Math.round(duration * .55));
 
         Promise.all(animations.map(function(animation) {
           return animation.finished.catch(function() {});
         })).then(function() {
           animations.forEach(function(animation) { animation.cancel(); });
-          front.style.zIndex = "";
           delete deck.dataset.animating;
         });
       });
