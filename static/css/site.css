@@ -426,29 +426,26 @@ code, pre { font-family: var(--mono); }
 .hero-subject-label {
   display: block;
   font-family: var(--font);
-  color: var(--text-strong);
+  color: var(--accent-deep);
   font-size: clamp(1.9rem, 2.6vw, 2.45rem);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -.025em;
   line-height: 1.05;
 }
 .intro-directions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 6px 30px;
+  justify-content: start;
   margin-top: 22px;
   padding: 0;
   list-style: none;
   color: var(--muted-strong);
-  font-size: 1.02rem;
-  line-height: 1.7;
+  font-size: 1.12rem;
+  line-height: 1.55;
 }
 .intro-directions li {
-  display: inline;
-}
-.intro-directions li + li::before {
-  content: "/";
-  margin: 0 .55em;
-  color: var(--muted);
+  display: block;
 }
 .home-hero-panel {
   position: relative;
@@ -1784,6 +1781,9 @@ code, pre { font-family: var(--mono); }
   }
   .intro-copy p {
     max-width: 32ch;
+  }
+  .intro-directions {
+    grid-template-columns: 1fr;
   }
   .home-intro {
     gap: 20px;
