@@ -530,18 +530,6 @@ code, pre { font-family: var(--mono); }
   transform: translate3d(var(--stats-x), var(--stats-y), 0) rotate(var(--stats-rotate));
   transform-origin: 34% 86%;
 }
-.home-hero-panel .site-stats::before {
-  content: "";
-  position: absolute;
-  top: -9px;
-  left: 18px;
-  width: 42px;
-  height: 16px;
-  border: 1px solid color-mix(in srgb, var(--accent-line) 62%, transparent);
-  border-bottom: 0;
-  border-radius: 6px 6px 0 0;
-  background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface));
-}
 .site-stats div {
   display: grid;
   grid-template-columns: 1fr auto;
