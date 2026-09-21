@@ -499,6 +499,13 @@ code, pre { font-family: var(--mono); }
   -webkit-user-select: none;
   user-select: none;
 }
+.scroll-cue {
+  display: none;
+}
+@keyframes cueBob {
+  0%, 100% { transform: rotate(45deg) translate(0, 0); }
+  50% { transform: rotate(45deg) translate(3px, 3px); }
+}
 .hero-card svg {
   display: block;
   width: 100%;
@@ -818,6 +825,9 @@ code, pre { font-family: var(--mono); }
   .home-intro.is-entering .home-avatar,
   .home-intro.is-entering .hero-sketch-lines span,
   .home-intro.is-entering .site-stats {
+    animation: none;
+  }
+  .scroll-cue-chevron {
     animation: none;
   }
 }
@@ -1840,6 +1850,21 @@ code, pre { font-family: var(--mono); }
   .home-hero-panel {
     min-height: 270px;
   }
+  .scroll-cue {
+    display: flex;
+    justify-content: center;
+    margin-top: -20px;
+    padding-bottom: 14px;
+  }
+  .scroll-cue-chevron {
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid var(--muted);
+    border-bottom: 2px solid var(--muted);
+    transform: rotate(45deg);
+    opacity: .55;
+    animation: cueBob 1.6s ease-in-out infinite;
+  }
   .home-intro.is-entering .hero-card {
     animation: none;
   }
@@ -1847,7 +1872,7 @@ code, pre { font-family: var(--mono); }
     animation: deckIn .55s ease both;
   }
   .hero-card {
-    inset: 0;
+    inset: 0 28px 0 28px;
   }
   .hero-card:nth-child(1) {
     --card-rot: -.8deg;
