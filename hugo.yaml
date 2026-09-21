@@ -39,10 +39,10 @@ menu:
 
 params:
   author: "Jasper32"
-  tagline: "Algorithms, systems, and engineering notes"
-  description: "A practical technical notebook for algorithms, systems programming, engineering write-ups, and implementation details worth reusing."
-  heroTitle: "A working index for technical notes."
-  heroText: "Algorithms now, engineering and systems notes over time. Written for lookup, review, and reuse."
+  tagline: "Algorithms, C++ performance, and AI-assisted engineering"
+  description: "A technical notebook for C++ performance engineering, systems programming, AI-assisted development write-ups, and implementation details worth reusing."
+  heroTitle: "Notes on algorithms, C++ performance, and AI-assisted engineering."
+  heroText: "Implementation details, systems write-ups, and quality gates for AI-written code — kept for lookup, review, and reuse."
   github: "https://github.com/Jasper-aa64"
 
 markup:
