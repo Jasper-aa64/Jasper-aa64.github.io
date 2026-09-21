@@ -442,6 +442,9 @@ code, pre { font-family: var(--mono); }
 }
 .hero-card {
   --card-rotate: -2.4deg;
+  --back-x: 0px;
+  --back-y: 0px;
+  --back-s: 1;
   position: absolute;
   inset: 24px 18px 22px 58px;
   z-index: 2;
@@ -455,13 +458,10 @@ code, pre { font-family: var(--mono); }
     color-mix(in srgb, var(--surface) 88%, var(--surface-subtle));
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transform: translate3d(0, 0, 0) rotate(var(--card-rotate));
+  transform: translate3d(var(--back-x), var(--back-y), 0) rotate(var(--card-rotate)) scale(var(--back-s));
   transform-origin: 26% 82%;
-  transition:
-    transform .62s cubic-bezier(.22, .9, .3, 1.06),
-    inset .62s cubic-bezier(.22, .9, .3, 1.06),
-    opacity .45s ease,
-    box-shadow .3s ease;
+  will-change: transform, opacity;
+  transition: transform .62s cubic-bezier(.22, .9, .3, 1.06), opacity .45s ease;
   -webkit-appearance: none;
   appearance: none;
   font: inherit;
@@ -474,7 +474,9 @@ code, pre { font-family: var(--mono); }
 }
 .hero-card:nth-child(2) {
   --card-rotate: 3.3deg;
-  inset: 50px -2px 8px 98px;
+  --back-x: 40px;
+  --back-y: 26px;
+  --back-s: .965;
   z-index: 1;
   opacity: .92;
   border-color: color-mix(in srgb, var(--line) 78%, transparent);
@@ -483,20 +485,19 @@ code, pre { font-family: var(--mono); }
 }
 .hero-deck:hover .hero-card:nth-child(1) {
   transform: translate3d(0, -4px, 0) rotate(calc(var(--card-rotate) - 1deg));
-  box-shadow: var(--shadow-card);
 }
 .hero-deck.no-anim .hero-card { transition: none; }
 .hero-deck.is-dealing .hero-card:nth-child(1) {
   opacity: 0;
   transform: translate3d(-115%, 6%, 0) rotate(calc(var(--card-rotate) - 16deg)) scale(.96);
-  box-shadow: var(--shadow-card);
 }
 .hero-deck.is-dealing .hero-card:nth-child(2) {
   z-index: 3;
-  inset: 24px 18px 22px 58px;
   opacity: 1;
-  transform: translate3d(0, 0, 0) rotate(calc(var(--card-rotate) - 6deg));
-  transform-origin: 26% 82%;
+  transform: translate3d(0, 0, 0) rotate(-2.4deg);
+}
+.hero-deck.is-dealing ~ .site-stats {
+  backdrop-filter: none;
 }
 .home-avatar {
   --avatar-x: 0%;
@@ -690,7 +691,7 @@ code, pre { font-family: var(--mono); }
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(var(--card-rotate));
+    transform: translate3d(var(--back-x, 0), var(--back-y, 0), 0) rotate(var(--card-rotate)) scale(var(--back-s, 1));
   }
 }
 @keyframes heroBackCardIn {
@@ -708,7 +709,7 @@ code, pre { font-family: var(--mono); }
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(var(--card-rotate));
+    transform: translate3d(var(--back-x, 0), var(--back-y, 0), 0) rotate(var(--card-rotate)) scale(var(--back-s, 1));
   }
 }
 @keyframes avatarSketchIn {
@@ -1757,7 +1758,10 @@ code, pre { font-family: var(--mono); }
   }
   .hero-card:nth-child(2) {
     --card-rotate: 1.4deg;
-    inset: 18px -5px -8px 18px;
+    --back-x: 10px;
+    --back-y: 14px;
+    --back-s: .97;
+    inset: 0;
   }
   .home-avatar {
     --avatar-x: -58%;
