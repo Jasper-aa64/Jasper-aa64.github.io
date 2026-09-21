@@ -479,7 +479,6 @@ code, pre { font-family: var(--mono); }
   transform: translate3d(var(--card-tx), var(--card-ty), 0) rotate(var(--card-rot)) scale(var(--card-sc));
   transform-origin: 30% 84%;
   will-change: transform, opacity;
-  transition: transform .6s cubic-bezier(.22, .9, .3, 1.06), opacity .4s ease;
   -webkit-appearance: none;
   appearance: none;
   font: inherit;
@@ -514,27 +513,6 @@ code, pre { font-family: var(--mono); }
 }
 .hero-deck:hover .hero-card:nth-child(1) {
   transform: translate3d(0, -4px, 0) rotate(-2.5deg) scale(1.006);
-}
-.hero-deck.no-anim .hero-card { transition: none; }
-.hero-deck.is-dealing .hero-card:nth-child(1) {
-  z-index: 4;
-  opacity: 0;
-  transform: translate3d(-120%, 10%, 0) rotate(calc(var(--card-rot) - 18deg)) scale(.96);
-}
-.hero-deck.is-dealing .hero-card:nth-child(2) {
-  --card-tx: 0px;
-  --card-ty: 0px;
-  --card-rot: -1.8deg;
-  --card-sc: 1;
-  z-index: 5;
-  opacity: 1;
-}
-.hero-deck.is-dealing .hero-card:nth-child(3) {
-  --card-tx: 23px;
-  --card-ty: 18px;
-  --card-rot: 1.4deg;
-  --card-sc: .972;
-  opacity: .82;
 }
 .home-avatar {
   --avatar-x: 0%;
