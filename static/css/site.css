@@ -482,15 +482,22 @@ code, pre { font-family: var(--mono); }
   -webkit-appearance: none;
   appearance: none;
   -webkit-tap-highlight-color: transparent;
+  outline: 0;
   font: inherit;
   color: inherit;
 }
-.hero-card:focus {
-  outline: none;
+.hero-card:focus,
+.hero-card:focus-visible,
+.hero-card:active,
+.hero-card:focus-within {
+  outline: 0 !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
-.hero-card:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+.hero-card * {
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .hero-card svg {
   display: block;
