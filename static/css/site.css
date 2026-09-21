@@ -710,6 +710,9 @@ code, pre { font-family: var(--mono); }
 .home-intro.is-entering .intro-copy {
   animation: heroTextIn .72s ease both;
 }
+.hero-deck[data-intro-pending="true"] {
+  pointer-events: none;
+}
 .home-intro.is-entering .hero-card:first-child {
   animation: heroPrimaryCardIn 1.08s cubic-bezier(.2, .78, .18, 1) both;
 }
@@ -1872,7 +1875,7 @@ code, pre { font-family: var(--mono); }
     animation: deckIn .55s ease both;
   }
   .hero-card {
-    inset: 0 28px 0 28px;
+    inset: 0 18px 0 18px;
   }
   .hero-card:nth-child(1) {
     --card-rot: -.8deg;

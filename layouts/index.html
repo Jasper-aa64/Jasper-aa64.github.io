@@ -77,12 +77,15 @@
       const intro = document.querySelector(".home-intro");
       if (!intro) return;
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const deck = intro.querySelector(".hero-deck");
+      if (deck) deck.dataset.introPending = "true";
 
       window.requestAnimationFrame(function() {
         intro.classList.add("is-entering");
         window.setTimeout(function() {
           intro.classList.remove("is-entering");
-        }, 2300);
+          if (deck) delete deck.dataset.introPending;
+        }, 1450);
       });
     })();
   </script>
@@ -105,7 +108,7 @@
         });
       };
       deck.addEventListener("click", function() {
-        if (deck.dataset.animating === "true") return;
+        if (deck.dataset.introPending === "true" || deck.dataset.animating === "true") return;
         if (reduce) {
           deck.appendChild(deck.firstElementChild);
           syncCards();
