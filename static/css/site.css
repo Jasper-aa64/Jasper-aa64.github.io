@@ -118,8 +118,7 @@ body::after {
 .theme-switching .topic-card,
 .theme-switching .post-entry,
 .theme-switching .site-stats,
-.theme-switching .home-hero-panel::before,
-.theme-switching .home-hero-panel::after,
+.theme-switching .hero-card,
 .theme-switching .theme-toggle,
 .theme-switching .nav-link,
 .theme-switching .chip,
@@ -429,12 +428,19 @@ code, pre { font-family: var(--mono); }
   isolation: isolate;
   overflow: visible;
 }
-.home-hero-panel::before {
+.hero-deck {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  perspective: 1400px;
+}
+.hero-card {
   --card-rotate: -2.4deg;
-  content: "";
   position: absolute;
   inset: 24px 18px 22px 58px;
-  z-index: 0;
+  z-index: 2;
+  padding: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
@@ -442,20 +448,49 @@ code, pre { font-family: var(--mono); }
     linear-gradient(90deg, color-mix(in srgb, var(--line-soft) 70%, transparent) 1px, transparent 1px) 0 0 / 32px 100%,
     color-mix(in srgb, var(--surface) 88%, var(--surface-subtle));
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
   transform: translate3d(0, 0, 0) rotate(var(--card-rotate));
   transform-origin: 26% 82%;
+  transition:
+    transform .62s cubic-bezier(.22, .9, .3, 1.06),
+    inset .62s cubic-bezier(.22, .9, .3, 1.06),
+    opacity .45s ease,
+    box-shadow .3s ease;
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  color: inherit;
 }
-.home-hero-panel::after {
+.hero-card svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hero-card:nth-child(2) {
   --card-rotate: 3.3deg;
-  content: "";
-  position: absolute;
   inset: 50px -2px 8px 98px;
-  z-index: -1;
-  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
-  border-radius: var(--radius);
+  z-index: 1;
+  opacity: .92;
+  border-color: color-mix(in srgb, var(--line) 78%, transparent);
   background: color-mix(in srgb, var(--surface-subtle) 72%, transparent);
-  transform: translate3d(0, 0, 0) rotate(var(--card-rotate));
   transform-origin: 24% 82%;
+}
+.hero-deck:hover .hero-card:nth-child(1) {
+  transform: translate3d(0, -4px, 0) rotate(calc(var(--card-rotate) - 1deg));
+  box-shadow: var(--shadow-card);
+}
+.hero-deck.no-anim .hero-card { transition: none; }
+.hero-deck.is-dealing .hero-card:nth-child(1) {
+  opacity: 0;
+  transform: translate3d(-115%, 6%, 0) rotate(calc(var(--card-rotate) - 16deg)) scale(.96);
+  box-shadow: var(--shadow-card);
+}
+.hero-deck.is-dealing .hero-card:nth-child(2) {
+  z-index: 3;
+  inset: 24px 18px 22px 58px;
+  opacity: 1;
+  transform: translate3d(0, 0, 0) rotate(calc(var(--card-rotate) - 6deg));
+  transform-origin: 26% 82%;
 }
 .home-avatar {
   --avatar-x: 0%;
@@ -545,7 +580,7 @@ code, pre { font-family: var(--mono); }
   border-top-color: color-mix(in srgb, var(--muted) 34%, transparent);
   transform: rotate(var(--line-rotation));
 }
-:root[data-theme="dark"] .home-hero-panel::before {
+:root[data-theme="dark"] .hero-card:first-child {
   background:
     linear-gradient(color-mix(in srgb, var(--line-soft) 90%, transparent) 1px, transparent 1px) 0 0 / 100% 32px,
     linear-gradient(90deg, color-mix(in srgb, var(--line-soft) 82%, transparent) 1px, transparent 1px) 0 0 / 32px 100%,
@@ -613,10 +648,10 @@ code, pre { font-family: var(--mono); }
 .home-intro.is-entering .intro-copy {
   animation: heroTextIn .72s ease both;
 }
-.home-intro.is-entering .home-hero-panel::before {
+.home-intro.is-entering .hero-card:first-child {
   animation: heroPrimaryCardIn 1.08s cubic-bezier(.2, .78, .18, 1) both;
 }
-.home-intro.is-entering .home-hero-panel::after {
+.home-intro.is-entering .hero-card:nth-child(2) {
   animation: heroBackCardIn 1.14s cubic-bezier(.2, .78, .18, 1) .06s both;
 }
 .home-intro.is-entering .home-avatar {
@@ -700,8 +735,7 @@ code, pre { font-family: var(--mono); }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-intro.is-entering .intro-copy,
-  .home-intro.is-entering .home-hero-panel::before,
-  .home-intro.is-entering .home-hero-panel::after,
+  .home-intro.is-entering .hero-card,
   .home-intro.is-entering .home-avatar,
   .home-intro.is-entering .hero-sketch-lines span,
   .home-intro.is-entering .site-stats {
@@ -1711,13 +1745,13 @@ code, pre { font-family: var(--mono); }
   .home-hero-panel {
     min-height: 390px;
   }
-  .home-hero-panel::before {
+  .hero-card:first-child {
+    --card-rotate: -.6deg;
     inset: 0;
-    transform: rotate(-.6deg);
   }
-  .home-hero-panel::after {
+  .hero-card:nth-child(2) {
+    --card-rotate: 1.4deg;
     inset: 18px -5px -8px 18px;
-    transform: rotate(1.4deg);
   }
   .home-avatar {
     --avatar-x: -58%;
