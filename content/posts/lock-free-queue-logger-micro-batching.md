@@ -223,7 +223,7 @@ Both views are backed by the same pages, so `buf[i]` and `buf[i + N]` are one an
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![Two panels. Left: one row of eight numbered stone tiles ending at a wall, with a single write cut into two separate arrows. Right: three aligned rows of the same eight numbered tiles (first view, physical pages, second view) joined by vertical dotted lines between matching numbers, and one write that runs off the end of the first view and continues across the first two tiles of the second view.](/images/lock-free-queue/mirror-the-addresses.png)
+![Two panels. Left: one row of eight numbered stone tiles ending at a wall, with a single write cut into two separate arrows. Right: three aligned rows of the same eight numbered tiles (first view, physical pages, second view) joined by vertical dotted lines between matching numbers, and one write that runs off the end of the first view and continues across the first two tiles of the second view.](/images/lock-free-queue/mirror-the-addresses.jpg)
 
 **Why the file descriptor?** You can't get this from two `MAP_ANONYMOUS` mappings: each anonymous mapping receives its own fresh, independent pages, and there is nothing for a second mapping to point at. To make two virtual ranges share pages you need a named object both can refer to — an fd here, or a System V shared-memory segment, which plays the same role.
 

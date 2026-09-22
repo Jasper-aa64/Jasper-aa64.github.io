@@ -93,7 +93,7 @@ But note carefully: **pinning only solves "the thread gets moved away." It does 
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![The cost of migration — per-core caches don't follow the thread](/images/cpu-affinity/migration-cost.png)
+![The cost of migration — per-core caches don't follow the thread](/images/cpu-affinity/migration-cost.jpg)
 
 ### The isolation stack: evicting the noise one layer at a time
 

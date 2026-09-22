@@ -108,7 +108,7 @@ The pool solves "don't ask the allocator for memory on the hot path." It does no
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![Before and after: a locked strongbox on a plinth, then the same plinth with the box gone entirely — only the still-closed chain and padlock hang in mid-air where it used to sit](/images/hot-path-allocators/torn-down-not-unlocked.png)
+![Before and after: a locked strongbox on a plinth, then the same plinth with the box gone entirely — only the still-closed chain and padlock hang in mid-air where it used to sit](/images/hot-path-allocators/torn-down-not-unlocked.jpg)
 
 Closing that hole takes three separate `mallopt` calls, each blocking a different path back to the kernel:
 

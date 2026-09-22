@@ -44,7 +44,7 @@ mermaid: true
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![GateKeeper Mode 题图 — 质量门禁先于代码](/images/gatekeeper/gatekeeper-hero.png)
+![GateKeeper Mode 题图 — 质量门禁先于代码](/images/gatekeeper/gatekeeper-hero.jpg)
 
 ---
 
@@ -284,7 +284,7 @@ Critic 有价值，恰恰是因为它在 Builder 影响之前就定义了证据�
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![四个门禁串行流程 — 失败越早发现，成本越低](/images/gatekeeper/four-gates.png)
+![四个门禁串行流程 — 失败越早发现，成本越低](/images/gatekeeper/four-gates.jpg)
 
 ---
 
@@ -530,7 +530,7 @@ Tests that passed may not have actually checked the assertions.
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![-DNDEBUG 漏洞对比 — Release vs Debug Build](/images/gatekeeper/debug-vulnerability.png)
+![-DNDEBUG 漏洞对比 — Release vs Debug Build](/images/gatekeeper/debug-vulnerability.jpg)
 
 ---
 
