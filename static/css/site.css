@@ -2044,7 +2044,9 @@ code, pre { font-family: var(--mono); }
 
 /* === Brain mascot next to the hero "algorithms" subject (copied from AI_Project IELTS Studio: corpus-takeaway.js + styles.css) === */
 .hero-subject-algorithms {
-  overflow: hidden; /* boundary: acts clip at the subject row edges, balloon never pops in from below */
+  /* Bottom-only boundary: the float-up act stays visible above the row, while the
+     balloon's re-entry from below is clipped at the row's bottom line. */
+  clip-path: inset(-400px 0 0 0);
 }
 .hero-subject-algorithms .p2-brainstorm-card-mark {
   position: absolute;
@@ -2333,6 +2335,9 @@ code, pre { font-family: var(--mono); }
 
 @media (max-width: 760px) {
   .hero-subject-algorithms .p2-brainstorm-card-mark {
-    display: none;
+    display: block;
+    right: 26px;
+    width: 66px;
+    height: 66px;
   }
 }
