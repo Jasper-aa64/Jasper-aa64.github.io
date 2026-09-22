@@ -459,6 +459,7 @@ code, pre { font-family: var(--mono); }
   perspective: 1400px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
   user-select: none;
 }
 .hero-card {
