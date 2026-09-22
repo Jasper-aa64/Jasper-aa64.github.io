@@ -107,7 +107,10 @@
           }
         });
       };
-      deck.addEventListener("click", function() {
+      deck.addEventListener("click", function(event) {
+        if (event.detail > 0 && document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
         if (deck.dataset.introPending === "true" || deck.dataset.animating === "true") return;
         if (reduce) {
           deck.appendChild(deck.firstElementChild);
