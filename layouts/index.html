@@ -107,10 +107,7 @@
           }
         });
       };
-      deck.addEventListener("click", function(event) {
-        if (event.detail > 0 && document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
-        }
+      const advanceDeck = function() {
         if (deck.dataset.introPending === "true" || deck.dataset.animating === "true") return;
         if (reduce) {
           deck.appendChild(deck.firstElementChild);
@@ -157,6 +154,47 @@
           animations.forEach(function(animation) { animation.cancel(); });
           delete deck.dataset.animating;
         });
+      };
+
+      let gesture = null;
+      let suppressClick = false;
+      const clearPointerFocus = function() {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      };
+      deck.addEventListener("pointerdown", function(event) {
+        if (event.pointerType !== "touch") return;
+        if (deck.dataset.introPending === "true" || deck.dataset.animating === "true") return;
+        gesture = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          startedAt: performance.now()
+        };
+        deck.setPointerCapture(event.pointerId);
+      });
+      deck.addEventListener("pointerup", function(event) {
+        if (!gesture || gesture.id !== event.pointerId) return;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        const elapsed = performance.now() - gesture.startedAt;
+        gesture = null;
+        if (dx > -42 || Math.abs(dx) <= Math.abs(dy) * 1.15 || elapsed > 700) return;
+        event.preventDefault();
+        suppressClick = true;
+        window.setTimeout(function() { suppressClick = false; }, 0);
+        clearPointerFocus();
+        advanceDeck();
+      });
+      deck.addEventListener("pointercancel", function() {
+        gesture = null;
+      });
+      deck.addEventListener("click", function(event) {
+        if (suppressClick) {
+          suppressClick = false;
+          return;
+        }
+        if (event.detail > 0) clearPointerFocus();
+        advanceDeck();
       });
     })();
   </script>
