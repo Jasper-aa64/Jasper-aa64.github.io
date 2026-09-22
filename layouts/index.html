@@ -12,6 +12,7 @@
           <span class="hero-subject hero-subject-algorithms">
             <span class="hero-subject-index" aria-hidden="true">01</span>
             <span class="hero-subject-label">algorithms</span>
+            {{ partial "brain-mascot.html" . }}
           </span>
           <span class="hero-subject hero-subject-latency">
             <span class="hero-subject-index" aria-hidden="true">02</span>
@@ -197,10 +198,9 @@
       </div>
     </div>
     <div class="topic-grid">
-      <a class="topic-card topic-card--algorithms" href="/algorithms/">
+      <a class="topic-card" href="/algorithms/">
         <span>Algorithms</span>
         <strong>Combinatorics, number theory, and matrix methods.</strong>
-        {{ partial "brain-mascot.html" . }}
       </a>
       <a class="topic-card" href="/categories/engineering/">
         <span>Engineering</span>

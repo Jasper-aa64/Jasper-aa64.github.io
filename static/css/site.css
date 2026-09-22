@@ -2042,21 +2042,20 @@ code, pre { font-family: var(--mono); }
   }
 }
 
-/* === Brain mascot on the Algorithms topic card (copied from AI_Project IELTS Studio: corpus-takeaway.js + styles.css) === */
-.topic-card--algorithms {
-  position: relative;
-  overflow: hidden; /* boundary: acts clip at the card edges, balloon never pops in from below */
+/* === Brain mascot next to the hero "algorithms" subject (copied from AI_Project IELTS Studio: corpus-takeaway.js + styles.css) === */
+.hero-subject-algorithms {
+  overflow: hidden; /* boundary: acts clip at the subject row edges, balloon never pops in from below */
 }
-.topic-card--algorithms .p2-brainstorm-card-mark {
+.hero-subject-algorithms .p2-brainstorm-card-mark {
   position: absolute;
   display: block;
-  right: 14px;
+  right: 44px;
   top: 50%;
   transform: translateY(-50%);
-  width: 118px;
-  height: 118px;
+  width: 60px;
+  height: 60px;
 }
-.topic-card--algorithms .p2-brain-icon {
+.hero-subject-algorithms .p2-brain-icon {
   width: 100%;
   height: 100%;
 }
@@ -2333,7 +2332,7 @@ code, pre { font-family: var(--mono); }
 }
 
 @media (max-width: 760px) {
-  .topic-card--algorithms .p2-brainstorm-card-mark {
+  .hero-subject-algorithms .p2-brainstorm-card-mark {
     display: none;
   }
 }
