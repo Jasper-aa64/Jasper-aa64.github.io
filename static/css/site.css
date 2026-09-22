@@ -2053,7 +2053,7 @@ code, pre { font-family: var(--mono); }
   display: block;
   right: 44px;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% + 6px));
   width: 60px;
   height: 60px;
 }
