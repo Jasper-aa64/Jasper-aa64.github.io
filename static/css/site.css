@@ -458,6 +458,8 @@ code, pre { font-family: var(--mono); }
   z-index: 2;
   perspective: 1400px;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 .hero-card {
   position: absolute;
@@ -492,6 +494,10 @@ code, pre { font-family: var(--mono); }
 .hero-card:focus-within {
   outline: 0 !important;
   -webkit-tap-highlight-color: transparent !important;
+}
+.hero-card:focus:not(:focus-visible) {
+  outline: 0 !important;
+  box-shadow: var(--shadow-sm);
 }
 .hero-card * {
   -webkit-tap-highlight-color: transparent;
