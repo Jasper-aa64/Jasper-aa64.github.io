@@ -2337,7 +2337,7 @@ code, pre { font-family: var(--mono); }
   .hero-subject-algorithms .p2-brainstorm-card-mark {
     display: block;
     right: 26px;
-    width: 66px;
-    height: 66px;
+    width: 60px;
+    height: 60px;
   }
 }
