@@ -44,7 +44,7 @@ mermaid: true
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![GateKeeper Mode hero — quality gate before code](/images/gatekeeper/gatekeeper-hero.png)
+![GateKeeper Mode hero — quality gate before code](/images/gatekeeper/gatekeeper-hero.jpg)
 
 ---
 
@@ -286,7 +286,7 @@ The four gates are sequential. You must pass one before entering the next. The e
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![Four sequential gates — the earlier the failure, the lower the cost](/images/gatekeeper/four-gates.png)
+![Four sequential gates — the earlier the failure, the lower the cost](/images/gatekeeper/four-gates.jpg)
 
 ---
 
@@ -532,7 +532,7 @@ This ESCALATE is a valuable result, not a process failure. **GateKeeper is not j
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![-DNDEBUG vulnerability — Release vs Debug Build](/images/gatekeeper/debug-vulnerability.png)
+![-DNDEBUG vulnerability — Release vs Debug Build](/images/gatekeeper/debug-vulnerability.jpg)
 
 ---
 

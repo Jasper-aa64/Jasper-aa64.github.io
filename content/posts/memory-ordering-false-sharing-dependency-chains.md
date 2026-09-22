@@ -70,7 +70,7 @@ Both questions are answered by the *same* underlying machinery: cores, cache lin
 ╚══════════════════════════════════════════════════════════════════╝
 -->
 
-![One cache line, two questions — a correctness stamp and a stopwatch pointed at the same 64-byte cache line](/images/memory-model-cache-line/two-axes.png)
+![One cache line, two questions — a correctness stamp and a stopwatch pointed at the same 64-byte cache line](/images/memory-model-cache-line/two-axes.jpg)
 
 ---
 

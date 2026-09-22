@@ -79,7 +79,7 @@ AGENTS.md does not make the model smarter. It makes the project more legible to 
 
 ## Core Principle: Map, Not Manual
 
-![Map, Not Manual](/images/engineering/agents-map-not-manual.png)
+![Map, Not Manual](/images/engineering/agents-map-not-manual.jpg)
 
 The first principle is **Map, not Manual**.
 
