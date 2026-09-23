@@ -61,13 +61,6 @@
             </span>
           </a>
           <div class="header-actions">
-            <a class="cv-link" href="/files/cv.pdf" target="_blank" rel="noopener" aria-label="CV (PDF)">
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M7 2.5h7l4 4v15H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                <path d="M14 2.5v4h4M10 12h5M10 15.5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-              <span>CV</span>
-            </a>
             <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
               <span class="theme-toggle-icon" aria-hidden="true"></span>
               <span class="sr-only">Switch theme</span>
@@ -78,6 +71,13 @@
               <span></span>
             </button>
           </div>
+          <a class="cv-link" href="/files/cv.pdf" target="_blank" rel="noopener" aria-label="CV (PDF)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M7 2.5h7l4 4v15H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M14 2.5v4h4M10 12h5M10 15.5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span>CV</span>
+          </a>
           <nav class="site-nav" id="site-navigation">
             {{ range site.Menus.main }}
               {{ $active := or ($.IsMenuCurrent "main" .) ($.HasMenuCurrent "main" .) (eq $.RelPermalink .URL) }}
