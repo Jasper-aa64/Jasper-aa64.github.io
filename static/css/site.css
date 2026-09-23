@@ -234,6 +234,28 @@ code, pre { font-family: var(--mono); }
   box-shadow: var(--shadow-sm);
   transition: transform .24s ease, background-color .24s ease, border-color .24s ease, color .24s ease;
 }
+.cv-link {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted-strong);
+  box-shadow: var(--shadow-sm);
+  transition: transform .24s ease, background-color .24s ease, border-color .24s ease, color .24s ease;
+}
+.cv-link svg {
+  width: 17px;
+  height: 17px;
+}
+.cv-link:hover {
+  border-color: var(--accent-line);
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
 .theme-toggle:hover {
   border-color: var(--accent-line);
   color: var(--accent-deep);

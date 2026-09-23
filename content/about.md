@@ -18,4 +18,4 @@ The site is intentionally small and text-first. If a note is here, it is meant t
 Beyond these notes, I work on agent-driven C++ performance optimization — the question of whether an AI-generated speedup is real before it merges. The project is public, with preregistered experiments, null-patch tests, and a technical report:
 
 - [promotion-gate-audit](https://github.com/Jasper-aa64/promotion-gate-audit) — data, scripts, and the technical report
-- [CV (PDF)](/files/cv.pdf)
+- <a href="/files/cv.pdf" target="_blank" rel="noopener">CV (PDF)</a>
