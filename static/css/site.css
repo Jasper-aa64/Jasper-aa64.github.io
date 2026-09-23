@@ -2367,12 +2367,4 @@ code, pre { font-family: var(--mono); }
     width: 60px;
     height: 60px;
   }
-  .cv-link span {
-    display: none;
-  }
-  .cv-link {
-    width: 36px;
-    padding: 0;
-    justify-content: center;
-  }
 }
