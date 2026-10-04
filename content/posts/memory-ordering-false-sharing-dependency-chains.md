@@ -4,6 +4,7 @@ date: 2026-09-15
 slug: "memory-ordering-false-sharing-dependency-chains"
 description: "Why the store buffer makes your own writes invisible to other cores, why x86 forbids three reorderings and allows one, how release/acquire buys back just enough order, why false sharing is a completely different problem from a stale read, and why loop unrolling has an optimal accumulator count."
 summary: "The store buffer and the cache-coherence protocol are one piece of hardware, but they create two unrelated engineering problems. One is correctness: does a thread see the right value, in the right order — solved by memory_order and release/acquire pairing. The other is performance: how many cycles does touching shared or dependent data cost, even when every value read is already correct — solved by cache-line layout and instruction scheduling. Conflating the two is the single most common confusion in this part of systems programming."
+chapter: 1
 categories: [Systems]
 tags: [cpp, memory-model, atomics, cache-coherence, false-sharing, mesi, x86, hft, low-latency, pipelining]
 toc: true

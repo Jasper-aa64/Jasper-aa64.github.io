@@ -5,8 +5,8 @@
 <article class="post{{ if $hasToc }} has-toc{{ end }}">
   <header class="post-head post-frame">
     {{ if $isPost }}
-      <a class="eyebrow post-head__kicker reveal" href="{{ "posts/" | relLangURL }}#{{ $s.key }}">
-        {{ $s.label }}{{ with $s.num }}<span class="num-badge num-badge--lg">{{ if eq $s.series "trading" }}#{{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}
+      <a class="eyebrow post-head__kicker reveal" href="{{ "posts/" | relLangURL }}#{{ $s.key }}{{ with $s.sub }}/{{ . }}{{ end }}">
+        {{ $s.label }}{{ with $s.num }}<span class="num-badge num-badge--lg">{{ . }}</span>{{ end }}{{ if $s.topic }}<span class="topic-tag">{{ i18n "topicTag" }}</span>{{ end }}
       </a>
       <h1 class="post-head__title reveal">{{ $s.title }}</h1>
       {{ with .Description }}{{ if le (countrunes .) 230 }}<p class="post-head__dek reveal">{{ . }}</p>{{ end }}{{ end }}
@@ -70,13 +70,13 @@
           {{ with $prev }}{{ $t := partial "series.html" . }}
             <a class="post-nav__item post-nav__item--prev" href="{{ .RelPermalink }}">
               <span class="post-nav__dir">← {{ i18n "prevPost" }}</span>
-              <span class="post-nav__title">{{ with $t.num }}<span class="num-badge">{{ if eq $t.series "trading" }}#{{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
+              <span class="post-nav__title">{{ with $t.num }}<span class="num-badge">{{ . }}</span>{{ end }}{{ $t.title }}</span>
             </a>
           {{ else }}<span></span>{{ end }}
           {{ with $next }}{{ $t := partial "series.html" . }}
             <a class="post-nav__item post-nav__item--next" href="{{ .RelPermalink }}">
               <span class="post-nav__dir">{{ i18n "nextPost" }} →</span>
-              <span class="post-nav__title">{{ with $t.num }}<span class="num-badge">{{ if eq $t.series "trading" }}#{{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
+              <span class="post-nav__title">{{ with $t.num }}<span class="num-badge">{{ . }}</span>{{ end }}{{ $t.title }}</span>
             </a>
           {{ end }}
         </nav>

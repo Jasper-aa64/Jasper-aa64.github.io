@@ -4,6 +4,7 @@ date: 2026-09-17
 slug: "hot-path-memory-allocators"
 description: "Why malloc/free's real problem is variance, not speed — and four increasingly general ways to guarantee nothing on the hot path is happening for the first time: an O(1) free-list pool, locked and pre-faulted pages, a bump-allocating arena behind a custom STL allocator, and std::pmr's runtime alternative to all three. Closes with a reference object pool that folds the first two techniques into one class."
 summary: "Every technique in this post does the same thing at a different layer: move an uncertain, kernel-involving operation off the hot path and force it to happen once, upfront, before it can ambush a single request. An object pool replaces malloc's variable-cost search with an always-O(1) free list. mlockall and careful mallopt tuning stop the kernel from quietly taking pages back — and pre-faulting closes the one gap mlock alone leaves open. A hand-rolled arena allocator makes the STL itself cooperate with a custom allocator backed by bump-pointer memory. std::pmr solves the same STL-cooperation problem the standard library's way — trading compile-time speed for runtime flexibility."
+chapter: 1
 categories: [Systems]
 tags: [cpp, memory-pool, allocator, mlock, tlb-shootdown, pmr, hft, low-latency, stl]
 toc: true

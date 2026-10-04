@@ -4,6 +4,7 @@ date: 2026-10-04
 slug: "low-latency-mesi-cache-coherence"
 description: "多个核各自缓存同一条缓存行时,硬件怎么让这些副本保持一致:单写者 / 多读者规则,用两个是非题推出 MESI 的四个状态,跟着一条行走六步,每种写到底贵在哪,以及一致性从来没承诺过的两件事——多字读取的原子性,和不同地址之间的先后。"
 summary: "MESI 只执行一条规矩:一条缓存行,要么只有一个核能写,要么有任意多个核只能读,两者不会同时存在。四个状态就是两个问题的答案——别人有没有这一行?我改过没有?协议里的每一笔代价,不是在层与层之间搬数据,就是在等另一个核确认。伪共享、SPSC 队列的缓存游标、读者越多生产者越慢,都是同一台状态机。一致性仍然不保证多字读取不撕裂,也不管不同地址的写谁先谁后,那是内存屏障的事。"
+chapter: 1
 categories: [Systems]
 tags: [cpp, mesi, cache-coherence, false-sharing, atomics, memory-model, hft, low-latency]
 toc: true

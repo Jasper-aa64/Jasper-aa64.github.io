@@ -2,38 +2,25 @@
 {{ $isCats := eq .Data.Plural "categories" }}
 <section class="page-head wrap">
   <h1 class="page-head__title reveal">{{ if $isCats }}{{ i18n "categoriesTitle" }}{{ else }}{{ i18n "tagsTitle" }}{{ end }}</h1>
-  <p class="page-head__lede reveal">{{ if $isCats }}{{ i18n "categoriesLede" }}{{ else }}{{ i18n "tagsLede" }}{{ end }}</p>
-</section>
+  </section>
 <section class="wrap page-body">
   {{ if $isCats }}
-    {{/* This language's categories, plus (on the Chinese site) English-only ones linking to the English page. */}}
-    {{ $items := slice }}
-    {{ $seen := slice }}
-    {{ range .Data.Terms.ByCount }}
-      {{ $items = $items | append (dict "key" (.Page.Title | urlize) "title" .Page.Title "count" .Count "url" .Page.RelPermalink "foreign" false) }}
-      {{ $seen = $seen | append (.Page.Title | urlize) }}
+    {{ partial "area-grid.html" . }}
+    <h2 class="sub-head reveal">{{ i18n "tagsTitle" }}</h2>
+    {{/* Tags of this language, plus (on the Chinese site) tags that only English notes use. */}}
+    {{ $tags := slice }}{{ $seen := slice }}
+    {{ range site.Taxonomies.tags.ByCount }}
+      {{ $tags = $tags | append (dict "t" .Page.Title "n" .Count "u" .Page.RelPermalink) }}{{ $seen = $seen | append (.Page.Title | urlize) }}
     {{ end }}
     {{ if ne site.Language.Lang "en" }}
       {{ range hugo.Sites }}{{ if eq .Language.Lang "en" }}
-        {{ range .Taxonomies.categories.ByCount }}
-          {{ if not (in $seen (.Page.Title | urlize)) }}
-            {{ $items = $items | append (dict "key" (.Page.Title | urlize) "title" .Page.Title "count" .Count "url" .Page.RelPermalink "foreign" true) }}
-          {{ end }}
-        {{ end }}
+        {{ range .Taxonomies.tags.ByCount }}{{ if not (in $seen (.Page.Title | urlize)) }}
+          {{ $tags = $tags | append (dict "t" .Page.Title "n" .Count "u" .Page.RelPermalink) }}
+        {{ end }}{{ end }}
       {{ end }}{{ end }}
     {{ end }}
-    <div class="area-grid area-grid--cats">
-      {{ range $i, $c := $items }}
-        <a class="area reveal" href="{{ $c.url }}">
-          <span class="area__index">{{ printf "%02d" (add $i 1) }}</span>
-          <strong class="area__name">{{ partial "cat-name.html" $c.title }}</strong>
-          <span class="area__blurb">{{ i18n (print "cat_" $c.key "_blurb") }}</span>
-          <span class="area__foot">
-            <span class="area__count">{{ i18n "nPosts" $c.count }}{{ if $c.foreign }} · EN{{ end }}</span>
-            <span class="area__arrow" aria-hidden="true">→</span>
-          </span>
-        </a>
-      {{ end }}
+    <div class="tag-cloud">
+      {{ range sort $tags "n" "desc" }}<a class="tag tag--count" href="{{ .u }}">{{ .t }} <sup>{{ .n }}</sup></a>{{ end }}
     </div>
   {{ else }}
     <div class="tag-cloud">

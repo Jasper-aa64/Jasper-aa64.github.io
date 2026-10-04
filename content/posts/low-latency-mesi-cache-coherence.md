@@ -4,6 +4,7 @@ date: 2026-10-04
 slug: "low-latency-mesi-cache-coherence"
 description: "How cores keep their private copies of one cache line consistent: the single-writer / many-readers rule, the four MESI states as two yes/no questions, one line followed through six steps, what each kind of write really costs, and the two things coherence never promised — atomicity across a multi-word read, and ordering across different addresses."
 summary: "MESI enforces one rule: a cache line has either one core that may write it or any number of cores that may only read it, never both. The four states are the answers to two questions — does anyone else hold this line, and have I changed it? — and every cost in the protocol comes from moving data between layers or waiting for another core to confirm. False sharing, a cached queue cursor and a producer that slows down as readers join are all the same state machine. Coherence still doesn't make a multi-word read atomic, and it says nothing about the order of writes to different addresses; that is what fences are for."
+chapter: 1
 categories: [Systems]
 tags: [cpp, mesi, cache-coherence, false-sharing, atomics, memory-model, hft, low-latency]
 toc: true

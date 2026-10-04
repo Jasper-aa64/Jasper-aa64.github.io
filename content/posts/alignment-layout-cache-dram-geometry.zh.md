@@ -4,6 +4,7 @@ date: 2026-10-04
 slug: "alignment-layout-cache-dram-geometry"
 description: "为什么热路径上的每个内存决定,最后都归结为一次访问碰哪几条缓存行、这些行住在哪。分三部分:对齐(填充、alignas、堆上的过对齐、两档分配器、pack),布局(AoS/SoA、代理视图、去规范化、字段顺序、字符数组、函数分组),硬件几何(从零讲组相联与关键步长、M1 实测、存储类别、内存条内部、刷新、多通道)。"
 summary: "访问从来不按字节付钱,按缓存行付;地址决定了碰哪几条行、这些行争哪个缓存组、住在哪个 DRAM 通道和 bank。第一部分讲对齐:为什么按 8 对齐的 double 不会跨行、填充为什么是为了数组、alignas 写在类型上和成员上的区别、堆上怎么拿 64 和 2 MiB 对齐。第二部分讲布局:一次访问碰几条行,AoS 还是 SoA,去规范化砍掉的是依赖链。第三部分进到硬件:L1 用地址的 bit 6–11 选组,相差 4 KiB 的数据不管缓存多空都在抢 8 个格子(M1 上实测);DRAM 一个 bank 只有一个行缓冲,命中 14 ns、冲突 41 ns;按列遍历慢是五层叠加;刷新带来软件消不掉的 P99;热行步长和通道数互质,通道才均衡。"
+chapter: 1
 categories: [Systems]
 tags: [cpp, alignment, cache, memory-layout, false-sharing, dram, numa, hft, low-latency]
 toc: true

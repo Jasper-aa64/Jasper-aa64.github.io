@@ -102,35 +102,46 @@
     });
   }
 
-  /* ---------- Writing filter ---------- */
+  /* ---------- Notes filter: top level (#lowlatency) and second level (#algorithms/number-theory) ---------- */
   var writing = document.querySelector("[data-writing]");
   if (writing) {
-    var buttons = Array.prototype.slice.call(writing.querySelectorAll("[data-filter]"));
+    var tops = Array.prototype.slice.call(writing.querySelectorAll("[data-filter]"));
+    var subRows = Array.prototype.slice.call(writing.querySelectorAll("[data-subs-for]"));
     var entries = Array.prototype.slice.call(writing.querySelectorAll(".card"));
     var empty = writing.querySelector("[data-empty]");
-    var apply = function (key, push) {
-      if (!buttons.some(function (b) { return b.dataset.filter === key; })) key = "all";
-      buttons.forEach(function (b) {
-        var on = b.dataset.filter === key;
-        b.classList.toggle("is-active", on);
-        b.setAttribute("aria-pressed", String(on));
-      });
+    var state = { key: "all", sub: "" };
+    var press = function (els, test) {
+      els.forEach(function (b) { var on = test(b); b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    };
+    var apply = function (key, sub, push) {
+      if (!tops.some(function (b) { return b.dataset.filter === key; })) { key = "all"; sub = ""; }
+      var row = null;
+      subRows.forEach(function (r) { var on = r.dataset.subsFor === key; r.hidden = !on; if (on) row = r; });
+      var chips = row ? Array.prototype.slice.call(row.querySelectorAll("[data-sub]")) : [];
+      if (!chips.some(function (c) { return c.dataset.sub === sub; })) sub = "";
+      state = { key: key, sub: sub };
+      press(tops, function (b) { return b.dataset.filter === key; });
+      press(chips, function (c) { return c.dataset.sub === sub; });
       var shown = 0;
-      entries.forEach(function (li) {
-        var vis = key === "all" || li.dataset.series === key;
-        li.hidden = !vis;
+      entries.forEach(function (el) {
+        var vis = key === "all" || (el.dataset.series === key && (!sub || el.dataset.sub === sub));
+        el.hidden = !vis;
         if (vis) shown++;
       });
       if (empty) empty.hidden = shown > 0;
-      if (push) history.replaceState(null, "", key === "all" ? location.pathname : "#" + key);
+      if (push) history.replaceState(null, "", key === "all" ? location.pathname : "#" + key + (sub ? "/" + sub : ""));
     };
-    buttons.forEach(function (b) {
-      b.addEventListener("click", function () { apply(b.dataset.filter, true); });
+    tops.forEach(function (b) { b.addEventListener("click", function () { apply(b.dataset.filter, "", true); }); });
+    subRows.forEach(function (r) {
+      r.addEventListener("click", function (e) {
+        var c = e.target.closest("[data-sub]");
+        if (c) apply(state.key, c.dataset.sub, true);
+      });
     });
     var legacy = { trading: "lowlatency", topics: "lowlatency", engineering: "ainative" };
     var fromHash = function () {
-      var k = location.hash.replace("#", "") || "all";
-      apply(legacy[k] || k, false);
+      var parts = decodeURIComponent(location.hash.replace("#", "")).split("/");
+      apply(legacy[parts[0]] || parts[0] || "all", parts[1] || "", false);
     };
     window.addEventListener("hashchange", fromHash);
     fromHash();

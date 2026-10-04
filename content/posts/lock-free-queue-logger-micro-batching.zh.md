@@ -4,6 +4,7 @@ date: 2026-09-20
 slug: "lock-free-queue-logger-micro-batching"
 description: "单生产者单消费者的环形队列怎么做到不用锁——2 的幂掩码、两步交接、两边各需要的内存序——以及悄悄把竞争带回来的那些陷阱:一个共享的元素计数器、每次调用都去读对方核的判满、一行日志按字符一个槽地推。然后在它上面搭一个日志器和一个 micro-batching 处理器,最后问 lock-free 和 wait-free 到底承诺了什么。"
 summary: "无锁 SPSC 队列能成立,是因为每个共享变量都只有一个写者:每一边只更新自己的计数器,只读对方的。剩下的工作就是别让这个性质被悄悄破坏——两个核都去争的共享元素计数(改成两个计数器相减)、每次调用都读对方核的判满(缓存对方的游标,它只会往安全的方向出错)、用双重映射消掉回绕处的接缝,以及一个按字符一个槽推日志的日志器(一行日志 30 个槽,改成按文本段推只要 5 个)。最后是让 lock-free 说法保持诚实的几个词:SPSC 只在快速失败的接口下才是 wait-free,有限步不等于有限时间,有界队列满了永远得在丢弃和阻塞之间二选一。"
+chapter: 1
 categories: [Systems]
 tags: [cpp, lock-free, wait-free, spsc, ring-buffer, atomics, logging, micro-batching, hft, low-latency]
 toc: true

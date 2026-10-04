@@ -4,6 +4,7 @@ date: 2026-09-15
 slug: "memory-ordering-false-sharing-dependency-chains"
 description: "为什么 store buffer 让你自己的写对别的核不可见,为什么 x86 禁三放一,release/acquire 怎么买回刚好够用的顺序,为什么伪共享和读到旧值是完全不同的问题,以及为什么循环展开有一个最优的累加器个数。"
 summary: "store buffer 和缓存一致性协议是同一套硬件,却带出两个毫不相干的工程问题。一个是正确性:线程有没有按正确的顺序看到正确的值——靠 memory_order 和 release/acquire 配对解决。另一个是性能:就算每个值都读对了,碰共享的或有依赖的数据要花多少周期——靠缓存行布局和指令调度解决。把两者混为一谈,是系统编程这一块最常见的困惑。"
+chapter: 1
 categories: [Systems]
 tags: [cpp, memory-model, atomics, cache-coherence, false-sharing, mesi, x86, hft, low-latency, pipelining]
 toc: true

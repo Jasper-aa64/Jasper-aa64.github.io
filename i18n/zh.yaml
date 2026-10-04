@@ -60,7 +60,7 @@ homeTitle: "C++、低延迟系统与算法竞赛"
 
 # categories (homepage cards + Writing filter)
 catLowLatency: "低延迟"
-catLowLatencyBlurb: "Linux、CPU 与内存性能、并发,以及 C++ 运行时行为——包括「交易系统笔记」系列。"
+catLowLatencyBlurb: "Linux、CPU 与内存性能、并发,以及 C++ 运行时行为,按学习笔记的章节整理。"
 catAlgorithms: "算法"
 catAlgorithmsBlurb: "算法竞赛笔记:组合数学、数论与矩阵方法。"
 catAINative: "AI Native"
@@ -76,7 +76,7 @@ writingLede: "关于低延迟系统、算法和 AI Native 开发的长文笔记�
 
 # category display names / blurbs (keyed by the urlized category)
 cat_systems: "低延迟"
-cat_systems_blurb: "Linux、CPU 与内存性能、并发,以及 C++ 运行时行为——包括「交易系统笔记」系列。"
+cat_systems_blurb: "Linux、CPU 与内存性能、并发,以及 C++ 运行时行为,按学习笔记的章节整理。"
 cat_engineering: "AI Native"
 cat_engineering_blurb: "我自己的 AI Native 开发实践记录。"
 cat_combinatorics: "组合数学"
@@ -87,3 +87,5 @@ cat_matrix: "矩阵"
 cat_matrix_blurb: "矩阵快速幂、高斯消元与线性基。"
 categoriesTitle: "分类"
 categoriesLede: "按方向浏览笔记。"
+subAll: "全部"
+topicTag: "专题"

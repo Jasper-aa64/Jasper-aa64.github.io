@@ -6,7 +6,7 @@
   <a class="entry__link" href="{{ $p.RelPermalink }}">
     <time class="entry__date" datetime="{{ $p.Date.Format `2006-01-02` }}">{{ if .showYear }}{{ $p.Date.Format "2006" }}<span>·</span>{{ end }}{{ $p.Date.Format (i18n "dateShort") }}</time>
     <span class="entry__body">
-      <span class="entry__series">{{ $s.label }}{{ with $s.num }} <span class="num-badge">{{ if eq $s.series "trading" }}#{{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}</span>
+      <span class="entry__series">{{ $s.label }}{{ with $s.num }} <span class="num-badge">{{ . }}</span>{{ end }}</span>
       <span class="entry__title">{{ $s.title }}</span>
     </span>
     <span class="entry__aside">

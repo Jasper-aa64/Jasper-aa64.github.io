@@ -1,8 +1,6 @@
 {{ define "main" }}
 {{ $p := index hugo.Data.profile site.Language.Lang }}
 {{ $posts := partial "posts-all.html" . }}
-{{ $count := newScratch }}
-{{ range $posts }}{{ $s := partial "series.html" . }}{{ $count.Add $s.key 1 }}{{ end }}
 {{ $recent := sort (sort $posts "Title" "desc") "Date" "desc" }}
 
 <section class="hero wrap">
@@ -32,23 +30,7 @@
 </section>
 
 <section class="home-sec home-sec--areas wrap" id="areas" aria-label="{{ i18n "categoriesTitle" }}">
-  <div class="area-grid">
-    {{ range $i, $c := slice
-      (dict "key" "lowlatency" "name" (i18n "catLowLatency") "blurb" (i18n "catLowLatencyBlurb") "href" (print ("posts/" | relLangURL) "#lowlatency"))
-      (dict "key" "algorithms" "name" (i18n "catAlgorithms") "blurb" (i18n "catAlgorithmsBlurb") "href" "/algorithms/")
-      (dict "key" "ainative" "name" (i18n "catAINative") "blurb" (i18n "catAINativeBlurb") "href" (print ("posts/" | relLangURL) "#ainative"))
-      (dict "key" "all" "name" (i18n "catAll") "blurb" (i18n "catAllBlurb") "href" ("posts/" | relLangURL)) }}
-      <a class="area reveal" href="{{ $c.href }}" data-area="{{ $c.key }}">
-        <span class="area__index">0{{ add $i 1 }}</span>
-        <strong class="area__name">{{ $c.name }}</strong>
-        <span class="area__blurb">{{ $c.blurb }}</span>
-        <span class="area__foot">
-          <span class="area__count">{{ i18n "nPosts" (cond (eq $c.key "all") (len $posts) ($count.Get $c.key | default 0)) }}</span>
-          <span class="area__arrow" aria-hidden="true">→</span>
-        </span>
-      </a>
-    {{ end }}
-  </div>
+  {{ partial "area-grid.html" . }}
 </section>
 
 <section class="home-sec wrap" id="recent" aria-labelledby="recent-title">

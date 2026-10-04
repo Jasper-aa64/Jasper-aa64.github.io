@@ -8,12 +8,13 @@
     {{ with findRESubmatch `<img[^>]+src="([^"]+)"` .Content 1 }}{{ $thumb = index (index . 0) 1 }}{{ end }}
   {{ end }}
 {{ end }}
-<article class="card{{ if $thumb }} has-thumb{{ end }}" data-series="{{ $s.key }}">
+<article class="card{{ if $thumb }} has-thumb{{ end }}" data-series="{{ $s.key }}" data-sub="{{ $s.sub }}">
   <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
   <div class="card__main">
     <div class="card__meta">
       <span class="card__series">{{ $s.label }}</span>
-      {{ with $s.num }}<span class="num-badge">{{ if eq $s.series "trading" }}#{{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}
+      {{ with $s.num }}<span class="num-badge">{{ . }}</span>{{ end }}
+      {{ if $s.topic }}<span class="topic-tag">{{ i18n "topicTag" }}</span>{{ end }}
       <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time>
       <span>{{ i18n "minRead" .ReadingTime }}</span>
       {{ if $foreign }}<span class="card__badge" title="{{ i18n "englishOnlyTitle" }}">{{ i18n "englishOnly" }}</span>{{ end }}
