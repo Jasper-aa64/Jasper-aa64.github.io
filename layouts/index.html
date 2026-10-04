@@ -8,10 +8,7 @@
     <p class="eyebrow reveal">{{ $p.kicker }}</p>
     <h1 class="hero__title reveal">
       <span class="hero__hello">{{ $p.hello }}</span>
-      <span class="hero__nameline">
-        <em class="hero__name">{{ $p.name }}</em>
-        <span class="hero__mascot" aria-hidden="true">{{ partial "brain-mascot.html" . }}</span>
-      </span>
+      <em class="hero__name">{{ $p.name }}</em>
     </h1>
     <p class="hero__lede hero__topics reveal">{{ range $i, $t := $p.topics }}{{ if $i }}<span class="hero__sep" aria-hidden="true">|</span>{{ end }}<span>{{ $t }}</span>{{ end }}</p>
     <div class="hero__actions reveal">
@@ -68,6 +65,8 @@
     <div class="tag-cloud tag-cloud--hero">
       {{ range first 14 (partial "tag-list.html" .) }}<a class="tag" href="{{ .u }}">{{ .t }}<sup>{{ .n }}</sup></a>{{ end }}
       <a class="tag tag--more" href="{{ "categories/" | relLangURL }}">{{ i18n "allTags" }} →</a>
+      {{/* The brain lives in the panel's bottom-right corner; the panel clips its flight. */}}
+      <span class="hero__mascot" aria-hidden="true">{{ partial "brain-mascot.html" . }}</span>
     </div>
   </aside>
 </section>
