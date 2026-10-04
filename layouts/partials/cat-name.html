@@ -1,0 +1,3 @@
+{{/* Display name for a category term (context: its title). Falls back to the title itself. */}}
+{{ $k := print "cat_" (. | urlize) }}
+{{ return (i18n $k | default .) }}

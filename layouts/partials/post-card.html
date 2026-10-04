@@ -1,0 +1,31 @@
+{{/* A post as a card: meta, title, summary, tags, and a thumbnail on the right
+     (front matter `cover:`, else the first <img> in the post; `cover: false` hides it). */}}
+{{ $s := partial "series.html" . }}
+{{ $foreign := ne .Language.Lang site.Language.Lang }}
+{{ $thumb := "" }}
+{{ if ne .Params.cover false }}
+  {{ with .Params.cover }}{{ $thumb = . }}{{ else }}
+    {{ with findRESubmatch `<img[^>]+src="([^"]+)"` .Content 1 }}{{ $thumb = index (index . 0) 1 }}{{ end }}
+  {{ end }}
+{{ end }}
+<article class="card{{ if $thumb }} has-thumb{{ end }}" data-series="{{ $s.key }}">
+  <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
+  <div class="card__main">
+    <div class="card__meta">
+      <span class="card__series">{{ $s.label }}{{ with $s.num }} <b>{{ if eq $s.series "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</b>{{ end }}</span>
+      <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time>
+      <span>{{ i18n "minRead" .ReadingTime }}</span>
+      {{ if $foreign }}<span class="card__badge" title="{{ i18n "englishOnlyTitle" }}">{{ i18n "englishOnly" }}</span>{{ end }}
+    </div>
+    <h3 class="card__title">{{ $s.title }}</h3>
+    <p class="card__summary">{{ with .Summary }}{{ . | plainify | htmlUnescape | truncate 230 }}{{ else }}{{ .Plain | truncate 230 }}{{ end }}</p>
+    {{ with .Params.tags }}
+      <div class="card__tags">
+        {{ range first 5 . }}<a href="{{ "tags/" | relLangURL }}{{ . | urlize }}/">#{{ . }}</a>{{ end }}
+      </div>
+    {{ end }}
+  </div>
+  {{ with $thumb }}
+    <div class="card__thumb"><img src="{{ . }}" alt="" loading="lazy" decoding="async"></div>
+  {{ end }}
+</article>

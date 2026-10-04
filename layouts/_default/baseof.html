@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ if .IsHome }}{{ site.Title }} — {{ i18n "homeTitle" }}{{ else }}{{ .Title }} · {{ site.Title }}{{ end }}</title>
+    <title>{{ if .IsHome }}{{ site.Title }} — {{ i18n "homeTitle" }}{{ else if and (eq .Kind "term") (eq .Data.Plural "categories") }}{{ partial "cat-name.html" .Title }} · {{ site.Title }}{{ else }}{{ .Title }} · {{ site.Title }}{{ end }}</title>
     <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
     <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)">
@@ -15,7 +15,7 @@
     <meta property="og:description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
     <meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
     <meta property="og:url" content="{{ .Permalink }}">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c8452a'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' fill='%23fff' text-anchor='middle'%3EJ%3C/text%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 4 24 24'%3E%3Cpath d='M10,6 H22 V8 H24 V10 H26 V16 H24 V18 H22 V20 H10 V18 H8 V16 H6 V10 H8 V8 H10 Z' fill='%23f6bcca' stroke='%23c46d87' stroke-width='1.4'/%3E%3Cpath d='M16,8 V18 M10.5,10 H13.5 M18.5,10 H21.5 M10,16 H13 M19,16 H22' stroke='%23b15775' stroke-width='1.2' fill='none'/%3E%3Crect x='12' y='12.4' width='2' height='2' fill='%233a2530'/%3E%3Crect x='18' y='12.4' width='2' height='2' fill='%233a2530'/%3E%3Crect x='12.55' y='20' width='1.7' height='3.4' fill='%237c4f5d'/%3E%3Crect x='17.75' y='20' width='1.7' height='3.4' fill='%237c4f5d'/%3E%3C/svg%3E">
     <script>
       (function() {
         var d = document.documentElement;
@@ -65,7 +65,7 @@
     <header class="site-header">
       <div class="wrap site-header__inner">
         <a class="brand" href="{{ site.Home.RelPermalink }}" aria-label="{{ site.Title }}">
-          <span class="brand__seal" aria-hidden="true">J</span>
+          <span class="brand__logo" aria-hidden="true">{{ partial "brain-mascot.html" . }}</span>
           <span class="brand__name">Jasper</span>
         </a>
 
@@ -73,7 +73,9 @@
           {{ $lifeCount := len (where site.RegularPages "Section" "life") }}
           {{ range site.Menus.main }}
             {{ $active := or ($.IsMenuCurrent "main" .) (eq $.RelPermalink .URL) }}
-            {{ $active = or $active (and (eq .URL ("posts/" | relLangURL)) (or (eq $.Section "posts") (eq $.Section "archives") (eq $.Section "algorithms") (eq $.Kind "taxonomy") (eq $.Kind "term"))) }}
+            {{ $isCat := and (in (slice "taxonomy" "term") $.Kind) (eq $.Data.Plural "categories") }}
+            {{ $active = or $active (and (eq .URL ("posts/" | relLangURL)) (or (eq $.Section "posts") (eq $.Section "archives") (eq $.Section "algorithms") (and (in (slice "taxonomy" "term") $.Kind) (not $isCat)))) }}
+            {{ $active = or $active (and (eq .URL ("categories/" | relLangURL)) $isCat) }}
             <a class="site-nav__link{{ if $active }} is-active{{ end }}" href="{{ .URL }}"{{ if $active }} aria-current="page"{{ end }}>{{ .Name }}</a>
             {{ if and (eq .Weight 20) (gt $lifeCount 0) }}
               <a class="site-nav__link{{ if eq $.Section "life" }} is-active{{ end }}" href="{{ "life/" | relLangURL }}">{{ i18n "secLife" }}</a>
@@ -102,7 +104,6 @@
     <footer class="site-footer">
       <div class="wrap site-footer__inner">
         <div class="site-footer__sign">
-          <span class="brand__seal" aria-hidden="true">J</span>
           <p>{{ i18n "footerLine" }}</p>
         </div>
         <nav class="site-footer__links" aria-label="Footer">

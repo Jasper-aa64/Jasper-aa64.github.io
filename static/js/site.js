@@ -116,8 +116,7 @@
   var writing = document.querySelector("[data-writing]");
   if (writing) {
     var buttons = Array.prototype.slice.call(writing.querySelectorAll("[data-filter]"));
-    var entries = Array.prototype.slice.call(writing.querySelectorAll(".entry"));
-    var groupsEls = Array.prototype.slice.call(writing.querySelectorAll("[data-year-group]"));
+    var entries = Array.prototype.slice.call(writing.querySelectorAll(".card"));
     var empty = writing.querySelector("[data-empty]");
     var apply = function (key, push) {
       if (!buttons.some(function (b) { return b.dataset.filter === key; })) key = "all";
@@ -132,14 +131,17 @@
         li.hidden = !vis;
         if (vis) shown++;
       });
-      groupsEls.forEach(function (g) { g.hidden = !g.querySelector(".entry:not([hidden])"); });
       if (empty) empty.hidden = shown > 0;
       if (push) history.replaceState(null, "", key === "all" ? location.pathname : "#" + key);
     };
     buttons.forEach(function (b) {
       b.addEventListener("click", function () { apply(b.dataset.filter, true); });
     });
-    var fromHash = function () { apply(location.hash.replace("#", "") || "all", false); };
+    var legacy = { trading: "lowlatency", topics: "lowlatency", engineering: "ainative" };
+    var fromHash = function () {
+      var k = location.hash.replace("#", "") || "all";
+      apply(legacy[k] || k, false);
+    };
     window.addEventListener("hashchange", fromHash);
     fromHash();
   }
@@ -242,9 +244,44 @@
   var hasZh = root.dataset.hasZh === "true";
   if (lang === "zh") store.set("lang", "zh");
   else if (hasZh) store.set("lang", "en");
+  /* Switching language keeps your place: same heading (translations share structure) plus the
+     offset past it on articles, the same scroll fraction everywhere else. */
+  var anchors = function () {
+    return Array.prototype.slice.call(document.querySelectorAll(".post-body h1[id], .post-body h2[id], .post-body h3[id], .post-body h4[id]"));
+  };
+  var maxScroll = function () { return Math.max(1, document.documentElement.scrollHeight - window.innerHeight); };
   document.querySelectorAll("[data-lang-target]").forEach(function (a) {
-    a.addEventListener("click", function () { store.set("lang", a.dataset.langTarget); });
+    a.addEventListener("click", function () {
+      store.set("lang", a.dataset.langTarget);
+      var state = { to: a.pathname, ratio: window.scrollY / maxScroll(), idx: -1, off: 0, y: window.scrollY };
+      var hs = anchors();
+      for (var i = 0; i < hs.length; i++) {
+        var top = hs[i].getBoundingClientRect().top + window.scrollY;
+        if (top <= window.scrollY + 100) { state.idx = i; state.off = window.scrollY - top; } else break;
+      }
+      try { sessionStorage.setItem("langScroll", JSON.stringify(state)); } catch (e) {}
+    });
   });
+  (function restore() {
+    var raw = null;
+    try { raw = sessionStorage.getItem("langScroll"); sessionStorage.removeItem("langScroll"); } catch (e) {}
+    if (!raw) return;
+    var st; try { st = JSON.parse(raw); } catch (e) { return; }
+    if (!st || st.to !== location.pathname || location.hash || st.y < 4) return;
+    var target = function () {
+      var hs = anchors();
+      if (st.idx >= 0 && hs[st.idx]) return hs[st.idx].getBoundingClientRect().top + window.scrollY + st.off;
+      return st.ratio * maxScroll();
+    };
+    var userMoved = false;
+    var go = function () { if (!userMoved) window.scrollTo({ top: target(), behavior: "instant" }); };
+    go();
+    setTimeout(function () {
+      ["wheel", "touchstart", "keydown"].forEach(function (ev) { window.addEventListener(ev, function () { userMoved = true; }, { once: true, passive: true }); });
+    }, 0);
+    window.addEventListener("load", go);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go);
+  })();
   var notice = document.querySelector(".lang-notice");
   var noticeBtn = document.querySelector("[data-lang-notice]");
   if (notice && noticeBtn) {
@@ -260,6 +297,16 @@
       show(on);
     });
   }
+
+  /* ---------- Brain mascot: a fresh balloon colour every loop ---------- */
+  var colors = ["#fb7185", "#f59e0b", "#34d399", "#38bdf8", "#a78bfa", "#f472b6", "#facc15", "#4ade80", "#fb923c"];
+  var pick = function () { return colors[Math.floor(Math.random() * colors.length)]; };
+  document.querySelectorAll(".p2-brain-icon").forEach(function (icon) {
+    icon.style.setProperty("--p2-balloon-color", pick());
+    icon.addEventListener("animationiteration", function (e) {
+      if (e.animationName === "p2BrainFloat") icon.style.setProperty("--p2-balloon-color", pick());
+    });
+  });
 
   /* ---------- Back to top ---------- */
   document.querySelectorAll("[data-to-top]").forEach(function (a) {

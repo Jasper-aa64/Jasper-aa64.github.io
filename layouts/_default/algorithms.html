@@ -1,6 +1,6 @@
 {{ define "main" }}
 <section class="page-head wrap">
-  <p class="eyebrow reveal">{{ i18n "seriesAlgorithms" }}</p>
+  <p class="eyebrow reveal">{{ i18n "catAlgorithms" }}</p>
   <h1 class="page-head__title reveal">{{ .Title }}</h1>
   {{ with .Params.description }}<p class="page-head__lede reveal">{{ . }}</p>{{ end }}
 </section>
@@ -10,7 +10,7 @@
     {{ if $posts }}
       <section class="year-group">
         <h2 class="year-group__year year-group__year--word">{{ . }} <sup>{{ len $posts }}</sup></h2>
-        <ol class="entry-list">{{ range sort $posts "Title" }}{{ partial "entry-row.html" (dict "page" .) }}{{ end }}</ol>
+        <div class="card-list">{{ range sort $posts "Title" }}{{ partial "post-card.html" . }}{{ end }}</div>
       </section>
     {{ end }}
   {{ end }}
