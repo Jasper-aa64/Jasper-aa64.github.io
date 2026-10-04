@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" width="1100" height="720" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<defs><marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/></marker><marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/></marker>
+<style>.t{font-size:22px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.h{font-size:18px;font-weight:700;fill:#1f2328}.lg{font-size:13px;fill:#1a7f37;paint-order:stroke;stroke:#ffffff;stroke-width:5px;stroke-linejoin:round}.lr{font-size:13px;fill:#cf222e;paint-order:stroke;stroke:#ffffff;stroke-width:5px;stroke-linejoin:round}</style></defs>
+<rect x="0" y="0" width="1100" height="720" fill="#ffffff"/>
+<text x="20" y="32" class="h">MESI 状态转换:一条缓存行在某个核里的四种身份</text>
+<text x="20" y="54" class="s">上面绿色实线 = 这个核自己读写;下面红色虚线 = 窥探到别的核的请求。写之前必须先独占,所以所有"本核写"都指向 M。</text>
+<rect x="40" y="370" width="180" height="74" rx="8" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.6"/>
+<text x="130" y="402" text-anchor="middle" class="t">M</text>
+<text x="130" y="426" text-anchor="middle" class="s">已修改:只有我有,脏</text>
+<rect x="320" y="370" width="180" height="74" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.6"/>
+<text x="410" y="402" text-anchor="middle" class="t">E</text>
+<text x="410" y="426" text-anchor="middle" class="s">独占:只有我有,干净</text>
+<rect x="600" y="370" width="180" height="74" rx="8" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="690" y="402" text-anchor="middle" class="t">S</text>
+<text x="690" y="426" text-anchor="middle" class="s">共享:可能多人有,干净</text>
+<rect x="880" y="370" width="180" height="74" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.6"/>
+<text x="970" y="402" text-anchor="middle" class="t">I</text>
+<text x="970" y="426" text-anchor="middle" class="s">无效:我没有有效副本</text>
+<path d="M380,370 Q275.0,250 170,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M940,370 Q835.0,250 730,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M680,370 Q405.0,130 130,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M970,370 Q710.0,-40 450,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M1000,370 Q545.0,-140 90,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M440,444 Q545.0,576 650,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M130,444 Q405.0,696 680,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M730,444 Q830.0,576 930,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M400,444 Q685.0,786 970,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M90,444 Q550.0,876 1010,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<text x="275.0" y="303" text-anchor="middle" class="lg">本核写:静默,不发任何消息</text>
+<text x="835.0" y="303" text-anchor="middle" class="lg">本核读,别人有</text>
+<text x="405.0" y="243" text-anchor="middle" class="lg">本核写:先作废别人(一次跨核往返)</text>
+<text x="710.0" y="193" text-anchor="middle" class="lg">本核读,别人都没有</text>
+<text x="545.0" y="143" text-anchor="middle" class="lg">本核写未命中:RFO(取数据 + 作废别人)</text>
+<text x="545.0" y="527" text-anchor="middle" class="lr">别人读</text>
+<text x="405.0" y="587" text-anchor="middle" class="lr">别人读:我交出数据,降为 S</text>
+<text x="550.0" y="677" text-anchor="middle" class="lr">别人写:M、E、S 一律作废 → I(M 先交出数据)</text>
+<text x="20" y="710" class="lg">绿实线:本核的读 / 写</text>
+<text x="360" y="710" class="lr">红虚线:别的核的读 / 写(被窥探)</text>
+</svg>

@@ -10,17 +10,11 @@ toc: true
 homepage: false
 ---
 
-# Low-Latency Trading — MESI: One Writer or Many Readers, Never Both
+Start with something counterintuitive. Two threads each increment their own counter. They share no variable at all; the two counters just happen to sit next to each other in one struct, on the same 64-byte cache line. That alone makes them over ten times slower than counters kept apart (measured in [#2](/posts/memory-ordering-false-sharing-dependency-chains/)). The threads share nothing, yet the hardware makes them drag each other down.
 
-> **One-line thesis**: every core keeps private copies of cache lines, and MESI keeps them honest with a single rule — a line has either one core that may write it or any number of cores that may only read it. The four states are just the answers to two questions, every cost is either moving data or waiting for another core to confirm, and the protocol's guarantees stop at one line: it doesn't make a multi-word read atomic, and it doesn't order writes to different addresses.
+Explaining it means knowing how a multi-core CPU manages several copies of one cache line. Each core has its own L1 and L2 holding copies of memory; when two cores have both read a line, each holds a copy. As soon as one of them writes, the other copy is stale — and the hardware must guarantee no core keeps using a stale copy. That machinery is the cache coherence protocol, and the classic one is MESI.
 
-## What You're Actually Fighting
-
-Low-latency code talks about "cache line ping-pong", "the reader makes the writer slower" and "HITM" as if they were separate problems. They are one state machine seen from different angles. Each core has its own L1 and L2, holding copies of 64-byte lines. Two cores that both read a line both hold a copy; the moment one of them writes, the other copy is stale. Whatever the hardware does to prevent a core from using that stale copy is what you pay for — on every write to a line someone else has touched.
-
-Learn the machine once, and the rest of the series reads as applications of it: false sharing ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)), the cached cursor of an SPSC queue ([#4](/posts/lock-free-queue-logger-micro-batching/)), and an SPMC producer that gets slower as readers join ([#5](/posts/spmc-shared-memory-broadcast-ring/)).
-
----
+Once it makes sense, several seemingly unrelated effects line up: false sharing, why an SPSC queue caches the other side's cursor ([#4](/posts/lock-free-queue-logger-micro-batching/)), and an SPMC queue whose producer slows down as readers join ([#5](/posts/spmc-shared-memory-broadcast-ring/)). This post starts from one rule, derives the four states, follows one line through its life, and ends with what MESI does **not** guarantee — the part interviewers like to push on.
 
 ## 1. One Writer or Many Readers
 
@@ -101,6 +95,10 @@ A write miss goes **straight from I to M**. There is no "first E, then M" step t
 - Someone reads: if I'm M, I supply the data and drop to S; E drops to S; S stays S.
 - Someone writes (RFO or invalidate): M, E or S all go to I — M hands over its data first.
 
+Drawn as one picture — the top half is this core's own reads and writes, the bottom half is what it snoops from other cores:
+
+<a href="/images/mesi/mesi-states.en.svg" target="_blank" rel="noopener"><img src="/images/mesi/mesi-states.en.svg" alt="MESI state diagram: local reads and writes move a line to E, S or M; a remote read drops M and E to S; a remote write turns M, E and S into I" loading="lazy" decoding="async"></a>
+
 That's the whole rule set. For any new scenario, ask: who reads, who writes, and what state does everyone else hold?
 
 ---
@@ -143,11 +141,3 @@ These are the follow-ups interviewers love: *if MESI keeps caches consistent, wh
 
 The "three pieces of lock-free programming" now each have a job: the `lock` prefix makes one read-modify-write indivisible by holding the line exclusively until it completes; MESI keeps the copies of each line consistent; memory fences order accesses to different addresses. Drop any one and something breaks.
 
----
-
-## Recap
-
-1. **MESI enforces one writer or many readers per cache line.** The four states are "only me or others too" × "clean or dirty", plus invalid; MOESI fills the missing dirty-and-shared cell, MESIF names a responder.
-2. **A write needs exclusivity first.** M and E are free (E comes only from a read miss nobody else shares); S→M costs a cross-core confirmation; I→M costs fetching the line from wherever it is. Neither of the last two is always more expensive.
-3. **False sharing is repeated I→M on one side and M→I on the other**; read-only sharers make the writer pay too, which is why a producer slows down as readers join.
-4. **Coherence stops at one line.** It doesn't make multi-word reads atomic, and it doesn't order writes to different addresses — those take a protocol (stamps, sequence checks) and fences.

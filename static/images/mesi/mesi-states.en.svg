@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" width="1100" height="720" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/></marker><marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/></marker>
+<style>.t{font-size:22px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.h{font-size:18px;font-weight:700;fill:#1f2328}.lg{font-size:13px;fill:#1a7f37;paint-order:stroke;stroke:#ffffff;stroke-width:5px;stroke-linejoin:round}.lr{font-size:13px;fill:#cf222e;paint-order:stroke;stroke:#ffffff;stroke-width:5px;stroke-linejoin:round}</style></defs>
+<rect x="0" y="0" width="1100" height="720" fill="#ffffff"/>
+<text x="20" y="32" class="h">MESI transitions: the four roles a cache line can have in one core</text>
+<text x="20" y="54" class="s">Green solid (top) = this core reads or writes; red dashed (bottom) = a request snooped from another core. Writing needs exclusivity, so every local write ends in M.</text>
+<rect x="40" y="370" width="180" height="74" rx="8" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.6"/>
+<text x="130" y="402" text-anchor="middle" class="t">M</text>
+<text x="130" y="426" text-anchor="middle" class="s">Modified: only me, dirty</text>
+<rect x="320" y="370" width="180" height="74" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.6"/>
+<text x="410" y="402" text-anchor="middle" class="t">E</text>
+<text x="410" y="426" text-anchor="middle" class="s">Exclusive: only me, clean</text>
+<rect x="600" y="370" width="180" height="74" rx="8" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="690" y="402" text-anchor="middle" class="t">S</text>
+<text x="690" y="426" text-anchor="middle" class="s">Shared: maybe others, clean</text>
+<rect x="880" y="370" width="180" height="74" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.6"/>
+<text x="970" y="402" text-anchor="middle" class="t">I</text>
+<text x="970" y="426" text-anchor="middle" class="s">Invalid: no valid copy</text>
+<path d="M380,370 Q275.0,250 170,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M940,370 Q835.0,250 730,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M680,370 Q405.0,130 130,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M970,370 Q710.0,-40 450,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M1000,370 Q545.0,-140 90,370" fill="none" stroke="#1a7f37" stroke-width="1.7" marker-end="url(#g)"/>
+<path d="M440,444 Q545.0,576 650,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M130,444 Q405.0,696 680,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M730,444 Q830.0,576 930,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M400,444 Q685.0,786 970,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<path d="M90,444 Q550.0,876 1010,444" fill="none" stroke="#cf222e" stroke-width="1.7" stroke-dasharray="6 4" marker-end="url(#r)"/>
+<text x="275.0" y="303" text-anchor="middle" class="lg">local write: silent, no message</text>
+<text x="835.0" y="303" text-anchor="middle" class="lg">local read, others have it</text>
+<text x="405.0" y="243" text-anchor="middle" class="lg">local write: invalidate others (one round trip)</text>
+<text x="710.0" y="193" text-anchor="middle" class="lg">local read, nobody else has it</text>
+<text x="545.0" y="143" text-anchor="middle" class="lg">local write miss: RFO (fetch + invalidate others)</text>
+<text x="545.0" y="527" text-anchor="middle" class="lr">remote read</text>
+<text x="405.0" y="587" text-anchor="middle" class="lr">remote read: I supply the data, drop to S</text>
+<text x="550.0" y="677" text-anchor="middle" class="lr">remote write: M, E and S all go to I (M hands over its data first)</text>
+<text x="20" y="710" class="lg">green solid: this core reads / writes</text>
+<text x="360" y="710" class="lr">red dashed: another core reads / writes (snooped)</text>
+</svg>

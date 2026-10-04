@@ -10,21 +10,11 @@ toc: true
 homepage: false
 ---
 
-# Trading System Notes #5: Stamp the Slot, Not the Queue — An SPMC Broadcast Ring in Shared Memory
+An exchange's Level-2 feed arrives on one callback thread: trades and order updates, tens of thousands a second when the market is busy. There is more than one consumer downstream — one writes every message to disk, one republishes over MQTT, one runs live analytics — and **each of them must receive every message**.
 
-> **One-line thesis**: when one producer must feed several consumers that each see every message, and the producer may never wait, put the publication signal *in each slot* — a sequence stamp — and give every reader a private cursor. The producer then writes in a fixed number of steps no matter how many readers there are; the readers carry the consequences: silent overruns, torn reads that a naive re-check can't catch, and a hardware cost that still lands on the producer.
+How do you hand one message to three readers? The first idea is the SPSC queue from [#4](/posts/lock-free-queue-logger-micro-batching/): three of them, with the producer writing every message three times. But an SPSC producer has to read the consumer's position to know whether the queue is full, and once any reader falls behind and its queue fills, the producer must drop or wait. Here the producer is the market-data hot path. **It can never wait for any reader.**
 
-## What You're Actually Fighting
-
-An exchange feed handler receives trades and order updates on one callback thread. Downstream there are several consumers — one writes everything to disk, one republishes over MQTT, one runs analytics — and **each of them must see every message**. This is a different problem from the SPSC queue of [#4](/posts/lock-free-queue-logger-micro-batching/):
-
-- **SPSC** hands each message to *one* consumer. Once taken, it's gone, and the producer has to read the consumer's position to know whether the queue is full — and then drop or wait.
-- **Here** every message is *broadcast*: each reader reads it independently, and readers have nothing to do with each other.
-- **The hard constraint**: the producer is the market-data hot path. It may not wait for any reader, ever.
-
-Every design choice below follows from that constraint, and so does every failure mode.
-
----
+This post walks through a roughly fifty-line answer: an SPMC broadcast ring. The idea fits in one sentence — move the "this message is published" signal out of a shared index and into each slot — but its consequences take a while to work through. Part 1 is the ring itself and what it does not guarantee; Part 2 is what changes when it moves into memory shared between processes.
 
 ## 1. The Broadcast Ring: One Producer, Many Readers
 
@@ -112,7 +102,11 @@ And the producer **never reads anything a reader writes**. There is no "full": a
 
 A `Reader` holds only a pointer to the queue and its own `next_idx` — "the message number I want next". It lives in the reader's own memory, and the reader never writes to the queue. Readers don't contend with each other, and adding or removing one doesn't change a single step of the producer's code path.
 
-`read()` looks at the slot where message `next_idx` would be, and compares that slot's stamp `new_idx` with what it wants:
+`read()` looks at the slot where message `next_idx` would be, and compares that slot's stamp `new_idx` with what it wants. A picture makes it obvious: at the same moment, three readers that are behind by different amounts see exactly the three cases.
+
+<a href="/images/spmc-ring/ring.en.svg" target="_blank" rel="noopener"><img src="/images/spmc-ring/ring.en.svg" alt="A ring with CNT = 8 and the producer at message 11; reader A finds nothing new yet, reader B gets exactly its message, reader C is lapped and skips messages 2 to 9" loading="lazy" decoding="async"></a>
+
+The same three cases as a rule:
 
 | `int(new_idx - next_idx)` | Meaning | What `read()` does |
 |---|---|---|
@@ -272,13 +266,3 @@ saved cursor more than a lap behind (producer at 30)
 
 Resuming works as long as the reader is less than one lap behind; save the cursor outside the process, or it dies with it. The mirror-image trap: **the queue is recreated** (say, `shm_unlink` before each trading day) **but an old reader keeps running.** New stamps start at 0, the reader's cursor is in the millions, `int(new_idx - next_idx) < 0` holds forever, and `read()` returns `nullptr` — it looks like "no new messages" and is actually stuck until the new stamps catch up (measured: cursor 1000, nothing read while the new writer wrote 1..999). Restart readers with the queue, or detect stamps going backwards.
 
----
-
-## Recap
-
-1. **Put the publication signal in the slot.** A sequence stamp per slot plus private reader cursors means any number of readers decide independently, and the producer never reads reader state, never waits and never retries.
-2. **One wrap-safe subtraction has three meanings**: nothing new, exactly mine, or lapped — and a lap is always a multiple of the capacity. The queue knows how much was skipped; it just doesn't say unless you make `read()` report it.
-3. **A re-check after reading only works if the writer invalidates first.** With "write data, then stamp", a half-written slot still carries its old stamp; with "invalidate, write, stamp" plus two fences, an unchanged stamp proves untouched data.
-4. **Non-blocking is not free.** Polling readers leave shared copies the producer must invalidate on every lap: 2.8 ns per write alone, 18.5 with one reader, 28.0 with five.
-5. **Shared memory has its own contract**: same bytes at different addresses, so no pointers anywhere in an element — including the hidden ones inside `std::string`.
-6. **Deployment traps are the earlier lessons in disguise**: prefault the first lap, size the ring by capacity ÷ rate gap, persist reader cursors, and restart readers with the queue.
