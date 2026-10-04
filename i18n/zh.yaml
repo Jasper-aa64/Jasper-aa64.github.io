@@ -59,8 +59,6 @@ footerLine: "由 Jasper 撰写并搭建。字体:Instrument Serif、Inter、JetB
 homeTitle: "C++、低延迟系统与算法竞赛"
 
 # categories (homepage cards + Writing filter)
-catBrowse: "浏览"
-catHead: "核心方向"
 catLowLatency: "低延迟"
 catLowLatencyBlurb: "Linux、CPU 与内存性能、并发,以及 C++ 运行时行为——包括「交易系统笔记」系列。"
 catAlgorithms: "算法"

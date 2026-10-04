@@ -60,8 +60,6 @@ footerLine: "Written and built by Jasper. Set in Instrument Serif, Inter and Jet
 homeTitle: "C++, low-latency systems & competitive programming"
 
 # categories (homepage cards + Writing filter)
-catBrowse: "Browse"
-catHead: "Core areas"
 catLowLatency: "Low-Latency"
 catLowLatencyBlurb: "Linux, CPU and memory performance, concurrency and C++ runtime behavior — including the Trading System Notes series."
 catAlgorithms: "Algorithms"

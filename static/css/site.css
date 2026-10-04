@@ -441,6 +441,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 /* Home sections */
 .home-sec { padding-top: clamp(40px, 6vw, 72px); }
+.home-sec--areas { padding-top: clamp(20px, 3vw, 36px); }
 .home-sec__head {
   display: flex;
   flex-wrap: wrap;

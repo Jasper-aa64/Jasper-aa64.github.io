@@ -33,11 +33,7 @@
   </div>
 </section>
 
-<section class="home-sec wrap" id="areas" aria-labelledby="areas-title">
-  <header class="home-sec__head reveal">
-    <p class="eyebrow">{{ i18n "catBrowse" }}</p>
-    <h2 id="areas-title">{{ i18n "catHead" }}</h2>
-  </header>
+<section class="home-sec home-sec--areas wrap" id="areas" aria-label="{{ i18n "categoriesTitle" }}">
   <div class="area-grid">
     {{ range $i, $c := slice
       (dict "key" "lowlatency" "name" (i18n "catLowLatency") "blurb" (i18n "catLowLatencyBlurb") "href" (print ("posts/" | relLangURL) "#lowlatency"))
