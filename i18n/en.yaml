@@ -56,7 +56,6 @@ section: "Section"
 term: "Topic"
 lifeEmpty: "Nothing here yet — photos and short notes from outside the terminal are on their way."
 
-footerLine: "Written and built by Jasper. Set in Instrument Serif, Inter and JetBrains Mono."
 homeTitle: "C++, low-latency systems & competitive programming"
 
 # categories (homepage cards + Writing filter)

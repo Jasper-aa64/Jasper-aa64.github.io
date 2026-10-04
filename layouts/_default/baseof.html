@@ -103,16 +103,13 @@
 
     <footer class="site-footer">
       <div class="wrap site-footer__inner">
-        <div class="site-footer__sign">
-          <p>{{ i18n "footerLine" }}</p>
-        </div>
+        <p class="site-footer__meta">© {{ now.Format "2006" }} Jasper · <a href="#main" data-to-top>{{ i18n "backToTop" }} ↑</a></p>
         <nav class="site-footer__links" aria-label="Footer">
           <a href="{{ site.Params.github }}" rel="me">GitHub</a>
           <a href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }}</a>
           <a href="{{ "posts/" | relLangURL }}">{{ i18n "secWriting" }}</a>
           <a href="{{ "index.xml" | relLangURL }}">{{ i18n "rss" }}</a>
         </nav>
-        <p class="site-footer__meta">© {{ now.Format "2006" }} Jasper · <a href="#main" data-to-top>{{ i18n "backToTop" }} ↑</a></p>
       </div>
     </footer>
 

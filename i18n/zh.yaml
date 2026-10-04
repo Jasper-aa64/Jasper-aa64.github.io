@@ -55,7 +55,6 @@ section: "栏目"
 term: "主题"
 lifeEmpty: "这里还空着——终端之外的照片和随笔,在路上了。"
 
-footerLine: "由 Jasper 撰写并搭建。字体:Instrument Serif、Inter、JetBrains Mono。"
 homeTitle: "C++、低延迟系统与算法竞赛"
 
 # categories (homepage cards + Writing filter)
