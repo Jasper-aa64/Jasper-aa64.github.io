@@ -1114,11 +1114,14 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   overflow-x: auto;
   border: 1px solid var(--rule);
   border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow);
   scrollbar-width: thin;
 }
 .prose table {
   width: 100%;
   border-collapse: collapse;
+  background: var(--card);
   font-size: 14.8px;
   line-height: 1.55;
   font-variant-numeric: tabular-nums;
@@ -1132,7 +1135,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   color: var(--ink);
   white-space: nowrap;
 }
-:root[data-theme="dark"] .prose th { background: #1a1a1d; }
+:root[data-theme="dark"] .prose th { background: #423d3b; }
+.prose tbody tr:nth-child(even) { background: color-mix(in srgb, var(--paper-2) 55%, var(--card)); }
 .prose tr:last-child td { border-bottom: 0; }
 .prose tbody tr { transition: background-color .15s; }
 .prose tbody tr:hover { background: var(--wash); }
