@@ -100,3 +100,11 @@ allTags: "All tags"
 showcaseLabel: "Featured posts"
 tagGeneral: "General"
 tagOther: "Other"
+
+# about page
+aboutStats: "Writing"
+aboutPerMonth: "Posts per month, last 12 months"
+aboutByCategory: "By category"
+aboutProjects: "Projects"
+aboutSkills: "Skills"
+aboutMe: "About me"

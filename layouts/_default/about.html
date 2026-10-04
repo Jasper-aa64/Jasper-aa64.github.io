@@ -1,0 +1,124 @@
+{{ define "main" }}
+{{/* About page (知悉): profile card, writing stats, projects, skills, then the page's own text.
+     Structured content lives in data/about.yaml; the prose is content/about*.md. */}}
+{{ $a := index hugo.Data.about site.Language.Lang }}
+{{ $posts := partial "posts-all.html" . }}
+{{ $ix := partial "class-index.html" . }}
+{{ $tags := partial "tag-list.html" . }}
+{{ $zh := eq site.Language.Lang "zh" }}
+{{ $cats := 0 }}{{ range slice "lowlatency" "algorithms" "ainative" }}{{ if index $ix.count . }}{{ $cats = add $cats 1 }}{{ end }}{{ end }}
+
+<section class="about wrap">
+  <!-- profile card -->
+  <div class="about-card reveal">
+    <div class="about-card__counts">
+      <a href="{{ "posts/" | relLangURL }}"><strong>{{ len $posts }}</strong><span>{{ i18n "statNotes" }}</span></a>
+      <a href="{{ "categories/" | relLangURL }}"><strong>{{ $cats }}</strong><span>{{ i18n "categoriesTitle" }}</span></a>
+      <a href="{{ "categories/" | relLangURL }}"><strong>{{ len $tags }}</strong><span>{{ i18n "tagsTitle" }}</span></a>
+    </div>
+    <div class="about-card__avatar"><img src="/images/logo.svg" alt="" width="104" height="90"></div>
+    <div class="about-card__links">
+      <a class="icon-btn" href="{{ site.Params.github }}" rel="me" aria-label="GitHub" title="GitHub">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      </a>
+      <a class="icon-btn" href="/files/cv.pdf" target="_blank" rel="noopener" aria-label="{{ i18n "cv" }}" title="{{ i18n "cv" }}">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+      </a>
+      <a class="icon-btn" href="{{ "index.xml" | relLangURL }}" aria-label="RSS" title="RSS">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14"/><circle cx="6" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>
+      </a>
+    </div>
+    <h1 class="about-card__name">{{ $a.name }}</h1>
+    <p class="about-card__motto">{{ $a.motto }}</p>
+  </div>
+
+  <!-- writing stats: posts per month (last 12 months) and the share of each category -->
+  <section class="about-sec reveal">
+    <h2 class="about-sec__head">{{ i18n "aboutStats" }}</h2>
+    <div class="about-stats">
+      {{ $m := newScratch }}
+      {{ range $posts }}{{ $m.Add (.Date.Format "2006-01") 1 }}{{ end }}
+      {{ $months := slice }}{{ $max := 1 }}
+      {{ range $i := seq 11 -1 0 }}
+        {{ $t := now.AddDate 0 (mul -1 $i) 0 }}
+        {{ $n := $m.Get ($t.Format "2006-01") | default 0 }}
+        {{ if gt $n $max }}{{ $max = $n }}{{ end }}
+        {{ $months = $months | append (dict "label" (cond $zh (print ($t.Format "1") "月") ($t.Format "Jan")) "n" $n) }}
+      {{ end }}
+      <figure class="about-chart">
+        <figcaption>{{ i18n "aboutPerMonth" }}</figcaption>
+        <svg viewBox="0 0 600 190" role="img" aria-label="{{ i18n "aboutPerMonth" }}">
+          <path d="M20 160 H590" class="about-chart__axis"/>
+          {{ range $i, $mo := $months }}
+            {{ $x := add 24 (mul $i 48) }}
+            {{ $h := div (mul (float $mo.n) 130) $max }}
+            {{ if gt $mo.n 0 }}
+              <rect x="{{ $x }}" y="{{ sub 160 $h }}" width="32" height="{{ $h }}" rx="4" class="about-chart__bar"/>
+              <text x="{{ add $x 16 }}" y="{{ sub 152 $h }}" class="about-chart__n">{{ $mo.n }}</text>
+            {{ else }}
+              <rect x="{{ $x }}" y="157" width="32" height="3" rx="1.5" class="about-chart__bar about-chart__bar--zero"/>
+            {{ end }}
+            <text x="{{ add $x 16 }}" y="180" class="about-chart__m">{{ $mo.label }}</text>
+          {{ end }}
+        </svg>
+      </figure>
+      <div class="about-share">
+        <p class="about-share__head">{{ i18n "aboutByCategory" }}</p>
+        {{ $total := len $posts }}
+        <div class="about-share__bar">
+          {{ range slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
+            {{ $n := index $ix.count (index . 0) | default 0 }}
+            {{ if $n }}<span class="about-share__seg about-share__seg--{{ index . 0 }}" style="flex-grow: {{ $n }}"></span>{{ end }}
+          {{ end }}
+        </div>
+        <ul class="about-share__legend">
+          {{ range slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
+            {{ $n := index $ix.count (index . 0) | default 0 }}
+            <li><a href="{{ "posts/" | relLangURL }}#{{ index . 0 }}"><i class="about-share__dot about-share__seg--{{ index . 0 }}"></i>{{ i18n (index . 1) }}<b>{{ $n }}</b><span>{{ lang.FormatNumber 0 (mul (div (float $n) $total) 100) }}%</span></a></li>
+          {{ end }}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- projects -->
+  <section class="about-sec reveal">
+    <h2 class="about-sec__head">{{ i18n "aboutProjects" }}</h2>
+    <div class="about-projects">
+      {{ range $a.projects }}
+        <a class="project" href="{{ .link }}" target="_blank" rel="noopener">
+          <span class="project__meta">{{ .meta }}</span>
+          <strong class="project__name">{{ .name }} <span aria-hidden="true">↗</span></strong>
+          <span class="project__text">{{ .text }}</span>
+        </a>
+      {{ end }}
+    </div>
+  </section>
+
+  <!-- skills -->
+  <section class="about-sec reveal">
+    <h2 class="about-sec__head">{{ i18n "aboutSkills" }}</h2>
+    <div class="about-skills">
+      {{ range $a.skills }}
+        <div class="skill-group">
+          <span class="skill-group__name">{{ .group }}</span>
+          <div class="skill-group__items">{{ range .items }}<span class="skill">{{ . }}</span>{{ end }}</div>
+        </div>
+      {{ end }}
+    </div>
+  </section>
+
+  <!-- about me: background timeline, then the page's own text -->
+  <section class="about-sec reveal">
+    <h2 class="about-sec__head">{{ i18n "aboutMe" }}</h2>
+    <div class="about-me">
+      <ol class="timeline">
+        {{ range $a.background }}
+          <li><span class="timeline__when">{{ .when }}</span><strong>{{ .what }}</strong><span class="timeline__where">{{ .where }}</span></li>
+        {{ end }}
+      </ol>
+      <div class="prose about-prose">{{ .Content }}</div>
+    </div>
+  </section>
+</section>
+{{ end }}

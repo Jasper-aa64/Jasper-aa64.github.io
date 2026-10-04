@@ -99,3 +99,11 @@ allTags: "全部标签"
 showcaseLabel: "精选文章"
 tagGeneral: "通用"
 tagOther: "其他"
+
+# about page
+aboutStats: "文章统计"
+aboutPerMonth: "近 12 个月每月发文"
+aboutByCategory: "按分类"
+aboutProjects: "我的项目"
+aboutSkills: "我的技能"
+aboutMe: "关于我"
