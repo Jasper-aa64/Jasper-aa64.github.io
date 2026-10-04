@@ -1,15 +1,26 @@
 {{/* Tags of this language with counts, most used first; on the Chinese site also the tags only English notes use.
-     Returns slice of dict t (name), n (count), u (URL). */}}
+     Returns slice of dict t (name), n (count), u (URL), g (group: lowlatency | algorithms/<sub> | algorithms/common | ainative | other).
+     A tag's group is the top-level category most of its posts belong to; an algorithms tag used across
+     several subcategories goes to algorithms/common. */}}
 {{ $names := hugo.Data.tagnames }}
-{{ $tags := slice }}{{ $seen := slice }}
-{{ range site.Taxonomies.tags.ByCount }}
-  {{ $tags = $tags | append (dict "t" (index $names (.Page.Title | urlize) | default (replace (.Page.Title | lower) "-" " ")) "n" .Count "u" .Page.RelPermalink) }}{{ $seen = $seen | append (.Page.Title | urlize) }}
-{{ end }}
+{{ $terms := slice }}{{ $seen := slice }}
+{{ range site.Taxonomies.tags.ByCount }}{{ $terms = $terms | append . }}{{ $seen = $seen | append (.Page.Title | urlize) }}{{ end }}
 {{ if ne site.Language.Lang "en" }}
   {{ range hugo.Sites }}{{ if eq .Language.Lang "en" }}
-    {{ range .Taxonomies.tags.ByCount }}{{ if not (in $seen (.Page.Title | urlize)) }}
-      {{ $tags = $tags | append (dict "t" (index $names (.Page.Title | urlize) | default (replace (.Page.Title | lower) "-" " ")) "n" .Count "u" .Page.RelPermalink) }}
-    {{ end }}{{ end }}
+    {{ range .Taxonomies.tags.ByCount }}{{ if not (in $seen (.Page.Title | urlize)) }}{{ $terms = $terms | append . }}{{ end }}{{ end }}
   {{ end }}{{ end }}
+{{ end }}
+{{ $tags := slice }}
+{{ range $terms }}
+  {{ $c := newScratch }}{{ $subs := slice }}
+  {{ range .Pages }}
+    {{ $s := partial "series.html" . }}
+    {{ $c.Add $s.key 1 }}
+    {{ if and (eq $s.key "algorithms") $s.sub (not (in $subs $s.sub)) }}{{ $subs = $subs | append $s.sub }}{{ end }}
+  {{ end }}
+  {{ $g := "other" }}{{ $best := 0 }}
+  {{ range slice "lowlatency" "algorithms" "ainative" }}{{ $n := $c.Get . | default 0 }}{{ if gt $n $best }}{{ $best = $n }}{{ $g = . }}{{ end }}{{ end }}
+  {{ if eq $g "algorithms" }}{{ $g = cond (eq (len $subs) 1) (print "algorithms/" (index $subs 0)) "algorithms/common" }}{{ end }}
+  {{ $tags = $tags | append (dict "t" (index $names (.Page.Title | urlize) | default (replace (.Page.Title | lower) "-" " ")) "n" .Count "u" .Page.RelPermalink "g" $g) }}
 {{ end }}
 {{ return sort $tags "n" "desc" }}
