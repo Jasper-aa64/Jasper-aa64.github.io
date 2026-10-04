@@ -1,0 +1,10 @@
+{{/* own: pages in the current language; other: English pages. Adds every English page that has no translation in the current language, newest first. */}}
+{{ $lang := site.Language.Lang }}
+{{ $res := slice }}
+{{ range .own }}{{ $res = $res | append . }}{{ end }}
+{{ range .other }}
+  {{ $has := false }}
+  {{ range .Translations }}{{ if eq .Language.Lang $lang }}{{ $has = true }}{{ end }}{{ end }}
+  {{ if not $has }}{{ $res = $res | append . }}{{ end }}
+{{ end }}
+{{ return sort $res "Date" "desc" }}

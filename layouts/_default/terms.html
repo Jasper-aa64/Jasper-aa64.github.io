@@ -1,8 +1,8 @@
 {{ define "main" }}
   <section class="page-heading">
-    <span class="eyebrow">Taxonomy</span>
+    <span class="eyebrow">{{ i18n "taxonomy" }}</span>
     <h1>{{ .Title }}</h1>
-    <p>Browse notes by topic and reuse path.</p>
+    <p>{{ i18n "taxonomyBlurb" }}</p>
   </section>
 
   <section class="content-panel">
@@ -10,7 +10,7 @@
       {{ range .Data.Terms.Alphabetical }}
         <a class="term-card" href="{{ .Page.RelPermalink }}">
           <strong>{{ .Page.Title }}</strong>
-          <span>{{ .Count }} post{{ if ne .Count 1 }}s{{ end }}</span>
+          <span>{{ i18n "postCount" .Count }}</span>
         </a>
       {{ end }}
     </div>

@@ -1,13 +1,20 @@
 {{ define "main" }}
   <section class="page-heading">
-    <span class="eyebrow">{{ .Kind | humanize }}</span>
+    <span class="eyebrow">{{ if eq .Kind "section" }}{{ i18n "section" }}{{ else if eq .Kind "term" }}{{ i18n "term" }}{{ else }}{{ .Kind | humanize }}{{ end }}</span>
     <h1>{{ .Title }}</h1>
     {{ with .Description }}<p>{{ . }}</p>{{ end }}
   </section>
 
+  {{ $pages := .Pages }}
+  {{ if ne site.Language.Lang "en" }}
+    {{ $other := slice }}
+    {{ range .Translations }}{{ if eq .Language.Lang "en" }}{{ $other = .Pages }}{{ end }}{{ end }}
+    {{ $pages = partial "merge-lang.html" (dict "own" .Pages "other" $other) }}
+  {{ end }}
+
   <section class="content-panel">
     <div class="post-list">
-      {{ range .Pages }}
+      {{ range $pages }}
         {{ partial "post-card.html" . }}
       {{ end }}
     </div>

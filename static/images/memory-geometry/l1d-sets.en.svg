@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" width="1100" height="600" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <style>
+      .t { font-size: 14px; font-weight: 600; fill: #1f2328; }
+      .s { font-size: 12px; fill: #57606a; }
+      .h { font-size: 18px; font-weight: 700; fill: #1f2328; }
+      .m { font-size: 13px; fill: #1f2328; font-family: Menlo, Consolas, monospace; }
+      .ln { stroke: #555; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="600" fill="#ffffff"/>
+  <text x="20" y="34" class="h">Inside L1D: a cabinet of 64 rows × 8 slots (32 KiB, 8-way, one 64 B line per slot)</text>
+  <text x="20" y="56" class="s">Where: inside the "L1D 32 KiB · 8-way" box on the hardware map. L2 and L3 are the same kind of cabinet, with different sizes.</text>
+
+  <!-- address -->
+  <text x="20" y="100" class="t">Address to read: 10000 (decimal)</text>
+  <text x="20" y="122" class="m">binary  10 011100 010000</text>
+  <rect x="20"  y="135" width="120" height="44" fill="#ffffff" stroke="#8c959f"/>
+  <rect x="140" y="135" width="150" height="44" fill="#ddf4ff" stroke="#54aeff"/>
+  <rect x="290" y="135" width="150" height="44" fill="#fff8c5" stroke="#d4a72c"/>
+  <text x="32"  y="162" class="m">10 → 2</text>
+  <text x="152" y="162" class="m">011100 → 28</text>
+  <text x="302" y="162" class="m">010000 → 16</text>
+  <text x="32"  y="200" class="t">tag</text>
+  <text x="152" y="200" class="t">set index (which row)</text>
+  <text x="302" y="200" class="t">offset in line</text>
+  <text x="32"  y="218" class="s">bit 12 and up</text>
+  <text x="152" y="218" class="s">bits 6–11, 0–63</text>
+  <text x="302" y="218" class="s">bits 0–5, 0–63</text>
+
+  <text x="20" y="262" class="t">Lookup in three steps</text>
+  <text x="20" y="288" class="s">① Go straight to row 28 (computed, not searched)</text>
+  <text x="20" y="310" class="s">② Each of the row's 8 slots holds a tag + 64 B of data;</text>
+  <text x="38" y="328" class="s">all 8 tags are compared with 2 at once (8 comparators)</text>
+  <text x="20" y="350" class="s">③ A slot with tag 2 → hit; read from byte 16 of that line</text>
+  <text x="38" y="368" class="s">none → miss; fetch the whole line from L2 into a slot of row 28;</text>
+  <text x="38" y="386" class="s">if all 8 are full, evict the least recently used one</text>
+
+  <text x="20" y="430" class="t">Another address: 10000 + 4096 = 14096</text>
+  <text x="20" y="452" class="m">binary  11 011100 010000</text>
+  <text x="20" y="474" class="s">Set index is still 28, only the tag becomes 3 → it competes for the same 8 slots</text>
+  <text x="20" y="496" class="s">So addresses a multiple of 4096 apart share a row; the 9th such address evicts one,</text>
+  <text x="20" y="514" class="s">even if the other 63 rows are empty. That is the 4 KiB critical stride.</text>
+
+  <!-- cabinet -->
+  <text x="560" y="100" class="t">The cabinet (64 rows × 8 slots)</text>
+  <text x="560" y="120" class="s">slot 0 … slot 7 (= 8 ways)</text>
+  <g>
+    <!-- rows 0..3 -->
+    <rect x="600" y="135" width="440" height="30" fill="#f6f8fa" stroke="#8c959f"/>
+    <rect x="600" y="165" width="440" height="30" fill="#f6f8fa" stroke="#8c959f"/>
+    <rect x="600" y="195" width="440" height="30" fill="#f6f8fa" stroke="#8c959f"/>
+    <text x="560" y="155" class="s">row 0</text>
+    <text x="560" y="185" class="s">row 1</text>
+    <text x="560" y="215" class="s">row 2</text>
+    <text x="810" y="250" class="s">⋮</text>
+    <!-- row 28 -->
+    <rect x="600" y="265" width="440" height="40" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+    <text x="548" y="290" class="t">row 28</text>
+    <rect x="600" y="265" width="55" height="40" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+    <text x="606" y="282" class="s">tag 2</text>
+    <text x="606" y="298" class="s">64 B</text>
+    <text x="661" y="282" class="s">tag 7</text>
+    <text x="716" y="282" class="s">tag 0</text>
+    <text x="771" y="282" class="s">empty</text>
+    <text x="826" y="282" class="s">…</text>
+    <text x="810" y="335" class="s">⋮</text>
+    <rect x="600" y="350" width="440" height="30" fill="#f6f8fa" stroke="#8c959f"/>
+    <text x="560" y="370" class="s">row 63</text>
+    <!-- column separators -->
+    <g stroke="#8c959f" stroke-width="1">
+      <line x1="655" y1="135" x2="655" y2="225"/><line x1="710" y1="135" x2="710" y2="225"/>
+      <line x1="765" y1="135" x2="765" y2="225"/><line x1="820" y1="135" x2="820" y2="225"/>
+      <line x1="875" y1="135" x2="875" y2="225"/><line x1="930" y1="135" x2="930" y2="225"/>
+      <line x1="985" y1="135" x2="985" y2="225"/>
+      <line x1="655" y1="265" x2="655" y2="305"/><line x1="710" y1="265" x2="710" y2="305"/>
+      <line x1="765" y1="265" x2="765" y2="305"/><line x1="820" y1="265" x2="820" y2="305"/>
+      <line x1="875" y1="265" x2="875" y2="305"/><line x1="930" y1="265" x2="930" y2="305"/>
+      <line x1="985" y1="265" x2="985" y2="305"/>
+      <line x1="655" y1="350" x2="655" y2="380"/><line x1="710" y1="350" x2="710" y2="380"/>
+      <line x1="765" y1="350" x2="765" y2="380"/><line x1="820" y1="350" x2="820" y2="380"/>
+      <line x1="875" y1="350" x2="875" y2="380"/><line x1="930" y1="350" x2="930" y2="380"/>
+      <line x1="985" y1="350" x2="985" y2="380"/>
+    </g>
+  </g>
+  <!-- arrow from set field to row 28 -->
+  <path d="M215,135 C215,110 470,110 470,200 C470,260 520,285 545,285" class="ln" marker-end="url(#a)"/>
+  <text x="330" y="106" class="s">① set index picks the row</text>
+
+  <text x="560" y="420" class="t">Capacity</text>
+  <text x="560" y="444" class="s">64 rows × 8 slots × 64 B = 32768 B = 32 KiB</text>
+  <text x="560" y="466" class="s">Every 64 × 64 B = 4096 B of address, the row number wraps around</text>
+  <text x="560" y="500" class="t">Why the 8-slots-per-row compromise</text>
+  <text x="560" y="524" class="s">1 slot per row: two hot addresses 4 KiB apart keep evicting each other</text>
+  <text x="560" y="546" class="s">no rows, any of 512 slots: every read compares 512 tags, too slow for 1 ns</text>
+  <text x="560" y="568" class="s">8 slots: only 8 compares, yet 8 places for lines that share a row</text>
+</svg>

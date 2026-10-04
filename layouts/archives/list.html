@@ -1,19 +1,20 @@
 {{ define "main" }}
   <section class="page-heading">
-    <span class="eyebrow">Timeline</span>
+    <span class="eyebrow">{{ i18n "timeline" }}</span>
     <h1>{{ .Title }}</h1>
-    <p>Chronological index of published notes.</p>
+    <p>{{ i18n "timelineBlurb" }}</p>
   </section>
 
   <section class="content-panel">
     <div class="archive-list">
-      {{ range (where site.RegularPages "Section" "posts").GroupByDate "2006" }}
+      {{ $all := partial "posts-all.html" . }}
+      {{ range (sort $all "Date" "desc").GroupByDate "2006" }}
         <section class="archive-year">
           <h2>{{ .Key }}</h2>
           <div class="archive-items">
             {{ range .Pages }}
               <a class="archive-item" href="{{ .RelPermalink }}">
-                <time>{{ .Date.Format "Jan 02" }}</time>
+                <time>{{ .Date.Format (i18n "dateArchive") }}</time>
                 <span>{{ .Title }}</span>
               </a>
             {{ end }}

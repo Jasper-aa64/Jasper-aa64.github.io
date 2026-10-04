@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ site.Language.LanguageCode | default `en-us` }}">
+<html lang="{{ site.Language.LanguageCode | default `en-us` }}" data-site-lang="{{ site.Language.Lang }}" data-has-zh="{{ if and (eq site.Language.Lang `en`) (gt (len .Translations) 0) }}true{{ else }}false{{ end }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -53,19 +53,20 @@
     <div class="page-shell">
       <header class="site-header">
         <div class="container header-inner">
-          <a class="brand" href="/">
+          <a class="brand" href="{{ site.Home.RelPermalink }}">
             <span class="brand-mark">J</span>
             <span>
-              <strong class="brand-first">Jasper's</strong>
-              <small>Technical Notebook</small>
+              <strong class="brand-first">{{ i18n "brandFirst" }}</strong>
+              <small>{{ i18n "brandSecond" }}</small>
             </span>
           </a>
           <div class="header-actions">
-            <button class="theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false">
+            {{ partial "lang-switch.html" . }}
+            <button class="theme-toggle" type="button" aria-label="{{ i18n "switchTheme" }}" aria-pressed="false">
               <span class="theme-toggle-icon" aria-hidden="true"></span>
-              <span class="sr-only">Switch theme</span>
+              <span class="sr-only">{{ i18n "switchTheme" }}</span>
             </button>
-            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="{{ i18n "toggleNav" }}">
               <span></span>
               <span></span>
               <span></span>
@@ -81,10 +82,10 @@
           <nav class="site-nav" id="site-navigation">
             {{ range site.Menus.main }}
               {{ $active := or ($.IsMenuCurrent "main" .) ($.HasMenuCurrent "main" .) (eq $.RelPermalink .URL) }}
-              {{ $active = or $active (and (eq .URL "/posts/") (eq $.Section "posts")) }}
-              {{ $active = or $active (and (eq .URL "/archives/") (eq $.Section "archives")) }}
-              {{ $active = or $active (and (eq .URL "/categories/") (eq $.Data.Plural "categories")) }}
-              {{ $active = or $active (and (eq .URL "/tags/") (eq $.Data.Plural "tags")) }}
+              {{ $active = or $active (and (eq .URL ("posts/" | relLangURL)) (eq $.Section "posts")) }}
+              {{ $active = or $active (and (eq .URL ("archives/" | relLangURL)) (eq $.Section "archives")) }}
+              {{ $active = or $active (and (eq .URL ("categories/" | relLangURL)) (eq $.Data.Plural "categories")) }}
+              {{ $active = or $active (and (eq .URL ("tags/" | relLangURL)) (eq $.Data.Plural "tags")) }}
               <a class="nav-link{{ if $active }} is-active{{ end }}" href="{{ .URL }}">{{ .Name }}</a>
             {{ end }}
           </nav>
@@ -102,9 +103,9 @@
         </div>
         <div class="footer-links">
           <a href="{{ site.Params.github }}">GitHub</a>
-          <a href="/posts/">Posts</a>
-          <a href="/archives/">Archives</a>
-          <a href="/tags/">Tags</a>
+          <a href="{{ "posts/" | relLangURL }}">{{ i18n "footerPosts" }}</a>
+          <a href="{{ "archives/" | relLangURL }}">{{ i18n "footerArchives" }}</a>
+          <a href="{{ "tags/" | relLangURL }}">{{ i18n "footerTags" }}</a>
         </div>
       </footer>
     </div>
@@ -141,7 +142,7 @@
         function applyTheme(theme, persist) {
           document.documentElement.dataset.theme = theme;
           themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-          themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+          themeToggle.setAttribute("aria-label", theme === "dark" ? {{ i18n "toLight" }} : {{ i18n "toDark" }});
           if (persist) {
             try {
               window.localStorage.setItem("theme", theme);
@@ -157,6 +158,34 @@
           window.setTimeout(function() {
             document.documentElement.classList.remove("theme-switching");
           }, 620);
+        });
+      })();
+    </script>
+    <script>
+      (function() {
+        var lang = document.documentElement.dataset.siteLang;
+        var hasZh = document.documentElement.dataset.hasZh === "true";
+        function setPref(v) { try { window.localStorage.setItem("lang", v); } catch (error) {} }
+        function getPref() { try { return window.localStorage.getItem("lang"); } catch (error) { return null; } }
+        if (lang === "zh") setPref("zh");
+        else if (hasZh) setPref("en");
+        document.querySelectorAll("[data-lang-target]").forEach(function(a) {
+          a.addEventListener("click", function() { setPref(a.dataset.langTarget); });
+        });
+        var notice = document.querySelector(".lang-notice");
+        var button = document.querySelector("[data-lang-notice]");
+        if (!notice || !button) return;
+        function show(on) {
+          notice.hidden = !on;
+          button.textContent = on ? "EN" : "中文";
+          button.setAttribute("aria-pressed", String(on));
+        }
+        show(getPref() === "zh");
+        button.addEventListener("click", function() {
+          var on = notice.hidden;
+          setPref(on ? "zh" : "en");
+          show(on);
+          if (on) notice.scrollIntoView({ block: "nearest" });
         });
       })();
     </script>

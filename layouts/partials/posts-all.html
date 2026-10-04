@@ -1,0 +1,9 @@
+{{/* All posts for the current language. The Chinese site also lists English posts that have no Chinese version yet, so it never looks emptier than the English one. */}}
+{{ $own := where site.RegularPages "Section" "posts" }}
+{{ $res := $own }}
+{{ if ne site.Language.Lang "en" }}
+  {{ $other := slice }}
+  {{ range hugo.Sites }}{{ if eq .Language.Lang "en" }}{{ $other = where .RegularPages "Section" "posts" }}{{ end }}{{ end }}
+  {{ $res = partial "merge-lang.html" (dict "own" $own "other" $other) }}
+{{ end }}
+{{ return $res }}

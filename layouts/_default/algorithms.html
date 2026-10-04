@@ -1,6 +1,6 @@
 {{ define "main" }}
   <section class="page-heading">
-    <span class="eyebrow">Algorithms</span>
+    <span class="eyebrow">{{ i18n "algorithms" }}</span>
     <h1>{{ .Title }}</h1>
     {{ with .Params.description }}<p>{{ . }}</p>{{ end }}
   </section>
@@ -13,11 +13,11 @@
     <section class="content-panel">
       <div class="section-head">
         <div>
-          <span class="eyebrow">Series</span>
+          <span class="eyebrow">{{ i18n "series" }}</span>
           <h2>{{ $cat }}</h2>
         </div>
         {{ with index site.Taxonomies.categories ($cat | lower) }}
-          <a class="text-link" href="{{ .Page.RelPermalink }}">View all</a>
+          <a class="text-link" href="{{ .Page.RelPermalink }}">{{ i18n "viewAll" }}</a>
         {{ end }}
       </div>
       <div class="post-list">

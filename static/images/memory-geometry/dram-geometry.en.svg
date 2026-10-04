@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" width="1100" height="700" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <style>
+      .t { font-size: 14px; font-weight: 600; fill: #1f2328; }
+      .s { font-size: 12px; fill: #57606a; }
+      .h { font-size: 18px; font-weight: 700; fill: #1f2328; }
+      .m { font-size: 12px; fill: #1f2328; font-family: Menlo, Consolas, monospace; }
+      .ln { stroke: #555; stroke-width: 1.5; fill: none; }
+      .zm { stroke: #8c959f; stroke-width: 1; stroke-dasharray: 4 3; fill: none; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="700" fill="#ffffff"/>
+  <text x="20" y="34" class="h">Inside the DIMMs: channel → rank → chip → bank → row buffer</text>
+  <text x="20" y="56" class="s">Where: the memory-controller and DIMM boxes below L3 on the hardware map; a load gets here after an L3 miss. Typical DDR4 numbers, not measured.</text>
+
+  <!-- controller -->
+  <rect x="20" y="110" width="140" height="80" rx="6" fill="#ddf4ff" stroke="#0969da"/>
+  <text x="34" y="140" class="t">Memory controller</text>
+  <text x="34" y="160" class="s">on the CPU die</text>
+  <text x="34" y="178" class="s">splits addresses</text>
+
+  <!-- channels -->
+  <path d="M160,130 L238,100" class="ln" marker-end="url(#a)"/>
+  <path d="M160,170 L238,220" class="ln" marker-end="url(#a)"/>
+  <text x="168" y="100" class="s">channel 0</text>
+  <text x="168" y="226" class="s">channel 1</text>
+
+  <!-- DIMM channel 0 -->
+  <rect x="240" y="70" width="330" height="80" rx="4" fill="#f6f8fa" stroke="#8c959f"/>
+  <text x="250" y="88" class="s">DIMM (channel 0) · rank 0 = 8 chips</text>
+  <g fill="#fff8c5" stroke="#d4a72c">
+    <rect x="250" y="98" width="34" height="40"/><rect x="290" y="98" width="34" height="40"/>
+    <rect x="330" y="98" width="34" height="40"/><rect x="370" y="98" width="34" height="40"/>
+    <rect x="410" y="98" width="34" height="40"/><rect x="450" y="98" width="34" height="40"/>
+    <rect x="490" y="98" width="34" height="40"/><rect x="530" y="98" width="34" height="40"/>
+  </g>
+  <rect x="530" y="98" width="34" height="40" fill="#fff8c5" stroke="#bf8700" stroke-width="2.5"/>
+
+  <!-- DIMM channel 1 -->
+  <rect x="240" y="190" width="330" height="80" rx="4" fill="#f6f8fa" stroke="#8c959f"/>
+  <text x="250" y="208" class="s">DIMM (channel 1) · transfers in parallel with channel 0</text>
+  <g fill="#fff8c5" stroke="#d4a72c">
+    <rect x="250" y="218" width="34" height="40"/><rect x="290" y="218" width="34" height="40"/>
+    <rect x="330" y="218" width="34" height="40"/><rect x="370" y="218" width="34" height="40"/>
+    <rect x="410" y="218" width="34" height="40"/><rect x="450" y="218" width="34" height="40"/>
+    <rect x="490" y="218" width="34" height="40"/><rect x="530" y="218" width="34" height="40"/>
+  </g>
+
+  <text x="240" y="296" class="s">Each chip supplies 8 bits; 8 side by side = 64 bits = one beat of the channel;</text>
+  <text x="240" y="314" class="s">a 64 B cache line = 8 beats, 8 bytes from each chip.</text>
+
+  <!-- zoom chip -->
+  <path d="M564,98 L640,80" class="zm"/>
+  <path d="M564,138 L640,250" class="zm"/>
+  <rect x="640" y="70" width="440" height="180" rx="4" fill="#ffffff" stroke="#bf8700" stroke-width="1.5"/>
+  <text x="652" y="90" class="t">One chip: 16 banks, each can open a row on its own</text>
+  <g fill="#f6f8fa" stroke="#8c959f">
+    <rect x="660" y="104" width="90" height="54"/><rect x="760" y="104" width="90" height="54"/>
+    <rect x="860" y="104" width="90" height="54"/><rect x="960" y="104" width="90" height="54"/>
+    <rect x="660" y="168" width="90" height="54"/><rect x="760" y="168" width="90" height="54"/>
+    <rect x="860" y="168" width="90" height="54"/>
+  </g>
+  <rect x="660" y="104" width="90" height="54" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+  <text x="680" y="136" class="s">bank 0</text>
+  <text x="780" y="136" class="s">bank 1</text>
+  <text x="880" y="136" class="s">bank 2</text>
+  <text x="980" y="136" class="s">bank 3</text>
+  <text x="680" y="200" class="s">bank 4</text>
+  <text x="780" y="200" class="s">bank 5</text>
+  <text x="880" y="200" class="s">bank 6</text>
+  <text x="972" y="200" class="s">… to 15</text>
+
+  <!-- zoom bank -->
+  <path d="M660,158 L520,370" class="zm"/>
+  <path d="M750,158 L820,370" class="zm"/>
+  <rect x="300" y="370" width="520" height="300" rx="4" fill="#ffffff" stroke="#0969da" stroke-width="1.5"/>
+  <text x="312" y="392" class="t">A bank = a table of rows × columns (~1 KiB per row)</text>
+  <g fill="#f6f8fa" stroke="#8c959f">
+    <rect x="330" y="404" width="300" height="22"/>
+    <rect x="330" y="426" width="300" height="22"/>
+    <rect x="330" y="448" width="300" height="22"/>
+    <rect x="330" y="492" width="300" height="22"/>
+  </g>
+  <rect x="330" y="470" width="300" height="22" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+  <text x="640" y="420" class="s">row 0</text>
+  <text x="640" y="486" class="s">row r</text>
+  <text x="474" y="530" class="s">⋮</text>
+  <!-- row buffer -->
+  <rect x="330" y="580" width="300" height="34" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+  <text x="342" y="602" class="t">Row buffer (one per bank)</text>
+  <path d="M480,514 L480,576" class="ln" marker-end="url(#a)"/>
+  <text x="488" y="552" class="s">① activate: copy the whole row in</text>
+  <rect x="550" y="580" width="30" height="34" fill="#fff8c5" stroke="#bf8700" stroke-width="2"/>
+  <path d="M565,614 L565,650" class="ln" marker-end="url(#a)"/>
+  <text x="576" y="646" class="s">② read: take 8 bytes by column</text>
+
+  <!-- three cases -->
+  <text x="850" y="392" class="t">What is open decides the cost</text>
+  <text x="850" y="420" class="t" fill="#1a7f37">Row hit</text>
+  <text x="850" y="440" class="s">the row is already open</text>
+  <text x="850" y="458" class="m">read            ≈ 14 ns</text>
+  <text x="850" y="492" class="t">Row empty</text>
+  <text x="850" y="512" class="s">no row open in the bank</text>
+  <text x="850" y="530" class="m">open + read     ≈ 28 ns</text>
+  <text x="850" y="564" class="t" fill="#cf222e">Row conflict</text>
+  <text x="850" y="584" class="s">another row is open</text>
+  <text x="850" y="602" class="m">close+open+read ≈ 41 ns</text>
+  <text x="850" y="636" class="s">each step ≈ 14 ns</text>
+  <text x="850" y="654" class="s">(DDR4-3200 CL22:</text>
+  <text x="850" y="672" class="s">22 clocks × 0.625 ns)</text>
+
+  <!-- address split -->
+  <text x="20" y="392" class="t">Address split (sketch)</text>
+  <text x="20" y="412" class="s">Same idea as L1 set selection:</text>
+  <text x="20" y="430" class="s">address fields choose the target</text>
+  <rect x="20"  y="446" width="70" height="30" fill="#dafbe1" stroke="#1a7f37"/>
+  <rect x="90"  y="446" width="60" height="30" fill="#ddf4ff" stroke="#54aeff"/>
+  <rect x="150" y="446" width="60" height="30" fill="#fff8c5" stroke="#d4a72c"/>
+  <rect x="210" y="446" width="60" height="30" fill="#ffffff" stroke="#8c959f"/>
+  <text x="38"  y="466" class="s">row</text>
+  <text x="104" y="466" class="s">bank</text>
+  <text x="164" y="466" class="s">chan</text>
+  <text x="228" y="466" class="s">col</text>
+  <text x="20" y="500" class="s">high bits ←              → low bits</text>
+  <text x="20" y="526" class="s">Low bits pick the column, so</text>
+  <text x="20" y="544" class="s">consecutive addresses hit the open row</text>
+  <text x="20" y="570" class="s">Real bit positions vary by platform,</text>
+  <text x="20" y="588" class="s">are often hashed, and undocumented</text>
+</svg>
