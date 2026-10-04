@@ -666,16 +666,17 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 /* ==========================================================================
    Lists (Writing, tags, archive)
    ========================================================================== */
-.page-head { padding-top: clamp(56px, 9vw, 112px); padding-bottom: clamp(32px, 4vw, 48px); }
+.page-head { padding-top: clamp(24px, 3.4vw, 44px); padding-bottom: 18px; }
 .page-head__title {
   margin: 0;
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(52px, 8vw, 104px);
-  line-height: .98;
-  letter-spacing: -.025em;
+  font-size: clamp(32px, 3.4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -.015em;
 }
-.page-head__lede { max-width: 36em; margin: 24px 0 0; font-size: 18px; line-height: 1.65; color: var(--ink-2); }
+.page-head__lede { max-width: 46em; margin: 8px 0 0; font-size: 16px; line-height: 1.6; color: var(--muted); }
+.page-head .eyebrow { margin-bottom: 10px; }
 .page-body { padding-bottom: 40px; }
 
 .filter {
@@ -685,8 +686,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 14px 0;
-  margin-bottom: 18px;
+  padding: 10px 0;
+  margin-bottom: 16px;
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -821,7 +822,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 /* ==========================================================================
    Article
    ========================================================================== */
-.post-head { padding-top: clamp(48px, 8vw, 104px); padding-bottom: clamp(28px, 4vw, 44px); }
+.post-head { padding-top: clamp(24px, 3.4vw, 48px); padding-bottom: clamp(18px, 2.4vw, 28px); }
 /* Article frame (widths from the original theme): nearly full-width reading column,
    a 270px table of contents on the right. */
 .post-frame {
@@ -836,7 +837,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .has-toc .post-grid { padding-right: 0; }
 }
 .post-head > * { max-width: 1080px; }
-.post-head .eyebrow { display: flex; width: fit-content; }
+.post-head .eyebrow { display: flex; width: fit-content; margin-bottom: 12px; }
 .post-head__kicker { transition: color .2s; }
 .post-head__kicker:hover { color: var(--accent); }
 .post-head__kicker {
@@ -859,7 +860,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 :lang(zh) .post-head__title { line-height: 1.15; letter-spacing: 0; }
 .post-head__dek {
-  margin-top: 24px;
+  margin-top: 14px;
   margin-bottom: 0;
   font-size: 19px;
   line-height: 1.6;
@@ -870,8 +871,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 28px;
-  padding-top: 18px;
+  margin-top: 18px;
+  padding-top: 14px;
   border-top: 1px solid var(--rule);
   font-family: var(--mono);
   font-size: 12.5px;
@@ -968,25 +969,25 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .prose p, .prose ul, .prose ol, .prose blockquote, .prose dl { margin: 0 0 1.25em; }
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5 { color: var(--ink); scroll-margin-top: calc(var(--header-h) + 24px); text-wrap: balance; }
 .prose h1, .prose h2 {
-  margin: 2.3em 0 .7em;
+  margin: 1.9em 0 .55em;
   font-family: var(--serif);
   font-weight: 400;
   line-height: 1.12;
   letter-spacing: -.012em;
 }
-.prose h1 { font-size: 40px; }
-.prose h2 { font-size: 34px; }
+.prose h1 { font-size: 31px; }
+.prose h2 { font-size: 27px; }
 .prose h1 + h2 { margin-top: .8em; }
 :lang(zh) .prose h1, :lang(zh) .prose h2 { line-height: 1.3; letter-spacing: 0; }
 .prose h3 {
-  margin: 2.1em 0 .6em;
-  font-size: 21px;
+  margin: 1.7em 0 .5em;
+  font-size: 19.5px;
   font-weight: 640;
   line-height: 1.35;
   letter-spacing: -.012em;
 }
 .prose h4 {
-  margin: 1.8em 0 .5em;
+  margin: 1.5em 0 .45em;
   font-size: 17.5px;
   font-weight: 640;
   line-height: 1.4;
@@ -1314,9 +1315,9 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .post-nav { grid-template-columns: minmax(0, 1fr); }
   .post-nav__item--next { grid-column: 1; }
   .prose { font-size: 1.04rem; line-height: 1.78; }
-  .prose h1 { font-size: 32px; }
-  .prose h2 { font-size: 29px; }
-  .prose h3 { font-size: 19px; }
+  .prose h1 { font-size: 27px; }
+  .prose h2 { font-size: 24px; }
+  .prose h3 { font-size: 18px; }
   .prose pre { margin-inline: calc(-1 * var(--gutter) + 8px); border-radius: 10px; padding: 16px; font-size: 12.8px; }
   .code-block, .prose .highlight { margin-inline: calc(-1 * var(--gutter) + 8px); }
   .code-block pre, .prose .highlight pre { margin-inline: 0; }

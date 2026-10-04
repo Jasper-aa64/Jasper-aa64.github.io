@@ -3,7 +3,6 @@
 {{ $count := newScratch }}
 {{ range $posts }}{{ $s := partial "series.html" . }}{{ $count.Add $s.key 1 }}{{ end }}
 <section class="page-head wrap">
-  <p class="eyebrow reveal">{{ i18n "writingKicker" }}</p>
   <h1 class="page-head__title reveal">{{ i18n "writingTitle" }}</h1>
   <p class="page-head__lede reveal">{{ i18n "writingLede" }}</p>
 </section>

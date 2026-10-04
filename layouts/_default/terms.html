@@ -1,7 +1,6 @@
 {{ define "main" }}
 {{ $isCats := eq .Data.Plural "categories" }}
 <section class="page-head wrap">
-  <p class="eyebrow reveal">{{ i18n "writingKicker" }}</p>
   <h1 class="page-head__title reveal">{{ if $isCats }}{{ i18n "categoriesTitle" }}{{ else }}{{ i18n "tagsTitle" }}{{ end }}</h1>
   <p class="page-head__lede reveal">{{ if $isCats }}{{ i18n "categoriesLede" }}{{ else }}{{ i18n "tagsLede" }}{{ end }}</p>
 </section>
