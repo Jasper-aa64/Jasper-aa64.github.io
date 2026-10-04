@@ -334,7 +334,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
   align-items: center;
   gap: clamp(40px, 6vw, 96px);
   padding-top: clamp(40px, 6vw, 84px);
@@ -394,11 +394,11 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 :lang(zh) .hero__lede { line-height: 1.85; }
 .hero__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
 
-/* Photo deck: three polaroids, tap to send the top one to the back. */
-.hero__photos { justify-self: center; width: min(100%, 340px); }
+/* Photo fan: three polaroids spread across the right half; tap to rotate them. */
+.hero__photos { width: 100%; max-width: 660px; justify-self: end; }
 .deck {
   position: relative;
-  aspect-ratio: 4 / 4.4;
+  aspect-ratio: 16 / 11;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -407,18 +407,21 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .deck:focus-visible .deck__card[data-pos="0"] { outline: 2px solid var(--accent); outline-offset: 4px; }
 .deck__card {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  width: 52%;
+  aspect-ratio: 4 / 4.5;
   margin: 0;
-  padding: 12px 12px 34px;
+  padding: 10px 10px 30px;
   display: flex;
   flex-direction: column;
   background: #fdfcf9;
   border-radius: 6px;
   box-shadow: var(--shadow-lg);
-  transition: transform .75s var(--ease), opacity .45s ease, box-shadow .4s;
+  transition: left .7s var(--ease), transform .7s var(--ease), filter .5s, box-shadow .4s;
   will-change: transform;
 }
-:root[data-theme="dark"] .deck__card { background: #232326; }
+:root[data-theme="dark"] .deck__card { background: #f3ede6; }
 .deck__card img {
   display: block;
   width: 100%;
@@ -428,41 +431,13 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   object-position: 50% 30%;
   border-radius: 3px;
   background: var(--paper-2);
-  filter: saturate(.92) contrast(1.02);
 }
-.deck__card figcaption {
-  padding: 14px 4px 16px;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 19px;
-  line-height: 1.2;
-  color: #3b3934;
-  text-align: center;
-}
-:root[data-theme="dark"] .deck__card figcaption { color: #cfccc5; }
-.deck__card[data-pos="0"] { z-index: 3; transform: rotate(-2.2deg); }
-.deck__card[data-pos="1"] { z-index: 2; transform: translate(5%, -3.5%) rotate(3.4deg) scale(.96); }
-.deck__card[data-pos="2"] { z-index: 1; transform: translate(-5%, -6%) rotate(-6.5deg) scale(.92); }
-.deck__card[data-pos="1"] img, .deck__card[data-pos="2"] img { filter: saturate(.6) contrast(.95); }
-.deck:hover .deck__card[data-pos="0"] { transform: rotate(-1deg) translateY(-6px); }
-.deck:hover .deck__card[data-pos="1"] { transform: translate(8%, -4%) rotate(5deg) scale(.96); }
-.deck:hover .deck__card[data-pos="2"] { transform: translate(-8%, -7%) rotate(-8.5deg) scale(.92); }
-.deck__card.is-leaving {
-  z-index: 4;
-  opacity: 0;
-  transform: translate(-70%, 6%) rotate(-16deg) scale(.95) !important;
-  transition: transform .5s cubic-bezier(.5, 0, .75, .4), opacity .45s ease .05s;
-}
-.deck__card.no-anim { transition: none !important; }
-.deck__hint {
-  margin: 26px 0 0;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
+.deck__card[data-pos="0"] { z-index: 3; left: 50%; transform: translate(-50%, -50%) rotate(-2deg); }
+.deck__card[data-pos="1"] { z-index: 2; left: 24%; transform: translate(-50%, -47%) rotate(-9deg) scale(.86); filter: saturate(.75) brightness(.97); }
+.deck__card[data-pos="2"] { z-index: 1; left: 76%; transform: translate(-50%, -53%) rotate(8deg) scale(.86); filter: saturate(.75) brightness(.97); }
+.deck:hover .deck__card[data-pos="0"] { transform: translate(-50%, -52%) rotate(-1deg) scale(1.02); }
+.deck:hover .deck__card[data-pos="1"] { left: 21%; }
+.deck:hover .deck__card[data-pos="2"] { left: 79%; }
 
 /* Home sections */
 .home-sec { padding-top: clamp(40px, 6vw, 72px); }
@@ -1284,7 +1259,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 @media (max-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1fr); }
-  .hero__photos { width: min(78%, 340px); margin-top: 8px; }
+  .hero__photos { justify-self: center; max-width: 520px; margin-top: 8px; }
   .life-grid { grid-template-columns: minmax(0, 1fr); }
   .year-group { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .year-group__year { position: static; margin: 12px 0 6px; font-size: 34px; }
@@ -1361,9 +1336,9 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .p2-brainstorm-card-mark { display: block; }
 .brand__logo {
   display: block;
-  width: 46px;
-  height: 48px;
-  margin: -4px -2px -2px -4px;
+  width: 52px;
+  height: 45px;
+  margin: -6px -4px 0 -4px;
   flex: none;
   transition: transform .4s var(--ease);
 }
@@ -1659,7 +1634,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 @media (max-width: 760px) {
   .hero__mascot { width: 50px; height: 50px; right: -60px; }
-  .brand__logo { width: 36px; height: 38px; }
+  .brand__logo { width: 44px; height: 38px; }
 }
 
 @media print {
