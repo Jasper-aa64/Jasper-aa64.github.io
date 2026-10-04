@@ -10,22 +10,27 @@ toc: true
 homepage: false
 ---
 
-# Trading System Notes #6: Addresses Decide Neighbors — Alignment, Layout, and the Geometry of Caches and DRAM
+People in low-latency work say "cache-friendly" a lot, but whether a piece of code is friendly always comes down to something concrete. Start with an example:
 
-> **One-line thesis**: memory is never paid for by the byte. Every access pays for whole cache lines, and the address decides which lines it touches, which cache set those lines compete for, and which DRAM channel, bank and row they live in. Part 1 (alignment) and Part 2 (layout) control *how many lines*; Part 3 (hardware geometry) is about *where those lines live*.
+```cpp
+int m[64][1024];             // 64 rows of 1024 ints
+long long sum = 0;
+for (int j = 0; j < 1024; ++j)
+    for (int i = 0; i < 64; ++i)
+        sum += m[i][j];      // add up the whole matrix, column by column
+```
 
-## What You're Actually Fighting
+Here's the question: make each row 1040 `int`s instead of 1024. The 16 extra ints are never read, and the loop does exactly the same number of iterations. What happens to the speed?
 
-This is the map for the whole series. A load has its address translated by the TLB, then asks L1D, L2 and the shared L3 in turn, and on a miss everywhere goes through the memory controller to a DIMM. Whatever you asked for, what travels is always **a whole 64-byte cache line**.
+The intuition is "nothing, maybe slightly slower — the array got bigger". In fact it usually gets several times faster. I ran the same experiment on an M1 (where the matching row width is 16 KiB, for reasons explained below), and the version padded by one cache line per row was 4× faster than the unpadded one.
+
+How can bytes you never read make a program faster? The answer isn't in the algorithm; it's in the **addresses**. The CPU always moves data in whole 64-byte **cache lines**, and a few bits of an address decide which slot of the cache a line goes into and which corner of the DIMM it lives in. This post starts from alignment and works down to DRAM, and by the end the question answers itself (section 3.2.1).
+
+First, a map. A load works its way down: the TLB translates the virtual address, then L1D, L2 and the shared L3 are asked in turn, and on a miss everywhere the memory controller goes to a DIMM. Everything below happens in one of these boxes.
 
 <a href="/images/memory-geometry/hardware-map.en.svg" target="_blank" rel="noopener"><img src="/images/memory-geometry/hardware-map.en.svg" alt="Hardware map from the pipeline and store buffer through L1, L2, L3, the memory controller and DIMMs, with a latency table and the fields of one address" loading="lazy" decoding="async"></a>
 
-So "is this code fast" is largely two questions:
-
-1. **How many lines does one access touch?** A value straddling two lines costs two; a loop that uses a third of each line moves the other two-thirds for nothing. That's decided by **alignment** (Part 1) and **layout** (Part 2) — things you control directly in code.
-2. **Where do those lines live?** A few address bits decide which cache set a line goes into and which channel and bank it lives on in DRAM. If your access pattern keeps those bits equal, most of the hardware sits idle while a small part thrashes. That's Part 3, the layer that's easiest not to see.
-
----
+So "is this code fast" is largely two questions. First, **how many lines does one access touch?** A value straddling two lines costs two; a loop that uses a third of each line moves the other two-thirds for nothing. That's alignment (Part 1) and layout (Part 2), which you control directly when writing code. Second, **where do those lines live?** If your access pattern keeps certain address bits equal, most of the hardware sits idle while a small part thrashes. That's Part 3, the layer that's easiest not to see.
 
 ## 1. Alignment: Keep a Value Inside One Line
 
@@ -425,17 +430,11 @@ To be fast, L1 starts selecting the set from the virtual address **while** the T
 
 ### 3.2 How Power-of-Two Strides Crowd the Cache
 
-The core sentence: **when data used together sits at addresses that differ by multiples of the critical stride, all of it crowds into one set.** It has two common forms — inside one array (3.2.1) and across several arrays (3.2.2) — plus a similarly named but different mechanism, bank conflicts (3.2.3).
+With the critical stride in hand, the opening question is easy. There's one rule: **when data used together sits at addresses that differ by multiples of the critical stride, all of it crowds into one set.** It usually shows up in two forms — inside one array (3.2.1, the matrix from the opening) and across several arrays (3.2.2). A similarly named but different mechanism, bank conflicts, is in 3.2.3.
 
 #### 3.2.1 Example 1: Walking a Matrix by Column
 
-```cpp
-int m[64][1024];             // each row is exactly 4096 bytes
-long long sum = 0;
-for (int j = 0; j < 1024; ++j)
-    for (int i = 0; i < 64; ++i)
-        sum += m[i][j];      // column walk: each step +4096 bytes
-```
+Back to the opening loop. Each row of `int m[64][1024]` is exactly 4096 bytes, so walking a column adds 4096 to the address at every step.
 
 **Why it's slow.** Walking a column, each step adds 4096 to the address, so all 64 elements **land in the same set**. Ideally column 0 pulls in 64 lines and columns 1–15 are in those same 64 lines (16 ints per line), so they should all hit — 64 lines are only 4 KiB and L1 has 32 KiB. But they all crowd into one 8-way set, only the last 8 survive, and the next column misses almost every time.
 
@@ -524,7 +523,7 @@ Storage classes, seen through the cache:
 
 ### 3.4 Inside a DIMM: Channels, Ranks, Banks, Rows
 
-The core sentence: **a DIMM is also "cabinets inside cabinets"; the memory controller splits the physical address into fields that pick the channel, bank and row, and the most expensive case is switching rows within one bank.**
+If a cache is a cabinet, a DIMM is cabinets inside cabinets: the memory controller splits the physical address into fields that pick the channel, bank and row. Here is the picture up front; the subsections take it apart layer by layer, and by the end it's clear that the most expensive case is **switching rows within one bank**.
 
 <a href="/images/memory-geometry/dram-geometry.en.svg" target="_blank" rel="noopener"><img src="/images/memory-geometry/dram-geometry.en.svg" alt="Inside the DIMMs: the memory controller drives two channels; a rank is eight chips side by side; each chip has 16 banks; a bank is a table of rows with one row buffer, and a read costs about 14 ns on a row hit, 28 ns on an empty bank and 41 ns on a row conflict" loading="lazy" decoding="async"></a>
 
@@ -614,24 +613,3 @@ Two realities:
 - **Real controllers rarely just take a modulus.** Most XOR-hash high address bits before choosing channel and bank, precisely to break such patterns, and the interleave granularity varies by platform. Before padding by hand, find out the platform's mapping, then measure.
 - Only **bandwidth-bound** work (scanning many objects, hot lines spread over a large working set) needs this. A hot set that lives in cache never reaches a channel.
 
----
-
-## Recap
-
-**Alignment (Part 1)**
-
-1. Alignment means the start is a multiple of the size, so a value never straddles a line (the key fact: 64 is a multiple of 8). Padding implements it and exists for arrays; member order changes `sizeof` (24 vs. 16).
-2. `alignas` raises alignment, buying isolation with space — on a type it also pads `sizeof`, on a member it only moves the start; `#pragma pack` gives alignment up, only to match an external format.
-3. On the heap, 64-byte or 2 MiB alignment needs `aligned_alloc` with a rounded size and `new`/`delete` paired on the same alignment; big blocks are 2 MiB-aligned so they can be huge pages, and `madvise` must come before the first touch.
-
-**Layout (Part 2)**
-
-4. Layout asks how many lines an access touches: keep together what's used together (AoS, denormalization, hot fields in the first line), split what's used apart (SoA, hot/cold splitting).
-5. Denormalization pays off by cutting a chain of **dependent** lookups (whose latencies add); its cost is keeping copies in sync, and the deciding question is whether they must be updated immediately.
-6. `alignas(64)` when different threads write different objects; `alignas(32)` to pack two per line for scans and read-only sharing.
-
-**Hardware geometry (Part 3)**
-
-7. A line can only go into the set its address picks; addresses that differ by multiples of the **critical stride** (cache size ÷ ways: 4 KiB for x86 L1, 16 KiB on M1) compete for one set even when the cache is mostly empty. Pad by a whole line, offset arrays by whole lines, or tile. For independent loads, set conflicts cost a few times the throughput; for dependent loads they expose full latency.
-8. A DRAM access depends on the row buffer (hit about 14 ns, conflict about 41 ns); a column walk loses at five layers at once; refresh every ~7.8 µs adds P99 spikes that only keeping hot data in cache avoids.
-9. Channels add bandwidth only when busy together: with objects rounded to a line count **coprime with the channel count**, hot lines rotate across channels; real platforms usually hash addresses, so check the mapping and measure first.
