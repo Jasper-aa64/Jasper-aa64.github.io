@@ -564,7 +564,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   /* Three columns of equal height: intro | showcase | panel; showcase and panel share the width equally. */
   .hero {
     /* Equal thirds: the intro gets as much room as the showcase and the panel, so it never looks squeezed. */
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* The showcase reaches a little further left; the panel keeps a full third. */
+    grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr) minmax(0, 1fr);
     justify-content: stretch;
     align-items: stretch;
     gap: clamp(28px, 2.6vw, 44px);
@@ -583,8 +584,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .slide__img { position: relative; flex: 1 1 auto; aspect-ratio: auto; min-height: 190px; }
   .slide__img img { position: absolute; inset: 0; }
   .hero__panel { display: flex; flex-direction: column; }
-  .hero__panel .tag-cloud--hero { padding-bottom: 46px; }
-  .hero__mascot { position: absolute; right: 16px; bottom: 12px; margin: 0; }
+
   .hero__panel .stats__item { padding: 0 10px; }
   .hero__panel .stats__item:first-child { padding-left: 0; }
   .hero__panel .stats__item:last-child dd { font-size: 15px; line-height: 2.2; }
@@ -1622,14 +1622,16 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   transition: transform .4s var(--ease);
 }
 .brand:hover .brand__logo { transform: rotate(-6deg) scale(1.05); }
-/* Last item of the panel's tag cloud: pushed to the right end of the last row (bottom-right corner).
+/* Floats over the panel's bottom-right corner without taking any room.
    The panel has overflow: hidden, so the take-off and the return stay inside the panel. */
 .hero__mascot {
-  flex: none;
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  z-index: 2;
   width: 52px;
   height: 52px;
-  margin: -14px -4px -12px auto;
-  align-self: flex-end;
+  pointer-events: none;
 }
 .hero__mascot .p2-brainstorm-card-mark, .hero__mascot .p2-brain-icon { width: 100%; height: 100%; }
 .hero__mascot .p2-brain-icon { animation-delay: -3.5s; }
