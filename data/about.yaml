@@ -18,14 +18,6 @@ en:
       meta: "C++17 · 2026"
       text: "ASR, TTS, VAD and an LLM behind one four-layer core and a four-thread audio pipeline, serving an AI technical-interview system and an IELTS speaking and writing trainer."
       link: "https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview"
-    - name: "C++ MCP server & coding agents"
-      meta: "C++17 · 2026"
-      text: "An MCP server over HTTP + SSE and stdio with 13 C++ tools, driving a Coder / Reviewer / Tester agent loop."
-      link: "https://github.com/Jasper-aa64/MCP-Server-Agent-Coding-"
-    - name: "Trading system study notes"
-      meta: "Notes · 2026 –"
-      text: "The chapter-by-chapter study notes, experiments and progress log behind the low-latency posts."
-      link: "https://github.com/Jasper-aa64/trading-system-notes-study"
   skills:
     - { group: "Languages", items: ["C++17 / 20", "Python", "SQL"] }
     - { group: "Low latency", items: ["Linux", "CPU affinity / NUMA", "memory ordering", "lock-free queues", "shared memory", "allocators", "perf"] }
@@ -49,14 +41,6 @@ zh:
       meta: "C++17 · 2026"
       text: "ASR、TTS、VAD 和大模型接在同一个四层核心、四线程音频管线上,支撑 AI 技术面试系统和雅思口语写作训练器两个应用。"
       link: "https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview"
-    - name: "C++ MCP 服务器与编码智能体"
-      meta: "C++17 · 2026"
-      text: "支持 HTTP + SSE 和 stdio 的 MCP 服务器,带 13 个 C++ 工具,驱动 Coder / Reviewer / Tester 三个智能体的循环。"
-      link: "https://github.com/Jasper-aa64/MCP-Server-Agent-Coding-"
-    - name: "交易系统学习笔记"
-      meta: "笔记 · 2026 –"
-      text: "低延迟系列文章背后逐章的学习笔记、实验和进度记录。"
-      link: "https://github.com/Jasper-aa64/trading-system-notes-study"
   skills:
     - { group: "语言", items: ["C++17 / 20", "Python", "SQL"] }
     - { group: "低延迟", items: ["Linux", "CPU 亲和 / NUMA", "内存序", "无锁队列", "共享内存", "分配器", "perf"] }

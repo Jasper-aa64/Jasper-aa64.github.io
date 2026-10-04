@@ -64,17 +64,27 @@
       </figure>
       <div class="about-share">
         <p class="about-share__head">{{ i18n "aboutByCategory" }}</p>
+        {{/* Second level: low-latency by chapter, algorithms by topic; a category without subcategories stays whole.
+             Each subcategory is a shade of its parent's colour. */}}
         {{ $total := len $posts }}
-        <div class="about-share__bar">
-          {{ range slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
-            {{ $n := index $ix.count (index . 0) | default 0 }}
-            {{ if $n }}<span class="about-share__seg about-share__seg--{{ index . 0 }}" style="flex-grow: {{ $n }}"></span>{{ end }}
+        {{ $items := slice }}
+        {{ range slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
+          {{ $k := index . 0 }}{{ $parent := i18n (index . 1) }}
+          {{ $subs := index $ix.subs $k }}
+          {{ if $subs }}
+            {{ range $i, $sb := $subs }}
+              {{ $items = $items | append (dict "key" $k "parent" $parent "label" $sb.label "n" $sb.n "href" (print $k "/" $sb.sub) "mix" (sub 100 (mul $i 24))) }}
+            {{ end }}
+          {{ else }}
+            {{ with index $ix.count $k }}{{ $items = $items | append (dict "key" $k "parent" "" "label" $parent "n" . "href" $k "mix" 100) }}{{ end }}
           {{ end }}
+        {{ end }}
+        <div class="about-share__bar">
+          {{ range $items }}<span class="about-share__seg about-share__seg--{{ .key }}" style="flex-grow: {{ .n }}; --mix: {{ .mix }}%" title="{{ .label }} {{ .n }}"></span>{{ end }}
         </div>
         <ul class="about-share__legend">
-          {{ range slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
-            {{ $n := index $ix.count (index . 0) | default 0 }}
-            <li><a href="{{ "posts/" | relLangURL }}#{{ index . 0 }}"><i class="about-share__dot about-share__seg--{{ index . 0 }}"></i>{{ i18n (index . 1) }}<b>{{ $n }}</b><span>{{ lang.FormatNumber 0 (mul (div (float $n) $total) 100) }}%</span></a></li>
+          {{ range $items }}
+            <li><a href="{{ "posts/" | relLangURL }}#{{ .href }}"><i class="about-share__dot about-share__seg--{{ .key }}" style="--mix: {{ .mix }}%"></i><span class="about-share__name">{{ with .parent }}<small>{{ . }}</small>{{ end }}{{ .label }}</span><b>{{ .n }}</b><span class="about-share__pct">{{ lang.FormatNumber 0 (mul (div (float .n) $total) 100) }}%</span></a></li>
           {{ end }}
         </ul>
       </div>
