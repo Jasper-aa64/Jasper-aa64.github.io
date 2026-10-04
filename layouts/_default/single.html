@@ -1,11 +1,11 @@
 {{ define "main" }}
   <article class="article-shell">
     <header class="article-header">
-      <span class="eyebrow">{{ if eq .Section "posts" }}Posts{{ else }}Page{{ end }}</span>
+      <span class="eyebrow">{{ if eq .Section "posts" }}{{ i18n "eyebrowPosts" }}{{ else }}{{ i18n "eyebrowPage" }}{{ end }}</span>
       <h1>{{ .Title }}</h1>
       {{ if eq .Section "posts" }}
         <div class="article-meta">
-          <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format "Jan 2, 2006" }}</time>
+          <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time>
           {{ with .Params.categories }}
             <span>·</span>
             <span>{{ delimit . ", " }}</span>
@@ -14,17 +14,21 @@
         {{ with .Params.tags }}
           <div class="chip-row">
             {{ range . }}
-              <a class="chip" href="/tags/{{ . | urlize }}/">#{{ . }}</a>
+              <a class="chip" href="{{ $.Site.LanguagePrefix }}/tags/{{ . | urlize }}/">#{{ . }}</a>
             {{ end }}
           </div>
         {{ end }}
       {{ end }}
     </header>
 
+    {{ if and (eq site.Language.Lang "en") (eq .Section "posts") (eq (len .Translations) 0) }}
+      <p class="lang-notice" hidden>{{ i18n "noTranslation" }} <a href="/zh/">{{ i18n "backToZh" }}</a></p>
+    {{ end }}
+
     <div class="article-layout">
       {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
         <details class="mobile-toc">
-          <summary>On this page</summary>
+          <summary>{{ i18n "onThisPage" }}</summary>
           <div class="mobile-toc-panel">
             {{ .TableOfContents }}
           </div>
@@ -36,7 +40,7 @@
       {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
         <aside class="article-toc">
           <div class="toc-card">
-            <span>On this page</span>
+            <span>{{ i18n "onThisPage" }}</span>
             {{ .TableOfContents }}
           </div>
         </aside>
@@ -160,8 +164,8 @@
 	        const button = document.createElement('button');
 	        button.className = 'code-copy-button';
 	        button.type = 'button';
-	        button.textContent = 'Copy';
-	        button.setAttribute('aria-label', 'Copy code block');
+	        button.textContent = {{ i18n "copy" }};
+	        button.setAttribute('aria-label', {{ i18n "copyAria" }});
 	        wrapper.appendChild(button);
 
 	        button.addEventListener('click', async function() {
@@ -170,7 +174,7 @@
 
 	          try {
 	            await navigator.clipboard.writeText(text);
-	            button.textContent = 'Copied';
+	            button.textContent = {{ i18n "copied" }};
 	            button.classList.add('is-copied');
 	          } catch (error) {
 	            const textarea = document.createElement('textarea');
@@ -182,12 +186,12 @@
 	            textarea.select();
 	            document.execCommand('copy');
 	            textarea.remove();
-	            button.textContent = 'Copied';
+	            button.textContent = {{ i18n "copied" }};
 	            button.classList.add('is-copied');
 	          }
 
 	          window.setTimeout(function() {
-	            button.textContent = 'Copy';
+	            button.textContent = {{ i18n "copy" }};
 	            button.classList.remove('is-copied');
 	          }, 1500);
 	        });
