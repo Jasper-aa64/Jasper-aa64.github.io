@@ -175,51 +175,52 @@
       els.forEach(function (b) { var on = test(b); b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     };
     var subsBox = writing.querySelector("[data-subs]");
+    var inner = subsBox && subsBox.querySelector(".filter__subs-inner");
     var list = writing.querySelector("[data-list]");
     var filterBox = writing.querySelector(".filter");
-    // Draw the tree branch from the active top-level button down to its sub row.
-    var branch = function () {
-      var row = subRows.filter(function (r) { return !r.hidden; })[0];
+    var closing = null;
+    // Geometry of the tree branch: from the active top-level button down to its sub row.
+    var branch = function (row) {
       var btn = tops.filter(function (b) { return b.classList.contains("is-active"); })[0];
-      if (!row || !btn) return;
+      if (!row || !btn || !inner) return;
       var rr = row.getBoundingClientRect(), br = btn.getBoundingClientRect();
       var bx = Math.round(br.left + br.width / 2 - rr.left);
-      var pad = Math.round(Math.min(bx + 26, rr.width * 0.34));
-      pad = Math.max(pad, 28);
-      var end = pad - 9;                       // where the branch reaches the node
-      var left = Math.min(bx, end), w = Math.abs(end - bx);
-      var right = bx > end;                    // branch turns left when the parent sits far right
-      row.style.setProperty("--pad", pad + "px");
-      row.style.setProperty("--ex", left + "px");
-      row.style.setProperty("--ew", Math.max(w, 1) + "px");
-      row.style.setProperty("--el", right ? "0px" : "1.5px");
-      row.style.setProperty("--er", right ? "1.5px" : "0px");
-      row.style.setProperty("--erl", right ? "0px" : "8px");
-      row.style.setProperty("--err", right ? "8px" : "0px");
-      // A branch coming from the right runs along the gap above the chips instead of through them.
-      row.style.setProperty("--ey", right ? "-5px" : "15px");
-      // gap between the button's bottom and the row's top (bigger when the top row wraps)
-      var gap = Math.max(4, Math.round(rr.top - br.bottom));
-      row.style.setProperty("--bt", gap + "px");
+      var pad = Math.max(40, Math.min(bx + 28, Math.round(rr.width * 0.5)));
+      inner.style.setProperty("--bx", bx + "px");
+      inner.style.setProperty("--pad", pad + "px");
+      inner.style.setProperty("--bt", Math.max(4, Math.round(rr.top - br.bottom)) + "px");
     };
     var first = true;
     var apply = function (key, sub, push) {
       if (!tops.some(function (b) { return b.dataset.filter === key; })) { key = "all"; sub = ""; }
       var row = null;
-      subRows.forEach(function (r) { var on = r.dataset.subsFor === key; r.hidden = !on; if (on) row = r; });
+      subRows.forEach(function (r) { if (r.dataset.subsFor === key) row = r; });
       var chips = row ? Array.prototype.slice.call(row.querySelectorAll("[data-sub]")) : [];
       if (!chips.some(function (c) { return c.dataset.sub === sub; })) sub = "";
       var changed = state.key !== key || state.sub !== sub;
+      var sameRow = state.key === key;
       state = { key: key, sub: sub };
       press(tops, function (b) { return b.dataset.filter === key; });
       press(chips, function (c) { return c.dataset.sub === sub; });
-      if (subsBox) {
-        var open = !!row;
-        if (!open) subsBox.classList.remove("is-settled");
-        subsBox.classList.toggle("is-open", open);
-        if (open && (first || reduce)) subsBox.classList.add("is-settled");
+
+      if (subsBox && !sameRow) {
+        if (closing) { clearTimeout(closing); closing = null; }
+        if (row) {
+          var wasOpen = subsBox.classList.contains("is-open");
+          subRows.forEach(function (r) { r.hidden = r !== row; });
+          // Opening from closed: jump the branch to its place first, then let the box grow.
+          if (!wasOpen || first) inner.classList.add("is-instant");
+          branch(row);
+          if (!wasOpen || first) { void inner.offsetWidth; inner.classList.remove("is-instant"); }
+          subsBox.classList.add("is-open");
+        } else {
+          // Closing: keep the current row visible while the box folds up, hide it afterwards.
+          subsBox.classList.remove("is-open");
+          var hideAll = function () { subRows.forEach(function (r) { r.hidden = true; }); closing = null; };
+          if (first || reduce) hideAll(); else closing = setTimeout(hideAll, 400);
+        }
       }
-      branch();
+
       var show = function () {
         var shown = 0;
         entries.forEach(function (el) {
@@ -244,15 +245,10 @@
       first = false;
       if (push) history.replaceState(null, "", key === "all" ? location.pathname : "#" + key + (sub ? "/" + sub : ""));
     };
-    if (subsBox) {
-      subsBox.addEventListener("transitionend", function (e) {
-        if (e.target === subsBox && e.propertyName === "grid-template-rows" && subsBox.classList.contains("is-open")) {
-          subsBox.classList.add("is-settled");
-          branch();
-        }
-      });
-    }
-    window.addEventListener("resize", branch);
+    window.addEventListener("resize", function () {
+      var row = subRows.filter(function (r) { return !r.hidden; })[0];
+      if (row && inner) { inner.classList.add("is-instant"); branch(row); void inner.offsetWidth; inner.classList.remove("is-instant"); }
+    });
     tops.forEach(function (b) { b.addEventListener("click", function () { apply(b.dataset.filter, "", true); }); });
     subRows.forEach(function (r) {
       r.addEventListener("click", function (e) {
