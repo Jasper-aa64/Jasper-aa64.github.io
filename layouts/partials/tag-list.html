@@ -1,0 +1,15 @@
+{{/* Tags of this language with counts, most used first; on the Chinese site also the tags only English notes use.
+     Returns slice of dict t (name), n (count), u (URL). */}}
+{{ $names := hugo.Data.tagnames }}
+{{ $tags := slice }}{{ $seen := slice }}
+{{ range site.Taxonomies.tags.ByCount }}
+  {{ $tags = $tags | append (dict "t" (index $names (.Page.Title | urlize) | default (replace (.Page.Title | lower) "-" " ")) "n" .Count "u" .Page.RelPermalink) }}{{ $seen = $seen | append (.Page.Title | urlize) }}
+{{ end }}
+{{ if ne site.Language.Lang "en" }}
+  {{ range hugo.Sites }}{{ if eq .Language.Lang "en" }}
+    {{ range .Taxonomies.tags.ByCount }}{{ if not (in $seen (.Page.Title | urlize)) }}
+      {{ $tags = $tags | append (dict "t" (index $names (.Page.Title | urlize) | default (replace (.Page.Title | lower) "-" " ")) "n" .Count "u" .Page.RelPermalink) }}
+    {{ end }}{{ end }}
+  {{ end }}{{ end }}
+{{ end }}
+{{ return sort $tags "n" "desc" }}

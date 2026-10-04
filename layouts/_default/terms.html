@@ -7,20 +7,8 @@
   {{ if $isCats }}
     {{ partial "area-grid.html" (dict "page" . "art" true) }}
     <h2 class="sub-head reveal">{{ i18n "tagsTitle" }}</h2>
-    {{/* Tags of this language, plus (on the Chinese site) tags that only English notes use. */}}
-    {{ $tags := slice }}{{ $seen := slice }}
-    {{ range site.Taxonomies.tags.ByCount }}
-      {{ $tags = $tags | append (dict "t" .Page.Title "n" .Count "u" .Page.RelPermalink) }}{{ $seen = $seen | append (.Page.Title | urlize) }}
-    {{ end }}
-    {{ if ne site.Language.Lang "en" }}
-      {{ range hugo.Sites }}{{ if eq .Language.Lang "en" }}
-        {{ range .Taxonomies.tags.ByCount }}{{ if not (in $seen (.Page.Title | urlize)) }}
-          {{ $tags = $tags | append (dict "t" .Page.Title "n" .Count "u" .Page.RelPermalink) }}
-        {{ end }}{{ end }}
-      {{ end }}{{ end }}
-    {{ end }}
     <div class="tag-cloud">
-      {{ range sort $tags "n" "desc" }}<a class="tag tag--count" href="{{ .u }}">{{ .t }} <sup>{{ .n }}</sup></a>{{ end }}
+      {{ range partial "tag-list.html" . }}<a class="tag tag--count" href="{{ .u }}">{{ .t }} <sup>{{ .n }}</sup></a>{{ end }}
     </div>
   {{ else }}
     <div class="tag-cloud">
