@@ -4,6 +4,7 @@ date: 2026-09-20
 slug: "lock-free-queue-logger-micro-batching"
 description: "How a single-producer single-consumer ring buffer avoids locks — the power-of-two mask, the two-step handoff, the memory order each side needs — and the traps that quietly bring contention back: a shared element counter, a full-check that reads the other core on every call, a log call that pushes one character per slot. Then a logger and a micro-batcher built on top, and what lock-free and wait-free actually promise."
 summary: "A lock-free SPSC queue works because every shared variable has exactly one writer: each side updates only its own counter and merely reads the other's. The rest is keeping that property from being quietly undone — a shared element count both cores fight over (subtract two counters instead), a full-check that reads the other core on every call (cache the other side's cursor, which can only be wrong in the safe direction), a mirrored mapping that removes the wrap-around seam, and a logger that pushes one character per slot (thirty slots for one log line, five as text runs). It ends with the vocabulary that keeps lock-free claims honest: SPSC is wait-free only through a fail-fast interface, finite steps are not finite time, and a bounded queue must always choose between dropping and blocking."
+chapter: 1
 categories: [Systems]
 tags: [cpp, lock-free, wait-free, spsc, ring-buffer, atomics, logging, micro-batching, hft, low-latency]
 toc: true

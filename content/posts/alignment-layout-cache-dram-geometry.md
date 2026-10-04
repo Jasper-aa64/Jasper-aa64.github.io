@@ -4,6 +4,7 @@ date: 2026-10-04
 slug: "alignment-layout-cache-dram-geometry"
 description: "Why every hot-path memory decision comes down to which cache lines an access touches and where those lines live. Three parts: alignment (padding, alignas, over-aligned heap memory, a two-tier allocator, pack), layout (AoS/SoA, proxy views, denormalization, field order, inline arrays, function grouping), and hardware geometry (set associativity from scratch, the critical stride measured on an M1, storage classes, inside a DIMM, refresh, channel balance)."
 summary: "An access never pays for bytes; it pays for cache lines, and the address decides which lines, which cache set they compete for, and which DRAM channel and bank they live on. Part 1 is alignment: why a double aligned to 8 never straddles a line, why padding exists for arrays, alignas on a type versus a member, and how to get 64-byte and 2 MiB alignment on the heap. Part 2 is layout: lines per access, AoS versus SoA, and denormalization as a way to cut a dependency chain. Part 3 goes into the hardware: L1 picks a set from address bits 6–11, so data 4 KiB apart competes for 8 slots however empty the cache is (measured on an M1); a DRAM bank has one row buffer, 14 ns on a hit and 41 ns on a conflict; a column walk loses at five layers; refresh adds a P99 tail software can't remove; and channels balance only when the hot stride is coprime with the channel count."
+chapter: 1
 categories: [Systems]
 tags: [cpp, alignment, cache, memory-layout, false-sharing, dram, numa, hft, low-latency]
 toc: true

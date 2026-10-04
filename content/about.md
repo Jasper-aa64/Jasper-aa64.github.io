@@ -11,8 +11,6 @@ The focus is practical:
 - templates that are safe to reuse
 - problem reductions that save time under pressure
 
-The site is intentionally small and text-first. If a note is here, it is meant to be used again.
-
 ## Research & CV
 
 Beyond these notes, I work on agent-driven C++ performance optimization — the question of whether an AI-generated speedup is real before it merges. The project is public, with preregistered experiments, null-patch tests, and a technical report:

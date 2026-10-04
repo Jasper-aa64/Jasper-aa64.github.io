@@ -4,6 +4,7 @@ date: 2026-09-09
 slug: "cpu-affinity-core-isolation-numa"
 description: "怎么在一台多核服务器上清出一个 CPU 核,让一个热线程独占它:为什么要这么做,isolcpus / nohz_full / rcu_nocbs 各自压掉哪一类噪声,怎么冻结超线程和频率,以及 NUMA 的 first-touch 陷阱。"
 summary: "低延迟系统的敌人是抖动,不是平均值。目标是让热线程成为它那个核上唯一会运行的东西:绑核消掉迁移代价,隔离参数一层层赶走时钟中断、RCU 和设备中断,关超线程、锁频率去掉核自身的波动,share-nothing 让 NUMA 问题根本不出现。"
+chapter: 1
 categories: [Systems]
 tags: [linux, low-latency, cpu-affinity, numa, isolcpus, nohz-full, hft, jitter, c-states]
 toc: true

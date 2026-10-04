@@ -1,18 +1,29 @@
 {{ define "main" }}
 {{ $posts := partial "posts-all.html" . }}
-{{ $count := newScratch }}
-{{ range $posts }}{{ $s := partial "series.html" . }}{{ $count.Add $s.key 1 }}{{ end }}
+{{ $ix := partial "class-index.html" . }}
 <section class="page-head wrap">
   <h1 class="page-head__title reveal">{{ i18n "writingTitle" }}</h1>
   <p class="page-head__lede reveal">{{ i18n "writingLede" }}</p>
 </section>
 
 <section class="wrap page-body" data-writing>
-  <div class="filter" role="toolbar" aria-label="{{ i18n "filterLabel" }}">
-    <button class="filter__btn is-active" type="button" data-filter="all" aria-pressed="true">{{ i18n "catAll" }} <sup>{{ len $posts }}</sup></button>
-    {{ range $def := slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
-      {{ with $count.Get (index $def 0) }}
-        <button class="filter__btn" type="button" data-filter="{{ index $def 0 }}" aria-pressed="false">{{ i18n (index $def 1) }} <sup>{{ . }}</sup></button>
+  <div class="filter" aria-label="{{ i18n "filterLabel" }}">
+    <div class="filter__row" role="toolbar">
+      <button class="filter__btn is-active" type="button" data-filter="all" aria-pressed="true">{{ i18n "catAll" }} <sup>{{ len $posts }}</sup></button>
+      {{ range $def := slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
+        {{ with index $ix.count (index $def 0) }}
+          <button class="filter__btn" type="button" data-filter="{{ index $def 0 }}" aria-pressed="false">{{ i18n (index $def 1) }} <sup>{{ . }}</sup></button>
+        {{ end }}
+      {{ end }}
+    </div>
+    {{ range $k, $list := $ix.subs }}
+      {{ if $list }}
+        <div class="filter__row filter__row--sub" data-subs-for="{{ $k }}" role="toolbar" hidden>
+          <button class="filter__chip is-active" type="button" data-sub="" aria-pressed="true">{{ i18n "subAll" }} <sup>{{ index $ix.count $k }}</sup></button>
+          {{ range $list }}
+            <button class="filter__chip" type="button" data-sub="{{ .sub }}" aria-pressed="false">{{ .label }} <sup>{{ .n }}</sup></button>
+          {{ end }}
+        </div>
       {{ end }}
     {{ end }}
   </div>
@@ -22,7 +33,7 @@
   <p class="empty-note" data-empty hidden>{{ i18n "emptyFilter" }}</p>
 
   <nav class="browse-links">
-    <a href="/algorithms/">{{ i18n "browseAlgorithms" }} →</a>
+    <a href="{{ "categories/" | relLangURL }}">{{ i18n "categoriesTitle" }} →</a>
     <a href="{{ "tags/" | relLangURL }}">{{ i18n "browseTags" }} →</a>
     <a href="{{ "archives/" | relLangURL }}">{{ i18n "browseArchive" }} →</a>
   </nav>

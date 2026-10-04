@@ -1,0 +1,23 @@
+{{/* Counts and labels for the two-level classification over all notes in this language.
+     Returns dict: count (key → n, "key/sub" → n), subs (key → slice of dict sub,label,n sorted by sub). */}}
+{{ $count := newScratch }}
+{{ $labels := newScratch }}
+{{ range partial "posts-all.html" . }}
+  {{ $s := partial "series.html" . }}
+  {{ $count.Add $s.key 1 }}
+  {{ if $s.sub }}{{ $count.Add $s.series 1 }}{{ $labels.SetInMap $s.key $s.sub $s.subLabel }}{{ end }}
+{{ end }}
+{{ $subs := dict }}
+{{ range $k := slice "lowlatency" "algorithms" "ainative" }}
+  {{ $list := slice }}
+  {{ range $sub, $lab := $labels.Get $k }}
+    {{ $list = $list | append (dict "sub" $sub "label" $lab "n" ($count.Get (print $k "/" $sub))) }}
+  {{ end }}
+  {{ if eq $k "algorithms" }}
+    {{ $ordered := slice }}
+    {{ range slice "combinatorics" "number-theory" "matrix" }}{{ range where $list "sub" . }}{{ $ordered = $ordered | append . }}{{ end }}{{ end }}
+    {{ $list = $ordered }}
+  {{ end }}
+  {{ $subs = merge $subs (dict $k $list) }}
+{{ end }}
+{{ return dict "count" $count.Values "subs" $subs }}

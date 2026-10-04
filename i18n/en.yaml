@@ -61,7 +61,7 @@ homeTitle: "C++, low-latency systems & competitive programming"
 
 # categories (homepage cards + Writing filter)
 catLowLatency: "Low-Latency"
-catLowLatencyBlurb: "Linux, CPU and memory performance, concurrency and C++ runtime behavior — including the Trading System Notes series."
+catLowLatencyBlurb: "Linux, CPU and memory performance, concurrency and C++ runtime behavior, organized by the chapters of my study notes."
 catAlgorithms: "Algorithms"
 catAlgorithmsBlurb: "Competitive-programming notes: combinatorics, number theory, and matrix methods."
 catAINative: "AI Native"
@@ -77,7 +77,7 @@ writingLede: "Long-form notes on low-latency systems, algorithms and AI-native d
 
 # category display names / blurbs (keyed by the urlized category)
 cat_systems: "Low-Latency"
-cat_systems_blurb: "Linux, CPU and memory performance, concurrency and C++ runtime behavior — including the Trading System Notes series."
+cat_systems_blurb: "Linux, CPU and memory performance, concurrency and C++ runtime behavior, organized by the chapters of my study notes."
 cat_engineering: "AI Native"
 cat_engineering_blurb: "Notes from my own AI-native development practice."
 cat_combinatorics: "Combinatorics"
@@ -88,3 +88,5 @@ cat_matrix: "Matrix"
 cat_matrix_blurb: "Matrix fast power, Gaussian elimination and linear bases."
 categoriesTitle: "Categories"
 categoriesLede: "Browse the notes by area."
+subAll: "All"
+topicTag: "Topic"

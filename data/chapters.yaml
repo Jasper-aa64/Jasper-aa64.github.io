@@ -1,0 +1,18 @@
+# Chapters of the source notes (trading-system-notes). Low-latency posts set `chapter: N` in front matter;
+# the Notes page and the Categories page group them by these names.
+en:
+  "1": { n: "Ch. 1", name: "Low-Latency Foundations" }
+  "2": { n: "Ch. 2", name: "Common Bottlenecks and Optimizations" }
+  "3": { n: "Ch. 3", name: "Hands-on Practice" }
+  "4": { n: "Ch. 4", name: "Market Data Processing" }
+  "5": { n: "Ch. 5", name: "Business Logic: Systems" }
+  "6": { n: "Ch. 6", name: "Business Logic: Computation" }
+  "7": { n: "Ch. 7", name: "Crypto" }
+zh:
+  "1": { n: "一", name: "低延迟系统开发基础" }
+  "2": { n: "二", name: "常见性能瓶颈与优化方向" }
+  "3": { n: "三", name: "简单实践" }
+  "4": { n: "四", name: "交易数据处理" }
+  "5": { n: "五", name: "业务逻辑设计-系统" }
+  "6": { n: "六", name: "业务逻辑设计-计算" }
+  "7": { n: "七", name: "数字货币" }

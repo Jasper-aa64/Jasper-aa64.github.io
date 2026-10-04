@@ -4,6 +4,7 @@ date: 2026-09-09
 slug: "cpu-affinity-core-isolation-numa"
 description: "How to clear a single CPU core on a multi-core server so one hot thread owns it outright: why it matters, what isolcpus / nohz_full / rcu_nocbs each silence, how to freeze SMT and frequency, and the NUMA first-touch trap."
 summary: "The enemy of a low-latency system is jitter, not the mean. The goal is to make your hot thread the only thing that will ever run on its core: pinning kills migration cost, the isolation stack evicts the tick / RCU / interrupts one layer at a time, disabling SMT and locking frequency removes the core's own variability, and share-nothing sidesteps NUMA entirely."
+chapter: 1
 categories: [Systems]
 tags: [linux, low-latency, cpu-affinity, numa, isolcpus, nohz-full, hft, jitter, c-states]
 toc: true

@@ -4,6 +4,7 @@ date: 2026-09-17
 slug: "hot-path-memory-allocators"
 description: "为什么 malloc/free 真正的问题是方差而不是速度——以及四种越来越通用的办法,保证热路径上没有任何事是第一次发生:O(1) 的空闲链表对象池、锁定并预先缺页的内存、自定义 STL 分配器背后的 bump 指针 arena,以及 std::pmr 这个运行时版本的替代方案。最后给出两个把前面技术合在一起的参考实现。"
 summary: "这篇里的每一种技术,都是在不同的层面上做同一件事:把一个不确定的、牵涉内核的操作从热路径上挪走,强制它在开头一次性发生完,不让它伏击任何一个请求。对象池用永远 O(1) 的空闲链表,换掉 malloc 那种耗时可变的搜索。mlockall 加上仔细的 mallopt 调优,阻止内核悄悄把页收回——预先缺页则补上 mlock 单独留下的那个口子。手写的 arena 分配器让 STL 本身配合一个由 bump 指针内存支撑的自定义分配器。std::pmr 用标准库的方式解决同一个「让 STL 配合」的问题——拿编译期的速度换运行时的灵活。"
+chapter: 1
 categories: [Systems]
 tags: [cpp, memory-pool, allocator, mlock, tlb-shootdown, pmr, hft, low-latency, stl]
 toc: true
