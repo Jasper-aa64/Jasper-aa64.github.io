@@ -492,13 +492,15 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 24px;
   margin: 0;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--rule);
 }
 /* Label on top, number at the bottom: the three big figures share one baseline. */
-.stats__item { display: flex; flex-direction: column; min-width: 0; padding: 0 14px; border-left: 1px solid var(--rule); }
-.stats__item:first-child { padding-left: 0; border-left: 0; }
+/* Three equal columns: no padding on the items, the dividers sit in the middle of the gap. */
+.stats__item { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.stats__item + .stats__item::before { content: ""; position: absolute; top: 0; bottom: 0; left: -12px; border-left: 1px solid var(--rule); }
 .stats dt {
   font-family: var(--mono);
   font-size: 11.5px;
@@ -607,8 +609,6 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .slide__img img { position: absolute; inset: 0; }
   .hero__panel { display: flex; flex-direction: column; }
 
-  .hero__panel .stats__item { padding: 0 10px; }
-  .hero__panel .stats__item:first-child { padding-left: 0; }
 }
 .tag-cloud--hero .tag { height: 30px; padding: 0 11px; font-size: 13px; background: var(--paper-top); }
 .tag-cloud--hero .tag sup { margin-left: 4px; font-family: var(--mono); color: var(--faint); }
@@ -933,9 +933,27 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .filter__row--sub {
   position: relative;
   padding-left: var(--pad);
-  animation: sub-in .3s ease both;
 }
-@keyframes sub-in { from { opacity: 0; } to { opacity: 1; } }
+/* Entrance, replayed whenever a sub row appears (hidden -> shown restarts the animations):
+   the branch draws down and along, the node pops, then the chips grow out of it one by one. */
+.filter__row--sub::before { animation: branch-draw .42s cubic-bezier(.5, 0, .2, 1) .08s both; }
+.filter__row--sub::after { animation: node-pop .22s cubic-bezier(.3, 1.6, .5, 1) .46s both; }
+.filter__row--sub .filter__chip { animation: chip-in .32s cubic-bezier(.2, .8, .2, 1) both; transform-origin: left center; }
+.filter__row--sub .filter__chip:nth-child(1) { animation-delay: .5s; }
+.filter__row--sub .filter__chip:nth-child(2) { animation-delay: .56s; }
+.filter__row--sub .filter__chip:nth-child(3) { animation-delay: .62s; }
+.filter__row--sub .filter__chip:nth-child(4) { animation-delay: .68s; }
+.filter__row--sub .filter__chip:nth-child(n + 5) { animation-delay: .74s; }
+@keyframes branch-draw {
+  0% { clip-path: inset(0 calc(100% - 2px) 100% 0); }
+  55% { clip-path: inset(0 calc(100% - 2px) 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes node-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes chip-in { from { opacity: 0; transform: translateX(-8px) scale(.94); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .filter__row--sub::before, .filter__row--sub::after, .filter__row--sub .filter__chip { animation: none; }
+}
 .filter__row--sub::before,
 .filter__row--sub::after {
   content: "";
@@ -1698,7 +1716,6 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 @media (max-width: 760px) {
   .hero__panel { padding: 18px 18px 20px; border-radius: 16px; }
-  .stats__item { padding: 0 10px; }
   /* Phones: fewer tags, so the panel does not push the categories off the first screen. */
   .tag-cloud--hero .tag:nth-child(n + 9):not(.tag--more) { display: none; }
 }
