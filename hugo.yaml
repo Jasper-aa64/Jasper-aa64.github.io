@@ -32,7 +32,7 @@ languages:
     menus:
       main:
         - { name: "Home", url: "/", weight: 10 }
-        - { name: "Notes", url: "/posts/", weight: 20 }
+        - { name: "Blog", url: "/posts/", weight: 20 }
         - { name: "Categories", url: "/categories/", weight: 30 }
         - { name: "About", url: "/about/", weight: 40 }
     params:
@@ -45,7 +45,7 @@ languages:
     menus:
       main:
         - { name: "首页", url: "/zh/", weight: 10 }
-        - { name: "笔记", url: "/zh/posts/", weight: 20 }
+        - { name: "博客", url: "/zh/posts/", weight: 20 }
         - { name: "分类", url: "/zh/categories/", weight: 30 }
         - { name: "关于", url: "/zh/about/", weight: 40 }
     params:

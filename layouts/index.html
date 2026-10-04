@@ -8,10 +8,12 @@
     <p class="eyebrow reveal">{{ $p.kicker }}</p>
     <h1 class="hero__title reveal">
       <span class="hero__hello">{{ $p.hello }}</span>
-      <em class="hero__name">{{ $p.name }}</em>
-      <span class="hero__mascot" aria-hidden="true">{{ partial "brain-mascot.html" . }}</span>
+      <span class="hero__nameline">
+        <em class="hero__name">{{ $p.name }}</em>
+        <span class="hero__mascot" aria-hidden="true">{{ partial "brain-mascot.html" . }}</span>
+      </span>
     </h1>
-    <p class="hero__lede reveal">{{ $p.lede }}</p>
+    <p class="hero__lede hero__topics reveal">{{ range $i, $t := $p.topics }}{{ if $i }}<span class="hero__sep" aria-hidden="true">|</span>{{ end }}<span>{{ $t }}</span>{{ end }}</p>
     <div class="hero__actions reveal">
       <a class="btn btn--solid" href="{{ "posts/" | relLangURL }}">{{ i18n "catAll" }} <span aria-hidden="true">→</span></a>
       <a class="btn" href="{{ site.Params.github }}" rel="me">GitHub <span aria-hidden="true">↗</span></a>
@@ -37,7 +39,7 @@
     </dl>
     <p class="hero__panel-label">{{ i18n "topTags" }}</p>
     <div class="tag-cloud tag-cloud--hero">
-      {{ range first 14 (partial "tag-list.html" .) }}<a class="tag" href="{{ .u }}">{{ .t }}<sup>{{ .n }}</sup></a>{{ end }}
+      {{ range first 22 (partial "tag-list.html" .) }}<a class="tag" href="{{ .u }}">{{ .t }}<sup>{{ .n }}</sup></a>{{ end }}
       <a class="tag tag--more" href="{{ "categories/" | relLangURL }}">{{ i18n "allTags" }} →</a>
     </div>
   </aside>
