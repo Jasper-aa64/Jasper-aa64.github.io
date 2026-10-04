@@ -1146,12 +1146,12 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
    Article
    ========================================================================== */
 .post-head { padding-top: clamp(24px, 3.4vw, 48px); padding-bottom: clamp(18px, 2.4vw, 28px); }
-/* Article frame (widths from the original theme): nearly full-width reading column,
-   a 270px table of contents on the right. */
+/* Article frame: a wide reading column (a little narrower than the original theme's) and a
+   320px table of contents on the right. */
 .post-frame {
-  --toc-w: 270px;
+  --toc-w: 320px;
   --toc-gap: clamp(28px, 3vw, 64px);
-  width: min(1720px, calc(100% - 2 * var(--gutter)));
+  width: min(1600px, calc(100% - 2 * var(--gutter)));
   margin-inline: auto;
   padding-left: clamp(0px, 3vw, 56px);
 }
@@ -1240,26 +1240,26 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .toc-side__label, .toc-mobile summary {
   margin: 0 0 14px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12.5px;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .toc ul { list-style: none; margin: 0; padding: 0; }
-.toc ul ul { padding-left: 12px; }
+.toc ul ul { padding-left: 14px; }
 .toc > nav > ul > li:not(:has(> a)) > ul { padding-left: 0; }
 .toc a {
   display: block;
-  padding: 5px 0 5px 14px;
+  padding: 6px 0 6px 16px;
   border-left: 1px solid var(--rule);
-  font-size: 13.5px;
-  line-height: 1.45;
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--muted);
   transition: color .2s, border-color .2s;
 }
-.toc ul ul ul a { font-size: 12.8px; color: var(--faint); }
+.toc ul ul ul a { font-size: 14px; color: var(--faint); }
 .toc a:hover { color: var(--ink); }
-.toc a.is-active { color: var(--ink); border-left: 2px solid var(--accent); padding-left: 13px; }
+.toc a.is-active { color: var(--ink); border-left: 2px solid var(--accent); padding-left: 15px; }
 .toc-mobile {
   width: 100%;
   margin-bottom: 36px;
@@ -1701,11 +1701,12 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 
 @media (max-width: 760px) {
-  .hero__actions { flex-wrap: nowrap; gap: 8px; }
+  .hero__actions { flex-wrap: nowrap; gap: 8px; justify-content: center; }
   .hero__actions .btn { flex: none; white-space: nowrap; }
   .hero__topics { flex-wrap: nowrap; white-space: nowrap; column-gap: 8px; font-size: 15.5px; }
   /* Phones: greeting and name on one line — greeting at the left, name at the right end. */
-  .hero__title { flex-direction: row; align-items: last baseline; justify-content: space-between; gap: 12px; }
+  /* One line on phones, centred as a unit (spreading it to both edges looked worse). */
+  .hero__title { flex-direction: row; align-items: last baseline; justify-content: center; gap: 12px; }
   .hero__hello { margin: 0; font-size: .42em; white-space: nowrap; }
   .hero__hello, .hero__name { align-self: auto; }
 }
