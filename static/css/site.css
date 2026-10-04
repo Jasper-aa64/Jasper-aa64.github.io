@@ -2204,9 +2204,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .about-card__counts span { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; color: var(--muted); }
 .about-card__counts a:hover strong { color: var(--accent); }
 .about-card__links { position: absolute; top: 22px; right: 28px; display: flex; gap: 8px; }
-.about-card__name { margin: 8px 0 6px; font-family: var(--serif); font-weight: 400; font-size: 42px; line-height: 1.05; }
+.about-card__name { margin: 8px 0 0; font-family: var(--serif); font-weight: 400; font-size: 42px; line-height: 1.05; }
 :lang(zh) .about-card__name { font-family: "DM Serif Display", var(--serif); font-style: italic; }
-.about-card__motto { margin: 0; font-family: var(--serif); font-style: italic; font-size: 18px; color: var(--muted); }
 
 .about-sec { margin-top: clamp(32px, 4.4vw, 52px); }
 .about-sec__head { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; font-family: var(--serif); font-weight: 400; font-size: 28px; line-height: 1.1; }
@@ -2283,7 +2282,6 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .about-card__counts { margin-top: 18px; order: 3; }
   .about-card { display: flex; flex-direction: column; align-items: center; }
   .about-card__name { order: 1; font-size: 36px; }
-  .about-card__motto { order: 2; font-size: 16px; }
   .about-card__links { order: 4; margin-top: 16px; }
   .about-projects { grid-template-columns: minmax(0, 1fr); }
   .skill-group { grid-template-columns: minmax(0, 1fr); }
