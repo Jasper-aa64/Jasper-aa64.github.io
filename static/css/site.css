@@ -391,8 +391,11 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  padding: 0 .06em 0 .08em;
-  margin-left: -.06em;
+  /* Inline-block with room on the left and below, so the italic J's swash and tail are not cut off
+     by background-clip: text. Negative margins keep the text where it was. */
+  display: inline-block;
+  padding: 0 .1em .16em .22em;
+  margin: 0 0 -.16em -.22em;
 }
 .hero__name::after {
   content: ".";
@@ -532,13 +535,39 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .showcase__dot.is-on { width: 22px; opacity: 1; background: var(--accent); }
 
 @media (min-width: 1200px) {
-  .hero { grid-template-columns: max-content minmax(0, 1fr) 360px; justify-content: stretch; gap: clamp(28px, 2.6vw, 44px); }
-  /* Narrower intro so the middle column has room. */
-  .hero__title { font-size: clamp(56px, 5.4vw, 84px); }
-  .hero__topics { font-size: 16px; column-gap: 10px; margin-top: 20px; }
-  .hero__actions { gap: 8px; margin-top: 24px; }
-  .hero__actions .btn { height: 40px; padding: 0 15px; font-size: 14px; gap: 6px; }
-  .showcase { display: block; }
+  /* Three columns of equal height: intro | showcase | panel; showcase and panel share the width equally. */
+  .hero {
+    grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr);
+    justify-content: stretch;
+    align-items: stretch;
+    gap: clamp(28px, 2.6vw, 44px);
+  }
+  /* Intro: kicker on the top edge, buttons on the bottom edge, name and topics in between. */
+  .hero__copy { display: flex; flex-direction: column; justify-content: space-between; gap: 22px; }
+  .hero__copy .eyebrow { margin: 0; }
+  .hero__title { font-size: clamp(64px, 6vw, 96px); }
+  .hero__topics { font-size: 17px; column-gap: 12px; margin-top: 22px; }
+  .hero__actions { gap: 10px; margin-top: 0; }
+  .showcase { position: relative; display: flex; flex-direction: column; }
+  .showcase__viewport { position: relative; flex: 1; display: flex; }
+  .showcase__track { flex: 0 0 100%; min-width: 0; }
+  /* The picture fills whatever height the row has; it never sets the height itself. */
+  .slide__img { position: relative; flex: 1 1 auto; aspect-ratio: auto; min-height: 190px; }
+  .slide__img img { position: absolute; inset: 0; }
+  /* Dots sit on the picture, top right, so the card keeps the panel's height. */
+  .showcase__dots {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    margin: 0;
+    padding: 6px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card) 86%, transparent);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+  }
+  .hero__panel { display: flex; flex-direction: column; }
+  .hero__panel .tag-cloud--hero { padding-bottom: 46px; }
+  .hero__mascot { position: absolute; right: 16px; bottom: 12px; margin: 0; }
   .hero__panel .stats__item { padding: 0 10px; }
   .hero__panel .stats__item:first-child { padding-left: 0; }
   .hero__panel .stats__item:last-child dd { font-size: 15px; line-height: 2.2; }
