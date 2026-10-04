@@ -899,48 +899,53 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .filter__row { display: flex; flex-wrap: wrap; gap: 8px; }
 /* Second level opens with a height transition and hangs from the chosen top-level button:
-   a vertical line drops from that button (--bx) and turns into the row (elbow), like a directory tree.
-   site.js sets --bx, --bt (gap above the row) and --pad (where the chips start). */
+   a line drops from that button and turns into the row (an elbow), like a directory tree.
+   site.js sets the geometry on .filter__subs-inner; the values are registered so the branch
+   glides from one parent to the next instead of jumping. */
+@property --bx { syntax: "<length>"; inherits: true; initial-value: 40px; }
+@property --pad { syntax: "<length>"; inherits: true; initial-value: 66px; }
+@property --bt { syntax: "<length>"; inherits: true; initial-value: 10px; }
 .filter__subs {
   display: grid;
   grid-template-rows: 0fr;
   margin-top: -10px;
   opacity: 0;
-  transition: grid-template-rows .35s var(--ease), opacity .25s ease;
+  transition: grid-template-rows .38s var(--ease), opacity .3s ease;
 }
 .filter__subs.is-open { grid-template-rows: 1fr; opacity: 1; }
-.filter__subs-inner { min-height: 0; overflow: hidden; }
-.filter__subs.is-settled .filter__subs-inner { overflow: visible; }
+/* The gap above the row lives inside the clipped box, so the branch is never cut off mid-animation. */
+.filter__subs-inner {
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 10px;
+  transition: --bx .38s var(--ease), --pad .38s var(--ease), --bt .38s var(--ease);
+}
+.filter__subs-inner.is-instant { transition: none; }
 .filter__row--sub {
   position: relative;
-  margin-top: 10px;
-  padding-left: var(--pad, 28px);
+  padding-left: var(--pad);
+  animation: sub-in .3s ease both;
 }
+@keyframes sub-in { from { opacity: 0; } to { opacity: 1; } }
 .filter__row--sub::before,
 .filter__row--sub::after {
   content: "";
   position: absolute;
   pointer-events: none;
-  border-color: var(--gold);
-  border-style: solid;
-  border-width: 0;
 }
-/* Elbow: down from the parent button, then along to the first chip. */
+/* Elbow: down from the parent button's centre (--bx), then along to the node before the first chip. */
 .filter__row--sub::before {
-  left: var(--ex, 10px);
-  top: calc(-1 * var(--bt, 10px));
-  width: var(--ew, 12px);
-  height: calc(var(--bt, 10px) + var(--ey, 15px));
-  border-left-width: var(--el, 1.5px);
-  border-right-width: var(--er, 0px);
-  border-bottom-width: 1.5px;
-  border-bottom-left-radius: var(--erl, 8px);
-  border-bottom-right-radius: var(--err, 0px);
+  left: var(--bx);
+  top: calc(-1 * var(--bt));
+  width: max(1px, calc(var(--pad) - 10px - var(--bx)));
+  height: calc(var(--bt) + 15px);
+  border-left: 1.5px solid var(--gold);
+  border-bottom: 1.5px solid var(--gold);
+  border-bottom-left-radius: 8px;
 }
-/* A small node where the branch meets the row. */
 .filter__row--sub::after {
-  left: calc(var(--pad, 28px) - 9px - 2px);
-  top: calc(var(--ey, 15px) - 3px);
+  left: calc(var(--pad) - 12px);
+  top: 12px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -1615,6 +1620,18 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .area__foot { grid-area: foot; margin: 0; padding: 0; gap: 10px; }
   .area__arrow { width: 30px; height: 30px; }
   .filter { position: static; }
+  /* Phones: no long branch across wrapped buttons — a short tree elbow, then the chips on one
+     line that scrolls sideways if needed. */
+  .filter__row--sub {
+    padding-left: 26px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filter__row--sub::-webkit-scrollbar { display: none; }
+  .filter__row--sub .filter__chip { flex: none; white-space: nowrap; }
+  .filter__row--sub::before { left: 8px; top: 0; width: 10px; height: 15px; }
+  .filter__row--sub::after { display: none; }
   .card, .card.has-thumb { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px; align-items: start; }
   .card__thumb { order: -1; aspect-ratio: 2.4 / 1; }
   .card__meta { gap: 6px 10px; margin-bottom: 8px; }
