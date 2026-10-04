@@ -2124,14 +2124,51 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 /* ==========================================================================
    Cursor and click feedback (mouse only; touch devices keep their defaults)
    ========================================================================== */
-@media (pointer: fine) {
-  /* A small rounded arrow in the site's ink; it turns accent-coloured over anything clickable. */
-  html { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 2.8 19.2 11.4 12.4 13.1 9.1 20.2Z' fill='%252317181e' stroke='%2523ffffff' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto; }
-  :is(a, button, summary, label, select, [role="button"], [data-deck]) { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 2.8 19.2 11.4 12.4 13.1 9.1 20.2Z' fill='%25230e9fa6' stroke='%2523ffffff' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer !important; }
-  :is(input:not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"]) { cursor: text !important; }
-  :root[data-theme="dark"] { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 2.8 19.2 11.4 12.4 13.1 9.1 20.2Z' fill='%2523fffaf4' stroke='%25233d3938' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto; }
-  :root[data-theme="dark"] :is(a, button, summary, label, select, [role="button"], [data-deck]) { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 2.8 19.2 11.4 12.4 13.1 9.1 20.2Z' fill='%2523c4646b' stroke='%2523fffaf4' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer !important; }
+/* Dot + trailing ring (site.js adds them on mouse devices and sets html.has-cursor).
+   The dot sits exactly on the pointer; the ring follows with a little lag, grows over anything
+   clickable, shrinks while the button is down, and gives way to the text caret in form fields. */
+html.has-cursor, html.has-cursor * { cursor: none !important; }
+html.has-cursor :is(input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]), textarea, [contenteditable="true"]) { cursor: text !important; }
+.cursor-dot, .cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0;
+  will-change: transform;
 }
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  background: var(--accent);
+  transition: opacity .2s, width .2s, height .2s, margin .2s;
+}
+.cursor-ring {
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: transparent;
+  transition: opacity .25s, width .25s var(--ease), height .25s var(--ease), margin .25s var(--ease),
+              background-color .25s, border-color .25s;
+}
+html.cursor-on .cursor-dot, html.cursor-on .cursor-ring { opacity: 1; }
+/* Over a link or button: a larger, tinted ring; the dot steps aside. */
+html.cursor-link .cursor-ring {
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+html.cursor-link .cursor-dot { width: 4px; height: 4px; margin: -2px 0 0 -2px; }
+/* Button held down. */
+html.cursor-down .cursor-ring { width: 24px; height: 24px; margin: -12px 0 0 -12px; background: color-mix(in srgb, var(--accent) 20%, transparent); }
+/* In a text field the caret takes over. */
+html.cursor-text .cursor-dot, html.cursor-text .cursor-ring { opacity: 0; }
 /* Click: a ring expands from the point and six sparks fly out. */
 .click-fx { position: fixed; z-index: 9999; width: 0; height: 0; pointer-events: none; }
 .click-fx::before {
