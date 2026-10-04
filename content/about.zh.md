@@ -1,19 +1,20 @@
 ---
-title: "关于"
+title: "知悉"
+layout: "about"
 ---
 
-CP Notes 是一份个人的算法笔记存档。
+## 关于本站
 
-重点是实用:
+这里记录低延迟 C++、算法,以及 AI Native 开发。算法部分重点是实用:
 
 - 比赛里反复出现的公式和结论
 - 值得记住的简短证明
 - 可以放心复用的模板
 - 赛时能省时间的问题转化
 
-## 研究与简历
+除了这些文章,我在做智能体驱动的 C++ 性能优化研究——关心的问题是:一个 AI 生成的加速,在合入之前到底是不是真的。项目公开,包括预注册的实验、空补丁测试和一份技术报告。
 
-除了这些笔记,我在做智能体驱动的 C++ 性能优化研究——关心的问题是:一个 AI 生成的加速,在合入之前到底是不是真的。项目公开,包括预注册的实验、空补丁测试和一份技术报告:
+## 其他地方
 
-- [promotion-gate-audit](https://github.com/Jasper-aa64/promotion-gate-audit) —— 数据、脚本和技术报告
+- 代码:[github.com/Jasper-aa64](https://github.com/Jasper-aa64)
 - 简历:<a href="/files/cv.pdf" target="_blank" rel="noopener">预览</a> · <a href="/files/cv.pdf" download>下载</a>

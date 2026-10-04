@@ -217,7 +217,7 @@
           // Closing: keep the current row visible while the box folds up, hide it afterwards.
           subsBox.classList.remove("is-open");
           var hideAll = function () { subRows.forEach(function (r) { r.hidden = true; }); closing = null; };
-          if (first || reduce) hideAll(); else closing = setTimeout(hideAll, 400);
+          if (first || reduce) hideAll(); else closing = setTimeout(hideAll, 320);
         }
       }
 

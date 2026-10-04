@@ -919,7 +919,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   grid-template-rows: 0fr;
   margin-top: -10px;
   opacity: 0;
-  transition: grid-template-rows .38s var(--ease), opacity .3s ease;
+  transition: grid-template-rows .3s var(--ease), opacity .2s ease;
 }
 .filter__subs.is-open { grid-template-rows: 1fr; opacity: 1; }
 /* The gap above the row lives inside the clipped box, so the branch is never cut off mid-animation. */
@@ -927,7 +927,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   min-height: 0;
   overflow: hidden;
   padding-top: 10px;
-  transition: --bx .38s var(--ease), --pad .38s var(--ease), --bt .38s var(--ease);
+  transition: --bx .3s var(--ease), --pad .3s var(--ease), --bt .3s var(--ease);
 }
 .filter__subs-inner.is-instant { transition: none; }
 .filter__row--sub {
@@ -936,21 +936,21 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 /* Entrance, replayed whenever a sub row appears (hidden -> shown restarts the animations):
    the branch draws down and along, the node pops, then the chips grow out of it one by one. */
-.filter__row--sub::before { animation: branch-draw .42s cubic-bezier(.5, 0, .2, 1) .08s both; }
-.filter__row--sub::after { animation: node-pop .22s cubic-bezier(.3, 1.6, .5, 1) .46s both; }
-.filter__row--sub .filter__chip { animation: chip-in .32s cubic-bezier(.2, .8, .2, 1) both; transform-origin: left center; }
-.filter__row--sub .filter__chip:nth-child(1) { animation-delay: .5s; }
-.filter__row--sub .filter__chip:nth-child(2) { animation-delay: .56s; }
-.filter__row--sub .filter__chip:nth-child(3) { animation-delay: .62s; }
-.filter__row--sub .filter__chip:nth-child(4) { animation-delay: .68s; }
-.filter__row--sub .filter__chip:nth-child(n + 5) { animation-delay: .74s; }
+.filter__row--sub::before { animation: branch-draw .26s cubic-bezier(.4, 0, .2, 1) both; }
+.filter__row--sub::after { animation: node-pop .16s ease-out .16s both; }
+.filter__row--sub .filter__chip { animation: chip-in .22s cubic-bezier(.2, .8, .2, 1) both; transform-origin: left center; }
+.filter__row--sub .filter__chip:nth-child(1) { animation-delay: .14s; }
+.filter__row--sub .filter__chip:nth-child(2) { animation-delay: .18s; }
+.filter__row--sub .filter__chip:nth-child(3) { animation-delay: .22s; }
+.filter__row--sub .filter__chip:nth-child(4) { animation-delay: .26s; }
+.filter__row--sub .filter__chip:nth-child(n + 5) { animation-delay: .3s; }
 @keyframes branch-draw {
   0% { clip-path: inset(0 calc(100% - 2px) 100% 0); }
   55% { clip-path: inset(0 calc(100% - 2px) 0 0); }
   100% { clip-path: inset(0 0 0 0); }
 }
 @keyframes node-pop { from { transform: scale(0); } to { transform: scale(1); } }
-@keyframes chip-in { from { opacity: 0; transform: translateX(-8px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes chip-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .filter__row--sub::before, .filter__row--sub::after, .filter__row--sub .filter__chip { animation: none; }
 }
@@ -2075,4 +2075,119 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 :root[data-theme="dark"] .prose img[src$=".svg"] {
   filter: invert(.9) hue-rotate(180deg) saturate(1.15);
   border-color: var(--rule-strong);
+}
+
+/* ==========================================================================
+   About (知悉): profile card, writing stats, projects, skills, background
+   ========================================================================== */
+.about { padding-top: clamp(64px, 7vw, 92px); }
+.about-card, .about-chart, .about-share, .project, .about-skills, .timeline {
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.about-card { position: relative; padding: 64px 28px 26px; text-align: center; }
+.about-card__avatar {
+  position: absolute;
+  top: -56px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--paper-top);
+  box-shadow: var(--shadow);
+}
+.about-card__avatar img { width: 74px; height: auto; }
+.about-card__counts { position: absolute; top: 22px; left: 28px; display: flex; gap: 24px; }
+.about-card__counts a { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.about-card__counts strong { font-family: var(--serif); font-weight: 400; font-size: 30px; line-height: 1; color: var(--accent-ink); }
+.about-card__counts span { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; color: var(--muted); }
+.about-card__counts a:hover strong { color: var(--accent); }
+.about-card__links { position: absolute; top: 22px; right: 28px; display: flex; gap: 8px; }
+.about-card__name { margin: 8px 0 6px; font-family: var(--serif); font-weight: 400; font-size: 42px; line-height: 1.05; }
+:lang(zh) .about-card__name { font-family: "DM Serif Display", var(--serif); font-style: italic; }
+.about-card__motto { margin: 0; font-family: var(--serif); font-style: italic; font-size: 18px; color: var(--muted); }
+
+.about-sec { margin-top: clamp(32px, 4.4vw, 52px); }
+.about-sec__head { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; font-family: var(--serif); font-weight: 400; font-size: 28px; line-height: 1.1; }
+.about-sec__head::before { content: ""; width: 22px; height: 1px; background: var(--gold); }
+
+.about-stats { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; }
+.about-chart { margin: 0; padding: 18px 20px 10px; }
+.about-chart figcaption, .about-share__head {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.about-chart svg { display: block; width: 100%; height: auto; }
+.about-chart__axis { stroke: var(--rule); stroke-width: 1; }
+.about-chart__bar { fill: var(--accent); opacity: .85; }
+.about-chart__bar--zero { fill: var(--rule); opacity: 1; }
+.about-chart__n, .about-chart__m { font-family: var(--mono); font-size: 12px; text-anchor: middle; }
+.about-chart__n { fill: var(--ink); font-weight: 600; }
+.about-chart__m { fill: var(--muted); }
+.about-share { padding: 18px 20px; display: flex; flex-direction: column; }
+.about-share__bar { display: flex; gap: 3px; height: 14px; margin: 6px 0 18px; border-radius: 999px; overflow: hidden; }
+.about-share__seg { flex-basis: 0; }
+.about-share__seg--lowlatency { background: var(--accent); }
+.about-share__seg--algorithms { background: var(--gold); }
+.about-share__seg--ainative { background: #e07882; }
+.about-share__legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.about-share__legend a { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto 44px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--rule); font-size: 15px; }
+.about-share__legend li:last-child a { border-bottom: 0; }
+.about-share__legend a:hover { color: var(--accent-ink); }
+.about-share__dot { width: 10px; height: 10px; border-radius: 50%; }
+.about-share__legend b { font-family: var(--serif); font-weight: 400; font-size: 22px; line-height: 1; }
+.about-share__legend span { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+
+.about-projects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.project { display: flex; flex-direction: column; gap: 8px; padding: 20px 22px; transition: border-color .2s, background-color .2s; }
+.project:hover { border-color: var(--accent); background: color-mix(in srgb, var(--card) 92%, var(--accent)); }
+.project__meta { font-family: var(--mono); font-size: 12px; color: var(--gold); }
+.project__name { font-family: var(--serif); font-weight: 400; font-size: 24px; line-height: 1.15; color: var(--ink); }
+.project__name span { font-size: .7em; color: var(--accent); }
+.project__text { font-size: 15px; line-height: 1.65; color: var(--ink-2); }
+
+.about-skills { padding: 6px 22px; }
+.skill-group { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 20px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.skill-group:last-child { border-bottom: 0; }
+.skill-group__name { font-family: var(--serif); font-size: 20px; color: var(--ink); }
+.skill-group__items { display: flex; flex-wrap: wrap; gap: 8px; }
+.skill { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-top); font-size: 13.5px; color: var(--ink-2); }
+
+.about-me { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 22px; align-items: start; }
+.timeline { list-style: none; margin: 0; padding: 18px 22px 18px 44px; position: relative; }
+.timeline::before { content: ""; position: absolute; left: 26px; top: 30px; bottom: 30px; border-left: 1.5px solid var(--rule-strong); opacity: .5; }
+.timeline li { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 10px 0; }
+.timeline li::before { content: ""; position: absolute; left: -23px; top: 16px; width: 9px; height: 9px; border-radius: 50%; background: var(--card); border: 2px solid var(--accent); }
+.timeline__when { font-family: var(--mono); font-size: 12px; color: var(--gold); }
+.timeline strong { font-size: 16px; font-weight: 600; line-height: 1.45; color: var(--ink); }
+.timeline__where { font-size: 14px; color: var(--muted); }
+.about-prose h2:first-child { margin-top: 0; }
+.about-prose { font-size: 1.04rem; }
+
+@media (max-width: 900px) {
+  .about-stats, .about-me { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .about-card { padding: 66px 18px 22px; }
+  .about-card__counts, .about-card__links { position: static; justify-content: center; }
+  .about-card__counts { margin-top: 18px; order: 3; }
+  .about-card { display: flex; flex-direction: column; align-items: center; }
+  .about-card__name { order: 1; font-size: 36px; }
+  .about-card__motto { order: 2; font-size: 16px; }
+  .about-card__links { order: 4; margin-top: 16px; }
+  .about-projects { grid-template-columns: minmax(0, 1fr); }
+  .skill-group { grid-template-columns: minmax(0, 1fr); }
+  .about-sec__head { font-size: 24px; }
+  /* The chart is scaled down to half size on phones; double its labels so they stay readable. */
+  .about-chart__m, .about-chart__n { font-size: 20px; }
 }
