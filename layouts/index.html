@@ -64,7 +64,7 @@
       </div>
       <div class="stats__item">
         <dt>{{ i18n "statUpdated" }}</dt>
-        {{ with index $recent 0 }}<dd><a href="{{ .RelPermalink }}"><time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format "2006.01.02" }}</time></a></dd>{{ end }}
+        {{ with index $recent 0 }}<dd class="stats__date"><a href="{{ .RelPermalink }}"><time datetime="{{ .Date.Format `2006-01-02` }}"><span class="stats__year">{{ .Date.Format "2006" }}</span>{{ .Date.Format "01" }}<span class="stats__sep">·</span>{{ .Date.Format "02" }}</time></a></dd>{{ end }}
       </div>
     </dl>
     <p class="hero__panel-label">{{ i18n "topTags" }}</p>
