@@ -87,36 +87,6 @@
     }
   }
 
-  /* ---------- Cursor: a dot on the pointer and a ring that trails it (mouse devices only) ---------- */
-  if (!reduce && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-    var dot = document.createElement("div"), ring = document.createElement("div");
-    dot.className = "cursor-dot"; ring.className = "cursor-ring";
-    dot.setAttribute("aria-hidden", "true"); ring.setAttribute("aria-hidden", "true");
-    document.body.appendChild(ring); document.body.appendChild(dot);
-    root.classList.add("has-cursor");
-    var mx = -100, my = -100, rx = -100, ry = -100, raf = 0;
-    var clickable = "a, button, summary, label, select, [role='button'], [data-go], [data-step], [data-filter], [data-sub], [data-tag-more]";
-    var typing = "input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']), textarea, [contenteditable='true']";
-    var follow = function () {
-      rx += (mx - rx) * 0.2; ry += (my - ry) * 0.2;
-      ring.style.transform = "translate3d(" + rx + "px," + ry + "px,0)";
-      raf = (Math.abs(mx - rx) > 0.1 || Math.abs(my - ry) > 0.1) ? requestAnimationFrame(follow) : 0;
-    };
-    document.addEventListener("mousemove", function (e) {
-      mx = e.clientX; my = e.clientY;
-      if (!root.classList.contains("cursor-on")) { rx = mx; ry = my; root.classList.add("cursor-on"); }
-      dot.style.transform = "translate3d(" + mx + "px," + my + "px,0)";
-      if (!raf) raf = requestAnimationFrame(follow);
-      var t = e.target instanceof Element ? e.target : null;
-      root.classList.toggle("cursor-text", !!(t && t.closest(typing)));
-      root.classList.toggle("cursor-link", !!(t && t.closest(clickable)));
-    }, { passive: true });
-    document.addEventListener("mousedown", function () { root.classList.add("cursor-down"); });
-    document.addEventListener("mouseup", function () { root.classList.remove("cursor-down"); });
-    document.documentElement.addEventListener("mouseleave", function () { root.classList.remove("cursor-on"); });
-    window.addEventListener("blur", function () { root.classList.remove("cursor-on", "cursor-down"); });
-  }
-
   /* ---------- Click feedback: a ring and six sparks where the mouse clicks ---------- */
   if (!reduce && window.matchMedia("(pointer: fine)").matches) {
     document.addEventListener("pointerdown", function (e) {
