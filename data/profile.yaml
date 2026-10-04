@@ -14,7 +14,7 @@ en:
 
 zh:
   kicker: "个人博客"
-  hello: "你好,我是"
+  hello: "Hi, I'm"
   name: "JM"
   topics: ["低延迟 C++", "算法", "AI Native"]
   photos:
