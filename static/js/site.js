@@ -360,6 +360,20 @@
     });
   }
 
+  /* ---------- Brain mascot in the home panel: fly far enough to leave through the panel's top edge ---------- */
+  var mascot = document.querySelector(".hero__mascot");
+  var mascotBox = mascot && mascot.closest(".hero__panel");
+  if (mascot && mascotBox) {
+    var setFly = function () {
+      var m = mascot.getBoundingClientRect(), p = mascotBox.getBoundingClientRect();
+      // bottom of the brain to the top of the panel, plus room for the balloon above its head
+      mascot.style.setProperty("--fly", Math.ceil(m.bottom - p.top + m.height * 0.9) + "px");
+    };
+    setFly();
+    window.addEventListener("resize", setFly);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(setFly);
+  }
+
   /* ---------- Brain mascot: a fresh balloon colour every loop ---------- */
   var colors = ["#fb7185", "#f59e0b", "#34d399", "#38bdf8", "#a78bfa", "#f472b6", "#facc15", "#4ade80", "#fb923c"];
   var pick = function () { return colors[Math.floor(Math.random() * colors.length)]; };

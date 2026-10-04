@@ -1635,6 +1635,20 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .hero__mascot .p2-brain-icon { animation-delay: -3.5s; }
 .hero__mascot .p2-brain-icon * { animation-delay: -3.5s; }
 .hero__mascot .p2-brain-cloud-dots rect { animation-delay: 0s; }
+/* In the panel the brain flies all the way out through the top edge (distance --fly, set by site.js
+   from the panel's height), then rises back in from the bottom edge. */
+.hero__mascot .p2-brain-icon { animation-name: p2BrainFlyOut; }
+@keyframes p2BrainFlyOut {
+  0% { transform: translateY(0); opacity: 1; }
+  58% { transform: translateY(0); opacity: 1; animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.3); }
+  73% { transform: translateY(calc(-1 * var(--fly, 440px))); opacity: 1; }
+  74% { transform: translateY(calc(-1 * var(--fly, 440px))); opacity: 0; }
+  76% { transform: translateY(90px); opacity: 0; }
+  77% { transform: translateY(90px); opacity: 1; animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  93% { transform: translateY(-6px); opacity: 1; }
+  97% { transform: translateY(2px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
 .p2-brain-icon {
   width: 100%;
   height: 100%;
