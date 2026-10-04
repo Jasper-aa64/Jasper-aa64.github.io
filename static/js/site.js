@@ -265,6 +265,14 @@
     fromHash();
   }
 
+  /* ---------- Categories page: open a tag group to show its single-post tags ---------- */
+  document.querySelectorAll("[data-tag-more]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var g = b.closest(".tag-group");
+      if (g) { g.classList.add("is-open"); b.setAttribute("aria-expanded", "true"); }
+    });
+  });
+
   /* ---------- Table of contents: highlight the section being read ---------- */
   var tocLinks = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
   if (tocLinks.length && article) {

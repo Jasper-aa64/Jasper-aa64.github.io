@@ -7,8 +7,28 @@
   {{ if $isCats }}
     {{ partial "area-grid.html" (dict "page" . "art" true) }}
     <h2 class="sub-head reveal">{{ i18n "tagsTitle" }}</h2>
-    <div class="tag-cloud">
-      {{ range partial "tag-list.html" . }}<a class="tag tag--count" href="{{ .u }}">{{ .t }} <sup>{{ .n }}</sup></a>{{ end }}
+    {{/* Tags grouped by the category their posts belong to, so the cloud reads as a few short lists. */}}
+    {{ $all := partial "tag-list.html" . }}
+    <div class="tag-groups">
+      {{ range slice "lowlatency" "algorithms/common" "algorithms/combinatorics" "algorithms/number-theory" "algorithms/matrix" "ainative" "other" }}
+        {{ $g := . }}{{ $list := where $all "g" $g }}
+        {{ with $list }}
+          {{ $rareN := len (where $list "n" 1) }}
+          <section class="tag-group{{ if and $rareN (lt $rareN (len $list)) }} tag-group--fold{{ end }} reveal">
+            <h3 class="tag-group__head">
+              {{ if eq $g "lowlatency" }}{{ i18n "catLowLatency" }}
+              {{ else if eq $g "ainative" }}{{ i18n "catAINative" }}
+              {{ else if eq $g "other" }}{{ i18n "tagOther" }}
+              {{ else }}{{ i18n "catAlgorithms" }}<span>{{ if eq $g "algorithms/common" }}{{ i18n "tagGeneral" }}{{ else }}{{ i18n (print "cat_" (strings.TrimPrefix "algorithms/" $g)) }}{{ end }}</span>{{ end }}
+            </h3>
+            <div class="tag-cloud tag-cloud--group">
+              {{ range . }}<a class="tag tag--count{{ if eq .n 1 }} tag--rare{{ end }}" href="{{ .u }}">{{ .t }} <sup>{{ .n }}</sup></a>{{ end }}
+              {{ $rare := len (where . "n" 1) }}
+              {{ if and $rare (lt $rare (len .)) }}<button type="button" class="tag tag--more-btn" data-tag-more aria-expanded="false">+ {{ $rare }}</button>{{ end }}
+            </div>
+          </section>
+        {{ end }}
+      {{ end }}
     </div>
   {{ else }}
     <div class="tag-cloud">
