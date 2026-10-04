@@ -30,7 +30,7 @@
 </section>
 
 <section class="home-sec home-sec--areas wrap" id="areas" aria-label="{{ i18n "categoriesTitle" }}">
-  {{ partial "area-grid.html" . }}
+  {{ partial "area-grid.html" (dict "page" . "art" false) }}
 </section>
 
 <section class="home-sec wrap" id="recent" aria-labelledby="recent-title">

@@ -474,10 +474,11 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .home-sec__more span { transition: transform .25s var(--ease); }
 .home-sec__more:hover span { transform: translateX(3px); }
 
-/* Core areas: four doors into the notes — 2 x 2 with an illustration on wide screens, 1 x 4 on phones */
+/* Core areas: four doors into the notes.
+   Home: one row of four, text only (the original look). Categories page (--art): 2 x 2 with an illustration. */
 .area-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--rule-strong);
   border-radius: 14px;
   overflow: hidden;
@@ -488,16 +489,13 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .area {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
-  align-items: center;
-  gap: 18px;
-  min-height: 230px;
-  padding: 24px 26px;
+  display: block;
+  min-height: 210px;
+  padding: 24px 24px 22px;
+  border-right: 1px solid var(--rule);
   transition: background-color .25s;
 }
-.area:nth-child(odd) { border-right: 1px solid var(--rule); }
-.area:nth-child(-n + 2) { border-bottom: 1px solid var(--rule); }
+.area:last-child { border-right: 0; }
 .area::before {
   content: "";
   position: absolute;
@@ -507,12 +505,12 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   transform: rotate(-1.8deg);
 }
 .area:hover { background: var(--wash); }
-.area__text { display: flex; flex-direction: column; gap: 10px; align-self: stretch; }
+.area__text { display: flex; flex-direction: column; gap: 10px; height: 100%; }
 .area__index { font-family: var(--mono); font-size: 12px; color: var(--gold); }
 .area__name {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: 34px;
+  font-size: 32px;
   line-height: 1.05;
   color: var(--ink);
   transition: color .2s;
@@ -537,10 +535,25 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   transition: all .3s var(--ease);
 }
 .area:hover .area__arrow { background: var(--accent); border-color: var(--accent); color: #fff; transform: translateX(3px); }
+
+/* Categories page variant: 2 x 2, illustration on the right */
+.area-grid--art { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.area-grid--art .area {
+  display: grid;
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 230px;
+  padding: 24px 26px;
+  border-right: 0;
+}
+.area-grid--art .area:nth-child(odd) { border-right: 1px solid var(--rule); }
+.area-grid--art .area:nth-child(-n + 2) { border-bottom: 1px solid var(--rule); }
+.area-grid--art .area__text { align-self: stretch; }
+.area-grid--art .area__name { font-size: 34px; }
 .area__art { display: block; color: var(--ink-2); }
 .area__art svg { display: block; width: 100%; height: auto; overflow: visible; transition: transform .5s var(--ease); }
 .area:hover .area__art svg { transform: translateY(-3px) rotate(-1deg); }
-.area .art-hot { transition: opacity .3s; }
 .area:hover .art-hot { animation: art-pulse 1.1s ease-in-out infinite; }
 @keyframes art-pulse { 50% { opacity: .55; } }
 
@@ -1291,7 +1304,10 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
    Responsive
    ========================================================================== */
 @media (max-width: 1080px) {
-  .area { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .area-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .area:nth-child(2) { border-right: 0; }
+  .area:nth-child(-n + 2) { border-bottom: 1px solid var(--rule); }
+  .area-grid--art .area { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .area__art { max-width: 280px; order: -1; }
   .card.has-thumb { grid-template-columns: minmax(0, 1fr) 200px; }
 }
@@ -1345,7 +1361,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .site-nav__cv { grid-column: 1 / -1; }
   .brand__name { font-size: 23px; }
   .area-grid { grid-template-columns: minmax(0, 1fr); }
-  .area, .area:nth-child(odd), .area:nth-child(-n + 2) {
+  .area, .area:nth-child(2), .area:nth-child(-n + 2),
+  .area-grid--art .area, .area-grid--art .area:nth-child(odd), .area-grid--art .area:nth-child(-n + 2) {
     display: block;
     min-height: 0;
     padding: 14px 16px;
