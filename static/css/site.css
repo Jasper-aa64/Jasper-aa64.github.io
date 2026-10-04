@@ -414,12 +414,16 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 :lang(zh) .hero__lede { line-height: 1.85; }
 .hero__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
-/* The intro is centred in its column (and on phones in the page), so a short name such as "JM"
-   never leaves the whole right side empty. */
-.hero__copy { display: flex; flex-direction: column; align-items: center; text-align: center; }
-.hero__title { margin-inline: auto; }
-.hero__topics, .hero__actions { justify-content: center; }
+/* Asymmetric name lockup: greeting top-left, name pushed to the right edge of the intro, so a short
+   name such as "JM" still spans the column instead of leaving the right side empty. */
+.hero__intro { width: 100%; }
+/* Kicker and topics stay centred; only the name lockup is asymmetric. */
+.hero__copy .eyebrow { display: flex; width: fit-content; margin-inline: auto; }
 .hero__copy .eyebrow::after { content: ""; width: 22px; height: 1px; background: var(--gold); }
+.hero__topics { justify-content: center; }
+.hero__title { display: flex; flex-direction: column; width: 100%; }
+.hero__hello { align-self: flex-start; }
+.hero__name { align-self: flex-end; }
 
 /* Photo stack: three polaroids piled tightly; tap to send the top one to the back. */
 .hero__photos { width: 100%; max-width: 480px; justify-self: center; }
@@ -578,7 +582,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   }
   /* Intro: kicker on the top edge, buttons on the bottom edge, name and topics in between. */
   .hero__copy { display: flex; flex-direction: column; justify-content: space-between; gap: 22px; }
-  .hero__copy .eyebrow { margin: 0; }
+  .hero__copy .eyebrow { margin: 0 auto; }
   .hero__title { font-size: clamp(84px, 9.2vw, 136px); }
   .hero__hello { font-size: .36em; margin-bottom: .1em; }
   .hero__topics { font-size: 17px; column-gap: 12px; margin-top: 22px; }
@@ -894,7 +898,57 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   border-bottom: 1px solid var(--rule);
 }
 .filter__row { display: flex; flex-wrap: wrap; gap: 8px; }
-.filter__row--sub { padding-left: 14px; border-left: 2px solid var(--gold); }
+/* Second level opens with a height transition and hangs from the chosen top-level button:
+   a vertical line drops from that button (--bx) and turns into the row (elbow), like a directory tree.
+   site.js sets --bx, --bt (gap above the row) and --pad (where the chips start). */
+.filter__subs {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: -10px;
+  opacity: 0;
+  transition: grid-template-rows .35s var(--ease), opacity .25s ease;
+}
+.filter__subs.is-open { grid-template-rows: 1fr; opacity: 1; }
+.filter__subs-inner { min-height: 0; overflow: hidden; }
+.filter__subs.is-settled .filter__subs-inner { overflow: visible; }
+.filter__row--sub {
+  position: relative;
+  margin-top: 10px;
+  padding-left: var(--pad, 28px);
+}
+.filter__row--sub::before,
+.filter__row--sub::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-color: var(--gold);
+  border-style: solid;
+  border-width: 0;
+}
+/* Elbow: down from the parent button, then along to the first chip. */
+.filter__row--sub::before {
+  left: var(--ex, 10px);
+  top: calc(-1 * var(--bt, 10px));
+  width: var(--ew, 12px);
+  height: calc(var(--bt, 10px) + var(--ey, 15px));
+  border-left-width: var(--el, 1.5px);
+  border-right-width: var(--er, 0px);
+  border-bottom-width: 1.5px;
+  border-bottom-left-radius: var(--erl, 8px);
+  border-bottom-right-radius: var(--err, 0px);
+}
+/* A small node where the branch meets the row. */
+.filter__row--sub::after {
+  left: calc(var(--pad, 28px) - 9px - 2px);
+  top: calc(var(--ey, 15px) - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+/* Article list: a short fade when the filter changes (no sliding). */
+.card-list { transition: opacity .18s ease; }
+.card-list.is-switching { opacity: 0; }
 .filter__chip {
   height: 30px;
   padding: 0 12px;
@@ -1598,8 +1652,10 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .hero__actions { flex-wrap: nowrap; gap: 8px; }
   .hero__actions .btn { flex: none; white-space: nowrap; }
   .hero__topics { flex-wrap: nowrap; white-space: nowrap; column-gap: 8px; font-size: 15.5px; }
-  /* Phones: "Hi, I'm Jasper." on one line to save height. */
-  .hero__hello { display: inline; margin: 0 .28em 0 0; font-size: .4em; }
+  /* Phones: greeting and name on one line — greeting at the left, name at the right end. */
+  .hero__title { flex-direction: row; align-items: last baseline; justify-content: space-between; gap: 12px; }
+  .hero__hello { margin: 0; font-size: .42em; white-space: nowrap; }
+  .hero__hello, .hero__name { align-self: auto; }
 }
 @media (max-width: 360px) {
   .hero__topics { font-size: 13.5px; column-gap: 6px; }

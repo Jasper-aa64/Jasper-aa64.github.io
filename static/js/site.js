@@ -174,24 +174,85 @@
     var press = function (els, test) {
       els.forEach(function (b) { var on = test(b); b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     };
+    var subsBox = writing.querySelector("[data-subs]");
+    var list = writing.querySelector("[data-list]");
+    var filterBox = writing.querySelector(".filter");
+    // Draw the tree branch from the active top-level button down to its sub row.
+    var branch = function () {
+      var row = subRows.filter(function (r) { return !r.hidden; })[0];
+      var btn = tops.filter(function (b) { return b.classList.contains("is-active"); })[0];
+      if (!row || !btn) return;
+      var rr = row.getBoundingClientRect(), br = btn.getBoundingClientRect();
+      var bx = Math.round(br.left + br.width / 2 - rr.left);
+      var pad = Math.round(Math.min(bx + 26, rr.width * 0.34));
+      pad = Math.max(pad, 28);
+      var end = pad - 9;                       // where the branch reaches the node
+      var left = Math.min(bx, end), w = Math.abs(end - bx);
+      var right = bx > end;                    // branch turns left when the parent sits far right
+      row.style.setProperty("--pad", pad + "px");
+      row.style.setProperty("--ex", left + "px");
+      row.style.setProperty("--ew", Math.max(w, 1) + "px");
+      row.style.setProperty("--el", right ? "0px" : "1.5px");
+      row.style.setProperty("--er", right ? "1.5px" : "0px");
+      row.style.setProperty("--erl", right ? "0px" : "8px");
+      row.style.setProperty("--err", right ? "8px" : "0px");
+      // A branch coming from the right runs along the gap above the chips instead of through them.
+      row.style.setProperty("--ey", right ? "-5px" : "15px");
+      // gap between the button's bottom and the row's top (bigger when the top row wraps)
+      var gap = Math.max(4, Math.round(rr.top - br.bottom));
+      row.style.setProperty("--bt", gap + "px");
+    };
+    var first = true;
     var apply = function (key, sub, push) {
       if (!tops.some(function (b) { return b.dataset.filter === key; })) { key = "all"; sub = ""; }
       var row = null;
       subRows.forEach(function (r) { var on = r.dataset.subsFor === key; r.hidden = !on; if (on) row = r; });
       var chips = row ? Array.prototype.slice.call(row.querySelectorAll("[data-sub]")) : [];
       if (!chips.some(function (c) { return c.dataset.sub === sub; })) sub = "";
+      var changed = state.key !== key || state.sub !== sub;
       state = { key: key, sub: sub };
       press(tops, function (b) { return b.dataset.filter === key; });
       press(chips, function (c) { return c.dataset.sub === sub; });
-      var shown = 0;
-      entries.forEach(function (el) {
-        var vis = key === "all" || (el.dataset.series === key && (!sub || el.dataset.sub === sub));
-        el.hidden = !vis;
-        if (vis) shown++;
-      });
-      if (empty) empty.hidden = shown > 0;
+      if (subsBox) {
+        var open = !!row;
+        if (!open) subsBox.classList.remove("is-settled");
+        subsBox.classList.toggle("is-open", open);
+        if (open && (first || reduce)) subsBox.classList.add("is-settled");
+      }
+      branch();
+      var show = function () {
+        var shown = 0;
+        entries.forEach(function (el) {
+          var vis = key === "all" || (el.dataset.series === key && (!sub || el.dataset.sub === sub));
+          el.hidden = !vis;
+          if (vis) shown++;
+        });
+        if (empty) empty.hidden = shown > 0;
+      };
+      if (first || reduce || !changed || !list) { show(); }
+      else {
+        list.classList.add("is-switching");
+        setTimeout(function () {
+          show();
+          // If the reader had scrolled into the list, bring its start back under the sticky filter.
+          var top = list.getBoundingClientRect().top;
+          var under = filterBox ? filterBox.getBoundingClientRect().bottom : 0;
+          if (top < under) window.scrollBy({ top: top - under - 8, behavior: "auto" });
+          list.classList.remove("is-switching");
+        }, 180);
+      }
+      first = false;
       if (push) history.replaceState(null, "", key === "all" ? location.pathname : "#" + key + (sub ? "/" + sub : ""));
     };
+    if (subsBox) {
+      subsBox.addEventListener("transitionend", function (e) {
+        if (e.target === subsBox && e.propertyName === "grid-template-rows" && subsBox.classList.contains("is-open")) {
+          subsBox.classList.add("is-settled");
+          branch();
+        }
+      });
+    }
+    window.addEventListener("resize", branch);
     tops.forEach(function (b) { b.addEventListener("click", function () { apply(b.dataset.filter, "", true); }); });
     subRows.forEach(function (r) {
       r.addEventListener("click", function (e) {

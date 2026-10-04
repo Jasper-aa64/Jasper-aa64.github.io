@@ -15,6 +15,9 @@
         {{ end }}
       {{ end }}
     </div>
+    {{/* Second level: opens under the chosen category and hangs from it like a tree branch. */}}
+    <div class="filter__subs" data-subs>
+    <div class="filter__subs-inner">
     {{ range $k, $list := $ix.subs }}
       {{ if $list }}
         <div class="filter__row filter__row--sub" data-subs-for="{{ $k }}" role="toolbar" hidden>
@@ -25,8 +28,10 @@
         </div>
       {{ end }}
     {{ end }}
+    </div>
+    </div>
   </div>
-  <div class="card-list">
+  <div class="card-list" data-list>
     {{ range sort (sort $posts "Title" "desc") "Date" "desc" }}{{ partial "post-card.html" . }}{{ end }}
   </div>
   <p class="empty-note" data-empty hidden>{{ i18n "emptyFilter" }}</p>
