@@ -1,18 +1,14 @@
 {{ define "main" }}
-  <section class="page-heading">
-    <span class="eyebrow">{{ i18n "taxonomy" }}</span>
-    <h1>{{ .Title }}</h1>
-    <p>{{ i18n "taxonomyBlurb" }}</p>
-  </section>
-
-  <section class="content-panel">
-    <div class="term-grid">
-      {{ range .Data.Terms.Alphabetical }}
-        <a class="term-card" href="{{ .Page.RelPermalink }}">
-          <strong>{{ .Page.Title }}</strong>
-          <span>{{ i18n "postCount" .Count }}</span>
-        </a>
-      {{ end }}
-    </div>
-  </section>
+<section class="page-head wrap">
+  <p class="eyebrow reveal">{{ i18n "writingKicker" }}</p>
+  <h1 class="page-head__title reveal">{{ if eq .Data.Plural "tags" }}{{ i18n "tagsTitle" }}{{ else }}{{ .Title }}{{ end }}</h1>
+  <p class="page-head__lede reveal">{{ i18n "tagsLede" }}</p>
+</section>
+<section class="wrap page-body">
+  <div class="tag-cloud">
+    {{ range .Data.Terms.ByCount }}
+      <a class="tag tag--count reveal" href="{{ .Page.RelPermalink }}">{{ .Page.Title }} <sup>{{ .Count }}</sup></a>
+    {{ end }}
+  </div>
+</section>
 {{ end }}

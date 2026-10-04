@@ -1,22 +1,18 @@
 {{ define "main" }}
-  <section class="page-heading">
-    <span class="eyebrow">{{ if eq .Kind "section" }}{{ i18n "section" }}{{ else if eq .Kind "term" }}{{ i18n "term" }}{{ else }}{{ .Kind | humanize }}{{ end }}</span>
-    <h1>{{ .Title }}</h1>
-    {{ with .Description }}<p>{{ . }}</p>{{ end }}
-  </section>
-
-  {{ $pages := .Pages }}
-  {{ if ne site.Language.Lang "en" }}
-    {{ $other := slice }}
-    {{ range .Translations }}{{ if eq .Language.Lang "en" }}{{ $other = .Pages }}{{ end }}{{ end }}
-    {{ $pages = partial "merge-lang.html" (dict "own" .Pages "other" $other) }}
-  {{ end }}
-
-  <section class="content-panel">
-    <div class="post-list">
-      {{ range $pages }}
-        {{ partial "post-card.html" . }}
-      {{ end }}
-    </div>
-  </section>
+{{ $pages := .Pages }}
+{{ if ne site.Language.Lang "en" }}
+  {{ $other := slice }}
+  {{ range .Translations }}{{ if eq .Language.Lang "en" }}{{ $other = .Pages }}{{ end }}{{ end }}
+  {{ $pages = partial "merge-lang.html" (dict "own" .Pages "other" $other) }}
+{{ end }}
+<section class="page-head wrap">
+  <p class="eyebrow reveal">{{ if eq .Kind "term" }}{{ with .Data.Plural }}{{ if eq . "tags" }}{{ i18n "tagsTitle" }}{{ else }}{{ i18n "term" }}{{ end }}{{ end }}{{ else }}{{ i18n "section" }}{{ end }}</p>
+  <h1 class="page-head__title reveal">{{ if and (eq .Kind "term") (eq .Data.Plural "tags") }}#{{ end }}{{ .Title }}</h1>
+  <p class="page-head__lede reveal">{{ with .Description }}{{ . }}{{ else }}{{ i18n "nPosts" (len $pages) }}{{ end }}</p>
+</section>
+<section class="wrap page-body">
+  <ol class="entry-list">
+    {{ range $pages }}{{ partial "entry-row.html" (dict "page" . "showYear" true) }}{{ end }}
+  </ol>
+</section>
 {{ end }}

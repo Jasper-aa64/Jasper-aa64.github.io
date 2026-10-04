@@ -1,31 +1,18 @@
 {{ define "main" }}
-  <section class="page-heading">
-    <span class="eyebrow">{{ i18n "algorithms" }}</span>
-    <h1>{{ .Title }}</h1>
-    {{ with .Params.description }}<p>{{ . }}</p>{{ end }}
-  </section>
-
-  {{ $cats := slice "Combinatorics" "Number Theory" "Matrix" }}
-  {{ range $cats }}
-    {{ $cat := . }}
-    {{ $posts := where site.RegularPages "Params.categories" "intersect" (slice $cat) }}
-    {{ if len $posts }}
-    <section class="content-panel">
-      <div class="section-head">
-        <div>
-          <span class="eyebrow">{{ i18n "series" }}</span>
-          <h2>{{ $cat }}</h2>
-        </div>
-        {{ with index site.Taxonomies.categories ($cat | lower) }}
-          <a class="text-link" href="{{ .Page.RelPermalink }}">{{ i18n "viewAll" }}</a>
-        {{ end }}
-      </div>
-      <div class="post-list">
-        {{ range $posts }}
-          {{ partial "post-card.html" . }}
-        {{ end }}
-      </div>
-    </section>
+<section class="page-head wrap">
+  <p class="eyebrow reveal">{{ i18n "seriesAlgorithms" }}</p>
+  <h1 class="page-head__title reveal">{{ .Title }}</h1>
+  {{ with .Params.description }}<p class="page-head__lede reveal">{{ . }}</p>{{ end }}
+</section>
+<section class="wrap page-body">
+  {{ range slice "Combinatorics" "Number Theory" "Matrix" }}
+    {{ $posts := where site.RegularPages "Params.categories" "intersect" (slice .) }}
+    {{ if $posts }}
+      <section class="year-group">
+        <h2 class="year-group__year year-group__year--word">{{ . }} <sup>{{ len $posts }}</sup></h2>
+        <ol class="entry-list">{{ range sort $posts "Title" }}{{ partial "entry-row.html" (dict "page" .) }}{{ end }}</ol>
+      </section>
     {{ end }}
   {{ end }}
+</section>
 {{ end }}

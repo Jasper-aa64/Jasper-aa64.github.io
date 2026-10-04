@@ -1,8 +1,9 @@
 baseURL: "https://jasper-aa64.github.io/"
 languageCode: "en-us"
-title: "Jasper's Technical Notebook"
+title: "Jasper"
 defaultContentLanguage: "en"
 enableRobotsTXT: true
+hasCJKLanguage: true
 publishDir: "docs"
 cleanDestinationDir: true
 
@@ -27,44 +28,26 @@ languages:
     languageName: "English"
     languageCode: "en-us"
     weight: 1
-    title: "Jasper's Technical Notebook"
+    title: "Jasper"
     menus:
       main:
         - { name: "Home", url: "/", weight: 10 }
-        - { name: "Posts", url: "/posts/", weight: 20 }
-        - { name: "Archives", url: "/archives/", weight: 30 }
-        - { name: "Categories", url: "/categories/", weight: 40 }
-        - { name: "Tags", url: "/tags/", weight: 50 }
-        - { name: "About", url: "/about/", weight: 60 }
+        - { name: "Writing", url: "/posts/", weight: 20 }
+        - { name: "About", url: "/about/", weight: 40 }
     params:
-      tagline: "Algorithms, C++ performance, and AI-assisted engineering"
-      description: "A technical notebook for AI-native development, high-performance and low-latency systems, software engineering, and agent evaluation, testing, and trustworthiness."
-      heroDirections:
-        - "AI-native development"
-        - "high-performance, low-latency systems"
-        - "software engineering"
-        - "agent evaluation, testing, and trustworthiness"
+      description: "Jasper's personal site: C++ that has to be fast, low-latency systems, competitive programming, and how to tell whether an AI-written speedup is real."
   zh:
     languageName: "中文"
     languageCode: "zh-CN"
     weight: 2
-    title: "Jasper 的技术笔记本"
+    title: "Jasper"
     menus:
       main:
         - { name: "首页", url: "/zh/", weight: 10 }
         - { name: "文章", url: "/zh/posts/", weight: 20 }
-        - { name: "归档", url: "/zh/archives/", weight: 30 }
-        - { name: "分类", url: "/zh/categories/", weight: 40 }
-        - { name: "标签", url: "/zh/tags/", weight: 50 }
-        - { name: "关于", url: "/zh/about/", weight: 60 }
+        - { name: "关于", url: "/zh/about/", weight: 40 }
     params:
-      tagline: "算法、C++ 性能与 AI 辅助工程"
-      description: "一本技术笔记:AI 原生开发、高性能与低延迟系统、软件工程,以及智能体的评测、测试与可信性。"
-      heroDirections:
-        - "AI 原生开发"
-        - "高性能、低延迟系统"
-        - "软件工程"
-        - "智能体的评测、测试与可信性"
+      description: "Jasper 的个人主页:要跑得快的 C++、低延迟系统、算法竞赛,以及怎么判断 AI 写出来的加速是不是真的。"
 
 markup:
   goldmark:
@@ -81,10 +64,9 @@ markup:
             - ["$", "$"]
             - ["\\(", "\\)"]
   highlight:
-    style: "dracula"
     lineNos: false
-    noClasses: true
+    noClasses: false
   tableOfContents:
     startLevel: 1
-    endLevel: 2
+    endLevel: 3
     ordered: false

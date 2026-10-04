@@ -1,201 +1,88 @@
 {{ define "main" }}
-  <article class="article-shell">
-    <header class="article-header">
-      <span class="eyebrow">{{ if eq .Section "posts" }}{{ i18n "eyebrowPosts" }}{{ else }}{{ i18n "eyebrowPage" }}{{ end }}</span>
-      <h1>{{ .Title }}</h1>
-      {{ if eq .Section "posts" }}
-        <div class="article-meta">
-          <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time>
-          {{ with .Params.categories }}
-            <span>·</span>
-            <span>{{ delimit . ", " }}</span>
-          {{ end }}
-        </div>
-        {{ with .Params.tags }}
-          <div class="chip-row">
-            {{ range . }}
-              <a class="chip" href="{{ $.Site.LanguagePrefix }}/tags/{{ . | urlize }}/">#{{ . }}</a>
-            {{ end }}
-          </div>
-        {{ end }}
-      {{ end }}
-    </header>
+{{ $isPost := eq .Section "posts" }}
+{{ $s := partial "series.html" . }}
+{{ $hasToc := and .Params.toc (gt (len .TableOfContents) 40) }}
+<article class="post{{ if $hasToc }} has-toc{{ end }}">
+  <header class="post-head wrap">
+    {{ if $isPost }}
+      <a class="eyebrow post-head__kicker reveal" href="{{ "posts/" | relLangURL }}#{{ $s.key }}">
+        {{ $s.label }}{{ with $s.num }}<span class="post-head__num">{{ if eq $s.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}
+      </a>
+      <h1 class="post-head__title reveal">{{ $s.title }}</h1>
+      {{ with .Description }}{{ if le (countrunes .) 230 }}<p class="post-head__dek reveal">{{ . }}</p>{{ end }}{{ end }}
+      <div class="post-head__meta reveal">
+        <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time>
+        <span aria-hidden="true">·</span>
+        <span>{{ i18n "minRead" .ReadingTime }}</span>
+        {{ with .Params.categories }}<span aria-hidden="true">·</span><span>{{ delimit . " / " }}</span>{{ end }}
+      </div>
+    {{ else }}
+      <p class="eyebrow reveal">{{ if eq .Section "life" }}{{ i18n "secLife" }}{{ else }}Jasper{{ end }}</p>
+      <h1 class="post-head__title reveal">{{ .Title }}</h1>
+      {{ if eq .Section "life" }}<div class="post-head__meta reveal"><time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time></div>{{ end }}
+    {{ end }}
+  </header>
 
-    {{ if and (eq site.Language.Lang "en") (eq .Section "posts") (eq (len .Translations) 0) }}
-      <p class="lang-notice" hidden>{{ i18n "noTranslation" }} <a href="/zh/">{{ i18n "backToZh" }}</a></p>
+  {{ if and (eq site.Language.Lang "en") $isPost (eq (len .Translations) 0) }}
+    <p class="lang-notice wrap" hidden>{{ i18n "noTranslation" }} <a href="/zh/">{{ i18n "backToZh" }}</a></p>
+  {{ end }}
+
+  <div class="post-grid wrap">
+    {{ if $hasToc }}
+      <details class="toc-mobile">
+        <summary>{{ i18n "onThisPage" }}</summary>
+        <nav class="toc" aria-label="{{ i18n "onThisPage" }}">{{ .TableOfContents }}</nav>
+      </details>
     {{ end }}
 
-    <div class="article-layout">
-      {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
-        <details class="mobile-toc">
-          <summary>{{ i18n "onThisPage" }}</summary>
-          <div class="mobile-toc-panel">
-            {{ .TableOfContents }}
-          </div>
-        </details>
-      {{ end }}
-      <div class="article-content prose">
-        {{ .Content }}
-      </div>
-      {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
-        <aside class="article-toc">
-          <div class="toc-card">
-            <span>{{ i18n "onThisPage" }}</span>
-            {{ .TableOfContents }}
-          </div>
-        </aside>
-      {{ end }}
+    <div class="post-body prose">
+      {{ .Content }}
     </div>
-  </article>
 
-  {{ if and .Params.toc (gt (len .TableOfContents) 0) }}
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      const tocLinks = document.querySelectorAll('.toc-card a');
-      const tocPanel = document.querySelector('.article-toc');
-      const tocIds = new Set(Array.from(tocLinks)
-        .map(link => decodeURIComponent(link.getAttribute('href') || '').replace(/^#/, ''))
-        .filter(Boolean));
-      const headings = Array.from(document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6'))
-                            .filter(h => h.id);
-      
-      if (headings.length === 0 || tocLinks.length === 0) return;
+    {{ if $hasToc }}
+      <aside class="toc-side" aria-label="{{ i18n "onThisPage" }}">
+        <p class="toc-side__label">{{ i18n "onThisPage" }}</p>
+        <nav class="toc">{{ .TableOfContents }}</nav>
+      </aside>
+    {{ end }}
+  </div>
 
-      let ticking = false;
+  {{ if $isPost }}
+    <footer class="post-foot wrap">
+      {{ with .Params.tags }}
+        <div class="post-foot__tags">
+          <span class="post-foot__label">{{ i18n "filedUnder" }}</span>
+          {{ range . }}<a class="tag" href="{{ "tags/" | relLangURL }}{{ . | urlize }}/">{{ . }}</a>{{ end }}
+        </div>
+      {{ end }}
 
-      function updateActiveTocLink() {
-        const headerOffset = 120;
-        const probe = Math.min(window.innerHeight * 0.42, 360);
-        const targetLine = headerOffset + probe;
-        let currentHeading = headings[0];
-
-        for (let i = 0; i < headings.length; i++) {
-          const rect = headings[i].getBoundingClientRect();
-          if (rect.top <= targetLine) {
-            currentHeading = headings[i];
-          } else {
-            break;
-          }
-        }
-
-        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 8) {
-          currentHeading = headings[headings.length - 1];
-        }
-
-        tocLinks.forEach(link => link.classList.remove('active'));
-        if (currentHeading) {
-          let id = currentHeading.getAttribute('id');
-          let index = headings.indexOf(currentHeading);
-          while (id && !tocIds.has(id) && index > 0) {
-            index -= 1;
-            id = headings[index].getAttribute('id');
-          }
-          const activeLink = document.querySelector(`.toc-card a[href="#${id}"]`);
-          if (activeLink) {
-            activeLink.classList.add('active');
-            const toc = activeLink.closest('.article-toc');
-            if (toc) {
-              const padding = 14;
-              const linkTop = activeLink.offsetTop;
-              const linkBottom = linkTop + activeLink.offsetHeight;
-              const viewTop = toc.scrollTop;
-              const viewBottom = viewTop + toc.clientHeight;
-
-              if (linkTop < viewTop + padding) {
-                toc.scrollTop = Math.max(0, linkTop - padding);
-              } else if (linkBottom > viewBottom - padding) {
-                toc.scrollTop = linkBottom - toc.clientHeight + padding;
-              }
-            }
-          }
-        }
-      }
-
-      function updateTocBoundary() {
-        if (!tocPanel || window.matchMedia('(max-width: 900px)').matches) {
-          if (tocPanel) tocPanel.style.setProperty('--toc-shift', '0px');
-          return;
-        }
-
-        const footer = document.querySelector('.site-footer');
-        if (!footer) return;
-
-        const bottomGap = 24;
-        const tocBottom = 86 + tocPanel.offsetHeight;
-        const footerTop = footer.getBoundingClientRect().top;
-        const overlap = tocBottom + bottomGap - footerTop;
-
-        tocPanel.style.setProperty('--toc-shift', `${Math.min(0, -Math.max(0, overlap))}px`);
-      }
-
-      function onScroll() {
-        if (ticking) return;
-        ticking = true;
-        window.requestAnimationFrame(function() {
-          updateTocBoundary();
-          updateActiveTocLink();
-          ticking = false;
-        });
-      }
-
-      window.addEventListener('scroll', onScroll, { passive: true });
-      window.addEventListener('resize', onScroll, { passive: true });
-      // trigger once on load
-      setTimeout(function() {
-        updateTocBoundary();
-        updateActiveTocLink();
-      }, 50);
-    });
-	  </script>
-	  {{ end }}
-	  <script>
-	    document.addEventListener("DOMContentLoaded", function() {
-	      const blocks = document.querySelectorAll('.article-content pre');
-	      if (blocks.length === 0) return;
-
-	      blocks.forEach(function(pre) {
-	        if (pre.closest('.code-copy-wrap')) return;
-
-	        const wrapper = document.createElement('div');
-	        wrapper.className = 'code-copy-wrap';
-	        pre.parentNode.insertBefore(wrapper, pre);
-	        wrapper.appendChild(pre);
-
-	        const button = document.createElement('button');
-	        button.className = 'code-copy-button';
-	        button.type = 'button';
-	        button.textContent = {{ i18n "copy" }};
-	        button.setAttribute('aria-label', {{ i18n "copyAria" }});
-	        wrapper.appendChild(button);
-
-	        button.addEventListener('click', async function() {
-	          const code = pre.querySelector('code');
-	          const text = code ? code.innerText : pre.innerText;
-
-	          try {
-	            await navigator.clipboard.writeText(text);
-	            button.textContent = {{ i18n "copied" }};
-	            button.classList.add('is-copied');
-	          } catch (error) {
-	            const textarea = document.createElement('textarea');
-	            textarea.value = text;
-	            textarea.setAttribute('readonly', '');
-	            textarea.style.position = 'fixed';
-	            textarea.style.opacity = '0';
-	            document.body.appendChild(textarea);
-	            textarea.select();
-	            document.execCommand('copy');
-	            textarea.remove();
-	            button.textContent = {{ i18n "copied" }};
-	            button.classList.add('is-copied');
-	          }
-
-	          window.setTimeout(function() {
-	            button.textContent = {{ i18n "copy" }};
-	            button.classList.remove('is-copied');
-	          }, 1500);
-	        });
-	      });
-	    });
-	  </script>
-	{{ end }}
+      {{ $same := slice }}
+      {{ range partial "posts-all.html" . }}{{ $t := partial "series.html" . }}{{ if and (eq $t.key $s.key) (eq $t.label $s.label) }}{{ $same = $same | append . }}{{ end }}{{ end }}
+      {{ $same = sort (sort $same "Title" "asc") "Date" "asc" }}
+      {{ $prev := false }}{{ $next := false }}{{ $seen := false }}
+      {{ range $same }}
+        {{ if $seen }}{{ if not $next }}{{ $next = . }}{{ end }}
+        {{ else if eq .File.Path $.File.Path }}{{ $seen = true }}
+        {{ else }}{{ $prev = . }}{{ end }}
+      {{ end }}
+      {{ if or $prev $next }}
+        <nav class="post-nav" aria-label="{{ i18n "inSeries" }}">
+          {{ with $prev }}{{ $t := partial "series.html" . }}
+            <a class="post-nav__item post-nav__item--prev" href="{{ .RelPermalink }}">
+              <span class="post-nav__dir">← {{ i18n "prevPost" }}</span>
+              <span class="post-nav__title">{{ with $t.num }}<span class="post-nav__num">{{ if eq $t.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
+            </a>
+          {{ else }}<span></span>{{ end }}
+          {{ with $next }}{{ $t := partial "series.html" . }}
+            <a class="post-nav__item post-nav__item--next" href="{{ .RelPermalink }}">
+              <span class="post-nav__dir">{{ i18n "nextPost" }} →</span>
+              <span class="post-nav__title">{{ with $t.num }}<span class="post-nav__num">{{ if eq $t.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
+            </a>
+          {{ end }}
+        </nav>
+      {{ end }}
+      <a class="post-foot__back" href="{{ "posts/" | relLangURL }}">← {{ i18n "backToWriting" }}</a>
+    </footer>
+  {{ end }}
+</article>
+{{ end }}

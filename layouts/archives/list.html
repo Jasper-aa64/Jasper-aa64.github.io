@@ -1,26 +1,16 @@
 {{ define "main" }}
-  <section class="page-heading">
-    <span class="eyebrow">{{ i18n "timeline" }}</span>
-    <h1>{{ .Title }}</h1>
-    <p>{{ i18n "timelineBlurb" }}</p>
-  </section>
-
-  <section class="content-panel">
-    <div class="archive-list">
-      {{ $all := partial "posts-all.html" . }}
-      {{ range (sort $all "Date" "desc").GroupByDate "2006" }}
-        <section class="archive-year">
-          <h2>{{ .Key }}</h2>
-          <div class="archive-items">
-            {{ range .Pages }}
-              <a class="archive-item" href="{{ .RelPermalink }}">
-                <time>{{ .Date.Format (i18n "dateArchive") }}</time>
-                <span>{{ .Title }}</span>
-              </a>
-            {{ end }}
-          </div>
-        </section>
-      {{ end }}
-    </div>
-  </section>
+<section class="page-head wrap">
+  <p class="eyebrow reveal">{{ i18n "writingKicker" }}</p>
+  <h1 class="page-head__title reveal">{{ .Title }}</h1>
+  <p class="page-head__lede reveal">{{ i18n "archiveLede" }}</p>
+</section>
+<section class="wrap page-body">
+  {{ $all := partial "posts-all.html" . }}
+  {{ range (sort $all "Date" "desc").GroupByDate "2006" }}
+    <section class="year-group">
+      <h2 class="year-group__year">{{ .Key }}</h2>
+      <ol class="entry-list">{{ range .Pages }}{{ partial "entry-row.html" (dict "page" .) }}{{ end }}</ol>
+    </section>
+  {{ end }}
+</section>
 {{ end }}

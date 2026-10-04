@@ -292,17 +292,15 @@ Count what `log("Order Executed, id=%, price=%\n", id, price)` does: 19 characte
     .val   { fill: #eef1f4; stroke: #9fb0c0; stroke-width: 1.2; }
     .txt   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.4; }
     .brk   { fill: none; stroke: #8a8474; stroke-width: 1.4; }
-    @media (prefers-color-scheme: dark) {
-      .bg    { fill: #17161b; }
-      .title { fill: #e9e7ef; }
-      .row   { fill: #d7d3c8; }
-      .lbl   { fill: #d7d3c8; }
-      .cap   { fill: #a19caf; }
-      .chr   { fill: #4a2f2c; stroke: #8f5a4c; }
-      .val   { fill: #2b3038; stroke: #8391a0; }
-      .txt   { fill: #33421f; stroke: #8fb257; }
-      .brk   { stroke: #9a9384; }
-    }
+      :root[data-theme="dark"] .bg { fill: #17161b; }
+      :root[data-theme="dark"] .title { fill: #e9e7ef; }
+      :root[data-theme="dark"] .row { fill: #d7d3c8; }
+      :root[data-theme="dark"] .lbl { fill: #d7d3c8; }
+      :root[data-theme="dark"] .cap { fill: #a19caf; }
+      :root[data-theme="dark"] .chr { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root[data-theme="dark"] .val { fill: #2b3038; stroke: #8391a0; }
+      :root[data-theme="dark"] .txt { fill: #33421f; stroke: #8fb257; }
+      :root[data-theme="dark"] .brk { stroke: #9a9384; }
   </style>
   <rect class="bg" x="0" y="0" width="760" height="274" rx="10"/>
   <text class="title" x="24" y="30">One log line, pushed two ways — every square is one 264-byte queue slot</text>

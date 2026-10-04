@@ -1,0 +1,9 @@
+{{/* A Life entry: optional `cover` image in front matter, title, date, summary. */}}
+<a class="life-card reveal" href="{{ .RelPermalink }}">
+  {{ with .Params.cover }}<span class="life-card__img"><img src="{{ . }}" alt="" loading="lazy" decoding="async"></span>{{ end }}
+  <span class="life-card__body">
+    <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time>
+    <strong>{{ .Title }}</strong>
+    {{ with .Description }}<span>{{ . }}</span>{{ end }}
+  </span>
+</a>

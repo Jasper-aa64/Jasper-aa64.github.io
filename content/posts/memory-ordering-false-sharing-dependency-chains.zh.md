@@ -58,22 +58,20 @@ store buffer 解释了为什么 *A 的* 写会延迟。接收方还有一个镜�
     .lbl   { fill: #3a372f; font-size: 11px; }
     .cap   { fill: #6b6558; font-size: 10.5px; }
     .gap   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
-    @media (prefers-color-scheme: dark) {
-      .bg    { fill: #17161b; }
-      .panel { fill: #201f26; stroke: #3a3945; }
-      .ink   { fill: #e9e7ef; }
-      .muted { fill: #a19caf; }
-      .core  { fill: #2a2933; stroke: #47454f; }
-      .buf   { fill: #33421f; stroke: #8fb257; }
-      .inbox { fill: #4a2f2c; stroke: #8f5a4c; }
-      .line  { fill: #23262c; stroke: #3f4650; }
-      .arrow { stroke: #9a9384; }
-      .rfo   { stroke: #e0795b; }
-      .title { fill: #e9e7ef; }
-      .lbl   { fill: #d7d3c8; }
-      .cap   { fill: #a19caf; }
-      .gap   { fill: #e0795b; }
-    }
+      :root[data-theme="dark"] .bg { fill: #17161b; }
+      :root[data-theme="dark"] .panel { fill: #201f26; stroke: #3a3945; }
+      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
+      :root[data-theme="dark"] .muted { fill: #a19caf; }
+      :root[data-theme="dark"] .core { fill: #2a2933; stroke: #47454f; }
+      :root[data-theme="dark"] .buf { fill: #33421f; stroke: #8fb257; }
+      :root[data-theme="dark"] .inbox { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root[data-theme="dark"] .line { fill: #23262c; stroke: #3f4650; }
+      :root[data-theme="dark"] .arrow { stroke: #9a9384; }
+      :root[data-theme="dark"] .rfo { stroke: #e0795b; }
+      :root[data-theme="dark"] .title { fill: #e9e7ef; }
+      :root[data-theme="dark"] .lbl { fill: #d7d3c8; }
+      :root[data-theme="dark"] .cap { fill: #a19caf; }
+      :root[data-theme="dark"] .gap { fill: #e0795b; }
   </style>
   <defs>
     <marker id="ahz" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">

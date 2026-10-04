@@ -3,9 +3,9 @@
 {{ range .Translations }}{{ $target = .RelPermalink }}{{ end }}
 {{ $isEn := eq site.Language.Lang "en" }}
 {{ if $target }}
-  <a class="lang-toggle" href="{{ $target }}" data-lang-target="{{ if $isEn }}zh{{ else }}en{{ end }}" aria-label="{{ i18n "langSwitchAria" }}">{{ i18n "langSwitchLabel" }}</a>
+  <a class="icon-btn lang-btn" href="{{ $target }}" data-lang-target="{{ if $isEn }}zh{{ else }}en{{ end }}" aria-label="{{ i18n "langSwitchAria" }}">{{ i18n "langSwitchLabel" }}</a>
 {{ else if and $isEn .IsPage }}
-  <button class="lang-toggle" type="button" data-lang-notice aria-label="{{ i18n "langSwitchAria" }}">{{ i18n "langSwitchLabel" }}</button>
+  <button class="icon-btn lang-btn" type="button" data-lang-notice aria-label="{{ i18n "langSwitchAria" }}">{{ i18n "langSwitchLabel" }}</button>
 {{ else }}
-  <a class="lang-toggle" href="{{ if $isEn }}/zh/{{ else }}/{{ end }}" data-lang-target="{{ if $isEn }}zh{{ else }}en{{ end }}" aria-label="{{ i18n "langSwitchAria" }}">{{ i18n "langSwitchLabel" }}</a>
+  <a class="icon-btn lang-btn" href="{{ if $isEn }}/zh/{{ else }}/{{ end }}" data-lang-target="{{ if $isEn }}zh{{ else }}en{{ end }}" aria-label="{{ i18n "langSwitchAria" }}">{{ i18n "langSwitchLabel" }}</a>
 {{ end }}

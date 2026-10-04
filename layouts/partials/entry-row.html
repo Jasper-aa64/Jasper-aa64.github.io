@@ -1,0 +1,18 @@
+{{/* One post as a row in a list. Context: dict page, showYear (bool). */}}
+{{ $p := .page }}
+{{ $s := partial "series.html" $p }}
+{{ $foreign := ne $p.Language.Lang site.Language.Lang }}
+<li class="entry" data-series="{{ $s.key }}">
+  <a class="entry__link" href="{{ $p.RelPermalink }}">
+    <time class="entry__date" datetime="{{ $p.Date.Format `2006-01-02` }}">{{ if .showYear }}{{ $p.Date.Format "2006" }}<span>·</span>{{ end }}{{ $p.Date.Format (i18n "dateShort") }}</time>
+    <span class="entry__body">
+      <span class="entry__series">{{ $s.label }}{{ with $s.num }} <span class="entry__num">{{ if eq $s.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}</span>
+      <span class="entry__title">{{ $s.title }}</span>
+    </span>
+    <span class="entry__aside">
+      {{ if $foreign }}<span class="entry__badge" title="{{ i18n "englishOnlyTitle" }}">{{ i18n "englishOnly" }}</span>{{ end }}
+      <span class="entry__time">{{ i18n "minRead" $p.ReadingTime }}</span>
+      <span class="entry__arrow" aria-hidden="true">→</span>
+    </span>
+  </a>
+</li>
