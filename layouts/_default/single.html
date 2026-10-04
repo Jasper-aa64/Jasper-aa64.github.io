@@ -3,7 +3,7 @@
 {{ $s := partial "series.html" . }}
 {{ $hasToc := and .Params.toc (gt (len .TableOfContents) 40) }}
 <article class="post{{ if $hasToc }} has-toc{{ end }}">
-  <header class="post-head wrap">
+  <header class="post-head post-frame">
     {{ if $isPost }}
       <a class="eyebrow post-head__kicker reveal" href="{{ "posts/" | relLangURL }}#{{ $s.key }}">
         {{ $s.label }}{{ with $s.num }}<span class="post-head__num">{{ if eq $s.series "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}
@@ -24,10 +24,10 @@
   </header>
 
   {{ if and (eq site.Language.Lang "en") $isPost (eq (len .Translations) 0) }}
-    <p class="lang-notice wrap" hidden>{{ i18n "noTranslation" }} <a href="/zh/">{{ i18n "backToZh" }}</a></p>
+    <p class="lang-notice post-frame" hidden>{{ i18n "noTranslation" }} <a href="/zh/">{{ i18n "backToZh" }}</a></p>
   {{ end }}
 
-  <div class="post-grid wrap">
+  <div class="post-grid post-frame">
     {{ if $hasToc }}
       <details class="toc-mobile">
         <summary>{{ i18n "onThisPage" }}</summary>
@@ -48,7 +48,7 @@
   </div>
 
   {{ if $isPost }}
-    <footer class="post-foot wrap">
+    <footer class="post-foot post-frame">
       {{ with .Params.tags }}
         <div class="post-foot__tags">
           <span class="post-foot__label">{{ i18n "filedUnder" }}</span>
