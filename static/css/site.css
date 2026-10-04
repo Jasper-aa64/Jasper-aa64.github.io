@@ -126,9 +126,10 @@ body::before {
   opacity: .5;
 }
 
-.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
-  transition: background-color .45s ease, border-color .45s ease, color .45s ease, fill .45s ease, stroke .45s ease !important;
-}
+/* Theme switch: one cross-fade of the whole page (View Transitions); never per-element colour
+   transitions, which make inherited text colours restart every frame and flicker. */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after { transition: none !important; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .32s; animation-timing-function: ease; }
 
 img, svg, video { max-width: 100%; }
 a { color: inherit; text-decoration: none; }
@@ -1307,34 +1308,41 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 @media (max-width: 760px) {
   :root { --header-h: 60px; }
   .nav-btn { display: inline-grid; }
+  /* Phone menu (as in the original theme): a floating card under the header, links as a 2-column grid of pills. */
   .site-nav {
-    position: fixed;
-    top: var(--header-h);
-    left: 0; right: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    padding: 8px var(--gutter) 28px;
-    background: var(--paper);
-    border-bottom: 1px solid var(--rule);
-    box-shadow: 0 30px 40px -30px rgba(0, 0, 0, .25);
+    position: absolute;
+    top: calc(100% + 8px);
+    left: var(--gutter);
+    right: var(--gutter);
+    z-index: 120;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 14px;
+    background: var(--card);
+    box-shadow: 0 18px 50px rgba(15, 31, 58, .16);
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-8px);
-    transition: opacity .25s, transform .3s var(--ease), visibility 0s .3s;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity .18s ease, transform .18s ease, visibility 0s .18s;
   }
-  .nav-open .site-nav { opacity: 1; visibility: visible; transform: none; transition: opacity .25s, transform .3s var(--ease); }
+  .nav-open .site-nav { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition: opacity .18s ease, transform .18s ease; }
   .site-nav__link {
-    padding: 16px 0;
-    border-radius: 0;
-    border-bottom: 1px solid var(--rule);
-    font-family: var(--serif);
-    font-size: 28px;
-    font-weight: 400;
-    color: var(--ink);
+    padding: 12px 10px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 560;
+    line-height: 1;
+    color: var(--ink-2);
   }
-  .site-nav__link.is-active { background: none; color: var(--accent); }
-  :root[data-theme="dark"] .site-nav__link.is-active { background: none; }
+  .site-nav__link:hover { background: var(--wash); color: var(--accent-ink); }
+  .site-nav__link.is-active,
+  :root[data-theme="dark"] .site-nav__link.is-active { color: var(--accent-ink); background: var(--wash); box-shadow: inset 0 0 0 1px var(--accent); }
+  .site-nav__cv { grid-column: 1 / -1; }
   .brand__name { font-size: 23px; }
   .area-grid { grid-template-columns: minmax(0, 1fr); }
   .area, .area:nth-child(odd), .area:nth-child(-n + 2) {
@@ -1358,11 +1366,12 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .area__foot { grid-area: foot; margin: 0; padding: 0; gap: 10px; }
   .area__arrow { width: 30px; height: 30px; }
   .filter { position: static; }
-  .card, .card.has-thumb { grid-template-columns: minmax(0, 1fr) 92px; gap: 16px; padding: 18px; align-items: start; }
-  .card:not(.has-thumb) { grid-template-columns: minmax(0, 1fr); }
-  .card__thumb { aspect-ratio: 1; margin-top: 26px; }
-  .card__title { font-size: 23px; }
+  .card, .card.has-thumb { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 16px; align-items: start; }
+  .card__thumb { order: -1; aspect-ratio: 2.4 / 1; }
+  .card__meta { gap: 6px 10px; margin-bottom: 8px; }
+  .card__title { font-size: 23px; margin-bottom: 8px; }
   .card__summary { font-size: 14.5px; -webkit-line-clamp: 3; }
+  .card__tags { margin-top: 12px; gap: 6px; }
   .entry__link { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; padding: 18px 4px 18px 0; }
   .entry__date { grid-column: 1 / -1; font-size: 11.5px; }
   .entry__time { display: none; }

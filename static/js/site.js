@@ -16,12 +16,17 @@
   if (themeBtn) {
     var sync = function () { themeBtn.setAttribute("aria-pressed", String(root.dataset.theme === "dark")); };
     sync();
-    themeBtn.addEventListener("click", function () {
+    var flip = function () {
       root.classList.add("theme-switching");
       root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
       store.set("theme", root.dataset.theme);
       sync();
-      setTimeout(function () { root.classList.remove("theme-switching"); }, 500);
+      void root.offsetWidth;
+      setTimeout(function () { root.classList.remove("theme-switching"); }, 60);
+    };
+    themeBtn.addEventListener("click", function () {
+      if (document.startViewTransition && !reduce) document.startViewTransition(flip);
+      else flip();
     });
   }
 
