@@ -15,7 +15,7 @@
     <meta property="og:description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
     <meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
     <meta property="og:url" content="{{ .Permalink }}">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 4 24 24'%3E%3Cpath d='M10,6 H22 V8 H24 V10 H26 V16 H24 V18 H22 V20 H10 V18 H8 V16 H6 V10 H8 V8 H10 Z' fill='%23f6bcca' stroke='%23c46d87' stroke-width='1.4'/%3E%3Cpath d='M16,8 V18 M10.5,10 H13.5 M18.5,10 H21.5 M10,16 H13 M19,16 H22' stroke='%23b15775' stroke-width='1.2' fill='none'/%3E%3Crect x='12' y='12.4' width='2' height='2' fill='%233a2530'/%3E%3Crect x='18' y='12.4' width='2' height='2' fill='%233a2530'/%3E%3Crect x='12.55' y='20' width='1.7' height='3.4' fill='%237c4f5d'/%3E%3Crect x='17.75' y='20' width='1.7' height='3.4' fill='%237c4f5d'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg">
     <script>
       (function() {
         var d = document.documentElement;
@@ -65,7 +65,7 @@
     <header class="site-header">
       <div class="wrap site-header__inner">
         <a class="brand" href="{{ site.Home.RelPermalink }}" aria-label="{{ site.Title }}">
-          <span class="brand__logo" aria-hidden="true">{{ partial "brain-mascot.html" . }}</span>
+          <img class="brand__logo" src="/images/logo.svg" alt="" width="46" height="48">
           <span class="brand__name">Jasper</span>
         </a>
 
