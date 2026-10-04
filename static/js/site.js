@@ -147,6 +147,13 @@
       start();
     };
     dots.forEach(function (d) { d.addEventListener("click", function () { go(+d.dataset.go); start(); }); });
+    show.querySelectorAll("[data-step]").forEach(function (b) {
+      b.addEventListener("click", function () { go(cur + +b.dataset.step); });
+    });
+    show.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") { e.preventDefault(); go(cur - 1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); go(cur + 1); }
+    });
     show.addEventListener("mouseenter", function () { hold = true; stop(); });
     show.addEventListener("mouseleave", function () { hold = false; start(); });
     show.addEventListener("focusin", function () { hold = true; stop(); });
