@@ -10,15 +10,9 @@ toc: true
 homepage: false
 ---
 
-# Trading System Notes #3: Nothing Happens for the First Time on the Hot Path — Object Pools, Locked Pages, and Polymorphic Allocators
+`malloc` and `free` are not slow. Call them a thousand times in a tight loop and the average looks perfectly fine. The problem HFT code has with them isn't the mean — it's the **tail**, and the tail depends on state you don't control. glibc hands out per-thread arenas to avoid lock contention, but once there are more threads than arenas, two threads fight over one arena's lock. A request the current arena can't satisfy may mean a fresh `brk` or `mmap` call into the kernel. Freed memory goes into size-class bins that have to be walked and possibly coalesced, and how long that takes depends on the fragmentation history of everything the heap has seen. None of these costs is fixed; all of them depend on "what has this process been doing so far" — exactly the question a hot path can't afford to ask.
 
-> **One-line thesis**: every technique below does the same thing at a different layer — take an operation whose cost depends on state you don't control (a lock, a syscall, a page fault, a virtual dispatch) and force it to happen once, at startup, so the hot path is never the one discovering it for the first time.
-
-## What You're Actually Fighting
-
-`malloc`/`free` are not slow. Call one a thousand times in a tight loop and the average cost looks perfectly fine. The problem HFT code has with them isn't the mean — it's the **tail**, and the tail is state-dependent: glibc's allocator hands out per-thread arenas to avoid lock contention, but once thread count exceeds arena count, two threads start fighting over the same arena's lock; a request the current arena can't satisfy might mean a fresh `brk`/`mmap` call into the kernel; freed memory gets sorted into size-class bins that have to be walked and possibly coalesced, and how long that walk takes depends on the fragmentation history of everything that happened on that heap before. None of these costs are fixed. All of them depend on "what has this process been doing so far" — which is exactly the kind of question a hot path cannot afford to ask.
-
-Everything in this post is a variation on the same fix: figure out which operation has this property — cost depends on first-touch, or contention, or fragmentation, none of it knowable in advance — and **move it to a point in the program's lifetime where you don't care how long it takes.** Usually that point is startup. Section 1 moves the allocation itself. Section 2 moves the kernel's decision about whether your pages are allowed to leave RAM, and — less obviously — the kernel's decision about whether they're backed by physical memory *at all*. Sections 3 and 4 generalize the same move so it works for arbitrary STL containers, not just a single hand-rolled type, and disagree with each other about where the resulting flexibility should be paid for: at compile time, or at run time.
+Everything in this post is a variation on one fix: find the operation whose cost depends on first touch, contention or fragmentation, and **move it to a point in the program's life where you don't care how long it takes** — usually startup. Section 1 moves the allocation itself. Section 2 moves the kernel's decision about whether your pages may leave RAM, and — less obviously — whether they are backed by physical memory at all. Sections 3 and 4 generalize the move to arbitrary STL containers and disagree about where the resulting flexibility should be paid for: at compile time or at run time. Section 5 folds the useful parts into two reference implementations.
 
 ---
 
@@ -26,7 +20,7 @@ Everything in this post is a variation on the same fix: figure out which operati
 
 The fix for "I don't want to call malloc on the hot path" is almost embarrassingly direct: allocate everything you will ever need once, at startup, and hand pieces of that pre-allocated block out and back on demand. That's an object pool — a fixed number of instances of one type `T`, held in memory the program already owns.
 
-### The naive version has the same disease in miniature
+### 1.1 The Naive Version Has the Same Disease in Miniature
 
 ```cpp
 struct ObjectBlock {
@@ -39,7 +33,7 @@ size_t next_free_index_ = 0;
 
 `allocate()` placement-constructs into `store_[next_free_index_]`, marks it taken, and then calls `updateNextFreeIndex()` to find the *next* free slot for next time — by scanning forward from the current position, wrapping around at the end. In an access pattern close to FIFO, the very next slot is usually free and the scan stops almost immediately. But nothing guarantees that pattern. Hold objects out of order, release them out of order, and the scan can walk the entire pool before finding a hole — **worst case O(n), and the worst case is exactly as unpredictable as the fragmentation-dependent cost this pool was supposed to replace.** The kernel round-trip got eliminated; a smaller, same-shaped problem grew back inside the pool.
 
-### The fix: don't search, maintain
+### 1.2 The Fix: Don't Search, Maintain
 
 ```cpp
 T* objects_;
@@ -60,7 +54,7 @@ One layout detail worth keeping: `ObjectBlock` packs `T` and `is_free_` into a s
 
 The pool solves "don't ask the allocator for memory on the hot path." It does nothing about a second, easy-to-miss failure mode: the memory you already have can still be taken away from you, or can still cost you a surprise the first time you touch it.
 
-### mlockall alone has a hole in it
+### 2.1 mlockall Alone Has a Hole in It
 
 `mlockall(MCL_CURRENT | MCL_FUTURE)` tells the kernel: every page this process currently holds, and every page it will ever hold, stays resident — never swapped out. That sounds complete. It isn't, because of one detail: **`munmap` doesn't unlock a page, it tears down the entire mapping the lock was attached to.** glibc routes any allocation above `M_MMAP_THRESHOLD` (128 KB by default) through `mmap` instead of the heap, and `free()`-ing that memory calls `munmap` on it immediately — silently discarding whatever `mlockall` had guaranteed, the moment that allocation is released.
 
@@ -116,7 +110,7 @@ Closing that hole takes three separate `mallopt` calls, each blocking a differen
 - **`M_TRIM_THRESHOLD = -1`** — the same idea applied to the heap itself. By default, glibc shrinks the heap back toward the OS via `sbrk` once enough contiguous free space accumulates at the top; this disables that, so a large chunk of freed space at the top of the heap is never handed back.
 - **`M_ARENA_MAX = 1`** — a different axis: multiple worker arenas are themselves backed by additional `mmap`-obtained regions. Forcing a single arena (allocation only happens at startup anyway, so the concurrency benefit of multiple arenas is moot here) removes those extra mmap sources up front.
 
-### The tax that isolcpus can't hide you from
+### 2.2 The Tax isolcpus Can't Hide You From: TLB Shootdowns
 
 Any page-table change — `munmap`, `mprotect`, or the kernel's own transparent-huge-page background compaction — forces a **TLB shootdown**: the core making the change doesn't know which other cores have cached the now-stale translation, so it broadcasts an inter-processor interrupt (IPI) to every core that has recently run the same process's address space. Each one has to stop, trap into the kernel, invalidate the affected TLB entry, and resume — microsecond-scale, and it scales with how many cores share that address space.
 
@@ -128,7 +122,7 @@ The sharp, easy-to-get-wrong point: **`isolcpus` does not protect against this.*
 
 The object pool only ever hands out one type, `T`. Real hot-path code wants to use `std::vector`, `std::string`, ordinary STL containers — without those containers ever touching the global heap. That means writing something that satisfies the C++ allocator interface, backed by memory the program already owns.
 
-### The allocator: a pointer that only ever moves forward
+### 3.1 A Pointer That Only Ever Moves Forward
 
 ```cpp
 struct MemoryBlock {
@@ -140,7 +134,7 @@ struct MemoryBlock {
 
 An arena allocates from a pre-reserved block by tracking one number: how many bytes of this block are already spoken for. `allocate(size)` rounds the current write position up to the requested alignment, checks whether `used + size` still fits in `capacity`, and if so simply advances `used` and returns the old position — no search, because there's nothing to search: the "next free position" is always exactly wherever the pointer currently sits. When a block fills up, the arena activates the next pre-reserved block the same way. This is strictly cheaper than section 1's free list — not even a linked-list pointer swap, just an add — and the price is that there is no way to free a single allocation out of the middle. Nothing records where any individual allocation started or ended, so there's nothing to look up even if you wanted to release one. The only reset operation is global: rewind every block's `used` back to zero and start over. That's the right tradeoff for a batch of objects with identical lifetimes — everything allocated while processing one tick, thrown away together once the tick is done — and the wrong one for objects with staggered lifetimes, which still belong in section 1's pool.
 
-### Pre-faulting: closing the gap mlock leaves at first touch
+### 3.2 Pre-Faulting: Closing the Gap mlock Leaves at First Touch
 
 The arena's backing memory is obtained once, at construction, with `posix_memalign` and `mlock()` — this time locking just the arena's own region, a more surgical complement to section 2's process-wide `mlockall`. But a freshly obtained virtual address range isn't backed by physical memory yet: Linux maps pages lazily, and the actual physical page only gets assigned on the **first write**, via a page fault that traps into the kernel. `mlock` guarantees a page won't be evicted once it's backed — it says nothing about whether the mapping has been established yet. The constructor closes that gap with one line: `memset(raw_memory, 0, total_size)`, touching every page once, at startup, so every fault that was ever going to happen already has. By the time the hot path runs, every page in the arena is not just locked, but *already mapped* — nothing left to discover for the first time.
 
@@ -150,9 +144,13 @@ The allocator that adapts this arena to the STL interface (`allocate`/`deallocat
 
 ## 4. std::pmr: The Same Answer, Paid for at Runtime
 
+### 4.1 Moving the Allocator Out of the Type
+
 Section 3's custom allocator has a sharp edge nothing in the type system warns you about: `std::vector<int>` and `std::vector<int, LowLatencyAllocator<int>>` are unrelated types. The allocator is a template parameter — part of the container's type, not a runtime setting — so a function written to take `std::vector<int>&` will reject the arena-backed version outright, and every function that needs to accept either has to be templated on the allocator too.
 
 `std::pmr` (C++17) solves the same "let the STL use my allocation strategy" problem the opposite way: move the choice of strategy out of the type and into a runtime pointer. `std::pmr::memory_resource` is an abstract base class — `do_allocate`, `do_deallocate`, `do_is_equal` — and any concrete allocation strategy is expressed by subclassing it. Every `std::pmr` container uses the single, uniform `std::pmr::polymorphic_allocator<T>`, which holds nothing but a `memory_resource*`; because that pointer's concrete target isn't part of the type, `std::pmr::vector<int>` is always the same type regardless of which resource backs a given instance — free to pass around, assign, return, no template gymnastics required. The price is paid on every allocation: a virtual call through that pointer, dispatched at runtime, instead of section 3's version, where the concrete allocator type is known at compile time and can be inlined away entirely. It's the same static-vs-dynamic-polymorphism tradeoff C++ programmers already navigate with virtual functions vs. templates, applied here to memory itself.
+
+### 4.2 The Standard Resources, Mapped to Sections 1 and 3
 
 The standard library ships a few resources that map directly onto what's already been covered:
 
@@ -160,7 +158,7 @@ The standard library ships a few resources that map directly onto what's already
 - **`unsynchronized_pool_resource`** is closer to section 1's pool, generalized to many object sizes instead of one fixed type, managed as size-class "slabs."
 - **`synchronized_pool_resource`** is the thread-safe version of the above — and the name says exactly what that costs: a lock, the same class of contention this entire post exists to avoid.
 
-### The lifetime trap the standard itself warns about
+### 4.3 The Lifetime Trap
 
 `std::pmr::vector` looks exactly like an ordinary value type — return one by value and it seems as safe as returning any other `std::vector`. It isn't, and the reason is specific: a `polymorphic_allocator` only *points at* its `memory_resource`; it never owns it. If that resource is a local variable, returning the vector does nothing to extend the resource's lifetime:
 
@@ -276,7 +274,7 @@ Zooming out, every section above is really the same question asked again at a di
   <text class="ink" x="320" y="1144" font-size="10.5" text-anchor="middle">"where memory comes from" and "how it's managed" are independent</text>
 </svg>
 
-### A Reference Object Pool
+### 5.1 A Reference Object Pool
 
 Sections 1 and 2 compose cleanly into one self-contained thing: a fixed-type pool with O(1) alloc/dealloc, backed by memory that's pre-allocated, pre-faulted, and locked before the hot path ever runs. One refinement beyond either version in section 1: instead of a separate `free_list_` array, the "next free slot" index lives *inside* the same slot as `T`, so a single allocation touches one cache line instead of two unrelated arrays.
 
@@ -335,7 +333,7 @@ class ObjectPool {
 
 What each piece contributed, concretely: the `next_free`-inside-`Slot` layout and the head-pointer swap are section 1's free list; `aligned_alloc` + `mlock` + the eager `memset` are section 2's "never let the kernel take it back, and never fault on first touch."
 
-### A Reference Arena
+### 5.2 A Reference Arena
 
 The pool above hands out one type, individually, with independent lifetimes. An arena is for the opposite shape: a batch of allocations — possibly different sizes, possibly different types — that all get released together. Same startup treatment as the pool (one allocation, `mlock`, `memset` to pre-fault), but the allocation logic itself is simpler still: no free list to maintain at all, just a running offset.
 
@@ -383,14 +381,3 @@ class Arena {
 
 Pick the pool when objects have independent lifetimes and get freed one at a time. Pick the arena when a whole batch — everything touched while handling one tick, one order, one request — shares a single lifetime and gets thrown away as a unit.
 
----
-
-## Recap
-
-1. **The problem was never speed — it's variance.** Every cost this post removes (a lock, a syscall, a page fault, a virtual dispatch) is fine on average; what's intolerable is not knowing, per request, how long it will take.
-2. **An index-based free list is O(1) because it's maintained on every call, not searched on demand** — and it is not an intrusive list; the `next` pointer lives in a parallel array, not inside `T` itself.
-3. **`mlockall` alone has a hole: `munmap` tears down the whole mapping, lock included.** `M_MMAP_MAX`, `M_TRIM_THRESHOLD`, and `M_ARENA_MAX` each close a different path back to the kernel.
-4. **`isolcpus` protects scheduling, not TLB shootdowns.** A cold thread in the same process can still interrupt a perfectly isolated hot core, because the shootdown targets the address space (`mm_cpumask`), not the scheduling class.
-5. **An arena is strictly cheaper than a free list — pure pointer advance, no list maintenance — at the cost of only supporting bulk release.** Pre-faulting with `memset` closes the one gap `mlock` alone leaves: the first write to a fresh page.
-6. **`std::pmr` trades section 3's compile-time speed for a uniform, runtime-flexible type** — the same virtual-vs-template tradeoff C++ already has elsewhere, applied to allocation. Its sharpest edge: a `polymorphic_allocator` only points at its resource, so returning a `pmr::vector` built on a local resource is a dangling pointer wearing a value type's clothes.
-7. **Two reference shapes cover the practical cases: a pool for independent lifetimes, an arena for a batch released together.** Co-locating the free-list link with `T` turns two cache-line touches into one; the arena drops list maintenance entirely — just a running offset. `std::pmr`'s per-allocation virtual dispatch is why it isn't a third reference implementation here.
