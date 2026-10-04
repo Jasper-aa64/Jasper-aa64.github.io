@@ -3,9 +3,7 @@
 {{ $posts := partial "posts-all.html" . }}
 {{ $count := newScratch }}
 {{ range $posts }}{{ $s := partial "series.html" . }}{{ $count.Add $s.key 1 }}{{ end }}
-{{/* "Recent notes" skips posts with `homepage: false` (they stay under their category and /posts/). */}}
-{{ $recent := slice }}
-{{ range sort (sort $posts "Title" "desc") "Date" "desc" }}{{ if ne .Params.homepage false }}{{ $recent = $recent | append . }}{{ end }}{{ end }}
+{{ $recent := sort (sort $posts "Title" "desc") "Date" "desc" }}
 
 <section class="hero wrap">
   <div class="hero__copy">
