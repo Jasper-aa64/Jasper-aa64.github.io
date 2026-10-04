@@ -886,7 +886,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .page-head__lede { max-width: 46em; margin: 8px 0 0; font-size: 16px; line-height: 1.6; color: var(--muted); }
 .page-head .eyebrow { margin-bottom: 10px; }
-.page-body { padding-bottom: 40px; }
+.page-body { padding-bottom: 12px; }
 
 .filter {
   position: sticky;
@@ -1555,7 +1555,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 /* ==========================================================================
    Footer
    ========================================================================== */
-.site-footer { margin-top: clamp(96px, 12vw, 160px); border-top: 1px solid var(--rule); }
+.site-footer { margin-top: clamp(36px, 4vw, 56px); border-top: 1px solid var(--rule); }
 .site-footer__inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
