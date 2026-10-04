@@ -104,22 +104,20 @@ So there are now two independent buffering structures, one on each side of every
     .lbl   { fill: #3a372f; font-size: 11px; }
     .cap   { fill: #6b6558; font-size: 10.5px; }
     .gap   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
-    @media (prefers-color-scheme: dark) {
-      .bg    { fill: #17161b; }
-      .panel { fill: #201f26; stroke: #3a3945; }
-      .ink   { fill: #e9e7ef; }
-      .muted { fill: #a19caf; }
-      .core  { fill: #2a2933; stroke: #47454f; }
-      .buf   { fill: #33421f; stroke: #8fb257; }
-      .inbox { fill: #4a2f2c; stroke: #8f5a4c; }
-      .line  { fill: #23262c; stroke: #3f4650; }
-      .arrow { stroke: #9a9384; }
-      .rfo   { stroke: #e0795b; }
-      .title { fill: #e9e7ef; }
-      .lbl   { fill: #d7d3c8; }
-      .cap   { fill: #a19caf; }
-      .gap   { fill: #e0795b; }
-    }
+      :root[data-theme="dark"] .bg { fill: #17161b; }
+      :root[data-theme="dark"] .panel { fill: #201f26; stroke: #3a3945; }
+      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
+      :root[data-theme="dark"] .muted { fill: #a19caf; }
+      :root[data-theme="dark"] .core { fill: #2a2933; stroke: #47454f; }
+      :root[data-theme="dark"] .buf { fill: #33421f; stroke: #8fb257; }
+      :root[data-theme="dark"] .inbox { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root[data-theme="dark"] .line { fill: #23262c; stroke: #3f4650; }
+      :root[data-theme="dark"] .arrow { stroke: #9a9384; }
+      :root[data-theme="dark"] .rfo { stroke: #e0795b; }
+      :root[data-theme="dark"] .title { fill: #e9e7ef; }
+      :root[data-theme="dark"] .lbl { fill: #d7d3c8; }
+      :root[data-theme="dark"] .cap { fill: #a19caf; }
+      :root[data-theme="dark"] .gap { fill: #e0795b; }
   </style>
   <defs>
     <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -131,7 +129,6 @@ So there are now two independent buffering structures, one on each side of every
   </defs>
   <rect class="bg" x="0" y="0" width="760" height="460" rx="10"/>
   <text class="title" x="24" y="30">Why B can still read stale x after A's store has "retired"</text>
-
   <rect class="panel" x="24" y="48" width="320" height="230" rx="8"/>
   <text class="muted" x="40" y="70" font-size="12" font-weight="700">CORE A (writer)</text>
   <rect class="core" x="40" y="86" width="120" height="46" rx="6"/>
@@ -145,7 +142,6 @@ So there are now two independent buffering structures, one on each side of every
   <text class="cap" x="316" y="214" fill="#c15b3f">RFO sent, async</text>
   <text class="gap" x="40" y="240">A already believes x=1 is done.</text>
   <text class="gap" x="40" y="256">No other core can see it yet.</text>
-
   <rect class="panel" x="416" y="48" width="320" height="230" rx="8"/>
   <text class="muted" x="432" y="70" font-size="12" font-weight="700">CORE B (reader)</text>
   <rect class="inbox" x="432" y="86" width="270" height="46" rx="6"/>
@@ -157,7 +153,6 @@ So there are now two independent buffering structures, one on each side of every
   <path class="arrow" d="M492 132 L492 148"/>
   <text class="gap" x="432" y="240">If B's load beats its own inbox,</text>
   <text class="gap" x="432" y="256">B still reads the OLD cached x.</text>
-
   <rect class="panel" x="220" y="300" width="320" height="140" rx="8"/>
   <text class="title" x="236" y="324" font-size="12.5">What closes this gap</text>
   <text class="cap" x="236" y="346" font-size="11">Nothing, by default — this gap is the hardware's normal behavior.</text>

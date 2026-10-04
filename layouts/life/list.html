@@ -1,0 +1,14 @@
+{{ define "main" }}
+<section class="page-head wrap">
+  <p class="eyebrow reveal">{{ i18n "secLife" }}</p>
+  <h1 class="page-head__title reveal">{{ .Title }}</h1>
+  {{ with .Description }}<p class="page-head__lede reveal">{{ . }}</p>{{ end }}
+</section>
+<section class="wrap page-body">
+  {{ if .Pages }}
+    <div class="life-grid">{{ range .Pages }}{{ partial "life-card.html" . }}{{ end }}</div>
+  {{ else }}
+    <p class="empty-note">{{ i18n "lifeEmpty" }}</p>
+  {{ end }}
+</section>
+{{ end }}

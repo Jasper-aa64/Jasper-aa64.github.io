@@ -1,0 +1,90 @@
+# Homepage content, one block per language. Edit here; the templates only lay it out.
+# `now.updated` is shown next to the "Now" heading — bump it whenever the list changes.
+
+en:
+  kicker: "C++ · low-latency systems · competitive programming"
+  hello: "Hi, I'm"
+  name: "Jasper"
+  lede: "I write C++ that has to be fast. I study software engineering at Anhui Normal University, spent 2026 building low-latency trading services as an intern, and now research how to tell whether an AI-written speedup is real."
+  photos:
+    - { src: "/images/hero/hero-2.jpg", caption: "CCPC Jinan, 2025 — silver" }
+    - { src: "/images/hero/hero-1.jpg", caption: "Debugging with the team" }
+    - { src: "/images/hero/hero-3.jpg", caption: "Problem E, explained after the contest" }
+  facts:
+    - { label: "Study", value: "B.Eng. Software Engineering, Anhui Normal University, class of 2027" }
+    - { label: "Contests", value: "CCPC Jinan 2025 silver · ICPC Wuhan 2025 bronze" }
+    - { label: "Work", value: "C++ intern on low-latency quant trading systems, Apr – Sep 2026" }
+    - { label: "Research", value: "Reliable evaluation of agent-generated performance patches" }
+  now:
+    updated: "October 2026"
+    items:
+      - label: "Learning"
+        text: "Low-latency C++ from the hardware up: memory hierarchy, cache coherence, lock-free queues. I write each chapter up as Trading System Notes."
+        link: "/posts/#trading"
+      - label: "Researching"
+        text: "When an agent says it made the code 30% faster, how do you know? Paired measurements, null-patch audits and independent confirmation."
+        link: "https://github.com/Jasper-aa64/promotion-gate-audit"
+      - label: "Building"
+        text: "A real-time voice platform in C++ that runs my AI interview practice and an IELTS trainer."
+        link: "https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview"
+  projects:
+    - name: "promotion-gate-audit"
+      meta: "Research · 2026 –"
+      text: "An acceptance gate for agent-generated C++ optimizations: correctness checks, randomized paired measurements and independent confirmation. On 30 null patches it promoted none, where a naive first-pair rule promoted 13."
+      link: "https://github.com/Jasper-aa64/promotion-gate-audit"
+    - name: "Real-time voice platform"
+      meta: "C++17 · 2026"
+      text: "ASR, TTS, VAD and an LLM behind one four-layer core and a four-thread audio pipeline, serving an AI technical-interview system and an IELTS speaking and writing trainer."
+      link: "https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview"
+    - name: "C++ MCP server & coding agents"
+      meta: "C++17 · 2026"
+      text: "An MCP server over HTTP + SSE and stdio with 13 C++ tools, driving a Coder / Reviewer / Tester agent loop."
+      link: "https://github.com/Jasper-aa64/MCP-Server-Agent-Coding-"
+    - name: "Trading system study notes"
+      meta: "Notes · 2026 –"
+      text: "The chapter-by-chapter study notes, experiments and progress log behind the Trading System Notes series."
+      link: "https://github.com/Jasper-aa64/trading-system-notes-study"
+
+zh:
+  kicker: "C++ · 低延迟系统 · 算法竞赛"
+  hello: "你好,我是"
+  name: "Jasper"
+  lede: "我写需要跑得快的 C++。安徽师范大学软件工程专业在读;2026 年在一家量化交易公司做 C++ 实习,写低延迟交易服务;现在在研究一件事:AI 写出来的加速,到底是不是真的。"
+  photos:
+    - { src: "/images/hero/hero-2.jpg", caption: "2025 CCPC 济南站 · 银牌" }
+    - { src: "/images/hero/hero-1.jpg", caption: "和队友一起调代码" }
+    - { src: "/images/hero/hero-3.jpg", caption: "赛后讲题 · Problem E" }
+  facts:
+    - { label: "学业", value: "安徽师范大学 软件工程 本科,2027 届" }
+    - { label: "竞赛", value: "2025 CCPC 济南站银牌 · 2025 ICPC 武汉站铜牌" }
+    - { label: "实习", value: "量化交易低延迟系统 C++ 实习,2026 年 4 – 9 月" }
+    - { label: "研究", value: "智能体生成的性能补丁,怎样可靠地评估" }
+  now:
+    updated: "2026 年 10 月"
+    items:
+      - label: "在学"
+        text: "从硬件往上学低延迟 C++:内存层级、缓存一致性、无锁队列。每学完一章,写成一篇「交易系统笔记」。"
+        link: "/zh/posts/#trading"
+      - label: "在研究"
+        text: "智能体说它把代码提速了 30%,你怎么知道是真的?配对测量、空补丁审计、独立复核。"
+        link: "https://github.com/Jasper-aa64/promotion-gate-audit"
+      - label: "在做"
+        text: "一个 C++ 实时语音平台,跑着我的 AI 面试练习和雅思训练器。"
+        link: "https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview"
+  projects:
+    - name: "promotion-gate-audit"
+      meta: "研究 · 2026 –"
+      text: "给智能体生成的 C++ 优化设的一道验收门:正确性检查、随机化配对测量、独立复核。30 个空补丁里它一个都没放行,朴素的「首对规则」放行了 13 个。"
+      link: "https://github.com/Jasper-aa64/promotion-gate-audit"
+    - name: "实时语音平台"
+      meta: "C++17 · 2026"
+      text: "ASR、TTS、VAD 和大模型接在同一个四层核心、四线程音频管线上,支撑 AI 技术面试系统和雅思口语写作训练器两个应用。"
+      link: "https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview"
+    - name: "C++ MCP 服务器与编码智能体"
+      meta: "C++17 · 2026"
+      text: "支持 HTTP + SSE 和 stdio 的 MCP 服务器,带 13 个 C++ 工具,驱动 Coder / Reviewer / Tester 三个智能体的循环。"
+      link: "https://github.com/Jasper-aa64/MCP-Server-Agent-Coding-"
+    - name: "交易系统学习笔记"
+      meta: "笔记 · 2026 –"
+      text: "「交易系统笔记」系列背后逐章的学习笔记、实验和进度记录。"
+      link: "https://github.com/Jasper-aa64/trading-system-notes-study"

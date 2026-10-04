@@ -240,22 +240,20 @@ The key point: this surcharge is **not an occasional spike — it's a tax you pa
     .irq   { stroke: #c15b3f; stroke-width: 1.8; fill: none; marker-end: url(#ah); }
     .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
     .cap   { fill: #6b6558; font-size: 10.5px; }
-    @media (prefers-color-scheme: dark) {
-      .bg    { fill: #17161b; }
-      .panel { fill: #201f26; stroke: #3a3945; }
-      .ink   { fill: #e9e7ef; }
-      .muted { fill: #a19caf; }
-      .core       { fill: #2a2933; stroke: #47454f; }
-      .coreHouse  { fill: #4a2f2c; stroke: #8f5a4c; }
-      .coreHot    { fill: #33421f; stroke: #8fb257; }
-      .coreLabel  { fill: #d7d3c8; }
-      .dram  { fill: #23262c; stroke: #3f4650; }
-      .nic   { fill: #2e2940; stroke: #6a5c95; }
-      .upi   { stroke: #9a9384; }
-      .irq   { stroke: #e0795b; }
-      .title { fill: #e9e7ef; }
-      .cap   { fill: #a19caf; }
-    }
+      :root[data-theme="dark"] .bg { fill: #17161b; }
+      :root[data-theme="dark"] .panel { fill: #201f26; stroke: #3a3945; }
+      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
+      :root[data-theme="dark"] .muted { fill: #a19caf; }
+      :root[data-theme="dark"] .core { fill: #2a2933; stroke: #47454f; }
+      :root[data-theme="dark"] .coreHouse { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root[data-theme="dark"] .coreHot { fill: #33421f; stroke: #8fb257; }
+      :root[data-theme="dark"] .coreLabel { fill: #d7d3c8; }
+      :root[data-theme="dark"] .dram { fill: #23262c; stroke: #3f4650; }
+      :root[data-theme="dark"] .nic { fill: #2e2940; stroke: #6a5c95; }
+      :root[data-theme="dark"] .upi { stroke: #9a9384; }
+      :root[data-theme="dark"] .irq { stroke: #e0795b; }
+      :root[data-theme="dark"] .title { fill: #e9e7ef; }
+      :root[data-theme="dark"] .cap { fill: #a19caf; }
   </style>
   <defs>
     <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -264,7 +262,6 @@ The key point: this surcharge is **not an occasional spike — it's a tax you pa
   </defs>
   <rect class="bg" x="0" y="0" width="760" height="470" rx="10"/>
   <text class="title" x="24" y="30">One dual-socket server: noise herded to housekeeping cores, hot core left alone</text>
-
   <rect class="panel" x="24" y="48" width="330" height="196" rx="8"/>
   <text class="muted" x="40" y="70" font-size="12" font-weight="700">SOCKET 0  ·  NUMA node 0</text>
   <rect class="coreHouse" x="40"  y="82" width="70" height="42" rx="5"/>
@@ -282,7 +279,6 @@ The key point: this surcharge is **not an occasional spike — it's a tax you pa
   <rect class="dram" x="40" y="182" width="306" height="46" rx="6"/>
   <text class="ink" x="52" y="201" font-size="11.5" font-weight="700">Local DRAM (node 0)</text>
   <text class="cap" x="52" y="218">Core 3 &#8594; here &#8776; 90 ns (local)</text>
-
   <rect class="panel" x="406" y="48" width="330" height="196" rx="8"/>
   <text class="muted" x="422" y="70" font-size="12" font-weight="700">SOCKET 1  ·  NUMA node 1</text>
   <rect class="core" x="422" y="82" width="66" height="42" rx="5"/><text class="coreLabel" x="431" y="99">core 8</text>
@@ -296,10 +292,8 @@ The key point: this surcharge is **not an occasional spike — it's a tax you pa
   <rect class="dram" x="422" y="182" width="306" height="46" rx="6"/>
   <text class="ink" x="434" y="201" font-size="11.5" font-weight="700">DRAM (node 1)</text>
   <text class="cap" x="434" y="218">Core 3 &#8594; here &#8776; 140 ns (via UPI)</text>
-
   <line class="upi" x1="354" y1="146" x2="406" y2="146"/>
   <text class="muted" x="360" y="138" font-size="10.5" font-weight="700">UPI</text>
-
   <rect class="nic" x="24" y="300" width="150" height="60" rx="8"/>
   <text class="ink" x="40" y="324" font-size="12" font-weight="700">NIC</text>
   <text class="cap" x="40" y="342">PCIe on socket 0</text>
@@ -307,7 +301,6 @@ The key point: this surcharge is **not an occasional spike — it's a tax you pa
   <path class="irq" d="M120 300 C 120 260, 90 180, 75 128"/>
   <path class="irq" d="M150 300 C 175 250, 165 180, 153 128"/>
   <text class="cap" x="118" y="286" fill="#c15b3f">hard IRQ &#8594; keeper</text>
-
   <rect class="panel" x="250" y="286" width="486" height="152" rx="8"/>
   <text class="title" x="266" y="310" font-size="12.5">What actually runs on Core 3</text>
   <text class="cap" x="266" y="332" font-size="11">isolcpus=3    scheduler places nothing here (explicit pin still works)</text>

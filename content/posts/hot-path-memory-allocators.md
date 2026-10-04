@@ -181,6 +181,7 @@ vec.emplace_back(1);  // undefined behavior
 Two shapes from the sections above are worth keeping as complete, reusable references: a fixed-type pool for objects with independent lifetimes, and an arena for a batch of objects that all get thrown away together. `std::pmr` isn't a third — it solves a type-compatibility problem, not a performance one, and paying a virtual call on every allocation makes it a worse default than either of these for something that's actually meant to sit on a hot path. Reach for it only when the flexibility is worth that specific cost.
 
 Zooming out, every section above is really the same question asked again at a different layer: *where does this storage actually come from, and who's managing it?*
+
 <svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From malloc/free's unpredictable latency, through Object Pool's v1 linear scan being superseded by v2's free list, through allocator-environment tuning, to the Arena's bump pointer, to the STL allocator and std::pmr — ending at memory strategy decoupled from container type" style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
   <style>
     .bg  { fill: #fbfaf7; }
@@ -193,18 +194,16 @@ Zooming out, every section above is really the same question asked again at a di
     .edge     { stroke: #b3ab98; stroke-width: 1.6; fill: none; marker-end: url(#ahN2); }
     .edgeGone { stroke: #b3ab98; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; opacity: 0.75; marker-end: url(#ahN2); }
     .edgeGo   { stroke: #6f8f3f; stroke-width: 2; fill: none; marker-end: url(#ahGo2); }
-    @media (prefers-color-scheme: dark) {
-      .bg  { fill: #17161b; }
-      .ink { fill: #e9e7ef; }
-      .muted { fill: #a19caf; }
-      .title { fill: #e9e7ef; }
-      .boxN  { fill: #201f26; stroke: #3a3945; }
-      .boxGone { fill: #2a2933; stroke: #47454f; }
-      .boxGo   { fill: #33421f; stroke: #8fb257; }
-      .edge     { stroke: #55525f; }
-      .edgeGone { stroke: #55525f; }
-      .edgeGo   { stroke: #8fb257; }
-    }
+      :root[data-theme="dark"] .bg { fill: #17161b; }
+      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
+      :root[data-theme="dark"] .muted { fill: #a19caf; }
+      :root[data-theme="dark"] .title { fill: #e9e7ef; }
+      :root[data-theme="dark"] .boxN { fill: #201f26; stroke: #3a3945; }
+      :root[data-theme="dark"] .boxGone { fill: #2a2933; stroke: #47454f; }
+      :root[data-theme="dark"] .boxGo { fill: #33421f; stroke: #8fb257; }
+      :root[data-theme="dark"] .edge { stroke: #55525f; }
+      :root[data-theme="dark"] .edgeGone { stroke: #55525f; }
+      :root[data-theme="dark"] .edgeGo { stroke: #8fb257; }
   </style>
   <defs>
     <marker id="ahN2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">

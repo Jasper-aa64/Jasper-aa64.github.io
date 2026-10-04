@@ -3,33 +3,43 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+    <title>{{ if .IsHome }}{{ site.Title }} — {{ i18n "homeTitle" }}{{ else }}{{ .Title }} · {{ site.Title }}{{ end }}</title>
     <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
+    <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)">
     <link rel="canonical" href="{{ .Permalink }}">
+    {{ range .AllTranslations }}<link rel="alternate" hreflang="{{ .Language.LanguageCode }}" href="{{ .Permalink }}">
+    {{ end }}
+    {{ with .OutputFormats.Get "rss" }}<link rel="alternate" type="application/rss+xml" href="{{ .RelPermalink }}" title="{{ site.Title }}">{{ end }}
+    <meta property="og:title" content="{{ .Title }}">
+    <meta property="og:description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
+    <meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
+    <meta property="og:url" content="{{ .Permalink }}">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c8452a'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' fill='%23fff' text-anchor='middle'%3EJ%3C/text%3E%3C/svg%3E">
     <script>
       (function() {
-        document.documentElement.classList.add("has-js");
+        var d = document.documentElement;
+        d.classList.add("has-js");
         try {
-          const stored = window.localStorage.getItem("theme");
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          document.documentElement.dataset.theme = stored || (prefersDark ? "dark" : "light");
-        } catch (error) {
-          document.documentElement.dataset.theme = "light";
+          var stored = localStorage.getItem("theme");
+          d.dataset.theme = stored || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        } catch (e) { d.dataset.theme = "light"; }
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) d.classList.add("reduce-motion");
+        else {
+          d.classList.add("reveal-ready");
+          setTimeout(function() { if (!window.__siteReady) d.classList.remove("reveal-ready"); }, 2500);
         }
       })();
     </script>
+    <link rel="preload" href="/fonts/instrument-serif-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
+    {{ if .IsPage }}<link rel="stylesheet" href="/css/syntax.css">{{ end }}
     {{ if .Params.math }}
       <script>
         window.MathJax = {
-          tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']],
-            processEscapes: true
-          },
-          options: {
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-          }
+          tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
+          options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
         };
       </script>
       <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
@@ -38,156 +48,74 @@
       <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
         document.querySelectorAll('pre code.language-mermaid').forEach(function(el) {
-          var pre = el.parentElement;
+          var pre = el.closest('.highlight') || el.parentElement;
           var div = document.createElement('div');
           div.className = 'mermaid';
           div.textContent = el.textContent;
           pre.parentNode.replaceChild(div, pre);
         });
-        var isDark = document.documentElement.dataset.theme === 'dark';
-        mermaid.initialize({ startOnLoad: true, theme: isDark ? 'dark' : 'neutral' });
+        mermaid.initialize({ startOnLoad: true, theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'neutral' });
       </script>
     {{ end }}
   </head>
-  <body>
-    <div class="page-shell">
-      <header class="site-header">
-        <div class="container header-inner">
-          <a class="brand" href="{{ site.Home.RelPermalink }}">
-            <span class="brand-mark">J</span>
-            <span>
-              <strong class="brand-first">{{ i18n "brandFirst" }}</strong>
-              <small>{{ i18n "brandSecond" }}</small>
-            </span>
-          </a>
-          <div class="header-actions">
-            {{ partial "lang-switch.html" . }}
-            <button class="theme-toggle" type="button" aria-label="{{ i18n "switchTheme" }}" aria-pressed="false">
-              <span class="theme-toggle-icon" aria-hidden="true"></span>
-              <span class="sr-only">{{ i18n "switchTheme" }}</span>
-            </button>
-            <button class="nav-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="{{ i18n "toggleNav" }}">
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
-          </div>
-          <a class="cv-link" href="/files/cv.pdf" target="_blank" rel="noopener" aria-label="CV (PDF)">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M7 2.5h7l4 4v15H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-              <path d="M14 2.5v4h4M10 12h5M10 15.5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-            </svg>
-            <span>CV</span>
-          </a>
-          <nav class="site-nav" id="site-navigation">
-            {{ range site.Menus.main }}
-              {{ $active := or ($.IsMenuCurrent "main" .) ($.HasMenuCurrent "main" .) (eq $.RelPermalink .URL) }}
-              {{ $active = or $active (and (eq .URL ("posts/" | relLangURL)) (eq $.Section "posts")) }}
-              {{ $active = or $active (and (eq .URL ("archives/" | relLangURL)) (eq $.Section "archives")) }}
-              {{ $active = or $active (and (eq .URL ("categories/" | relLangURL)) (eq $.Data.Plural "categories")) }}
-              {{ $active = or $active (and (eq .URL ("tags/" | relLangURL)) (eq $.Data.Plural "tags")) }}
-              <a class="nav-link{{ if $active }} is-active{{ end }}" href="{{ .URL }}">{{ .Name }}</a>
+  <body class="{{ if .IsHome }}is-home{{ else if .IsPage }}is-page{{ else }}is-list{{ end }}">
+    <a class="skip-link" href="#main">{{ i18n "skipToContent" }}</a>
+    {{ if .IsPage }}<div class="read-progress" aria-hidden="true"><span></span></div>{{ end }}
+
+    <header class="site-header">
+      <div class="wrap site-header__inner">
+        <a class="brand" href="{{ site.Home.RelPermalink }}" aria-label="{{ site.Title }}">
+          <span class="brand__seal" aria-hidden="true">J</span>
+          <span class="brand__name">Jasper</span>
+        </a>
+
+        <nav class="site-nav" id="site-nav" aria-label="Primary">
+          {{ $lifeCount := len (where site.RegularPages "Section" "life") }}
+          {{ range site.Menus.main }}
+            {{ $active := or ($.IsMenuCurrent "main" .) (eq $.RelPermalink .URL) }}
+            {{ $active = or $active (and (eq .URL ("posts/" | relLangURL)) (or (eq $.Section "posts") (eq $.Section "archives") (eq $.Section "algorithms") (eq $.Kind "taxonomy") (eq $.Kind "term"))) }}
+            <a class="site-nav__link{{ if $active }} is-active{{ end }}" href="{{ .URL }}"{{ if $active }} aria-current="page"{{ end }}>{{ .Name }}</a>
+            {{ if and (eq .Weight 20) (gt $lifeCount 0) }}
+              <a class="site-nav__link{{ if eq $.Section "life" }} is-active{{ end }}" href="{{ "life/" | relLangURL }}">{{ i18n "secLife" }}</a>
             {{ end }}
-          </nav>
+          {{ end }}
+          <a class="site-nav__link site-nav__cv" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>
+        </nav>
+
+        <div class="site-actions">
+          {{ partial "lang-switch.html" . }}
+          <button class="icon-btn theme-btn" type="button" aria-label="{{ i18n "switchTheme" }}">
+            <svg class="theme-btn__sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+            <svg class="theme-btn__moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 14.6A8.2 8.2 0 0 1 9.4 3.8a8.2 8.2 0 1 0 10.8 10.8z"/></svg>
+          </button>
+          <button class="icon-btn nav-btn" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="{{ i18n "toggleNav" }}">
+            <span></span><span></span>
+          </button>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <main class="container main-content">
-        {{ block "main" . }}{{ end }}
-      </main>
+    <main id="main" class="site-main">
+      {{ block "main" . }}{{ end }}
+    </main>
 
-      <footer class="site-footer container">
-        <div>
-          <strong>{{ site.Title }}</strong>
-          <p>{{ site.Params.description }}</p>
+    <footer class="site-footer">
+      <div class="wrap site-footer__inner">
+        <div class="site-footer__sign">
+          <span class="brand__seal" aria-hidden="true">J</span>
+          <p>{{ i18n "footerLine" }}</p>
         </div>
-        <div class="footer-links">
-          <a href="{{ site.Params.github }}">GitHub</a>
-          <a href="{{ "posts/" | relLangURL }}">{{ i18n "footerPosts" }}</a>
-          <a href="{{ "archives/" | relLangURL }}">{{ i18n "footerArchives" }}</a>
-          <a href="{{ "tags/" | relLangURL }}">{{ i18n "footerTags" }}</a>
-        </div>
-      </footer>
-    </div>
-    <script>
-      (function() {
-        const toggle = document.querySelector(".nav-toggle");
-        const nav = document.querySelector("#site-navigation");
-        if (!toggle || !nav) return;
+        <nav class="site-footer__links" aria-label="Footer">
+          <a href="{{ site.Params.github }}" rel="me">GitHub</a>
+          <a href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }}</a>
+          <a href="{{ "posts/" | relLangURL }}">{{ i18n "secWriting" }}</a>
+          <a href="{{ "index.xml" | relLangURL }}">{{ i18n "rss" }}</a>
+        </nav>
+        <p class="site-footer__meta">© {{ now.Format "2006" }} Jasper · <a href="#main" data-to-top>{{ i18n "backToTop" }} ↑</a></p>
+      </div>
+    </footer>
 
-        function setOpen(open) {
-          document.documentElement.classList.toggle("nav-open", open);
-          toggle.setAttribute("aria-expanded", String(open));
-        }
-
-        toggle.addEventListener("click", function() {
-          setOpen(!document.documentElement.classList.contains("nav-open"));
-        });
-
-        nav.addEventListener("click", function(event) {
-          if (event.target.closest("a")) setOpen(false);
-        });
-
-        window.addEventListener("keydown", function(event) {
-          if (event.key === "Escape") setOpen(false);
-        });
-
-        window.addEventListener("resize", function() {
-          if (window.matchMedia("(min-width: 761px)").matches) setOpen(false);
-        }, { passive: true });
-
-        const themeToggle = document.querySelector(".theme-toggle");
-        if (!themeToggle) return;
-
-        function applyTheme(theme, persist) {
-          document.documentElement.dataset.theme = theme;
-          themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
-          themeToggle.setAttribute("aria-label", theme === "dark" ? {{ i18n "toLight" }} : {{ i18n "toDark" }});
-          if (persist) {
-            try {
-              window.localStorage.setItem("theme", theme);
-            } catch (error) {}
-          }
-        }
-
-        applyTheme(document.documentElement.dataset.theme || "light", false);
-        themeToggle.addEventListener("click", function() {
-          const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-          document.documentElement.classList.add("theme-switching");
-          applyTheme(next, true);
-          window.setTimeout(function() {
-            document.documentElement.classList.remove("theme-switching");
-          }, 620);
-        });
-      })();
-    </script>
-    <script>
-      (function() {
-        var lang = document.documentElement.dataset.siteLang;
-        var hasZh = document.documentElement.dataset.hasZh === "true";
-        function setPref(v) { try { window.localStorage.setItem("lang", v); } catch (error) {} }
-        function getPref() { try { return window.localStorage.getItem("lang"); } catch (error) { return null; } }
-        if (lang === "zh") setPref("zh");
-        else if (hasZh) setPref("en");
-        document.querySelectorAll("[data-lang-target]").forEach(function(a) {
-          a.addEventListener("click", function() { setPref(a.dataset.langTarget); });
-        });
-        var notice = document.querySelector(".lang-notice");
-        var button = document.querySelector("[data-lang-notice]");
-        if (!notice || !button) return;
-        function show(on) {
-          notice.hidden = !on;
-          button.textContent = on ? "EN" : "中文";
-          button.setAttribute("aria-pressed", String(on));
-        }
-        show(getPref() === "zh");
-        button.addEventListener("click", function() {
-          var on = notice.hidden;
-          setPref(on ? "zh" : "en");
-          show(on);
-          if (on) notice.scrollIntoView({ block: "nearest" });
-        });
-      })();
-    </script>
+    <script>window.SITE_I18N = { copy: {{ i18n "copy" }}, copied: {{ i18n "copied" }}, copyAria: {{ i18n "copyAria" }} };</script>
+    <script src="/js/site.js" defer></script>
   </body>
 </html>

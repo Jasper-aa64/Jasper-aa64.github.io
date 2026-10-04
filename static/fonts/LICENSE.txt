@@ -1,0 +1,4 @@
+Instrument Serif (Rodrigo Fuenzalida, Jordan Egstad), Inter (Rasmus Andersson) and
+JetBrains Mono (JetBrains) are licensed under the SIL Open Font License 1.1:
+https://openfontlicense.org/open-font-license-official-text/
+Files are the latin subsets published by Fontsource (https://fontsource.org).

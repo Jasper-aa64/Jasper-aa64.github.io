@@ -137,6 +137,7 @@ vec.emplace_back(1);  // 未定义行为
 上面几节里,有两种形状值得保留成完整、可复用的参考:一个给生命周期各自独立的对象用的固定类型池,一个给一批一起扔掉的对象用的 arena。`std::pmr` 不算第三个——它解决的是类型兼容的问题,不是性能问题,而每次分配都付一次虚调用,让它对于真正要放在热路径上的东西来说,是比这两者都差的默认选择。只有当那份灵活值得这个具体的代价时才用它。
 
 往回看一眼,上面每一节其实都是在不同的层面上重新问同一个问题:*这块存储到底从哪来,谁在管它?*
+
 <svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="从 malloc/free 不可预测的延迟,到对象池 v1 的线性扫描被 v2 的空闲链表取代,到分配器环境调优,到 arena 的 bump 指针,再到 STL 分配器和 std::pmr——终点是内存策略与容器类型解耦" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
     .bg  { fill: #fbfaf7; }
@@ -149,18 +150,16 @@ vec.emplace_back(1);  // 未定义行为
     .edge     { stroke: #b3ab98; stroke-width: 1.6; fill: none; marker-end: url(#ahN2z); }
     .edgeGone { stroke: #b3ab98; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; opacity: 0.75; marker-end: url(#ahN2z); }
     .edgeGo   { stroke: #6f8f3f; stroke-width: 2; fill: none; marker-end: url(#ahGo2z); }
-    @media (prefers-color-scheme: dark) {
-      .bg  { fill: #17161b; }
-      .ink { fill: #e9e7ef; }
-      .muted { fill: #a19caf; }
-      .title { fill: #e9e7ef; }
-      .boxN  { fill: #201f26; stroke: #3a3945; }
-      .boxGone { fill: #2a2933; stroke: #47454f; }
-      .boxGo   { fill: #33421f; stroke: #8fb257; }
-      .edge     { stroke: #55525f; }
-      .edgeGone { stroke: #55525f; }
-      .edgeGo   { stroke: #8fb257; }
-    }
+      :root[data-theme="dark"] .bg { fill: #17161b; }
+      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
+      :root[data-theme="dark"] .muted { fill: #a19caf; }
+      :root[data-theme="dark"] .title { fill: #e9e7ef; }
+      :root[data-theme="dark"] .boxN { fill: #201f26; stroke: #3a3945; }
+      :root[data-theme="dark"] .boxGone { fill: #2a2933; stroke: #47454f; }
+      :root[data-theme="dark"] .boxGo { fill: #33421f; stroke: #8fb257; }
+      :root[data-theme="dark"] .edge { stroke: #55525f; }
+      :root[data-theme="dark"] .edgeGone { stroke: #55525f; }
+      :root[data-theme="dark"] .edgeGo { stroke: #8fb257; }
   </style>
   <defs>
     <marker id="ahN2z" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">

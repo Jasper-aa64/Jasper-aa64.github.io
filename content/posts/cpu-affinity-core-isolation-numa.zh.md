@@ -187,22 +187,20 @@ echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo   # 关掉睿频
     .irq   { stroke: #c15b3f; stroke-width: 1.8; fill: none; marker-end: url(#ahzh); }
     .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
     .cap   { fill: #6b6558; font-size: 10.5px; }
-    @media (prefers-color-scheme: dark) {
-      .bg    { fill: #17161b; }
-      .panel { fill: #201f26; stroke: #3a3945; }
-      .ink   { fill: #e9e7ef; }
-      .muted { fill: #a19caf; }
-      .core       { fill: #2a2933; stroke: #47454f; }
-      .coreHouse  { fill: #4a2f2c; stroke: #8f5a4c; }
-      .coreHot    { fill: #33421f; stroke: #8fb257; }
-      .coreLabel  { fill: #d7d3c8; }
-      .dram  { fill: #23262c; stroke: #3f4650; }
-      .nic   { fill: #2e2940; stroke: #6a5c95; }
-      .upi   { stroke: #9a9384; }
-      .irq   { stroke: #e0795b; }
-      .title { fill: #e9e7ef; }
-      .cap   { fill: #a19caf; }
-    }
+      :root[data-theme="dark"] .bg { fill: #17161b; }
+      :root[data-theme="dark"] .panel { fill: #201f26; stroke: #3a3945; }
+      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
+      :root[data-theme="dark"] .muted { fill: #a19caf; }
+      :root[data-theme="dark"] .core { fill: #2a2933; stroke: #47454f; }
+      :root[data-theme="dark"] .coreHouse { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root[data-theme="dark"] .coreHot { fill: #33421f; stroke: #8fb257; }
+      :root[data-theme="dark"] .coreLabel { fill: #d7d3c8; }
+      :root[data-theme="dark"] .dram { fill: #23262c; stroke: #3f4650; }
+      :root[data-theme="dark"] .nic { fill: #2e2940; stroke: #6a5c95; }
+      :root[data-theme="dark"] .upi { stroke: #9a9384; }
+      :root[data-theme="dark"] .irq { stroke: #e0795b; }
+      :root[data-theme="dark"] .title { fill: #e9e7ef; }
+      :root[data-theme="dark"] .cap { fill: #a19caf; }
   </style>
   <defs>
     <marker id="ahzh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
