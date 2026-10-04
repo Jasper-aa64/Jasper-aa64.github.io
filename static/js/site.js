@@ -117,6 +117,45 @@
     });
   }
 
+  /* ---------- Home showcase: auto-slides on wide screens, pauses on hover / focus / hidden tab ---------- */
+  var show = document.querySelector("[data-showcase]");
+  if (show) {
+    var track = show.querySelector(".showcase__track");
+    var slides = Array.prototype.slice.call(show.querySelectorAll(".slide"));
+    var dots = Array.prototype.slice.call(show.querySelectorAll(".showcase__dot"));
+    var wide = window.matchMedia("(min-width: 1200px)");
+    var cur = 0, timer = null, hold = false;
+    var go = function (n) {
+      cur = (n + slides.length) % slides.length;
+      track.style.transform = "translateX(" + (-100 * cur) + "%)";
+      slides.forEach(function (sl, i) {
+        var on = i === cur;
+        sl.setAttribute("aria-hidden", on ? "false" : "true");
+        sl.tabIndex = on ? 0 : -1;
+      });
+      dots.forEach(function (d, i) { d.classList.toggle("is-on", i === cur); });
+    };
+    var stop = function () { if (timer) { clearInterval(timer); timer = null; } };
+    var start = function () {
+      stop();
+      if (reduce || hold || slides.length < 2 || !wide.matches || document.hidden) return;
+      timer = setInterval(function () { go(cur + 1); }, 5000);
+    };
+    var wake = function () {
+      if (!wide.matches) return;
+      show.querySelectorAll("img[loading=lazy]").forEach(function (im) { im.loading = "eager"; });
+      start();
+    };
+    dots.forEach(function (d) { d.addEventListener("click", function () { go(+d.dataset.go); start(); }); });
+    show.addEventListener("mouseenter", function () { hold = true; stop(); });
+    show.addEventListener("mouseleave", function () { hold = false; start(); });
+    show.addEventListener("focusin", function () { hold = true; stop(); });
+    show.addEventListener("focusout", function () { hold = false; start(); });
+    document.addEventListener("visibilitychange", start);
+    if (wide.addEventListener) wide.addEventListener("change", wake);
+    wake();
+  }
+
   /* ---------- Notes filter: top level (#lowlatency) and second level (#algorithms/number-theory) ---------- */
   var writing = document.querySelector("[data-writing]");
   if (writing) {

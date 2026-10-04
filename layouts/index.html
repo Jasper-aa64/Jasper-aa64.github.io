@@ -20,7 +20,34 @@
       <a class="btn" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>
     </div>
   </div>
-  {{/* Photos are kept in data/profile.yaml but not shown for now; the right column is a small notebook panel instead. */}}
+  {{/* Photos are kept in data/profile.yaml but not shown for now.
+       Wide screens: intro | auto-sliding showcase | notebook panel. Showcase = posts with `featured: true`,
+       else the latest posts that have a picture. Hidden below 1200px. */}}
+  {{ $pool := where $recent "Params.featured" true }}
+  {{ if not $pool }}{{ $pool = $recent }}{{ end }}
+  {{ $slides := slice }}
+  {{ range $pool }}{{ $pg := . }}{{ if lt (len $slides) 6 }}{{ with partial "thumb.html" $pg }}{{ $slides = $slides | append (dict "p" $pg "t" .) }}{{ end }}{{ end }}{{ end }}
+  {{ with $slides }}
+  <section class="showcase reveal" data-showcase aria-roledescription="carousel" aria-label="{{ i18n "showcaseLabel" }}">
+    <div class="showcase__viewport">
+      <div class="showcase__track">
+        {{ range $i, $sl := . }}{{ $s := partial "series.html" $sl.p }}
+          <a class="slide" href="{{ $sl.p.RelPermalink }}" aria-roledescription="slide"{{ if $i }} aria-hidden="true" tabindex="-1"{{ end }}>
+            <span class="slide__img"><img src="{{ $sl.t }}" alt="" {{ if $i }}loading="lazy" {{ end }}decoding="async"></span>
+            <span class="slide__body">
+              <span class="slide__meta"><span class="card__series">{{ $s.label }}</span>{{ with $s.num }}<span class="num-badge">{{ . }}</span>{{ end }}</span>
+              <strong class="slide__title">{{ $s.title }}</strong>
+              <span class="slide__sum">{{ with $sl.p.Summary }}{{ . | plainify | htmlUnescape | truncate 140 }}{{ else }}{{ $sl.p.Plain | truncate 140 }}{{ end }}</span>
+            </span>
+          </a>
+        {{ end }}
+      </div>
+    </div>
+    <div class="showcase__dots">
+      {{ range $i, $sl := . }}<button type="button" class="showcase__dot{{ if not $i }} is-on{{ end }}" data-go="{{ $i }}" aria-label="{{ add $i 1 }} / {{ len $slides }}"></button>{{ end }}
+    </div>
+  </section>
+  {{ end }}
   {{ $words := 0 }}{{ range $posts }}{{ $words = add $words .WordCount }}{{ end }}
   <aside class="hero__panel reveal" aria-label="{{ i18n "statsLabel" }}">
     <dl class="stats">
@@ -39,7 +66,7 @@
     </dl>
     <p class="hero__panel-label">{{ i18n "topTags" }}</p>
     <div class="tag-cloud tag-cloud--hero">
-      {{ range first 22 (partial "tag-list.html" .) }}<a class="tag" href="{{ .u }}">{{ .t }}<sup>{{ .n }}</sup></a>{{ end }}
+      {{ range first 14 (partial "tag-list.html" .) }}<a class="tag" href="{{ .u }}">{{ .t }}<sup>{{ .n }}</sup></a>{{ end }}
       <a class="tag tag--more" href="{{ "categories/" | relLangURL }}">{{ i18n "allTags" }} →</a>
     </div>
   </aside>

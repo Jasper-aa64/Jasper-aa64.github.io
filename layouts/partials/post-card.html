@@ -2,12 +2,7 @@
      (front matter `cover:`, else the first <img> in the post; `cover: false` hides it). */}}
 {{ $s := partial "series.html" . }}
 {{ $foreign := ne .Language.Lang site.Language.Lang }}
-{{ $thumb := "" }}
-{{ if ne .Params.cover false }}
-  {{ with .Params.cover }}{{ $thumb = . }}{{ else }}
-    {{ with findRESubmatch `<img[^>]+src="([^"]+)"` .Content 1 }}{{ $thumb = index (index . 0) 1 }}{{ end }}
-  {{ end }}
-{{ end }}
+{{ $thumb := partial "thumb.html" . }}
 <article class="card{{ if $thumb }} has-thumb{{ end }}" data-series="{{ $s.key }}" data-sub="{{ $s.sub }}">
   <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
   <div class="card__main">

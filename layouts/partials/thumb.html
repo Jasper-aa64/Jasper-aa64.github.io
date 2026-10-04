@@ -1,0 +1,8 @@
+{{/* A post's thumbnail URL: front matter `cover:`, else the first <img> in the post; `cover: false` means none. */}}
+{{ $thumb := "" }}
+{{ if ne .Params.cover false }}
+  {{ with .Params.cover }}{{ $thumb = . }}{{ else }}
+    {{ with findRESubmatch `<img[^>]+src="([^"]+)"` .Content 1 }}{{ $thumb = index (index . 0) 1 }}{{ end }}
+  {{ end }}
+{{ end }}
+{{ return $thumb }}
