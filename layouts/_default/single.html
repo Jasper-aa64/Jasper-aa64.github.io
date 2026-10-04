@@ -6,7 +6,7 @@
   <header class="post-head wrap">
     {{ if $isPost }}
       <a class="eyebrow post-head__kicker reveal" href="{{ "posts/" | relLangURL }}#{{ $s.key }}">
-        {{ $s.label }}{{ with $s.num }}<span class="post-head__num">{{ if eq $s.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}
+        {{ $s.label }}{{ with $s.num }}<span class="post-head__num">{{ if eq $s.series "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}
       </a>
       <h1 class="post-head__title reveal">{{ $s.title }}</h1>
       {{ with .Description }}{{ if le (countrunes .) 230 }}<p class="post-head__dek reveal">{{ . }}</p>{{ end }}{{ end }}
@@ -57,7 +57,7 @@
       {{ end }}
 
       {{ $same := slice }}
-      {{ range partial "posts-all.html" . }}{{ $t := partial "series.html" . }}{{ if and (eq $t.key $s.key) (eq $t.label $s.label) }}{{ $same = $same | append . }}{{ end }}{{ end }}
+      {{ range partial "posts-all.html" . }}{{ $t := partial "series.html" . }}{{ if and (eq $t.key $s.key) (eq $t.series $s.series) }}{{ $same = $same | append . }}{{ end }}{{ end }}
       {{ $same = sort (sort $same "Title" "asc") "Date" "asc" }}
       {{ $prev := false }}{{ $next := false }}{{ $seen := false }}
       {{ range $same }}
@@ -70,13 +70,13 @@
           {{ with $prev }}{{ $t := partial "series.html" . }}
             <a class="post-nav__item post-nav__item--prev" href="{{ .RelPermalink }}">
               <span class="post-nav__dir">← {{ i18n "prevPost" }}</span>
-              <span class="post-nav__title">{{ with $t.num }}<span class="post-nav__num">{{ if eq $t.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
+              <span class="post-nav__title">{{ with $t.num }}<span class="post-nav__num">{{ if eq $t.series "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
             </a>
           {{ else }}<span></span>{{ end }}
           {{ with $next }}{{ $t := partial "series.html" . }}
             <a class="post-nav__item post-nav__item--next" href="{{ .RelPermalink }}">
               <span class="post-nav__dir">{{ i18n "nextPost" }} →</span>
-              <span class="post-nav__title">{{ with $t.num }}<span class="post-nav__num">{{ if eq $t.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
+              <span class="post-nav__title">{{ with $t.num }}<span class="post-nav__num">{{ if eq $t.series "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}{{ $t.title }}</span>
             </a>
           {{ end }}
         </nav>

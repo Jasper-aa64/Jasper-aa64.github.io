@@ -1,8 +1,11 @@
 {{ define "main" }}
 {{ $p := index hugo.Data.profile site.Language.Lang }}
 {{ $posts := partial "posts-all.html" . }}
-{{ $by := newScratch }}
-{{ range $posts }}{{ $s := partial "series.html" . }}{{ $by.Add $s.key (slice .) }}{{ end }}
+{{ $count := newScratch }}
+{{ range $posts }}{{ $s := partial "series.html" . }}{{ $count.Add $s.key 1 }}{{ end }}
+{{/* "Recent notes" skips posts with `homepage: false` (they stay under their category and /posts/). */}}
+{{ $recent := slice }}
+{{ range sort (sort $posts "Title" "desc") "Date" "desc" }}{{ if ne .Params.homepage false }}{{ $recent = $recent | append . }}{{ end }}{{ end }}
 
 <section class="hero wrap">
   <div class="hero__copy">
@@ -10,15 +13,15 @@
     <h1 class="hero__title reveal">
       <span class="hero__hello">{{ $p.hello }}</span>
       <em class="hero__name">{{ $p.name }}</em>
+      <span class="hero__mascot" aria-hidden="true">{{ partial "brain-mascot.html" . }}</span>
     </h1>
     <p class="hero__lede reveal">{{ $p.lede }}</p>
     <div class="hero__actions reveal">
-      <a class="btn btn--solid" href="{{ "posts/" | relLangURL }}">{{ i18n "allWriting" }} <span aria-hidden="true">→</span></a>
+      <a class="btn btn--solid" href="{{ "posts/" | relLangURL }}">{{ i18n "catAll" }} <span aria-hidden="true">→</span></a>
       <a class="btn" href="{{ site.Params.github }}" rel="me">GitHub <span aria-hidden="true">↗</span></a>
       <a class="btn" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>
     </div>
   </div>
-
   <div class="hero__photos reveal">
     <div class="deck" data-deck role="button" tabindex="0" aria-label="{{ i18n "photoHint" }}">
       {{ range $i, $ph := $p.photos }}
@@ -30,88 +33,38 @@
   </div>
 </section>
 
-<section class="facts wrap" aria-label="At a glance">
-  <dl class="facts__grid">
-    {{ range $p.facts }}
-      <div class="fact reveal">
-        <dt>{{ .label }}</dt>
-        <dd>{{ .value }}</dd>
-      </div>
-    {{ end }}
-  </dl>
-</section>
-
-<section class="home-sec wrap" id="now" aria-labelledby="now-title">
+<section class="home-sec wrap" id="areas" aria-labelledby="areas-title">
   <header class="home-sec__head reveal">
-    <span class="home-sec__index">01</span>
-    <h2 id="now-title">{{ i18n "secNow" }}</h2>
-    <p class="home-sec__note">{{ i18n "updated" }} {{ $p.now.updated }}</p>
+    <p class="eyebrow">{{ i18n "catBrowse" }}</p>
+    <h2 id="areas-title">{{ i18n "catHead" }}</h2>
   </header>
-  <ol class="now-list">
-    {{ range $it := $p.now.items }}
-      <li class="now-item reveal">
-        <span class="now-item__label">{{ .label }}</span>
-        <p class="now-item__text">{{ .text }}</p>
-        {{ with .link }}<a class="now-item__link" href="{{ . }}" aria-label="{{ $it.label }}">{{ if hasPrefix . "http" }}↗{{ else }}→{{ end }}</a>{{ end }}
-      </li>
-    {{ end }}
-  </ol>
-</section>
-
-<section class="home-sec wrap" id="writing" aria-labelledby="writing-title">
-  <header class="home-sec__head reveal">
-    <span class="home-sec__index">02</span>
-    <h2 id="writing-title">{{ i18n "secWriting" }}</h2>
-    <a class="home-sec__more" href="{{ "posts/" | relLangURL }}">{{ i18n "allWriting" }} <span aria-hidden="true">→</span></a>
-  </header>
-  <div class="series-list">
-    {{ $defs := slice
-      (dict "key" "trading" "name" (i18n "seriesTrading") "blurb" (i18n "seriesTradingBlurb"))
-      (dict "key" "topics" "name" (i18n "seriesTopics") "blurb" (i18n "seriesTopicsBlurb"))
-      (dict "key" "algorithms" "name" (i18n "seriesAlgorithms") "blurb" (i18n "seriesAlgorithmsBlurb"))
-      (dict "key" "engineering" "name" (i18n "seriesEngineering") "blurb" (i18n "seriesEngineeringBlurb")) }}
-    {{ range $defs }}
-      {{ $list := $by.Get .key }}
-      {{ if $list }}
-        {{ $list = sort (sort $list "Title" "desc") "Date" "desc" }}
-        <article class="series reveal" data-series="{{ .key }}">
-          <div class="series__intro">
-            <h3 class="series__name"><a href="{{ "posts/" | relLangURL }}#{{ .key }}">{{ .name }}</a></h3>
-            <p class="series__blurb">{{ .blurb }}</p>
-            <span class="series__count">{{ i18n "nPosts" (len $list) }}</span>
-          </div>
-          <ul class="series__latest">
-            {{ range first 3 $list }}
-              {{ $s := partial "series.html" . }}
-              <li>
-                <a href="{{ .RelPermalink }}">
-                  {{ with $s.num }}<span class="series__num">{{ if eq $s.key "trading" }}№ {{ . }}{{ else }}{{ . }}{{ end }}</span>{{ end }}
-                  <span class="series__title">{{ $s.title }}</span>
-                  <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format "2006.01" }}</time>
-                </a>
-              </li>
-            {{ end }}
-          </ul>
-        </article>
-      {{ end }}
+  <div class="area-grid">
+    {{ range $i, $c := slice
+      (dict "key" "lowlatency" "name" (i18n "catLowLatency") "blurb" (i18n "catLowLatencyBlurb") "href" (print ("posts/" | relLangURL) "#lowlatency"))
+      (dict "key" "algorithms" "name" (i18n "catAlgorithms") "blurb" (i18n "catAlgorithmsBlurb") "href" "/algorithms/")
+      (dict "key" "ainative" "name" (i18n "catAINative") "blurb" (i18n "catAINativeBlurb") "href" (print ("posts/" | relLangURL) "#ainative"))
+      (dict "key" "all" "name" (i18n "catAll") "blurb" (i18n "catAllBlurb") "href" ("posts/" | relLangURL)) }}
+      <a class="area reveal" href="{{ $c.href }}" data-area="{{ $c.key }}">
+        <span class="area__index">0{{ add $i 1 }}</span>
+        <strong class="area__name">{{ $c.name }}</strong>
+        <span class="area__blurb">{{ $c.blurb }}</span>
+        <span class="area__foot">
+          <span class="area__count">{{ i18n "nPosts" (cond (eq $c.key "all") (len $posts) ($count.Get $c.key | default 0)) }}</span>
+          <span class="area__arrow" aria-hidden="true">→</span>
+        </span>
+      </a>
     {{ end }}
   </div>
 </section>
 
-<section class="home-sec wrap" id="projects" aria-labelledby="projects-title">
+<section class="home-sec wrap" id="recent" aria-labelledby="recent-title">
   <header class="home-sec__head reveal">
-    <span class="home-sec__index">03</span>
-    <h2 id="projects-title">{{ i18n "secProjects" }}</h2>
-    <a class="home-sec__more" href="{{ site.Params.github }}" rel="me">GitHub <span aria-hidden="true">↗</span></a>
+    <p class="eyebrow">{{ i18n "latestKicker" }}</p>
+    <h2 id="recent-title">{{ i18n "recentHead" }}</h2>
+    <a class="home-sec__more" href="{{ "archives/" | relLangURL }}">{{ i18n "viewArchive" }} <span aria-hidden="true">→</span></a>
   </header>
-  <div class="project-grid">
-    {{ range $p.projects }}
-      <a class="project reveal" href="{{ .link }}" rel="noopener">
-        <span class="project__meta">{{ .meta }}</span>
-        <h3 class="project__name">{{ .name }} <span class="project__arrow" aria-hidden="true">↗</span></h3>
-        <p class="project__text">{{ .text }}</p>
-      </a>
-    {{ end }}
+  <div class="card-list">
+    {{ range first 8 $recent }}{{ partial "post-card.html" . }}{{ end }}
   </div>
 </section>
 
@@ -119,13 +72,11 @@
 {{ if $life }}
 <section class="home-sec wrap" id="life" aria-labelledby="life-title">
   <header class="home-sec__head reveal">
-    <span class="home-sec__index">04</span>
+    <p class="eyebrow">{{ i18n "secLife" }}</p>
     <h2 id="life-title">{{ i18n "secLife" }}</h2>
     <a class="home-sec__more" href="{{ "life/" | relLangURL }}">{{ i18n "secLife" }} <span aria-hidden="true">→</span></a>
   </header>
-  <div class="life-grid">
-    {{ range first 3 $life }}{{ partial "life-card.html" . }}{{ end }}
-  </div>
+  <div class="life-grid">{{ range first 3 $life }}{{ partial "life-card.html" . }}{{ end }}</div>
 </section>
 {{ end }}
 {{ end }}

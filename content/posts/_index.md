@@ -1,4 +1,4 @@
 ---
-title: "Writing"
-description: "Long-form notes on low-latency systems, algorithms and AI-assisted engineering."
+title: "Notes"
+description: "Long-form notes on low-latency systems, algorithms and AI-native development."
 ---

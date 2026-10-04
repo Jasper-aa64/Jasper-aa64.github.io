@@ -8,30 +8,24 @@
   <p class="page-head__lede reveal">{{ i18n "writingLede" }}</p>
 </section>
 
-<section class="wrap page-body writing" data-writing>
-  <div class="filter reveal" role="toolbar" aria-label="{{ i18n "filterLabel" }}">
-    <button class="filter__btn is-active" type="button" data-filter="all" aria-pressed="true">{{ i18n "seriesAll" }} <sup>{{ len $posts }}</sup></button>
-    {{ range $def := slice (slice "trading" "seriesTradingShort") (slice "topics" "seriesTopics") (slice "algorithms" "seriesAlgorithms") (slice "engineering" "seriesEngineering") }}
+<section class="wrap page-body" data-writing>
+  <div class="filter" role="toolbar" aria-label="{{ i18n "filterLabel" }}">
+    <button class="filter__btn is-active" type="button" data-filter="all" aria-pressed="true">{{ i18n "catAll" }} <sup>{{ len $posts }}</sup></button>
+    {{ range $def := slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
       {{ with $count.Get (index $def 0) }}
         <button class="filter__btn" type="button" data-filter="{{ index $def 0 }}" aria-pressed="false">{{ i18n (index $def 1) }} <sup>{{ . }}</sup></button>
       {{ end }}
     {{ end }}
   </div>
-
-  {{ range (sort (sort $posts "Title" "desc") "Date" "desc").GroupByDate "2006" }}
-    <section class="year-group" data-year-group>
-      <h2 class="year-group__year">{{ .Key }}</h2>
-      <ol class="entry-list">
-        {{ range .Pages }}{{ partial "entry-row.html" (dict "page" .) }}{{ end }}
-      </ol>
-    </section>
-  {{ end }}
+  <div class="card-list">
+    {{ range sort (sort $posts "Title" "desc") "Date" "desc" }}{{ partial "post-card.html" . }}{{ end }}
+  </div>
   <p class="empty-note" data-empty hidden>{{ i18n "emptyFilter" }}</p>
 
-  <nav class="browse-links reveal">
+  <nav class="browse-links">
+    <a href="/algorithms/">{{ i18n "browseAlgorithms" }} →</a>
     <a href="{{ "tags/" | relLangURL }}">{{ i18n "browseTags" }} →</a>
     <a href="{{ "archives/" | relLangURL }}">{{ i18n "browseArchive" }} →</a>
-    <a href="/algorithms/">{{ i18n "browseAlgorithms" }} →</a>
   </nav>
 </section>
 {{ end }}
