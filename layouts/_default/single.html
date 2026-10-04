@@ -17,7 +17,7 @@
         {{ with .Params.categories }}<span aria-hidden="true">·</span><span>{{ delimit . " / " }}</span>{{ end }}
       </div>
     {{ else }}
-      <p class="eyebrow reveal">{{ if eq .Section "life" }}{{ i18n "secLife" }}{{ else }}Jasper{{ end }}</p>
+      {{ if eq .Section "life" }}<p class="eyebrow reveal">{{ i18n "secLife" }}</p>{{ end }}
       <h1 class="post-head__title reveal">{{ .Title }}</h1>
       {{ if eq .Section "life" }}<div class="post-head__meta reveal"><time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time></div>{{ end }}
     {{ end }}
