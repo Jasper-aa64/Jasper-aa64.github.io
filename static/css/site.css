@@ -414,6 +414,12 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 :lang(zh) .hero__lede { line-height: 1.85; }
 .hero__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+/* The intro is centred in its column (and on phones in the page), so a short name such as "JM"
+   never leaves the whole right side empty. */
+.hero__copy { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.hero__title { margin-inline: auto; }
+.hero__topics, .hero__actions { justify-content: center; }
+.hero__copy .eyebrow::after { content: ""; width: 22px; height: 1px; background: var(--gold); }
 
 /* Photo stack: three polaroids piled tightly; tap to send the top one to the back. */
 .hero__photos { width: 100%; max-width: 480px; justify-self: center; }
