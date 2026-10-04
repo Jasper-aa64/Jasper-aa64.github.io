@@ -432,51 +432,6 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .hero__hello { align-self: flex-start; }
 .hero__name { align-self: flex-end; }
 
-/* Photo stack: three polaroids piled tightly; tap to send the top one to the back. */
-.hero__photos { width: 100%; max-width: 480px; justify-self: center; }
-.deck {
-  position: relative;
-  aspect-ratio: 4 / 4.2;
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  outline: none;
-}
-.deck:focus-visible .deck__card[data-pos="0"] { outline: 2px solid var(--accent); outline-offset: 4px; }
-.deck__card {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  padding: 12px 12px 34px;
-  display: flex;
-  flex-direction: column;
-  background: #fdfcf9;
-  border-radius: 6px;
-  box-shadow: var(--shadow-lg);
-  transition: transform .75s var(--ease), opacity .45s ease, box-shadow .4s;
-  will-change: transform;
-}
-:root[data-theme="dark"] .deck__card { background: #f3ede6; }
-.deck__card img {
-  display: block;
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  object-fit: cover;
-  object-position: 50% 30%;
-  border-radius: 3px;
-  background: var(--paper-2);
-}
-.deck__card[data-pos="0"] { z-index: 3; transform: rotate(-2deg); }
-.deck__card[data-pos="1"] { z-index: 2; transform: translate(3%, -2.5%) rotate(3deg) scale(.97); }
-.deck__card[data-pos="2"] { z-index: 1; transform: translate(-3%, -4.5%) rotate(-5deg) scale(.94); }
-.deck__card.is-leaving {
-  z-index: 4;
-  opacity: 0;
-  transform: translate(-70%, 6%) rotate(-16deg) scale(.95) !important;
-  transition: transform .5s cubic-bezier(.5, 0, .75, .4), opacity .45s ease .05s;
-}
-.deck__card.no-anim { transition: none !important; }
 
 /* Notebook panel beside the name: counts, last update, most used tags. */
 .hero__panel {
@@ -1478,23 +1433,40 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .code-block .highlight { margin: 0; }
 .code-block.has-lang pre { padding-top: 44px; }
 .prose pre code { font-size: inherit; padding: 0; border: 0; background: none; white-space: pre; }
+/* Header strip: three small dots, the language, and the copy button (always faintly visible). */
 .code-block__bar {
   position: absolute;
   top: 1px; left: 1px; right: 1px;
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   height: 34px;
-  padding: 0 8px 0 18px;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 70%, transparent);
+  border-radius: 13px 13px 0 0;
+  background: color-mix(in srgb, var(--code-bg) 55%, var(--card));
   pointer-events: none;
 }
+.code-block__bar::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e07882;
+  box-shadow: 13px 0 0 var(--gold), 26px 0 0 var(--accent);
+  opacity: .75;
+  margin-right: 26px;
+}
 .code-block__lang {
+  margin-right: auto;
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .08em;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--muted);
 }
 .code-block__copy {
   pointer-events: auto;
@@ -1507,14 +1479,14 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   font-size: 11.5px;
   color: var(--muted);
   cursor: pointer;
-  opacity: 0;
+  opacity: .6;
   transition: opacity .2s, color .2s, border-color .2s;
 }
 .code-block:hover .code-block__copy, .code-block__copy:focus-visible, .code-block__copy.is-copied { opacity: 1; }
 @media (hover: none) { .code-block__copy { opacity: 1; } }
 .code-block__copy:hover { color: var(--ink); border-color: var(--rule-strong); }
 .code-block__copy.is-copied { color: var(--accent); border-color: var(--accent); }
-.code-block:not(.has-lang) .code-block__bar { top: 6px; height: 28px; }
+.code-block:not(.has-lang) pre { padding-top: 44px; }
 
 /* Tables */
 .table-wrap {
@@ -1595,9 +1567,11 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  position: relative;
   padding-top: 28px;
-  border-top: 1px solid var(--ink);
+  border-top: 1px solid var(--rule);
 }
+.post-foot__tags::before { content: ""; position: absolute; top: -1px; left: 0; width: 56px; height: 2px; background: var(--gold); }
 .post-foot__label {
   margin-right: 8px;
   font-family: var(--mono);
@@ -1662,8 +1636,6 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 @media (max-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1fr); }
-  .hero__photos { justify-self: center; max-width: 420px; margin-top: 8px; }
-  @media (max-width: 760px) { .hero__photos { max-width: 300px; } }
   .hero { gap: 28px; }
   .hero__panel { max-width: 620px; }
   .life-grid { grid-template-columns: minmax(0, 1fr); }
@@ -2326,3 +2298,30 @@ html.cursor-text .cursor-dot, html.cursor-text .cursor-ring { opacity: 0; }
   /* The chart is scaled down to half size on phones; double its labels so they stay readable. */
   .about-chart__m, .about-chart__n { font-size: 20px; }
 }
+
+/* Thin scrollbars in the site's colours. */
+html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--rule-strong) 55%, transparent) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--rule-strong) 55%, transparent) padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--rule-strong) padding-box; }
+
+/* Article headings: a "#" link appears on hover, for linking to a section. */
+.prose :is(h2, h3) { position: relative; }
+.heading-anchor {
+  position: absolute;
+  left: -1.1em;
+  top: 0;
+  width: 1em;
+  padding-right: .2em;
+  font-family: var(--mono);
+  font-weight: 400;
+  color: var(--faint);
+  text-align: right;
+  text-decoration: none !important;
+  opacity: 0;
+  transition: opacity .15s, color .15s;
+}
+.prose :is(h2, h3):hover .heading-anchor, .heading-anchor:focus-visible { opacity: 1; }
+.heading-anchor:hover { color: var(--accent); }
+@media (max-width: 760px) { .heading-anchor { display: none; } }
