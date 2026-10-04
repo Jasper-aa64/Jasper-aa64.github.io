@@ -87,36 +87,6 @@
     }
   }
 
-  /* ---------- Photo deck ---------- */
-  var deck = document.querySelector("[data-deck]");
-  if (deck) {
-    var cards = Array.prototype.slice.call(deck.querySelectorAll(".deck__card"));
-    var busy = false;
-    var order = cards.slice();
-    var place = function () { order.forEach(function (c, i) { c.dataset.pos = String(i); }); };
-    var advance = function () {
-      if (busy || order.length < 2) return;
-      var front = order.shift();
-      order.push(front);
-      if (reduce) { place(); return; }
-      busy = true;
-      front.classList.add("is-leaving");
-      order.forEach(function (c, i) { if (c !== front) c.dataset.pos = String(i); });
-      setTimeout(function () {
-        front.classList.add("no-anim");
-        front.classList.remove("is-leaving");
-        place();
-        void front.offsetWidth;
-        front.classList.remove("no-anim");
-        busy = false;
-      }, 480);
-    };
-    deck.addEventListener("click", advance);
-    deck.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); advance(); }
-    });
-  }
-
   /* ---------- Cursor: a dot on the pointer and a ring that trails it (mouse devices only) ---------- */
   if (!reduce && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
     var dot = document.createElement("div"), ring = document.createElement("div");
@@ -363,6 +333,18 @@
     }
     document.querySelectorAll(".toc-mobile a").forEach(function (a) {
       a.addEventListener("click", function () { var d = a.closest("details"); if (d) d.open = false; });
+    });
+  }
+
+  /* ---------- Heading anchors: a "#" link beside each h2 / h3 in an article ---------- */
+  if (article) {
+    article.querySelectorAll(".post-body :is(h2, h3)[id]").forEach(function (h) {
+      var a = document.createElement("a");
+      a.className = "heading-anchor";
+      a.href = "#" + h.id;
+      a.textContent = "#";
+      a.setAttribute("aria-label", h.textContent.trim());
+      h.prepend(a);
     });
   }
 

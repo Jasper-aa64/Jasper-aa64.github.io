@@ -14,7 +14,6 @@
         <time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time>
         <span aria-hidden="true">·</span>
         <span>{{ i18n "minRead" .ReadingTime }}</span>
-        {{ with .Params.categories }}<span aria-hidden="true">·</span><span>{{ delimit . " / " }}</span>{{ end }}
       </div>
     {{ else }}
       {{ if eq .Section "life" }}<p class="eyebrow reveal">{{ i18n "secLife" }}</p>{{ end }}
