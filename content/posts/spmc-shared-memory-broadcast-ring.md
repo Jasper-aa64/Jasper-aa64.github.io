@@ -26,7 +26,9 @@ Every design choice below follows from that constraint, and so does every failur
 
 ---
 
-## 1. Broadcast, Not Hand-off: The Whole Queue
+## 1. The Broadcast Ring: One Producer, Many Readers
+
+### 1.1 The Structure: A Ring of Stamped Slots
 
 The design is a compact open-source ring (MengRao's SPMC_Queue); the whole thing is about fifty lines:
 
@@ -92,7 +94,7 @@ The `alignas(64)` keeps neighbouring slots on different lines, so the producer w
 
 ---
 
-## 2. Write, Then Stamp
+### 1.2 The Producer: Write, Then Stamp
 
 ```cpp
 auto& blk = blks[++write_idx % CNT];
@@ -106,7 +108,7 @@ And the producer **never reads anything a reader writes**. There is no "full": a
 
 ---
 
-## 3. One Subtraction, Three Meanings
+### 1.3 The Reader: One Subtraction, Three Meanings
 
 A `Reader` holds only a pointer to the queue and its own `next_idx` — "the message number I want next". It lives in the reader's own memory, and the reader never writes to the queue. Readers don't contend with each other, and adding or removing one doesn't change a single step of the producer's code path.
 
@@ -126,13 +128,17 @@ Two details carry most of the weight.
 
 The two other entry points follow from the same rule: `getReader()` starts at `write_idx + 1`, so **it never replays history** (a reader created after five messages gets `nullptr`, then message 6); `readLast()` drains until `nullptr` and keeps only the newest — for a consumer that only wants the latest snapshot.
 
+### 1.4 Memory Order: The Stamp Is the Publication
+
 The memory orders are the release/acquire pair from [#2](/posts/memory-ordering-false-sharing-dependency-chains/), moved into the slot: the producer fills the data with ordinary stores and then release-stores the stamp; the reader acquire-loads the stamp and only then reads the data. Once the reader sees the new stamp, it is guaranteed to see the data written before it. Because the signal is per slot, any number of readers decide independently, with no writable state shared among them.
 
 ---
 
-## 4. Overruns Are Silent
+### 1.5 What the Design Does Not Guarantee
 
-The trade is now visible: **the producer waits for nobody, so the readers absorb the consequences.**
+The trade is now visible: **the producer waits for nobody, so the readers absorb the consequences.** There are three: overruns are silent (1.5.1), a re-check can't catch a half-write (1.5.2), and readers still make the producer pay (1.5.3).
+
+#### 1.5.1 Overruns Are Silent
 
 The first consequence is overrun. With `CNT = 8`, a reader that hasn't read anything while the producer wrote 20 messages receives **17, 18, 19, 20**. Messages 1–16 were never delivered — and the queue doesn't say so. `read()` returns only a pointer and overwrites `next_idx`; the caller can't tell from the return value that anything was skipped.
 
@@ -142,7 +148,7 @@ In production `CNT = 524288`, so a reader has to fall half a million messages be
 
 ---
 
-## 5. A Re-Check That Can't See a Half-Write
+#### 1.5.2 A Re-Check That Can't See a Half-Write
 
 `read()` returns `&blk.data`, a pointer into the shared slot, and the reader then reads the fields one by one. If the producer comes around and rewrites that slot meanwhile, the reader sees a mixture of old and new fields: a **torn read**.
 
@@ -172,7 +178,7 @@ These are boundaries found under stress, not a claim that the original ring tear
 
 ---
 
-## 6. Not Blocking Is Not Free
+#### 1.5.3 Not Blocking Is Not Free
 
 "Readers can't slow the producer down" sounds like it follows from "the producer never reads reader state". The first half is true — the producer never *waits*. The second half isn't. Producer writing flat out, readers busy-polling on separate physical cores (Ryzen 5 5600GT, Windows, median of three 1-second runs):
 
@@ -191,7 +197,9 @@ So the honest sentence is: **more readers never make the producer wait, but they
 
 ---
 
-## 7. Into Shared Memory: Same Bytes, Different Addresses
+## 2. Into Shared Memory
+
+### 2.1 `shmmap`: Four Calls
 
 In deployment the producer and the readers are separate processes. The ring goes into POSIX shared memory:
 
@@ -215,6 +223,8 @@ template <class Q> Q* shmmap(const char* name) {
 - **It outlives the processes** until `shm_unlink` or reboot.
 - **One queue, one writer.** `++write_idx` is a plain increment; two writers would trample each other. Each feed gets its own queue.
 
+### 2.2 Same Bytes, Different Addresses
+
 The rule that matters most comes from running it. Two processes mapped the same named region (measured with Windows' equivalent, `CreateFileMapping` + `MapViewOfFile`):
 
 ```
@@ -231,9 +241,11 @@ The same reasoning yields the other contracts both sides must share: one struct 
 
 ---
 
-## 8. Three Deployment Traps
+### 2.3 Three Deployment Traps
 
-**The first lap pays page faults.** Shared memory is allocated on demand: a 4 KiB page gets a physical page the first time it's touched. A slot is 128 bytes, so **every 32 writes step into a fresh page**. Measured on a 64 MiB Windows mapping (Linux tmpfs works the same way; the numbers differ):
+#### 2.3.1 The First Lap Pays Page Faults
+
+Shared memory is allocated on demand: a 4 KiB page gets a physical page the first time it's touched. A slot is 128 bytes, so **every 32 writes step into a fresh page**. Measured on a 64 MiB Windows mapping (Linux tmpfs works the same way; the numbers differ):
 
 | | Lap 1: mean / p99 | Lap 2: mean / p99 |
 |---|---|---|
@@ -242,9 +254,13 @@ The same reasoning yields the other contracts both sides must share: one struct 
 
 That's about 1.5 µs per fault ((56.1 − 9.0) × 32). Touch every page before the open and the first lap looks like the second — the same rule as for memory pools ([#3](/posts/hot-path-memory-allocators/)): never let a first time happen on the hot path.
 
-**A slow reader gets lapped, and the headroom is capacity ÷ rate gap.** If a reader spends longer per message than the producer's interval, it falls behind steadily; once it is `CNT` messages behind, it's lapped and drops data silently. Seconds of headroom = 524,288 ÷ (feed rate − processing rate); a reader that stops entirely has 524,288 ÷ feed rate — at 50,000 messages per second, about 10.5 seconds. Keep slow work out of the `read()` loop (hand it to another queue or thread) and monitor the lag, `write_idx − next_idx`.
+#### 2.3.2 A Slow Reader Gets Lapped: Headroom = Capacity ÷ Rate Gap
 
-**A restarted reader loses everything, unless it saved its cursor.** `getReader()` starts at the next message, so a recorder that crashes at 10:00:00 and comes back at 10:00:03 silently skips three seconds — 150,000 messages at 50,000 per second. `next_idx` is public and private to the reader, so it can be persisted and restored. Measured with `CNT = 8`:
+If a reader spends longer per message than the producer's interval, it falls behind steadily; once it is `CNT` messages behind, it's lapped and drops data silently. Seconds of headroom = 524,288 ÷ (feed rate − processing rate); a reader that stops entirely has 524,288 ÷ feed rate — at 50,000 messages per second, about 10.5 seconds. Keep slow work out of the `read()` loop (hand it to another queue or thread) and monitor the lag, `write_idx − next_idx`.
+
+#### 2.3.3 A Restarted Reader Loses Everything Unless It Saved Its Cursor
+
+`getReader()` starts at the next message, so a recorder that crashes at 10:00:00 and comes back at 10:00:03 silently skips three seconds — 150,000 messages at 50,000 per second. `next_idx` is public and private to the reader, so it can be persisted and restored. Measured with `CNT = 8`:
 
 ```
 reader read 1..5, "crashed" with next_idx = 6; producer wrote 6..10

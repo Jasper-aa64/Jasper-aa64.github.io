@@ -2,8 +2,8 @@
 title: "Trading System Notes #6: Alignment, Layout, and Cache and DRAM Geometry"
 date: 2026-10-04
 slug: "alignment-layout-cache-dram-geometry"
-description: "Why every memory decision on a hot path comes down to which cache lines an access touches and where those lines live: alignment and padding, alignas on types versus variables, over-aligned heap memory and a two-tier allocator, AoS versus SoA, denormalization against dependency chains, then down into the hardware — L1 sets and the critical stride, power-of-two strides measured on an M1, DRAM row buffers, refresh, and channel balance."
-summary: "An access never pays for bytes; it pays for cache lines, and the address decides which lines, which cache set they compete for, and which DRAM channel and bank they live on. Alignment keeps a value inside one line; padding keeps arrays aligned; alignas trades space for isolation and #pragma pack gives it up to match an external format. Layout decides how many lines an access touches — AoS or SoA, denormalized or chased through three lookups. Below that, the address bits pick an L1 set (so data 4 KiB apart competes for 8 slots no matter how empty the cache is), a DRAM row buffer (14 ns hit, 41 ns conflict), and a channel (only coprime strides spread the load). A column walk is slow for five stacked reasons, and the row buffer is only the last."
+description: "Why every hot-path memory decision comes down to which cache lines an access touches and where those lines live. Three parts: alignment (padding, alignas, over-aligned heap memory, a two-tier allocator, pack), layout (AoS/SoA, proxy views, denormalization, field order, inline arrays, function grouping), and hardware geometry (set associativity from scratch, the critical stride measured on an M1, storage classes, inside a DIMM, refresh, channel balance)."
+summary: "An access never pays for bytes; it pays for cache lines, and the address decides which lines, which cache set they compete for, and which DRAM channel and bank they live on. Part 1 is alignment: why a double aligned to 8 never straddles a line, why padding exists for arrays, alignas on a type versus a member, and how to get 64-byte and 2 MiB alignment on the heap. Part 2 is layout: lines per access, AoS versus SoA, and denormalization as a way to cut a dependency chain. Part 3 goes into the hardware: L1 picks a set from address bits 6–11, so data 4 KiB apart competes for 8 slots however empty the cache is (measured on an M1); a DRAM bank has one row buffer, 14 ns on a hit and 41 ns on a conflict; a column walk loses at five layers; refresh adds a P99 tail software can't remove; and channels balance only when the hot stride is coprime with the channel count."
 categories: [Systems]
 tags: [cpp, alignment, cache, memory-layout, false-sharing, dram, numa, hft, low-latency]
 toc: true
@@ -12,38 +12,43 @@ homepage: false
 
 # Trading System Notes #6: Addresses Decide Neighbors — Alignment, Layout, and the Geometry of Caches and DRAM
 
-> **One-line thesis**: memory is never paid for by the byte. Every access pays for whole cache lines, and the address decides which lines it touches, which cache set those lines compete for, and which DRAM channel, bank and row they live in. Alignment and layout control the first; the address bits you never think about control the rest.
+> **One-line thesis**: memory is never paid for by the byte. Every access pays for whole cache lines, and the address decides which lines it touches, which cache set those lines compete for, and which DRAM channel, bank and row they live in. Part 1 (alignment) and Part 2 (layout) control *how many lines*; Part 3 (hardware geometry) is about *where those lines live*.
 
 ## What You're Actually Fighting
 
-The map below is where everything in this series happens. A load first gets its address translated by the TLB, looks in L1D, then L2, then the shared L3, and finally goes through the memory controller to a DIMM. Data always moves as whole 64-byte lines.
+This is the map for the whole series. A load has its address translated by the TLB, then asks L1D, L2 and the shared L3 in turn, and on a miss everywhere goes through the memory controller to a DIMM. Whatever you asked for, what travels is always **a whole 64-byte cache line**.
 
 <a href="/images/memory-geometry/hardware-map.en.svg" target="_blank" rel="noopener"><img src="/images/memory-geometry/hardware-map.en.svg" alt="Hardware map from the pipeline and store buffer through L1, L2, L3, the memory controller and DIMMs, with a latency table and the fields of one address" loading="lazy" decoding="async"></a>
 
-This post works through it from the top. The first half is about what you control directly — where a value starts, how a struct is padded, how records are laid out — measured in the number of lines an access touches. The second half goes inside the boxes: how L1 decides where a line may live, why some strides make an almost empty cache thrash, and what a DRAM access actually does once it leaves the chip.
+So "is this code fast" is largely two questions:
+
+1. **How many lines does one access touch?** A value straddling two lines costs two; a loop that uses a third of each line moves the other two-thirds for nothing. That's decided by **alignment** (Part 1) and **layout** (Part 2) — things you control directly in code.
+2. **Where do those lines live?** A few address bits decide which cache set a line goes into and which channel and bank it lives on in DRAM. If your access pattern keeps those bits equal, most of the hardware sits idle while a small part thrashes. That's Part 3, the layer that's easiest not to see.
 
 ---
 
-## 1. Alignment Keeps a Value Inside One Line
+## 1. Alignment: Keep a Value Inside One Line
 
-A value is **aligned to N** when its address is a multiple of N; `alignof(T)` is the N a type requires. On x86-64 the fundamental types are aligned to their own size: `int` to 4, `double` and pointers to 8.
+### 1.1 What Alignment Is, and Why the CPU Cares
 
-The reason the CPU cares is the cache line. Lines start at multiples of 64, and **64 is a multiple of 8**, so a `double` aligned to 8 can only start at offset 0, 8, … 56 inside a line, and the last one fills it exactly. It can never straddle two lines. A `double` at offset 60 would have four bytes in one line and four in the next.
+A value is **aligned to N** when its address is a multiple of N; `alignof(T)` is the N a type requires. On x86-64 the fundamental types are aligned to their own size: `char` 1, `int` 4, `double` and pointers 8.
 
-Straddling has two consequences of very different weight:
+The CPU cares because of cache lines. Lines start at multiples of 64, and **64 is a multiple of 8** — that's the key sentence. A `double` aligned to 8 starts at a multiple of 8, so inside a line it can only start at offset 0, 8, 16 … 56, and the last one, 56–63, fills the line exactly. It **can never straddle two lines**. `int` works the same way (64 is a multiple of 4). Conversely, a `double` at offset 60 has four bytes in this line and four in the next, and reading it touches two lines.
 
-- **Slower.** The load becomes two cache accesses (a *line split*), plus a second translation if the lines are in different pages. x86 doesn't fault, it quietly slows down — which is why misalignment is hard to notice on x86.
-- **Much worse for atomics.** A `lock`-prefixed read-modify-write is indivisible because the core holds its line exclusively until it finishes ([MESI cache coherence](/posts/low-latency-mesi-cache-coherence/)). Across two lines that's impossible, so the CPU falls back to locking the bus — a **split lock**, far more expensive and harmful to other cores; Linux has been able to detect and report it since 5.7.
+Straddling has a mild consequence and a severe one:
 
-"Aligned to its size never straddles" only holds for sizes that are powers of two up to 64. A 12-byte struct with `alignof` 4 can start at offsets 56 or 60 and straddle — 2 of its 16 possible starting offsets (enumerated). Raise it to `alignas(16)`, which also pads it to 16 bytes, and none of the 4 starting offsets straddles.
+- **Mild: slower.** The load becomes two cache accesses — a **line split** — plus another translation if the two lines are in different 4 KiB pages. x86 doesn't fault, it just quietly slows down, which is why misalignment rarely announces itself on x86.
+- **Severe: atomics.** A `lock`-prefixed read-modify-write is uninterruptible because the core holds its line exclusively until the instruction completes ([MESI cache coherence](/posts/low-latency-mesi-cache-coherence/)). Across two lines that's impossible, so the CPU falls back to locking the memory bus — a **split lock**, far more expensive than a normal atomic and disruptive to other cores; Linux has detected and reported it (`split_lock_detect`) since 5.7.
 
----
+There's also a hard requirement: SIMD "aligned" loads and stores (SSE `movaps` and friends) need 16-byte alignment and fault without it.
 
-## 2. Padding Exists for Arrays
+Be careful generalizing. "Aligned to its own size never straddles" only holds for sizes that are **powers of two up to 64**. A 12-byte struct with `alignof` 4 only needs to start at a multiple of 4, and at offsets 56 or 60 it straddles — enumerate the 16 possible starting offsets in a line and 2 of them cross. Make it `alignas(16)`, which also pads it to 16 bytes, and none of its 4 possible starts crosses. Whether a struct straddles depends on **its size** and **the alignment you give it**, not on the word "aligned".
 
-The compiler lays out a struct with three rules:
+### 1.2 How the Compiler Does It: Padding
 
-1. members go in declaration order, each at the first offset that is a multiple of its own alignment, with **padding** bytes in the gaps;
+The compiler lays out a struct's members with three rules:
+
+1. members go in declaration order, each at "the first offset from here on that's a multiple of its own alignment", with **padding** bytes in the gaps;
 2. the struct's alignment is the largest member alignment;
 3. `sizeof` is rounded up to a multiple of that alignment (**tail padding**).
 
@@ -56,9 +61,11 @@ struct DefaultAlignedStruct {
 static_assert(sizeof(DefaultAlignedStruct) == 16 && alignof(DefaultAlignedStruct) == 8);
 ```
 
-Rule 3 exists because of arrays: element *i* of `T arr[N]` sits at `base + i × sizeof(T)`. If `sizeof` weren't a multiple of `alignof`, element 0 would be aligned and element 1 wouldn't.
+Walk it: `a` at 0; `b` needs a multiple of 4, the next is 4, so bytes 1–3 are padding; `b` occupies 4–7; `c` needs a multiple of 8, and 8 fits, so 8–15; the end, 16, is already a multiple of 8.
 
-Member order changes the size:
+**Rule 3 exists because of arrays.** Element *i* of `T arr[N]` sits at `base + i × sizeof(T)`. If `sizeof` weren't a multiple of `alignof`, element 0 would be aligned and element 1 wouldn't. For example `{double; int;}` ends its data at 12; without padding to 16, `arr[1]`'s `double` would sit at offset 12. So `sizeof` is always a multiple of `alignof`, even if the last member doesn't fill it.
+
+**Member order changes the size:**
 
 ```cpp
 struct Bad  { char a; double b; char c; int d; };   // 0, 8, 16, 20 → sizeof 24 (11 bytes padding)
@@ -66,13 +73,13 @@ struct Good { double b; int d; char a; char c; };   // 0, 8, 12, 13 → sizeof 1
 static_assert(sizeof(Bad) == 24 && sizeof(Good) == 16);
 ```
 
-Ordering members from largest to smallest alignment minimizes padding. In an array the difference is real: a 64-byte line holds 2.7 of the first and exactly 4 of the second, so a scan touches a third fewer lines. Saving bytes is only half the story, though — hot fields belong together too (section 7), and when the two goals collide, touching fewer lines wins.
+`Bad`: `a` at 0; `b` jumps to 8 (7 bytes of padding); `c` at 16; `d` jumps to 20 (3 bytes); end 24. `Good`: `b` 0, `d` 8, `a` 12, `c` 13, end 14, tail-padded to 16. Same four members, 24 bytes versus 16. Rule of thumb: **order members from largest to smallest alignment and padding is minimal.** In an array the difference is real — a line holds 64 ÷ 24 ≈ 2.7 of one and exactly 4 of the other, so a scan touches a third fewer lines.
 
----
+That only saves bytes, though. A hot-path struct also has to ask which members are always used together — that's Part 2, and section 2.4 settles what happens when the two goals collide.
 
-## 3. `alignas` on a Type vs. on a Variable
+### 1.3 `alignas`: Asking for More Alignment
 
-`alignas(N)` asks for more alignment than the default, and *where* you write it matters:
+`alignas(N)` requests stricter alignment than the default. On a **type** and on a **variable** it does different things:
 
 ```cpp
 struct alignas(32) AlignasType { int data[5]; };    // 20 bytes of data
@@ -82,26 +89,35 @@ alignas(64) char buffer[100];                       // this variable starts on a
 static_assert(sizeof(buffer) == 100 && alignof(decltype(buffer)) == 1);
 ```
 
-- **On a type**, every object starts at a multiple of 32, and rule 3 pads `sizeof` up to 32.
-- **On a variable**, only that variable's address changes; its type, and its `sizeof`, stay the same.
+- **On a type**: 20 bytes of data, but the type's alignment becomes 32 and rule 3 pads `sizeof` to 32. Every object of this type starts at a multiple of 32 and occupies 32 bytes.
+- **On a variable**: only this variable's **address** becomes a multiple of 64; `sizeof` stays 100 and the type `char[100]` keeps its own alignment.
 
-The common choice is 64: the object starts on a line, and if its size is a whole number of lines it **owns** those lines, so a neighbour's writes never contend with it — the fix for false sharing ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)) and the hardware form of MESI's one-writer rule. On a type, `alignas(64)` makes the size a multiple of 64 automatically (`struct alignas(64) { char x[100]; }` is 128). On a member, it only moves the start:
+64 is the usual choice: the object starts at the beginning of a line, and if its `sizeof` is also a multiple of 64 (64, 128, 192 … a whole number of lines) it **owns** those lines and no neighbour's writes contend with it. That's how false sharing is fixed ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)), and it's MESI's one-writer rule applied to memory layout.
+
+**What "`sizeof` a multiple of 64" means.** Yes, the object may be bigger than a line. The point isn't size; it's that **both ends** fall on line boundaries: the start via `alignas(64)`, the end via `sizeof` being a multiple of 64. Otherwise the last line is only partly used, the rest may be taken by whatever follows, and writes on both sides fight over that line.
+
+On a type the compiler does it for you: `struct alignas(64) { char x[100]; }` is 128, two whole lines. What you have to watch is `alignas(64)` on a **member**, which only moves the start and leaves `sizeof` alone:
 
 ```cpp
-struct Two   { alignas(64) char a[100]; char b; };              // b at offset 100, sharing a's last line
+struct Two   { alignas(64) char a[100]; char b; };              // b at offset 100, sharing a's tail line
 struct Three { alignas(64) char a[100]; alignas(64) char b; };  // b at offset 128, a line of its own
 static_assert(offsetof(Two, b) == 100 && offsetof(Three, b) == 128);
 ```
 
-`std::hardware_destructive_interference_size` (C++17, `<new>`) is the portable spelling of "line size" where the library provides it. The price is explicit: `alignas(64)` turns a 4-byte counter into 64 bytes. You're buying isolation with space.
+```text
+Two:     alignas(64) char a[100]; char b;        Big:  struct alignas(64) { char x[100]; }
+line 0   a[0..63]                                line 0   x[0..63]
+line 1   a[64..99] | b@100 | free                line 1   x[64..99] | 28 bytes padding   ← all of it is Big's
+         ↑ a's tail and b share this line        line 2   the next object starts here
+```
 
----
+For a portable "line size", C++17 offers `std::hardware_destructive_interference_size` in `<new>` where the library provides it. And name the price: `alignas(64)` turns a 4-byte counter into 64 bytes. **You're buying isolation with space.**
 
-## 4. Over-Aligned Heap Memory
+### 1.4 Heap Alignment: `malloc` and Plain `new` Don't Care About 64
 
-`malloc` and plain `new` only guarantee the alignment of the largest fundamental type — 16 on x86-64. Anything more needs a different interface.
+On the stack and for globals, write `alignas` and the compiler handles it. The heap is different: `malloc` and plain `new` only guarantee alignment for any fundamental type — 16 on x86-64 (`alignof(std::max_align_t)`). For 64 or more you need another interface.
 
-**`std::aligned_alloc(alignment, size)`** requires `size` to be a multiple of `alignment`; otherwise it fails and returns null. Round up first: 300 bytes at 64-byte alignment means asking for 320.
+**`std::aligned_alloc(alignment, size)`.** `size` must be a multiple of `alignment`, so round the request up first: 200 becomes 256 at 64-byte alignment, 300 becomes 320. Skip the rounding and the allocation fails with a null pointer, so check the result.
 
 ```cpp
 #include <cstdlib>
@@ -113,17 +129,23 @@ void* make_buffer() {
 }
 ```
 
-**Over-aligned `new`** (C++17) kicks in automatically when a *type* is over-aligned, and `delete` picks the matching function. The trap is passing the alignment only at the call site:
+(Windows/MinGW has no `std::aligned_alloc`; the equivalent is `_aligned_malloc`, which must be paired with `_aligned_free`.)
+
+**Over-aligned `new` (C++17).** When a type's own alignment exceeds the default (16), `new T` automatically calls `operator new(size_t, std::align_val_t)`, and `delete p` the matching deallocation — `new` on a `struct alignas(64) X` with plain `delete` is fine.
+
+**The trap: alignment only at the `new` call, and `delete` doesn't follow.**
 
 ```cpp
 struct Plain { float v[4]; };                              // the type itself only needs 4
-auto* p = new (std::align_val_t{128}) Plain();             // aligned allocation...
-delete p;                                                  // ...ordinary deallocation: mismatched, UB
+auto* p = new (std::align_val_t{128}) Plain();             // allocation: the aligned version
+delete p;                                                  // deallocation: the plain version — mismatched, UB
 ```
 
-`delete` looks at the type, sees nothing special and calls the plain `operator delete`. Allocation and deallocation don't match; on MinGW this crashed with heap corruption (`0xC0000374`). Either put the alignment on the type, or pair both sides by hand: `p->~Plain(); ::operator delete(p, std::align_val_t{128});`.
+The `new` explicitly passes 128 and uses the aligned allocation; `delete p` looks at the **type's** alignment (not over-aligned) and calls the plain `operator delete`. Allocation and deallocation aren't a pair. Measured on Windows (g++, MinGW-w64), this crashes with exit code `0xC0000374` (heap corruption) — most likely the aligned allocation goes through `_aligned_malloc` and the plain `delete` through `free`. The rule: **to exceed a type's own alignment, either put the alignment on the type so `new`/`delete` pair themselves, or use the `align_val_t` versions on both sides**: `p->~Plain(); ::operator delete(p, std::align_val_t{128});`.
 
-**A two-tier allocator.** A production STL allocator built on these does:
+### 1.5 A Two-Tier Aligned Allocator
+
+A production STL allocator wraps all of this; its core is this allocation logic:
 
 ```cpp
 #include <cstdlib>
@@ -152,16 +174,23 @@ void* allocate_bytes(size_t num_bytes) {
 }
 ```
 
-- Small requests start on a line and occupy whole lines, so two allocations never share one.
-- Large ones are aligned to **2 MiB, the x86-64 huge page size**: transparent huge pages can only back a 2 MiB-aligned, 2 MiB-long range with one huge page.
-- **`madvise` comes before `memset`** because pages are allocated on first touch, and that is when the kernel checks for the "huge page wanted" hint. Zero first and you get 4 KiB pages, left for the background `khugepaged` to merge later — an unpredictable stall. The `memset` also pays every first-touch page fault up front (about 1.5 µs per page measured in [#5](/posts/spmc-shared-memory-broadcast-ring/)) instead of on the hot path.
-- The rounding mask `(n + a - 1) & ~(a - 1)` only works because `a` is a power of two; with `a = 48` it disagrees with division for 66,672 of the values 0..100,000.
+Two tiers by request size:
 
-Two costs to name. Anything over 16 KiB is rounded to 2 MiB, so a 20 KiB container occupies and zeroes 2 MiB — fine for a few big arrays, wasteful for many medium ones. And THP plus `madvise` depends on the system setting; HFT deployments more often reserve explicit huge pages (`MAP_HUGETLB`) and disable THP, because explicit is more predictable.
+- **≤ 16 KiB**: 64-byte aligned, size rounded to a multiple of 64, zeroed. Every allocation starts on a line and occupies whole lines, so two allocations never share one.
+- **> 16 KiB**: **2 MiB aligned**, size rounded to a multiple of 2 MiB, `madvise(MADV_HUGEPAGE)` on Linux, then zeroed.
 
----
+**Why the rounding mask works.** `(n + a - 1) & ~(a - 1)`: when `a` is a power of two, `a - 1` has all low bits set and `~(a - 1)` clears them, i.e. rounds *down* to a multiple of `a`; adding `a - 1` first turns that into rounding up. **Only for powers of two**: compared against the division version for every n from 0 to 100,000, `a = 48` disagrees on 66,672 values (the first is n = 1: 48 by division, 16 by mask) while `a = 64` disagrees on none. It's the same reason ring buffers use power-of-two capacities and `& mask` instead of `%` ([#4](/posts/lock-free-queue-logger-micro-batching/)).
 
-## 5. `#pragma pack` Describes the Outside World
+**Why big blocks are aligned to 2 MiB.** 2 MiB is the x86-64 huge page size, and transparent huge pages (THP) can only back a range that is 2 MiB-aligned and 2 MiB long with one huge page. Misalign the start and the head and tail fall back to 4 KiB pages, eating into the TLB benefit; align the whole block and all of it qualifies.
+
+**Why `madvise` must come before `memset`.** Pages are allocated on **first touch**, and that's when the kernel checks for the "huge page wanted" hint to decide between a huge page and a 4 KiB page. Zero first and advise afterwards and the pages are already small; small pages can't be promoted in place, so the background `khugepaged` thread has to copy and merge them later — which the application sees as an unpredictable stall. Zeroing has a useful side effect too: every page's first-touch fault (about 1.5 µs per page, measured in [#5](/posts/spmc-shared-memory-broadcast-ring/)) is paid at allocation time instead of the first time the hot path touches it.
+
+Two costs of this design:
+
+1. **Space amplification in the big tier.** A 20 KiB request lands in the big tier, rounds to 2 MiB and zeroes 2 MiB — a 20 KiB container physically occupies 2 MiB. Good for a few large arrays, bad for many medium containers.
+2. **THP + `madvise` depends on a system setting.** HFT deployments more often reserve explicit huge pages (`mmap(MAP_HUGETLB)`) and disable THP; with THP set to `never`, `madvise` does nothing. If asked how an allocator gets huge pages: explicit huge pages are more predictable; THP + `madvise` is convenient but configuration-dependent.
+
+### 1.6 `#pragma pack`: Giving Alignment Up
 
 ```cpp
 #pragma pack(push, 1)
@@ -170,13 +199,17 @@ struct PackedStruct { char a; int b; double c; };   // offsets 0, 1, 5; sizeof 1
 static_assert(sizeof(PackedStruct) == 13);
 ```
 
-Packing undoes section 1: `b` and `c` sit at unaligned addresses, an array's elements drift across line boundaries, a pointer to `c` is an unaligned `double*` that's undefined behaviour to dereference, and atomics on such a field can split-lock. The compiler doesn't warn when you take those addresses. Use it to match an external byte layout — a wire protocol, a file format — not to save memory, and copy fields into aligned locals with `memcpy` before working with them (a fixed-size `memcpy` compiles to a plain load).
+`#pragma pack(push, 1)` tells the compiler "no padding between members, alignment 1". It reverses section 1.1: `b` and `c` no longer sit at aligned addresses, may straddle lines depending on where the struct lands, and in an array of 13-byte elements the starting offsets drift so some elements always straddle. Taking `&p.c` gives an unaligned `double*`; dereferencing it is undefined behaviour — x86 tolerates it, other architectures may not. **The compiler doesn't warn**: converting `&p.b` to `int*` and `&p.c` to `double*` is silent under `-Wall -Wextra -Wpedantic`. Atomics on such members can split-lock.
+
+So what's it for? Making a struct's **byte layout match an external format** exactly — wire protocols, file formats. It describes the outside world; it isn't a memory optimization. When reading such data, `memcpy` fields into aligned locals first; a fixed-size `memcpy` compiles to a single load.
 
 ---
 
-## 6. Count Lines, Not Bytes: AoS vs. SoA
+## 2. Layout: How Many Lines Does One Access Touch?
 
-Every layout question below is the same question: **how many cache lines does this access touch?**
+Every layout optimization asks the same thing: **how many cache lines does this access touch?** The tighter the data you need is packed into the lines you touch, the fewer lines you touch.
+
+### 2.1 AoS or SoA: Which Members Does the Loop Read?
 
 ```cpp
 struct Point1 { float x, y, z; };
@@ -186,11 +219,22 @@ struct Point2 { float x[1000], y[1000], z[1000]; };
 Point2 points2;                                        // structure of arrays (SoA)
 ```
 
-Summing only the x coordinates: AoS drags y and z along in every line — 12,000 bytes, **188 lines**. SoA reads a contiguous 4,000-byte array — **63 lines**. The factor of three is "useful bytes are a third of each line". Reverse the access (x, y and z of the same point together) and AoS wins: one line versus three arrays 4,000 bytes apart. **Use all fields of an element together → AoS; scan a few fields across all elements → SoA.**
+**AoS** (array of structures) stores complete structs, so one point's x, y and z are adjacent. **SoA** (structure of arrays) stores each member as its own array, so all the x values are adjacent.
 
-Two caveats. A 12-byte element isn't a power of two, so in AoS 2 of every 16 elements straddle a line (section 1); the SoA `float` arrays never do. And this example is 12 KB — it fits in L1, so after the first pass the line count stops mattering. The gap shows up when the working set is far larger than the cache, or with vectorization, where SoA's contiguous floats fill a SIMD register in one load.
+Summing only x, the two layouts drag different data into cache. In AoS each element is 12 bytes, of which x is 4; y and z (8 bytes) come along with every line and go unused: 1000 points are 12,000 bytes, **188 lines**. SoA's x array is 4,000 bytes, **63 lines**. The factor of three is "useful bytes are one third".
 
-You can keep AoS-style code over SoA storage with a **proxy view**: `operator[]` returns a small object holding a pointer to the storage and an index, whose accessors forward to the arrays.
+Reverse it — use x, y and z of the same point together (say x² + y² + z²) — and AoS has the whole element in one line (two at most), while SoA's x, y and z are in three arrays 4,000 bytes apart, three lines. The rule is that symmetry: **all members of an element together → AoS; a scan over some members → SoA.**
+
+Two caveats:
+
+- **12 bytes isn't a power of two**, so AoS falls into section 1.1's trap: `Point1` has `alignof` 4, and with a 64-aligned array 2 of every 16 elements straddle a line. SoA's `float` arrays hold 16 per line and never straddle.
+- **This example is only 12 KB and fits in L1D** (typically 32 KiB). The first pass pulls in 188 or 63 lines; after that everything is in L1 and the line count doesn't become time. The gap shows when **the working set is much larger than the cache** (every pass refetches lines from L2/L3/DRAM and bandwidth is the bottleneck) or with **vectorization**: SoA's contiguous x values fill an AVX register with 8 floats per load, while AoS has to pick them out from between y and z.
+
+SoA's costs: `points[i].x` becomes `x[i]`; adding or removing elements touches N arrays whose lengths must stay in sync; fetching one complete element touches several lines.
+
+### 2.2 AoS View over SoA Storage: Proxy Objects
+
+To get SoA's memory layout without SoA's `x[i]` everywhere, put an interface that looks like AoS on top:
 
 ```cpp
 #include <cstddef>
@@ -225,13 +269,14 @@ void step(ParticleSoA& p) {
 }
 ```
 
-Callers get readable AoS syntax; the performance-critical loop goes straight to the contiguous arrays, which is where SoA's cache and SIMD benefits actually come from.
+The points:
 
----
+- The **proxy** returned by `operator[]` has two fields, a storage pointer and an index (16 bytes), and is cheap to pass by value. `p[0].x()` returns a **reference** into the underlying array, so writes through the proxy change the real data — by design, not a bug.
+- Callers read like AoS while memory is SoA. Performance-critical loops use the second form and get the contiguous `float` arrays, which is where SoA's cache and SIMD benefits actually come from; the proxy adds an index computation per access, and whether the compiler removes it depends on inlining.
 
-## 7. Denormalize to Break a Dependency Chain
+### 2.3 Denormalization: Redundancy for Fewer Lookups
 
-The normalized way to check an order's risk limit:
+**Normalization** stores each fact once and joins by id, like a database. Checking an order against its risk limit:
 
 ```cpp
 #include <cstdint>
@@ -246,16 +291,19 @@ std::unordered_map<uint32_t, Client>      clients;
 std::unordered_map<uint64_t, Order>       orders;
 
 bool check_risk_normalized(uint64_t order_id) {
-    const auto& order  = orders.at(order_id);                      // miss #1
-    const auto& client = clients.at(order.client_id);              // miss #2: needs #1's result
-    const auto& risk   = risk_profiles.at(client.risk_profile_id); // miss #3: needs #2's result
+    const auto& order  = orders.at(order_id);                      // possible miss #1
+    const auto& client = clients.at(order.client_id);              // possible miss #2: needs #1's result
+    const auto& risk   = risk_profiles.at(client.risk_profile_id); // possible miss #3: needs #2's result
     return order.quantity <= risk.max_order_size;
 }
 ```
 
-It's worse than "three misses". Each lookup's key comes from the previous lookup's data, so out-of-order execution can't overlap them: **the latencies add**. That's *pointer chasing*. And each `unordered_map::at` is itself a bucket read followed by a node read.
+This costs more than "three misses", for two reasons:
 
-Denormalizing copies what the check needs into the order:
+- **The three lookups depend on each other.** The second key is only known once the first has read `order.client_id`, the third once the second has finished. Out-of-order execution only overlaps **independent** accesses; here every address depends on the previous load's data, so it waits, then does a step, then waits. The three latencies **add up** instead of overlapping. Reading an address and then reading what it points to is called **pointer chasing**.
+- **Each `unordered_map::at` is more than one access.** libstdc++'s `unordered_map` is a bucket array plus a separately allocated node per element: read the bucket for the node pointer, then the node. "One miss per lookup" is an underestimate.
+
+**Denormalization** copies the fields you'll need into the order:
 
 ```cpp
 struct EnrichedOrder {
@@ -269,16 +317,21 @@ struct EnrichedOrder {
 std::unordered_map<uint64_t, EnrichedOrder> enriched_orders;
 
 bool check_risk_denormalized(uint64_t order_id) {
-    const auto& o = enriched_orders.at(order_id);   // one lookup
+    const auto& o = enriched_orders.at(order_id);   // the only lookup
     return o.quantity <= o.max_order_size;
 }
 ```
 
-The bill arrives on writes. When a risk parameter changes, either every copy is updated at once — write amplification, and a consistency problem halfway through — or existing orders keep the value they were created with (snapshot semantics). So the deciding question isn't "how often does the parameter change" but **"must the copies be updated immediately?"** If yes and orders are many, denormalization moves the cost from reads to writes. If snapshot semantics are acceptable, it's usually worth it.
+One lookup, then only lines that just arrived. The price is that **the copies must be kept in sync**. When a risk parameter changes there are two paths:
 
----
+- **Update every copy now**: one change rewrites many orders (write amplification), with a consistency problem halfway through.
+- **Tolerate stale copies**: existing orders keep the parameter they were created with (snapshot semantics) and only new orders get the new value. No write amplification; old orders may carry old limits.
 
-## 8. `alignas(64)` Is Isolation, `alignas(32)` Is Packing
+So the test isn't "how often does the parameter change" by itself but **whether the copies must be updated immediately**, and how many there are. Immediate sync with millions of orders per second moves the cost from reads to writes and doesn't fit; if the business accepts snapshot semantics, it usually pays off.
+
+### 2.4 Field Order and `alignas(64)`
+
+An order struct sorted from hottest field to coldest:
 
 ```cpp
 struct alignas(64) OptimalOrder {
@@ -287,60 +340,114 @@ struct alignas(64) OptimalOrder {
     uint32_t orderId;
     uint64_t timestamp;    // less hot
     char symbol[8];        // coldest
-};                         // 32 bytes of fields; sizeof is 64 because of alignas(64)
+};                         // 32 bytes of fields; sizeof is 64 because of alignas(64) on the type
 static_assert(sizeof(OptimalOrder) == 64);
 ```
 
-Thirty-two bytes of data, but `alignas(64)` on the type pads `sizeof` to 64. Pick by what you want:
+The fields total 32 bytes, but **`alignas(64)` on the type pads `sizeof` to 64** (section 1.3): the data ends at offset 32 and the next 32 bytes are tail padding. Choose by the effect you want:
 
-- **Two per line, neither straddling: `alignas(32)`.** Without any `alignas`, `alignof` is only 8 and the result depends on the array's base address — at a 16-byte offset (all `malloc` promises), every other element straddles. Good for single-threaded scans and read-only sharing.
-- **One per line: `alignas(64)`.** Right when different threads *write* different orders; false sharing needs a write, so read-only sharing is harmless. The cost is half of every line being padding.
+- **Two per line, neither straddling: `alignas(32)`** (`sizeof` 32). Without any `alignas`, `alignof` is only 8 and straddling depends on the array's **base address**: at a multiple of 64 nothing straddles, at offset 16 (all `malloc` guarantees) every other element does. "32 bytes is exactly half a line" requires a 32-aligned base, which `alignas(32)` or the allocator must provide. Right for a single thread scanning or many threads only reading: two objects sharing a line is harmless and halves the lines.
+- **One per line: `alignas(64)`.** Right when different threads write different orders (breaking false sharing). False sharing needs a **write**; many threads reading one line is fine. The price is half of every line being padding, so a sequential scan pulls twice the lines.
 
-"Order fields by access frequency" only matters for structs **larger than a line**: the whole line moves at once, so ordering inside a 32-byte struct changes nothing. In a bigger struct, put the hot fields in the first line; if there are many cold fields, split them into a separate struct entirely (hot/cold splitting).
+Now "order fields by access frequency". **If the struct fits in one line, field order inside it doesn't matter** — the whole line moves as a unit (lines, not words, are the transfer unit), so ordering a 32-byte struct changes nothing. Ordering matters for structs **larger than 64 bytes**: put the hottest fields in the **first line** and the cold ones after, so the hot path touches one line and the cold ones never come in.
 
-The same arithmetic applies to strings. A record with an inline `char Name[32]` is 36 bytes — 8 of every 16 straddle a line, and a scan of the index drags the name along. A `const char*` version is 16 bytes and scans compactly, but reading the name is one dependent load somewhere else. And code is data too: functions that call each other should sit together in the instruction cache, which compilers and linkers handle via hot/cold sections, PGO and BOLT once the hot path outgrows L1I.
+That collides with section 1.2's "order by alignment to minimize padding": one saves bytes, the other groups hot fields. Priority: **first make the hot path touch one line, then sort by size within that constraint**; on the hot path, one fewer line beats eight fewer bytes. With many cold fields, go further and do **hot/cold splitting**: move cold fields into a separate struct and keep only hot ones in the hot struct.
+
+### 2.5 Inline Character Arrays vs. Pointers
+
+```cpp
+struct First  { int nIndex; char Name[32]; };          // sizeof 36, alignof 4
+struct Second { int nIndex; const char* Name; };       // sizeof 16, alignof 8
+static_assert(sizeof(First) == 36 && sizeof(Second) == 16);
+```
+
+In cache lines:
+
+- **Scanning only `nIndex`**: `Second` fits 4 per line. `First` is 36 bytes, which doesn't divide 64, so 8 of every 16 elements straddle a line — and 32 bytes per element you never read come along. `Second` is far more compact.
+- **Reading the name**: `First` has it inline, no extra hop; `Second` follows a pointer elsewhere, one dependent load. If the strings are literals they sit together in read-only data and hit often; if each one is separately `new`ed and scattered across the heap, it's a miss.
+- `const char*` doesn't own the string; someone else manages its lifetime, so it only suits constant data. (`std::string`'s small-string optimization keeps short strings inside the object — the same idea as `First`.)
+
+### 2.6 Function Grouping: Code Goes Through Caches Too
+
+**Code lives in memory and goes through caches too** — the instruction cache (L1I, typically 32 KiB) and the instruction TLB. Functions that call each other should sit close together, so the hot path's code occupies fewer pages and lines. Today compilers and linkers do this: GCC's `-freorder-functions` with `__attribute__((hot))` / `((cold))` places hot functions in `.text.hot` and cold ones in `.text.unlikely`; PGO (reordering by a real run's profile) and post-link optimizers like BOLT do the same. It pays off once **the hot path's code exceeds L1I**; a few kilobytes of hot code is already in the instruction cache.
 
 ---
 
-## 9. Inside L1D: 64 Sets × 8 Ways
+## 3. Hardware Geometry: Where the Lines Live
 
-Now the boxes themselves. L1D doesn't let any line go anywhere.
+Parts 1 and 2 asked how many lines an access touches. Part 3 goes one level down: **where those lines sit in the cache and where they live on the DIMMs.** Some address bits decide which cache set a line goes into and which channel and bank it lives on; if your access pattern keeps those bits equal, most of the hardware is idle and a small part thrashes. Numbers use a typical x86 core (Zen 3: L1D 32 KiB 8-way, L2 512 KiB 8-way) and DDR4.
+
+### 3.1 Set Associativity: Address Bits Decide Where a Line May Go
+
+#### 3.1.1 Where It Happens and What Problem It Solves
+
+On the hardware map this is the **inside** of the "L1D 32 KiB · 8-way" box; L2 and L3 have the same structure, only bigger. It happens at the first step of a load: the CPU takes an address to L1D and asks "do you have this line?" — set associativity is **how L1D answers that question**.
 
 <a href="/images/memory-geometry/l1d-sets.en.svg" target="_blank" rel="noopener"><img src="/images/memory-geometry/l1d-sets.en.svg" alt="L1D as a cabinet of 64 rows by 8 slots: an address splits into tag, set index and offset; the set index picks one row, and 8 tags are compared in parallel" loading="lazy" decoding="async"></a>
 
-A 32 KiB L1D with 64-byte lines holds 512 lines. Letting a line go anywhere (fully associative) would mean comparing 512 tags on every access — impossible in a nanosecond. Giving each line exactly one slot (direct-mapped) means two hot lines that map to the same slot evict each other forever. The compromise is **set-associative**: 512 slots arranged as **64 sets × 8 ways**. An address splits into three fields:
+**Prerequisite 1: the cache is a cabinet; each slot holds one whole line.** 32 KiB of L1D in 64-byte lines is 512 lines. Besides 64 bytes of data, each slot records a **tag** saying which line it holds — otherwise you couldn't tell what you'd found.
 
-- **offset**, bits 0–5: which byte in the 64-byte line;
-- **set index**, bits 6–11: which of the 64 sets — computed, not searched;
-- **tag**, bit 12 and up: compared against all 8 ways of that set at once.
+**Prerequisite 2: how an address splits.** An address is just a number. Take 10000: offset in line = 10000 mod 64 = 16 (the byte we want is the 16th of its line); line number = 10000 ÷ 64 = 156 (it belongs to line 156 of memory). 64 is 2⁶, so "÷ 64" drops the lowest 6 binary digits and "mod 64" keeps only them. 10000 is `10 011100 010000` in binary; the lowest 6 bits, `010000`, are 16 — the offset.
 
-Take address 10000 = `10 011100 010000` in binary: offset 16, set 28, tag 2. Add 4096: `11 011100 010000` — **same set 28**, tag 3. So addresses that differ by a multiple of 4096 always compete for the same 8 slots, and the 9th one evicts somebody **even if the other 63 sets are empty**. That distance is the **critical stride**: cache size ÷ ways = 32 KiB ÷ 8 = 4 KiB. A miss caused this way is a *conflict miss*, distinct from a capacity miss. The same arithmetic gives L2 (512 KiB, 8-way) 1024 sets and a 64 KiB critical stride; L3s usually hash the high bits to pick a set and slice, so their pattern is less clean.
+**The problem: given a line number, which slot do you look in?** Three options:
 
-Why exactly 4 KiB? L1 starts selecting the set *while* the TLB is still translating the address (virtually indexed, physically tagged — VIPT). That only works if the set-index bits are the same before and after translation, i.e. inside the page offset. A 4 KiB page has 12 offset bits: 6 for the byte, 6 for the set. So sets × line size is capped at 4 KiB, and the only way to grow L1 is more ways: 32 KiB = 4 KiB × 8. Apple's M1 uses 16 KiB pages and a 128 KiB L1D — 16 KiB × 8, the same constraint.
+- Any line in any of 512 slots: every read compares 512 tags — not doable in a nanosecond.
+- Each line number in exactly one fixed slot: two hot lines that happen to map to the same slot evict each other forever.
+- The compromise, **set-associative**: arrange the 512 slots as **64 sets × 8 ways**. The line number picks the set (set = line number mod 64), and the line may go into any of that set's 8 ways. A lookup compares only those 8 tags, with 8 comparators at once.
 
----
+These are the three "main memory to cache mappings" from a computer organization textbook, in different words:
 
-## 10. Power-of-Two Strides Crowd One Set
+| Textbook name | Cabinet layout | Problem |
+|---|---|---|
+| Direct-mapped | 512 sets × 1 way | two hot lines in one slot evict each other |
+| Fully associative | 1 set × 512 ways | 512 tag compares per access, too slow |
+| Set-associative | 64 sets × 8 ways | the compromise; the other two are its extreme cases |
 
-The pattern to recognise: **data used together whose addresses differ by multiples of the critical stride all lands in one set.** It shows up in two common forms.
+The textbook's "block" is the cache line, "set = block number mod number of sets" is "set = line number mod 64", "tag" is the tag, and "thrashing" is the conflict miss below. Textbooks draw one cache; real machines give every level its own mapping, all splitting the same address. Full associativity isn't only theory either: small tables like the L1 TLB are often fully associative, because with few entries comparing all tags at once is feasible.
 
-### 10.1 Walking a Matrix by Column
+#### 3.1.2 A Lookup in Three Steps
+
+Continue with 10000: set = 156 mod 64 = **28**, the next 6 bits `011100`; the remaining high bits `10` = 2 are the tag. An address splits into three fields: **tag (bit 12 and up) | set index (bits 6–11) | offset (bits 0–5)**.
+
+1. Go straight to set 28 (computed, not searched);
+2. compare that set's 8 tags with 2, all at once;
+3. a match is a hit — read from byte 16 of that line; no match is a miss — fetch the whole line from L2 into one of set 28's slots, and if all 8 are full, evict the least recently used one.
+
+#### 3.1.3 Where the Critical Stride Comes From
+
+Take 10000 + 4096 = 14096, binary `11 011100 010000`: the set is still `011100` = 28; only the tag changed, to 3. Adding 4096 only changes bit 12 and up, so **addresses that differ by a multiple of 4096 land in the same set**. A set has 8 slots; the 9th such address evicts one **even if the other 63 sets are empty**. That's a **conflict miss**, a different thing from "the cache is full" (a capacity miss).
+
+The distance is the **critical stride** = cache size ÷ ways = 32 KiB ÷ 8 = 4 KiB. Likewise L2 (512 KiB, 8-way): 8192 lines ÷ 8 = 1024 sets, critical stride 64 KiB. Many L3s hash the high bits before choosing set and slice, so the pattern there is less clean.
+
+#### 3.1.4 Why L1's Critical Stride Equals the Page Size
+
+To be fast, L1 starts selecting the set from the virtual address **while** the TLB is still translating it (VIPT: virtually indexed, physically tagged). That requires the set-index bits to be the same before and after translation, i.e. to sit inside the page offset. A 4 KiB page's offset is bits 0–11 — exactly 6 bits of line offset plus 6 bits of set index. So L1's sets × line size is capped at 4 KiB, and the only way to make it bigger is more ways: 32 KiB = 4 KiB × 8 ways. Apple's M1 uses 16 KiB pages and a 128 KiB L1D on its big cores = 16 KiB × 8 ways — the same constraint.
+
+### 3.2 How Power-of-Two Strides Crowd the Cache
+
+The core sentence: **when data used together sits at addresses that differ by multiples of the critical stride, all of it crowds into one set.** It has two common forms — inside one array (3.2.1) and across several arrays (3.2.2) — plus a similarly named but different mechanism, bank conflicts (3.2.3).
+
+#### 3.2.1 Example 1: Walking a Matrix by Column
 
 ```cpp
 int m[64][1024];             // each row is exactly 4096 bytes
 long long sum = 0;
 for (int j = 0; j < 1024; ++j)
     for (int i = 0; i < 64; ++i)
-        sum += m[i][j];      // each step: +4096 bytes
+        sum += m[i][j];      // column walk: each step +4096 bytes
 ```
 
-Column 0 brings in 64 lines — only 4 KiB, while L1 has 32 KiB — and each line also holds columns 1–15, so the next fifteen columns should all hit. But all 64 lines are in **one set** with 8 ways, so only the last 8 survive and almost every access misses.
+**Why it's slow.** Walking a column, each step adds 4096 to the address, so all 64 elements **land in the same set**. Ideally column 0 pulls in 64 lines and columns 1–15 are in those same 64 lines (16 ints per line), so they should all hit — 64 lines are only 4 KiB and L1 has 32 KiB. But they all crowd into one 8-way set, only the last 8 survive, and the next column misses almost every time.
 
-Fixes: **pad by a whole line** — `int m[64][1040]` (4160 bytes per row) shifts each row one set further, and 64 rows fill 64 sets exactly; padding by a single `int` (`[64][1025]`) shifts each row only 4 bytes, so 16 consecutive rows still share a set, 16 per set exceeds 8 ways, and rows no longer start on a line. Or **tile**: process an 8 × 16 block at a time and use each line's 16 ints before it's evicted. Or simply walk by row.
+**Fixes:**
 
-Measured on an Apple M1 MacBook Air (Apple clang 21, `-O2`, best of 7, high QoS, not pinned). The M1's numbers differ from x86 — 128 KiB L1D, 128-byte lines, and a **critical stride of 16 KiB** (8 ways assumed from the published spec) — so the test sweeps the row stride, padding by one 128-byte line as the control:
+- **Pad by a whole cache line.** `int m[64][1040]` (1040 × 4 = 4160 = 4096 + 64). Row *i* starts 64 × *i* bytes past "4096 × *i*", so each row moves one set further and 64 rows fill 64 sets, one each. Padding by one `int` (`[64][1025]`, 4100 bytes per row) also spreads them, but each row moves only 4 bytes: 16 consecutive rows still share a set, 64 rows crowd into 4 sets of 16 — still more than 8 ways — and rows no longer start on a line.
+- **Tile.** Process a small block at a time (say 8 rows × 16 columns) and use all 16 ints of each line before it's evicted. Standard for matrix multiply and transpose.
+- **Change the traversal order.** Walk by row whenever you can.
 
-| Row stride | Column walk ns/access | Same + 128 B padding | Row walk |
+**Measured on an M1.** First the prediction from the M1's parameters: big-core L1D 128 KiB, 16 KiB pages, 128-byte lines (read with `sysctl`); assuming 8 ways (published spec), **critical stride = 128 KiB ÷ 8 = 16 KiB**, not x86's 4 KiB. So the slowest point should be a 16 KiB row stride, with no further slowdown beyond it. The test walks 64 rows and the first 1024 columns, same number of accesses for every stride, changing only the distance between adjacent rows; the control pads each row by 128 bytes. (Apple M1 MacBook Air, Apple clang 21, `-O2`, QoS user-interactive, not pinned; best of 7 per cell, two runs within ±0.05 ns.)
+
+| Row stride (distance between rows) | Column walk ns/access | Same + 128 B padding | Row walk ns/access |
 |---|---|---|---|
 | 1 KiB | 0.25 | 0.18 | 0.05 |
 | 2 KiB | 0.27 | 0.18 | 0.05 |
@@ -349,11 +456,20 @@ Measured on an Apple M1 MacBook Air (Apple clang 21, `-O2`, best of 7, high QoS,
 | **16 KiB** (M1 critical stride) | **0.81** | 0.20 | 0.06 |
 | 32 KiB | 0.78 | 0.20 | 0.06 |
 
-The padded column is flat: sets are spread, the lines stay in L1. Unpadded, it slows as the stride grows and **caps at 16 KiB** — at 4 KiB the 64 rows share 4 sets (32 slots), at 8 KiB 2 sets, from 16 KiB on a single set with 8 slots — exactly where the critical stride says it should, and 32 KiB is no worse because it's already "one set".
+Reading it:
 
-**Why only 4× and not 20×?** These numbers are *throughput* (total time ÷ accesses), not latency. Each address is computed, not loaded, so many misses are in flight at once; with an L2 hit around 5 ns, 0.81 ns per access means roughly six overlapping. And the largest matrix is 2 MiB, inside the M1's 12 MiB L2, so evicted lines only fall to L2. With *dependent* loads — the next address comes from the last load, as in a hash chain or an order-book tree — misses can't overlap and set conflicts expose the full latency. Hot-path lookups in HFT are usually the dependent kind.
+- **The padded column is flat (about 0.2 ns)**: sets are spread out, the 64 lines go to different sets and stay in L1.
+- **The unpadded column slows as the stride grows and caps at 16 KiB**: at 4 KiB the 64 rows fall into 4 sets, which hold at most 4 × 8 = 32 lines, not 64; at 8 KiB, 2 sets and 16 lines; from 16 KiB on, a single set of 8. 32 KiB is no slower than 16 KiB, so 16 KiB is already "one set" — matching the predicted critical stride.
+- The row walk stays around 0.05 ns: all 32 ints of a line are used in a row, prefetched and vectorized.
 
-### 10.2 Several Page-Aligned Arrays Read Together
+**Why only 4× slower?** The measurement is solid (about 13 million accesses per timing); the numbers are small because they're **throughput** (total time ÷ accesses), not the **latency** of one miss:
+
+- An L2 hit on the M1 is about 5 ns. Each address in this loop is computed, not taken from the previous load, so the CPU keeps several misses in flight; 5 ÷ 0.81 ≈ 6, roughly six or seven overlapping.
+- The largest matrix is 2 MiB, inside the M1's 12 MiB L2, so lines evicted from L1 only fall to L2, never to DRAM.
+
+The gap gets much bigger when **loads depend on each other** — the next address waits for the previous load, as in a linked list or the pointer chasing of section 2.3 — so misses can't overlap and each pays full latency; and if conflicts also overflow L2, the fall is to DRAM (about 100 ns). Independent loads: set conflicts cost a few times the throughput. Dependent loads: set conflicts expose the full latency. Hot-path lookups in HFT are mostly the second kind.
+
+#### 3.2.2 Example 2: Several Page-Aligned Arrays Read Together
 
 ```cpp
 float* a[10];                          // ten large, separately allocated arrays
@@ -362,9 +478,15 @@ for (size_t i = 0; i < n; ++i)
            + a[5][i] + a[6][i] + a[7][i] + a[8][i] + a[9][i];
 ```
 
-Large allocations tend to start at the same offset within a page (glibc serves big requests straight from the kernel as page start plus a fixed header). Then the ten elements at index *i* share bits 6–11 — ten lines competing for 8 ways. And because the loop cycles through more lines than there are ways, least-recently-used replacement evicts exactly the line needed next: every access misses. Advancing *i* doesn't help; all ten arrays move together.
+**Why it's slow.** Large allocations usually start page-aligned, or at least with identical low 12 bits: glibc's `malloc`, for example, serves big requests (128 KiB and up by default) straight from the kernel and returns "page start + a fixed 16-byte header". So:
 
-The fix is to offset array *k* by *k* lines:
+- `a[k][i]` is at start<sub>k</sub> + 4*i*, and all start<sub>k</sub> share their low 12 bits;
+- so for any *i*, the ten elements have **identical** bits 6–11 — ten lines in one set;
+- the set has 8 slots and the ten lines take turns; the 9th and 10th evict the least recently used line, which is exactly the one needed next. With a loop cycling through more lines than there are slots, LRU replacement makes **every access a miss**.
+
+Advancing *i* doesn't help: *i* + 1 moves 4 bytes within the same line, all ten arrays move together and stay in the same set.
+
+**Fix.** Offset array *k*'s start by *k* cache lines, so every array has a different set:
 
 ```cpp
 #include <cstdlib>
@@ -376,73 +498,140 @@ float* arr[kArrays];
 
 void allocate(size_t bytes) {
     for (int k = 0; k < kArrays; ++k) {
-        raw[k] = std::aligned_alloc(4096, bytes + 4096);                            // one spare page
-        arr[k] = reinterpret_cast<float*>(static_cast<char*>(raw[k]) + k * kLine);  // shift by k lines
+        raw[k] = std::aligned_alloc(4096, bytes + 4096);                            // one spare page for the offset
+        arr[k] = reinterpret_cast<float*>(static_cast<char*>(raw[k]) + k * kLine);  // shift array k by k lines
     }
 }
-void release() { for (int k = 0; k < kArrays; ++k) std::free(raw[k]); }             // free the originals
+void release() { for (int k = 0; k < kArrays; ++k) std::free(raw[k]); }             // free the original pointers
 ```
 
-Compiled and run on the M1: the ten start addresses modulo 4096 were 0, 64, … 576 — sets 0 through 9, one each.
+Compiled and run on the M1: the ten start addresses modulo 4096 were 0, 64, 128 … 576 — sets 0 through 9, one each.
 
-A related effect with a similar name, **L1 bank conflicts** — two loads in the same cycle hitting the same internal bank — is a port contention, not a capacity problem, and is highly microarchitecture-specific (older Intel cores like Sandy Bridge showed it; most newer ones don't).
+#### 3.2.3 Aside: L1 Bank Conflicts (a Different Mechanism)
 
----
+L1 is internally split into **banks** that can be accessed in parallel; two loads issued in the same cycle to the same bank have to queue. That's not a set conflict: a set conflict is "too few slots, lines evict each other"; a bank conflict is "two accesses want the same port in the same cycle". It's highly microarchitecture-specific — prominent on older Intel cores like Sandy Bridge, mostly gone on newer ones; look it up in the optimization manual for the specific core when it matters.
 
-## 11. Inside a DIMM: Channels, Ranks, Banks, Row Buffers
+### 3.3 Where a Variable Lives Decides Who Shares Its Lines
 
-After an L3 miss, the request goes to the memory controller on the CPU die, and from there to a DIMM.
+Storage classes, seen through the cache:
+
+- **Stack**: repeated calls reuse the same addresses, which stay hot in L1. Locals have good locality for free.
+- **Registers**: the compiler keeps frequently used locals in registers and never touches memory. Help it by not taking a local's address and passing it around (once the address escapes, it can't live only in a register).
+- **Global / static**: not slow in itself — a hot global sits in L1 like anything else. The question is **who its neighbours are**: the linker places them by its own rules, and two globals written by different threads can share a line — false sharing — so separate them with `alignas(64)`.
+- **`volatile`**: only forces the compiler to actually load and store every time, without merging or eliding. It is **not** a synchronization tool — no atomicity, no ordering; use `std::atomic` between threads. It's for memory-mapped device registers, signal handlers and the like.
+- **`thread_local`**: one copy per thread, no false sharing by construction. Defined and used in the executable, on x86-64 Linux it's one load relative to the `fs` segment register; defined in a shared library and accessed through the general-dynamic model it may call `__tls_get_addr`. Copy it into a local if the hot path uses it repeatedly.
+- **Heap**: allocation and deallocation are expensive and take unpredictable time, and separately allocated objects scatter, so locality depends on the allocator. HFT preallocates at startup and uses memory pools ([#3](/posts/hot-path-memory-allocators/)).
+
+### 3.4 Inside a DIMM: Channels, Ranks, Banks, Rows
+
+The core sentence: **a DIMM is also "cabinets inside cabinets"; the memory controller splits the physical address into fields that pick the channel, bank and row, and the most expensive case is switching rows within one bank.**
 
 <a href="/images/memory-geometry/dram-geometry.en.svg" target="_blank" rel="noopener"><img src="/images/memory-geometry/dram-geometry.en.svg" alt="Inside the DIMMs: the memory controller drives two channels; a rank is eight chips side by side; each chip has 16 banks; a bank is a table of rows with one row buffer, and a read costs about 14 ns on a row hit, 28 ns on an empty bank and 41 ns on a row conflict" loading="lazy" decoding="async"></a>
 
-**The smallest unit: a bank and its row buffer.** A DRAM cell is a tiny capacitor plus a switch, and its charge is too small to read on its own. So a **bank** — a table of tens of thousands of rows, about 1 KiB each per chip — is read by first **opening a whole row**: connecting all its cells to a row of sense amplifiers that amplify and latch the values. That latched row is the **row buffer**. The requested bytes are then taken from it by column. A bank has one row buffer, so one open row; reading another row of the same bank means closing (precharging) the current one first.
+#### 3.4.1 Where This Is
 
-**Three cases.** On DDR4-3200 CL22 each of the three steps — open, read, close — takes about 22 clocks × 0.625 ns ≈ 14 ns:
+On the hardware map, it's the "memory controller" and "DIMMs" boxes below L3. When a load misses L1, L2 and L3, the request goes to the **memory controller** — on the CPU die, not on the DIMM — which fetches the whole 64-byte line over the motherboard traces. This section is about that last stretch: how the DIMM finds those 64 bytes.
 
-- **row hit**: the row is already open → read only, **~14 ns**;
-- **row empty**: no row open in this bank → open + read, **~28 ns**;
-- **row conflict**: another row of the same bank is open → close + open + read, **~41 ns**.
+#### 3.4.2 The Smallest Unit: a Bank and Its Row Buffer
 
-Add queuing in the controller, the on-chip interconnect and the cache lookups on the way down, and a full DRAM access is typically 80–100 ns.
+A DRAM cell is just **a tiny capacitor and a switch**: charged is 1, discharged is 0. The charge is too small to read a single cell on its own, so DRAM reads like this:
 
-**Up the hierarchy.** A channel is 64 data bits wide; a common chip supplies 8, so **eight chips side by side form a rank** and respond together — a 64-byte line is eight beats of eight bytes, eight bytes from each chip, all opening the same row and column. Each chip has 16 banks (DDR4) that open rows independently, so the DIMM serves several requests concurrently. Ranks on one channel share its wires and take turns. **Channels** are independent sets of wires: bandwidth ≈ channels × per-channel bandwidth, while a single access gets no faster.
+1. A **bank** is a big table: tens of thousands of rows, about 1 KiB per row (per chip).
+2. To read any byte, first **open its whole row**: connect every cell in the row to a row of sense amplifiers that amplify and latch the values. That row of amplifiers is the **row buffer**.
+3. Then take the wanted bytes out of the row buffer by column number.
 
-**Splitting the address.** Exactly like L1's set index, the controller splits the physical address into channel, rank, bank, row and column fields. Low bits pick the column, so consecutive addresses share an open row; channel and bank bits sit in between and are usually hashed. The exact mapping varies by platform and is rarely documented.
+Each bank has **one row buffer**, so one row can be open at a time. Reading another row of the same bank means **closing** the current one first (writing it back to the capacitors and resetting the amplifiers — a precharge), then opening the new one. Think of a desk: from the bookshelf (bank) you can only bring a whole shelf (open a row) to the desk, and the desk holds one shelf; for a book on another shelf, put this shelf back first (close the row).
 
-**Why a column walk is slow — five layers at once.** With `int matrix[31250][2048]` (8 KiB rows, 256 MB), walking down a column adds 8,192 bytes per step:
+#### 3.4.3 Three Cases for One Read
 
-1. **Each line is 1/16 used**: a fresh 64-byte line per step, 4 bytes of it read.
-2. **The rest is evicted before it's used**: the other 15 ints belong to the next 15 columns, 31,250 steps later. A column's lines total 2 MB, beyond L1 and L2, and an 8 KiB stride puts the whole column in one L1 set and in only 8 of L2's sets.
-3. **Every step is a new page**: 31,250 pages per column against a TLB of a couple of thousand entries — a page walk almost every time.
-4. **The prefetcher can't help**: hardware prefetchers generally don't cross 4 KiB pages.
-5. **DRAM row conflicts**: neighbouring accesses 8 KiB apart often land in different rows of the same bank — ~41 ns each instead of ~14.
+Opening a row, reading a column and closing a row each take about 22 clocks × 0.625 ns ≈ **14 ns** on DDR4-3200 CL22. How many steps a read needs depends on what's in the row buffer:
 
-A row walk inverts all five: one opened DRAM row serves many lines, every line is fully used, the prefetcher runs ahead, and the TLB changes page once per 1,024 ints. The row buffer is only the bottom layer. The fixes are the same as before: change the traversal order (or transpose first), or tile.
+- **Row hit**: the row is already open → read only, about **14 ns**.
+- **Row empty**: no row open in this bank → open + read, about **28 ns**.
+- **Row conflict**: **another row of the same bank** is open → close + open + read, about **41 ns**.
 
----
+That's only the time inside the DIMM. Add queuing in the controller, the on-chip interconnect and the L1/L2/L3 misses on the way down, and a full DRAM access is typically **80–100 ns**.
 
-## 12. Refresh: A Tail You Can't Turn Off
+#### 3.4.4 Going Up: Chip → Rank → Channel
 
-DRAM capacitors leak, so the controller must periodically read and rewrite every row. All rows within 64 ms, split into 8,192 batches, means a refresh command about every **7.8 µs** (tREFI); while it runs, the rank is unavailable for a few hundred ns (tRFC, about 350 ns for an 8 Gb DDR4 chip). That's 350 ÷ 7,800 ≈ **4.5%**: a random DRAM access has roughly that chance of waiting up to several hundred ns extra (estimated for all-bank refresh). It's invisible in the mean and shows up in **P99 and P99.9**.
+- **Chips and ranks**: a channel's data bus is **64 bits** (8 bytes) wide, and a common chip supplies 8 bits at a time. So 8 chips side by side, each supplying 8 bits in the same beat, make 64 — **this group of chips responding together is a rank**. A 64-byte line is 8 beats × 8 bytes, 8 bytes from each chip, and all 8 chips open the same row and column.
+- **Banks**: each chip has 16 banks (DDR4). Different banks open rows and prepare data independently: while bank 0 spends its 14 ns opening a row, bank 1 can be transferring. That's how a DIMM serves several requests at once.
+- **A DIMM can carry 1–2 ranks** (often one per side). Ranks on the same channel share its 64 data wires; only one transfers at a time, taking turns.
+- **Channels**: each channel is an independent set of 64 data wires plus command lines, and channels transfer in parallel. So **total bandwidth ≈ channels × per-channel bandwidth** — 2 channels on a desktop, 6–12 on a server. More channels don't make a single access faster; they let more requests run at once.
 
-Software can't turn it off. Keep the hot data set in cache so the hot path never reaches DRAM; use memory with fine-grained or per-bank refresh to shorten each stall; and when tail measurements show spikes with a ~7.8 µs period, think refresh.
+#### 3.4.5 How the Controller Splits an Address
 
----
+Exactly like L1 using bits 6–11 to pick a set (3.1): the memory controller splits the physical address into fields that pick **the channel, rank, bank, row and column**. **Low bits go to the column**, so consecutive addresses share a DRAM row and sequential access keeps hitting the open row; channel and bank bits usually sit in between and are hashed, spreading large contiguous blocks across channels and banks. The exact bit assignment varies by platform and is rarely documented.
 
-## 13. Channel Balance: Make the Line Count Coprime
+#### 3.4.6 Example: a Column Walk Loses at Five Layers
 
-Channels only add bandwidth if they are busy at the same time. The controller interleaves consecutive addresses across them. In the simplest model, granularity 64 bytes: `channel = (address ÷ 64) mod N`.
+```cpp
+int matrix[31250][2048];     // each row 2048 ints = 8 KiB, 256 MB in total
+long long sum = 0;
+// row walk: consecutive addresses, fast
+for (int i = 0; i < 31250; ++i)
+    for (int j = 0; j < 2048; ++j)
+        sum += matrix[i][j];
+// column walk: each step jumps 8 KiB, slow
+for (int j = 0; j < 2048; ++j)
+    for (int i = 0; i < 31250; ++i)
+        sum += matrix[i][j];
+```
 
-Four channels, an array of 256-byte objects (4 lines each), a hot path that reads only each object's **first line**: object *i*'s first line is line 4*i*, and 4*i* mod 4 = 0. **Every hot line is on channel 0**, three channels idle. Pad the object to 5 lines (320 bytes): 5*i* mod 4 cycles 0, 1, 2, 3 — all four channels in turn.
+`matrix[i][j]` is at base + *i* × 8192 + *j* × 4. A row walk adds 4 per step; a column walk adds **8192**. From the top down, every layer loses:
 
-The rule: **round the object to L lines and choose L coprime with the channel count N** — for 2 or 4 channels, an odd number of lines. Three channels balance naturally because any power-of-two line count is coprime with 3. Two caveats: real controllers mostly XOR-hash high address bits precisely to break such patterns, so check the platform's mapping and measure before padding by hand; and only bandwidth-bound workloads care — a hot set that lives in cache never reaches a channel.
+1. **Each cache line is 1/16 used.** Every step lands on a new 64-byte line and uses 4 bytes of it. The other 15 ints in that line belong to columns *j*+1 … *j*+15, which are only needed after a whole column (31,250 steps).
+2. **By then those lines are long gone.** A column touches 31,250 lines, about 2 MB — more than L1 or L2 to begin with; and since 8 KiB is a multiple of 4 KiB, the whole column crowds into **one set** in L1 (3.1.3) and only 8 sets × 8 ways = 64 lines in L2 (critical stride 64 KiB).
+3. **Every step is a new page.** An 8 KiB stride exceeds the 4 KiB page, so a column touches 31,250 pages against a TLB of a couple of thousand entries — a page walk almost every time.
+4. **The prefetcher can't help.** Hardware prefetchers generally predict within one 4 KiB page and don't cross pages; with a new page every step, they never get a chance.
+5. **And at DRAM, row conflicts.** The first four layers send almost every access to the DIMM. Neighbouring accesses 8 KiB apart often land in different rows of the same bank: close + open + read every time, about 41 ns instead of a row hit's 14.
+
+A row walk reverses all of it: 8 KiB of consecutive data mostly sits in one DRAM row, so one open row serves many cache lines; all 16 ints of each line are used; the prefetcher sees the pattern and runs ahead; the TLB changes page once per 1024 ints. **A column walk is slow because five layers stack, and the row buffer is only the bottom one.** The fixes are those of 3.2.1: change the traversal order (or transpose first), or tile.
+
+### 3.5 DRAM Refresh: a Spike Software Can't Remove
+
+DRAM stores data in capacitors that leak, so the controller must periodically read every row and write it back — **refresh**. The standard is all rows within 64 ms, split into 8192 batches, so a refresh command goes out about every **7.8 µs** (tREFI); during each, the rank being refreshed is inaccessible for a few hundred ns (tRFC, about 350 ns for an 8 Gb DDR4 chip).
+
+Estimate: 350 ÷ 7800 ≈ **4.5%**. A random DRAM access has about a 4.5% chance of hitting a refresh and waiting up to several hundred ns longer (assuming all-bank refresh). Invisible in the mean, it shows up in **P99 / P99.9** tail latency. Software can't turn it off, only work around it:
+
+- **Keep the hot data set in cache**, so the hot path never goes to DRAM — by far the most effective.
+- Use memory with fine-granularity refresh (FGR) or per-bank refresh, which shortens each stall.
+- When measuring latency, look at P99 / P99.9, and when spikes recur about every 7.8 µs, think refresh.
+
+### 3.6 Balancing Multiple Channels
+
+Channels add bandwidth only when they're **busy at the same time**. The controller distributes consecutive addresses across them at some granularity — **channel interleaving**. The simplest model shows the problem: granularity 64 bytes, `channel = (address ÷ 64) mod N`.
+
+Four channels, an array of 256-byte objects (4 lines each), and a hot path that reads only each object's **first line**:
+
+- Object *i*'s first line is line 4*i*, channel 4*i* mod 4 = **0**. Every hot line is on channel 0; the other three sit idle.
+- If the object's size in lines is **coprime** with the channel count, hot lines rotate across channels. Pad the object to 5 lines (320 bytes): object *i*'s hot line is line 5*i*, and 5*i* mod 4 cycles 0, 1, 2, 3, 0 … — all four channels in turn.
+
+The rule: **round the object up to L lines, then adjust L so it's coprime with the channel count N** — for N = 2 or 4, an odd number of lines. Three channels balance naturally, because any power-of-two line count is coprime with 3.
+
+Two realities:
+
+- **Real controllers rarely just take a modulus.** Most XOR-hash high address bits before choosing channel and bank, precisely to break such patterns, and the interleave granularity varies by platform. Before padding by hand, find out the platform's mapping, then measure.
+- Only **bandwidth-bound** work (scanning many objects, hot lines spread over a large working set) needs this. A hot set that lives in cache never reaches a channel.
 
 ---
 
 ## Recap
 
-1. **Accesses pay in lines.** Alignment keeps a value inside one (64 is a multiple of every power-of-two size up to 64); padding keeps arrays aligned; member order changes `sizeof`.
-2. **`alignas` buys isolation with space; `#pragma pack` gives alignment up to match an external format.** On a type, `alignas(64)` also pads `sizeof`; on a member it only moves the start. Heap memory needs `aligned_alloc` with a rounded size, `new`/`delete` paired on the same alignment, and `madvise` before the first touch for huge pages.
-3. **Layout is line counting.** SoA for scans of a few fields, AoS for whole elements; denormalize to break a dependency chain, deciding by whether copies must be updated immediately; `alignas(64)` for per-thread writers, `alignas(32)` for packing two per line.
-4. **The address picks an L1 set.** 64 sets × 8 ways makes addresses 4 KiB apart compete for 8 slots however empty the cache is; pad by a whole line, offset arrays by whole lines, or tile. Measured on an M1 with a 16 KiB critical stride: 0.20 → 0.81 ns per access — throughput, with dependent loads exposing far more.
-5. **DRAM is rows, banks and channels.** Row hit ~14 ns, row conflict ~41 ns; a column walk loses at five layers; refresh adds a P99 tail no software removes; channels balance only when the hot stride is coprime with the channel count.
+**Alignment (Part 1)**
+
+1. Alignment means the start is a multiple of the size, so a value never straddles a line (the key fact: 64 is a multiple of 8). Padding implements it and exists for arrays; member order changes `sizeof` (24 vs. 16).
+2. `alignas` raises alignment, buying isolation with space — on a type it also pads `sizeof`, on a member it only moves the start; `#pragma pack` gives alignment up, only to match an external format.
+3. On the heap, 64-byte or 2 MiB alignment needs `aligned_alloc` with a rounded size and `new`/`delete` paired on the same alignment; big blocks are 2 MiB-aligned so they can be huge pages, and `madvise` must come before the first touch.
+
+**Layout (Part 2)**
+
+4. Layout asks how many lines an access touches: keep together what's used together (AoS, denormalization, hot fields in the first line), split what's used apart (SoA, hot/cold splitting).
+5. Denormalization pays off by cutting a chain of **dependent** lookups (whose latencies add); its cost is keeping copies in sync, and the deciding question is whether they must be updated immediately.
+6. `alignas(64)` when different threads write different objects; `alignas(32)` to pack two per line for scans and read-only sharing.
+
+**Hardware geometry (Part 3)**
+
+7. A line can only go into the set its address picks; addresses that differ by multiples of the **critical stride** (cache size ÷ ways: 4 KiB for x86 L1, 16 KiB on M1) compete for one set even when the cache is mostly empty. Pad by a whole line, offset arrays by whole lines, or tile. For independent loads, set conflicts cost a few times the throughput; for dependent loads they expose full latency.
+8. A DRAM access depends on the row buffer (hit about 14 ns, conflict about 41 ns); a column walk loses at five layers at once; refresh every ~7.8 µs adds P99 spikes that only keeping hot data in cache avoids.
+9. Channels add bandwidth only when busy together: with objects rounded to a line count **coprime with the channel count**, hot lines rotate across channels; real platforms usually hash addresses, so check the mapping and measure first.
