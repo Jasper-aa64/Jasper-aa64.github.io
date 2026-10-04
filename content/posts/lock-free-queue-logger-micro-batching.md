@@ -10,19 +10,15 @@ toc: true
 homepage: false
 ---
 
-# Trading System Notes #4: Own Your Counter, Read Theirs — SPSC Queues, a Logger Built on One, and Micro-Batching
+A hot thread that has to hand work to another thread — a log line, a market-data tick, an order event — can't reach for a mutex. Not because the lock instruction is slow (uncontended, it's cheap), but because of what a *contended* lock can turn into: the loser goes to sleep in the kernel, and when it wakes up is the scheduler's decision, not yours. If the thread holding the lock is a low-priority background worker, you've built a priority inversion into your own critical path. What you're avoiding isn't a number of nanoseconds; it's a latency distribution with a long tail you don't control.
 
-> **One-line thesis**: a lock-free single-producer single-consumer queue works because every shared variable has exactly one writer — each side updates only its own counter and merely reads the other's, so the two cores never fight over a write. Every optimization below shrinks the read traffic that remains; every trap below — a shared element count, a per-character log push, a queue that waits when full — quietly puts a cross-core cost or a cross-thread dependency back.
-
-## What You're Actually Fighting
-
-A hot thread that has to hand work to another thread — a log line, a market-data tick, an order event — can't reach for a mutex. Not because the lock instruction is slow (uncontended, it's cheap), but because of what a *contended* lock can turn into: the loser goes to sleep in the kernel, and when it wakes up is the scheduler's decision, not yours. If the thread holding the lock is a low-priority background worker, you've built a priority inversion onto your own critical path. What you're avoiding isn't a number of nanoseconds; it's a latency distribution with a long tail you don't control.
-
-So the goal isn't "fast", it's "bounded". A lock-free queue is the tool, and this post follows one from the ring buffer up to two things built on it — a logger and a micro-batching processor — and closes by asking what "lock-free" and "wait-free" actually promise. The surrounding hygiene is assumed: the hot thread is pinned and isolated ([post #1](/posts/cpu-affinity-core-isolation-numa/)), the memory it touches is locked and pre-faulted ([post #3](/posts/hot-path-memory-allocators/)), and the cache-line mechanics from [post #2](/posts/memory-ordering-false-sharing-dependency-chains/) are on hand — the release/acquire pairing and the price of a contended line show up on almost every line below.
+So the goal isn't "fast", it's "bounded", and the tool is a lock-free queue. The whole design rests on one idea: **every shared variable has exactly one writer** — each side updates only its own counter and merely reads the other's, so the two cores never fight over a write. Part 1 builds the ring and shows the first trap that quietly breaks that rule. Part 2 shrinks the cross-core traffic that remains. Part 3 builds a logger on top and finds that one log line can eat thirty slots. Part 4 asks what "lock-free" and "wait-free" actually promise, and Part 5 uses the queue for micro-batching. The surrounding hygiene is assumed: the hot thread is pinned and isolated ([#1](/posts/cpu-affinity-core-isolation-numa/)), the memory it touches is locked and pre-faulted ([#3](/posts/hot-path-memory-allocators/)), and the cache-line mechanics of [#2](/posts/memory-ordering-false-sharing-dependency-chains/) — release/acquire pairing and the price of a contended line — show up on almost every line below.
 
 ---
 
-## 1. The Ring: Two Counters and a Mask
+## 1. The SPSC Ring
+
+### 1.1 Two Counters and a Mask
 
 A single-producer single-consumer (SPSC) queue is a fixed array of slots plus two counters. The producer owns `write_idx` — only it ever stores to it. The consumer owns `read_idx`. Each side *reads* the other's counter to learn whether there's room (producer) or data (consumer), but never writes it. That asymmetry is the whole design: with one writer per variable there is nothing to lock and nothing to retry.
 
@@ -74,9 +70,7 @@ Three details in there are worth slowing down for.
 
 One precedence trap, if you write the full-check with wrapped (masked) indices instead of monotonic counters: `(w + 1) & mask == r & mask` does *not* mean what it looks like. `==` binds tighter than `&`, so it parses as `(w + 1) & (mask == r) & mask`, and the "is it full?" test is almost always false — the producer cheerfully overwrites unread data. Parenthesize both masked operands, or use unwrapped counters and compare `w - r` against the capacity, as above.
 
----
-
-## 2. Subtract, Don't Count: The Counter That Made Two Cores Fight
+### 1.2 Subtract, Don't Count: The Counter That Made Two Cores Fight
 
 It's tempting to add a third field: an atomic element count, incremented by the producer on publish and decremented by the consumer on release, so that `size()` is a single load.
 
@@ -102,7 +96,9 @@ Two properties to keep. **It's a snapshot pair, not an instant.** The two loads 
 
 ---
 
-## 3. Cache Their Cursor: A Stale Value That Can Only Err Safe
+## 2. Cutting the Remaining Cross-Core Traffic
+
+### 2.1 Cache Their Cursor: A Stale Value That Can Only Err Safe
 
 Look at what `try_claim()` does on every call: an acquire load of `read_idx_` — a counter the *consumer* writes. If the queue is nearly empty and nowhere near full, that read is wasted, but it isn't free: each time the consumer advances its counter, the producer's next read has to fetch the updated line across cores. The consumer's `try_peek()` has the mirror-image problem with `write_idx_`.
 
@@ -137,9 +133,7 @@ T* try_peek() {
 
 There's a second, quieter win. When the consumer does refresh its cache, it typically learns that *many* elements have arrived, and can process all of them before touching the producer's line again. The cross-core read is paid once per burst rather than once per element.
 
----
-
-## 4. Mirror the Addresses, Not the Data
+### 2.2 Mirror the Addresses, Not the Data
 
 A ring buffer of bytes — or of variable-length records — has an awkward moment: a write that starts near the end and runs past it. The usual handling splits it into two copies, one up to the physical end and one from the start, with a branch to decide when. There's a trick that removes the seam: map the *same physical memory* at two consecutive virtual addresses, so the buffer looks twice as long and the second half is a mirror of the first. A write that runs off the end of the first half just keeps going in the second, and lands exactly where the wrap-around would have put it. One `memcpy`, no branch.
 
@@ -229,11 +223,13 @@ Both views are backed by the same pages, so `buf[i]` and `buf[i + N]` are one an
 
 **Everything happens at construction.** The reservation, the descriptor and both mappings are set up once; after that, every enqueue and dequeue is an ordinary memory access with no system call. It's the same move as [post #3](/posts/hot-path-memory-allocators/) — nothing happens for the first time on the hot path — and the pages deserve the same treatment: pre-fault them and lock them.
 
-**What it costs, and when it doesn't apply.** `N` must be a multiple of the page size; a failure halfway through has to unwind cleanly (`munmap`, `close`); and the second view adds page-table entries and TLB pressure. And notice what the queue from section 1 *doesn't* need it for: with fixed-size slots, an element never straddles the end, so single-element writes never wrap mid-copy. The mirror pays off for byte streams, variable-length records, and bulk reads or writes of several elements at once — where the copy itself dominates and crossing the end is common.
+**What it costs, and when it doesn't apply.** `N` must be a multiple of the page size; a failure halfway through has to unwind cleanly (`munmap`, `close`); and the second view adds page-table entries and TLB pressure. And notice what the queue from 1.1 *doesn't* need it for: with fixed-size slots, an element never straddles the end, so single-element writes never wrap mid-copy. The mirror pays off for byte streams, variable-length records, and bulk reads or writes of several elements at once — where the copy itself dominates and crossing the end is common.
 
 ---
 
-## 5. The Logger: A Queue With a Reader Who Can Afford to Be Slow
+## 3. A Logger Built on the Queue
+
+### 3.1 A Queue With a Reader Who Can Afford to Be Slow
 
 Logging is the classic customer for this queue. The hot path wants to record something; the expensive parts — formatting, file I/O, the `write` syscall — should happen somewhere nobody is waiting. So the hot thread only fills a queue slot, and a dedicated background thread drains it.
 
@@ -268,9 +264,7 @@ while (running_) {
 
 The 10 ms sleep is a choice, not a requirement: this thread isn't latency-critical, so giving its core back beats spinning — at the price of log lines reaching the file up to ~10 ms late and a queue that has to absorb everything produced in that window. Two structural rules fall out of SPSC. **One logger instance serves exactly one producing thread** — a second producer would break the one-writer-per-counter contract, so give each thread its own logger or its own queue. And **shutdown order matters**: wait until the queue is drained, *then* stop the reader thread, then close the file. Stop the reader first and whatever was still queued is silently lost.
 
----
-
-## 6. Thirty Slots for One Log Line
+### 3.2 Thirty Slots for One Log Line
 
 Here is a natural way to write the producer side: walk the format string, pushing each literal character as its own element and each `%` placeholder as a value element.
 
@@ -366,7 +360,7 @@ Count what `log("Order Executed, id=%, price=%\n", id, price)` does: 19 characte
 
 The cost shows up three ways:
 
-- **The hot path pays per slot.** Thirty copies and thirty release stores per log call — and if the queue also maintains a shared element counter (section 2), thirty contended read-modify-writes on the line the consumer is fighting over.
+- **The hot path pays per slot.** Thirty copies and thirty release stores per log call — and if the queue also maintains a shared element counter (1.2), thirty contended read-modify-writes on the line the consumer is fighting over.
 - **It evicts the hot path's own data.** 7.7 KiB per call is a sizeable fraction of a typical 32–48 KB L1 data cache; a logging call that dirties a sixth to a quarter of L1 isn't free for the code that runs right after it.
 - **The buffer is smaller than it looks.** 8 million slots at 30 slots per log line is room for about 280,000 log lines, not 8 million. A slow reader overflows it sooner, and "the queue is so big it never fills" loses most of its margin.
 
@@ -427,7 +421,9 @@ The reader shows up after the queueing delay plus up to 10 ms of sleep — long 
 
 ---
 
-## 7. Lock-Free Is a Promise About Progress, Not Speed
+## 4. Lock-Free Is a Promise About Progress, Not Speed
+
+### 4.1 A Ladder of Guarantees
 
 "Lock-free" gets used loosely. There is a ladder of guarantees, and where an operation sits depends on what happens when *other* threads are slow, suspended, or dead:
 
@@ -440,7 +436,9 @@ The reader shows up after the queueing delay plus up to 10 ms of sleep — long 
 
 Lock-free promises that *someone* moves; wait-free promises that *everyone* does. So lock-free does not mean "never waits" — a thread stuck in a CAS loop is waiting; it's just that its waiting is always someone else's progress.
 
-Where does the queue from section 1 sit?
+### 4.2 Where the SPSC Queue Sits
+
+Where does the queue from 1.1 sit?
 
 | Operation | Why | Guarantee |
 |---|---|---|
@@ -451,9 +449,9 @@ Where does the queue from section 1 sit?
 
 Four things follow from that.
 
-**"SPSC is wait-free" is a statement about the interface, not the data structure.** The queue gets there by pushing the "full" and "empty" decisions out to the *caller*: the `try_` operations fail and return, and the caller chooses to drop, retry or block. The spin-until-space variant bakes the third choice in — and with it, the blocking. It also explains why dropping the shared counter from section 2 makes the claim cleaner: what's left on the hot path is loads and stores, with no dependence on how the hardware implements atomic read-modify-writes.
+**"SPSC is wait-free" is a statement about the interface, not the data structure.** The queue gets there by pushing the "full" and "empty" decisions out to the *caller*: the `try_` operations fail and return, and the caller chooses to drop, retry or block. The spin-until-space variant bakes the third choice in — and with it, the blocking. It also explains why dropping the shared counter from 1.2 makes the claim cleaner: what's left on the hot path is loads and stores, with no dependence on how the hardware implements atomic read-modify-writes.
 
-**"A crashed consumer can never hurt the producer" is only true while the queue has room.** The ring is bounded. When it fills, the producer has exactly two options — drop the item or wait — and "wait" puts the consumer's health back on your critical path. A bigger buffer moves the cliff further away; it doesn't remove it. That's why mature logging libraries expose the choice as configuration (Quill lets you pick queues that block or drop when full, and reports how often each happened), and why the number of slots each log call consumes in section 6 is a reliability question, not just a speed one.
+**"A crashed consumer can never hurt the producer" is only true while the queue has room.** The ring is bounded. When it fills, the producer has exactly two options — drop the item or wait — and "wait" puts the consumer's health back on your critical path. A bigger buffer moves the cliff further away; it doesn't remove it. That's why mature logging libraries expose the choice as configuration (Quill lets you pick queues that block or drop when full, and reports how often each happened), and why the number of slots each log call consumes in 3.2 is a reliability question, not just a speed one.
 
 **Finite steps are not finite time.** Wait-free bounds the number of steps *you* execute, no matter what the others do. It says nothing about the OS preempting you in the middle of them, a page fault, or a cache miss. Predictable latency is three layers stacked: the algorithm (operations that don't depend on other threads), the operating system (pinning, isolation, real-time priority — [post #1](/posts/cpu-affinity-core-isolation-numa/)), and memory and hardware (locked, pre-faulted pages — [post #3](/posts/hot-path-memory-allocators/); cache-line hygiene — [post #2](/posts/memory-ordering-false-sharing-dependency-chains/); no system calls on the hot path). Wait-free stops other threads from holding you up; the other two layers stop *you* from being held up.
 
@@ -461,7 +459,9 @@ Four things follow from that.
 
 ---
 
-## 8. Micro-Batching: The Backlog Picks the Batch Size
+## 5. Micro-Batching: The Backlog Picks the Batch Size
+
+### 5.1 Take What's There, Never Wait to Fill
 
 Batching amortizes per-message overhead — one wake-up, one downstream call for many messages — but every message that waits for a batch to fill pays for it in latency. A fixed batch size is wrong in both directions: too small under load, too slow when idle. The way out is to let the backlog choose:
 
@@ -488,7 +488,9 @@ size_t drain(Queue& q, std::vector<Msg>& out, size_t target) {
 
 The important line is the loop condition: `drain` takes **at most** `target` messages and stops the moment the queue is empty. It never waits for a batch to fill. So when there's no backlog, the batch is a single message and adds no latency at all; batches only grow when messages have *already* piled up — when they were going to wait anyway. The batch size follows the load without a timer.
 
-**Where does `backlog` come from?** The tempting answer is a counter: `fetch_add(1)` on enqueue, `fetch_sub(batch_size)` after each batch. That's section 2's contended line again — and it isn't even exact. The counter is bumped *after* the enqueue, so a fast consumer can drain a message and decrement before the producer has counted it; with an unsigned counter the value wraps to an enormous number for a moment, and a read that lands in that window sees a huge backlog. Ask the queue instead. That has a cost, and it shows up in the type system: a generic batcher that only knows `enqueue` and `dequeue` can't see the queue's counters, so the queue type has to promise an O(1) approximate size:
+### 5.2 Where the Backlog Number Comes From
+
+The tempting answer is a counter: `fetch_add(1)` on enqueue, `fetch_sub(batch_size)` after each batch. That's the contended line from 1.2 again — and it isn't even exact. The counter is bumped *after* the enqueue, so a fast consumer can drain a message and decrement before the producer has counted it; with an unsigned counter the value wraps to an enormous number for a moment, and a read that lands in that window sees a huge backlog. Ask the queue instead. That has a cost, and it shows up in the type system: a generic batcher that only knows `enqueue` and `dequeue` can't see the queue's counters, so the queue type has to promise an O(1) approximate size:
 
 ```cpp
 template <typename Q, typename Msg>
@@ -500,15 +502,3 @@ concept BatchSource = requires(Q q, Msg& m) {
 
 An approximate snapshot is enough — it only selects one of three tiers, and being off by a few messages changes nothing. Not counting yourself isn't free; you pay for it with a stronger requirement on the queue.
 
----
-
-## Recap
-
-1. **One writer per variable is the whole design.** Each side stores only its own counter and reads the other's, with `relaxed` for its own, `acquire` for theirs and `release` to publish. Nothing to lock, nothing to retry.
-2. **A shared element counter re-creates the fight you removed.** Both cores read-modify-write one line, and no padding fixes true sharing. Subtract the two counters instead — reading the lagging one first — and accept an approximate snapshot.
-3. **A cached copy of the other side's cursor can only be wrong in the safe direction.** The counters only move forward, so a stale cache can claim "full" or "empty" too early but never the reverse; the cross-core read is paid only when the cache runs out, and once per burst rather than once per element.
-4. **Double mapping mirrors the addresses, not the data.** Same pages at two consecutive addresses turn a split copy into one — worth it for byte streams and bulk copies, not for fixed-size slots — and it's all done at construction.
-5. **A log call costs slots per call × cost per slot.** Pushing text runs cuts thirty slots to five with no protocol change; pointers and compile-time parsing cut it further but change the protocol, and a pointer is only safe for something that outlives the reader and never changes — the format string, not the arguments.
-6. **Lock-free, wait-free and predictable are three different claims.** SPSC is wait-free only through a fail-fast interface; the spin-until-space variant is blocking. Finite steps are not finite time — the OS and memory layers still have to do their part.
-7. **A bounded queue always has to choose between dropping and blocking.** "The consumer can't hurt the producer" holds only while there's room, which makes slots-per-call a reliability number.
-8. **Micro-batching adapts by taking what's there.** The backlog picks a tier, the drain never waits to fill a batch, and the backlog itself comes from the queue rather than from a counter — at the price of a stronger interface requirement on the queue type.

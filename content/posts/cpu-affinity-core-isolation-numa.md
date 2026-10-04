@@ -10,31 +10,19 @@ toc: true
 homepage: false
 ---
 
-# Trading System Notes #1: One Core, One Thread — CPU Pinning, the Isolation Stack, and NUMA
+Picture the 100 µs when the market is moving hard. Your strategy thread gets preempted once, or another task wipes its L1/L2 once, and that single event costs 30 µs. Your order now enters the exchange's matching queue behind everyone else's, and the fill comes back one tick worse — adverse selection eating your edge. In a latency-sensitive trading system the enemy is **not the average latency but the tail and the jitter**: a 2 µs average that occasionally spikes to 50 µs is worse than a steady 5 µs.
 
-> **One-line thesis**: Low-latency tuning is about determinism, not throughput. Every technique below serves a single goal — making your hot thread the only thing that will ever run on its physical core, and keeping it that way forever.
-
-## What You're Actually Fighting
-
-Get the objective function straight first; nothing below matters until you do.
-
-In a latency-sensitive trading system, the enemy is **not average latency — it's tail latency and jitter**. Picture the 100 µs when the market is moving hard: your strategy thread gets preempted once, its L1/L2 gets wiped by another task once, and that one event costs 30 µs. Your order now enters the exchange's matching queue behind everyone else's, and the fill comes back one tick worse. That's adverse selection eating your edge. So **a 2 µs average that occasionally spikes to 50 µs is worse than a steady 5 µs**. Stable and predictable is worth more than fast but jittery.
-
-Everything in this post — pinning, isolation, disabling SMT, locking frequency, NUMA layout — serves the same sentence:
-
-> **Make your hot thread the only thing that will ever run on its physical core, and keep it that way forever.**
-
-Internalize that, and every step below is just a corollary.
+So everything in this post serves one goal: **make your hot thread the only thing that will ever run on its physical core, and keep it that way.** Part 1 clears everyone else off the core — pinning and the isolation stack. Part 2 deals with the core tripping you up by itself — SMT, C-states and frequency. Part 3 turns to memory, because on a multi-socket server not all memory is equally close.
 
 ---
 
-## 1. Pinning: Nail the Thread to One Core
+## 1. Pinning and Isolation: Clear the Core
 
-### Why threads wander, and what it costs
+### 1.1 Why Threads Wander, and What It Costs
 
 The Linux scheduler (CFS; EEVDF since 6.6) migrates threads between cores for load balancing by default. It sees core 3 is idle and core 8 has two runnable tasks, so it moves one over to core 3. From a "use all cores fairly" standpoint that's correct. For your hot thread, that one migration is a catastrophe.
 
-Why a catastrophe: **L1, L2, and the TLB are all private to each physical core.** Your thread has been running on core 7 for a while — the order book's hot data, the strategy code's instructions, the address-translation entries — all of it lives in core 7's caches. The scheduler moves it to core 12, whose L1/L2 hold none of that. So for the next tens of thousands of instructions, every memory access is a miss: pull from L3 (~40 cycles) or pull from main memory (~200–300 cycles). Measured, one migration buys you a **degradation window of tens of microseconds** during which the thread is just re-warming caches and doing real work at a fraction of its normal rate. If the migration also crossed a socket, it's worse still — the data is now "remote memory," and every access pays roughly 50% more, permanently (section 3).
+Why a catastrophe: **L1, L2, and the TLB are all private to each physical core.** Your thread has been running on core 7 for a while — the order book's hot data, the strategy code's instructions, the address-translation entries — all of it lives in core 7's caches. The scheduler moves it to core 12, whose L1/L2 hold none of that. So for the next tens of thousands of instructions, every memory access is a miss: pull from L3 (~40 cycles) or pull from main memory (~200–300 cycles). Measured, one migration buys you a **degradation window of tens of microseconds** during which the thread is just re-warming caches and doing real work at a fraction of its normal rate. If the migration also crossed a socket, it's worse still — the data is now "remote memory," and every access pays roughly 50% more, permanently (Part 3).
 
 Pinning (affinity) tells the scheduler: **this thread runs on this core and nowhere else.** It drives the migration cost straight to zero.
 
@@ -95,7 +83,7 @@ But note carefully: **pinning only solves "the thread gets moved away." It does 
 
 ![The cost of migration — per-core caches don't follow the thread](/images/cpu-affinity/migration-cost.jpg)
 
-### The isolation stack: evicting the noise one layer at a time
+### 1.2 The Isolation Stack: Evicting the Noise One Layer at a Time
 
 Picture core 3 on a bare, unconfigured machine, and count how many times per second it gets interrupted: your hot thread wants to run, other userspace threads may get scheduled onto it, kernel threads (`kworker`, `ksoftirqd`) have work to do, the 1000 Hz periodic timer tick fires no matter what, every packet the NIC receives is a hardware interrupt, that hardirq raises a softirq, and RCU callbacks need a core to run on.
 
@@ -119,7 +107,7 @@ Every non-isolated core (usually core 0, sometimes plus core 1) is called a **ho
 
 **Finally, there's an irreducible residue.** Even with all of the above configured, a `nohz_full` core still gets a residual timer interrupt at roughly 1 Hz; when another process changes its address space (`munmap`/`mprotect`) and shares an address space with you, you get a TLB-shootdown inter-processor interrupt (IPI); there are occasional scheduling IPIs; there's the NMI watchdog (turn it off with `nmi_watchdog=0`); and there's SMI — a firmware-level System Management Interrupt the OS cannot see at all, tens to hundreds of microseconds each, addressable only in the BIOS. The magnitude and frequency of this residue is the "floor" you measure with `cyclictest` / `oslat`.
 
-### Four mechanisms, and what "isolation strength" really means
+### 1.3 Four Mechanisms, and What "Isolation Strength" Really Means
 
 `isolcpus` is **kernel-level**, a boot parameter, with **strong** isolation (it genuinely removes the core from the scheduling pool). The cost is that it's static — changing it means a reboot.
 
@@ -129,7 +117,7 @@ Every non-isolated core (usually core 0, sometimes plus core 1) is called a **ho
 
 `sched_setaffinity` vs `pthread_setaffinity_np`: the former is the raw syscall, identifying the thread by TID (pass `0` for "myself"); the latter is a glibc wrapper that calls the former internally, identifying the thread by `pthread_t` handle. The `_np` suffix is "non-portable" (a glibc extension, not POSIX).
 
-### Reading a code snippet: four bugs in a "pin and spawn" helper
+### 1.4 Four Pitfalls in a "Pin and Spawn" Helper
 
 A common "pin a core and start a thread" wrapper, trimmed down:
 
@@ -154,15 +142,15 @@ inline auto createAndStartThread(int core_id, const std::string &name, T &&func,
 
 `setThreadCore` is fine: `cpu_set_t` is a bitmask, `CPU_ZERO`/`CPU_SET` are the macros to manipulate it, calling it on `pthread_self()` means "nail myself to core_id," and `noexcept` + a `bool` return is hot-path style. The problems are in the outer layer:
 
-**Bug 1 — dangling reference. This is a real bug.** The lambda captures `core_id`, `name`, and `args...` by reference (`[&]`), and it may not start executing until after `createAndStartThread` has returned. By then the stack frame is gone and every reference dangles. The fix is capture by value, or pack the arguments into a `std::tuple` and unpack with `std::apply`.
+**Pitfall 1 — dangling references.** The lambda captures `core_id`, `name`, and `args...` by reference (`[&]`), and it may not start executing until after `createAndStartThread` has returned. By then the stack frame is gone and every reference dangles. The fix is capture by value, or pack the arguments into a `std::tuple` and unpack with `std::apply`.
 
-**Bug 2 — `sleep_for(1s)` is a dirty hack.** The race it papers over: when the main thread does `return t`, the child's `func` may already be running **but `setThreadCore` hasn't taken effect yet**. The right fix is a handshake: `std::latch ready{1}`, the child calls `count_down` after setting affinity, the main thread `wait`s before returning. Incidentally, sleeping a full second also needlessly slows startup.
+**Pitfall 2 — `sleep_for(1s)` papers over a race.** The race it papers over: when the main thread does `return t`, the child's `func` may already be running **but `setThreadCore` hasn't taken effect yet**. The right fix is a handshake: `std::latch ready{1}`, the child calls `count_down` after setting affinity, the main thread `wait`s before returning. Incidentally, sleeping a full second also needlessly slows startup.
 
-**Bug 3 — `new std::thread` raw pointer, never deleted, leaked.** And it returns a `joinable` thread pointer with no convention for who calls `join`/`detach`; a `std::thread` that's still joinable at destruction calls `std::terminate` outright.
+**Pitfall 3 — a raw `new std::thread` that is never deleted.** And it returns a `joinable` thread pointer with no convention for who calls `join`/`detach`; a `std::thread` that's still joinable at destruction calls `std::terminate` outright.
 
-**Bug 4 — wrong migration timing.** The thread is born and starts running on the *creator's* core, then migrates to the target core at its entry point. You still pay for that first migration's cold cache. The thorough fix is `pthread_attr_setaffinity_np`, so the thread is **born on the target core** in the first place.
+**Pitfall 4 — the first migration still happens.** The thread is born and starts running on the *creator's* core, then migrates to the target core at its entry point. You still pay for that first migration's cold cache. The thorough fix is `pthread_attr_setaffinity_np`, so the thread is **born on the target core** in the first place.
 
-### A concrete layout note: stay off core 0
+### 1.5 A Layout Rule: Stay Off Core 0
 
 Core 0 is Linux's boot CPU and a natural sink for housekeeping activity: RCU's grace-period kernel threads, the default workqueue, some IRQs that can't be migrated, the NMI watchdog, timekeeping, `kworker`. Even with every other core `isolcpus`'d, this stays concentrated on core 0 (overflowing to core 1 sometimes). So the standard layout is: **housekeeping activity confined to cores 0 (and 1), hot threads elsewhere**; on a dual-socket box the hot core also goes on the **NUMA node the NIC is attached to**. Use `lscpu -e=CPU,CORE,SOCKET` to see the mapping clearly before you pick cores.
 
@@ -170,9 +158,9 @@ Core 0 is Linux's boot CPU and a natural sink for housekeeping activity: RCU's g
 
 ## 2. SMT and Frequency: The Core Trips You Up By Itself
 
-The last section was about evicting *other people* from your core. This one is different: **the core itself** has a few features that will make your latency jitter even when you own the whole thing.
+Part 1 was about evicting *other people* from your core. This one is different: **the core itself** has a few features that will make your latency jitter even when you own the whole thing.
 
-### Hyper-Threading: one physical core pretending to be two
+### 2.1 Hyper-Threading: One Physical Core Pretending to Be Two
 
 Hyper-Threading (Intel's name; SMT generically) makes one physical core present as two logical cores. The OS sees `CPU 0` and `CPU 48`, but they're two register-state sets on **the same physical core**. When one pipeline stalls waiting on memory, the core can switch to executing the other state's instructions to fill the stall — good for throughput, typically 15%–30% more.
 
@@ -194,7 +182,7 @@ echo 0 > /sys/devices/system/cpu/cpu48/online   # CPU48 disappears, CPU0 owns th
 
 Verify by running `cyclictest` before and after and comparing the max and the number of spikes.
 
-### C-states: the core is dozing, and you have to wake it
+### 2.2 C-States: The Core Dozes, and Waking It Takes Time
 
 C-states are the CPU's **idle power-saving states**. C0 is working; C1 / C1E are light halt; C3 and C6 are deep sleep — the deeper the state, the more power saved, but **the longer it takes to wake up**. C6 flushes L1 and L2 and drops the core voltage; coming back from C6 to C0 takes roughly 30 to 100 microseconds.
 
@@ -206,7 +194,7 @@ Three fixes, coarse to fine:
 2. **Cap the deepest C-state** — `processor.max_cstate=1` + `intel_idle.max_cstate=1`, or at runtime `echo 1 > /sys/devices/system/cpu/cpuN/cpuidle/stateX/disable` per state. Allow light sleep, forbid deep sleep.
 3. **`/dev/cpu_dma_latency` (PM QoS)** — open this device file, write a 32-bit integer `0` into it, **and keep the file descriptor open**. This tells the kernel "the whole system's tolerable wakeup latency is 0 µs," and the kernel keeps cores out of deep C-states accordingly. Close the fd and the constraint lifts. This is the in-program option, more flexible than a boot parameter.
 
-### P-states: the core changes speed, and you have to weld it shut
+### 2.3 P-States: The Core Changes Speed, So Weld It Shut
 
 P-states govern **frequency and voltage**. Two things are moving:
 
@@ -226,9 +214,9 @@ SMT, C-states, and P-states have one thing in common: they're all **designed for
 
 ## 3. NUMA: Memory Isn't Uniform
 
-The first two sections cleaned up the CPU side. This one changes dimension: **memory**. On a multi-socket server, how long "access memory" takes depends on *which* memory you're accessing.
+The first two parts cleaned up the CPU side. This one changes dimension: **memory**. On a multi-socket server, how long "access memory" takes depends on *which* memory you're accessing.
 
-### Two sockets, one UPI link
+### 3.1 Two Sockets, One UPI Link
 
 A dual-socket server is physically two CPUs, each wired directly to some of the DIMMs. CPU 0 accessing memory "attached to itself" is a **local access**, about 90 ns. CPU 0 accessing memory "attached to CPU 1" has to send the request across the inter-CPU interconnect (Intel calls it UPI, AMD Infinity Fabric) to CPU 1, have CPU 1's memory controller fetch it, and route the result back — a **remote access**, about 140 ns.
 
@@ -332,7 +320,7 @@ The key point: this surcharge is **not an occasional spike — it's a tax you pa
 
 > Figure: housekeeping cores (0/1) absorb device interrupts and kernel chores; Core 3 is cleared by three boot parameters, then the hot thread is pinned onto it; reaching node 1 memory crosses the UPI link, about +50 ns per access.
 
-### first-touch: the page follows the first core to write it, not `malloc`
+### 3.2 First-Touch: The Page Follows the First Writer, Not `malloc`
 
 This is the most counterintuitive thing in NUMA, and the easiest to get wrong.
 
@@ -340,7 +328,7 @@ When you `malloc(1GB)`, Linux **does not actually give you 1 GB of physical memo
 
 Consequence: if you `malloc` a big block in your main thread and `memset` it to zero for good measure, that entire block lands on **whatever node the main thread was on at the time**. Then you pin a worker thread to a core on a different node to use it — and every access is remote. The correct pattern is **whoever uses it initializes it**: after allocating, don't touch the memory; let the worker thread that will ultimately use it perform the first write, on its own core.
 
-### membind / preferred / interleave
+### 3.3 membind, preferred, interleave
 
 `numactl` and `libnuma` offer three memory-binding policies, differing in "what happens when the node runs out":
 
@@ -350,7 +338,7 @@ Consequence: if you `malloc` a big block in your main thread and `memset` it to 
 
 The `libnuma` APIs are `numa_alloc_onnode()`, `numa_run_on_node()`, `numa_set_localalloc()`; the underlying syscalls are `mbind(2)`, `set_mempolicy(2)`, `move_pages(2)`. For diagnosis use `numastat -p <pid>` and watch how much each node allocated and whether `numa_miss` / `numa_foreign` are climbing.
 
-### "Before NUMA": the best NUMA fix is to not have the problem
+### 3.4 The Best NUMA Fix Is Not Having the Problem
 
 Everything above is remediation after the fact — data is already shared, already crossing threads. A genuinely low-latency system's first choice is to make the NUMA problem **not exist**:
 
@@ -358,17 +346,3 @@ Everything above is remediation after the fact — data is already shared, alrea
 - When you need multiple worker threads, go **share-nothing**: each thread has its own copy of state, pinned to a core on its own node, using its own node's memory, exchanging only what's necessary between threads via message passing (lock-free queues).
 - Then every thread is doing local accesses, and that `21` in the NUMA distance matrix is something you never touch.
 
----
-
-## Recap
-
-1. **The goal is determinism, not throughput.** Tail latency and jitter are the enemy; the average is not.
-2. **Pinning eliminates migration cost** (cache/TLB cold start, cross-node), but the other noise on the core is still there.
-3. **The isolation stack clears noise layer by layer**: `isolcpus` (clears the core, doesn't block explicit pinning) + `nohz_full` (tick stops only with one thread per core) + `rcu_nocbs` + `irqaffinity`. Per-CPU kthreads you can't disable are starved by cutting off their supply of work.
-4. **Housekeeping cores** absorb all the noise so the hot core is quiet; the residue (~1 Hz tick, IPIs, SMI) is the floor.
-5. **Lock down the core's own variability too**: disable the SMT sibling, cap the deepest C-state, `performance` governor + Turbo off.
-6. **NUMA is a baseline shift, not a spike**: first-touch decides which node a page lands on (whoever uses it initializes it); `--membind` is strict, `--preferred` is soft; the best policy is share-nothing, so the remote access never happens.
-
----
-
-*The knowledge skeleton for this post comes from a close reading of [`zzxscodes/trading-system-notes`](https://github.com/zzxscodes/trading-system-notes); the causal chains, the first-touch mechanism, the "why" behind share-nothing, and the code-snippet bug analysis are built on top of it.*

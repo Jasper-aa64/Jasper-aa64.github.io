@@ -555,7 +555,7 @@ That's only the time inside the DIMM. Add queuing in the controller, the on-chip
 
 - **Chips and ranks**: a channel's data bus is **64 bits** (8 bytes) wide, and a common chip supplies 8 bits at a time. So 8 chips side by side, each supplying 8 bits in the same beat, make 64 — **this group of chips responding together is a rank**. A 64-byte line is 8 beats × 8 bytes, 8 bytes from each chip, and all 8 chips open the same row and column.
 - **Banks**: each chip has 16 banks (DDR4). Different banks open rows and prepare data independently: while bank 0 spends its 14 ns opening a row, bank 1 can be transferring. That's how a DIMM serves several requests at once.
-- **A DIMM can carry 1–2 ranks** (often one per side). Ranks on the same channel share its 64 data wires; only one transfers at a time, taking turns.
+- **A DIMM can carry 1–2 ranks** (often one per side). Ranks on the same channel share its 64 data wires; only one transfers at a time, taking turns. So **channels and ranks are not one-to-one**: a channel can hold 1–2 DIMMs of 1–2 ranks each, i.e. 1–4 ranks per channel (channel 0 in the figure has 2).
 - **Channels**: each channel is an independent set of 64 data wires plus command lines, and channels transfer in parallel. So **total bandwidth ≈ channels × per-channel bandwidth** — 2 channels on a desktop, 6–12 on a server. More channels don't make a single access faster; they let more requests run at once.
 
 #### 3.4.5 How the Controller Splits an Address
