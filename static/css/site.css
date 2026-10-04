@@ -588,14 +588,37 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 14px;
+  gap: 8px 12px;
   margin-bottom: 10px;
   font-family: var(--mono);
   font-size: 12px;
   color: var(--muted);
 }
-.card__series { font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-ink); }
-.card__series b { font-weight: 600; color: var(--gold); }
+.card__series {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  color: var(--accent-ink);
+}
+/* Series number (#4, #2.1): big enough to find a note by its number at a glance. */
+.num-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1;
+}
+:root[data-theme="dark"] .num-badge { color: #fffaf4; }
+.num-badge--lg { height: 30px; padding: 0 11px; font-size: 17px; margin-left: 4px; }
 .card__badge { padding: 1px 6px; border: 1px solid var(--rule-strong); border-radius: 5px; font-size: 10.5px; }
 .card__title {
   margin: 0 0 10px;
@@ -765,7 +788,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   text-transform: uppercase;
   color: var(--muted);
 }
-.entry__num { color: var(--accent); }
+.entry__series .num-badge { height: 22px; font-size: 13px; padding: 0 7px; margin-left: 4px; }
 .entry__title {
   font-size: 18px;
   font-weight: 500;
@@ -840,7 +863,14 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .post-head .eyebrow { display: flex; width: fit-content; }
 .post-head__kicker { transition: color .2s; }
 .post-head__kicker:hover { color: var(--accent); }
-.post-head__num { color: var(--accent); margin-left: 2px; }
+.post-head__kicker {
+  font-family: var(--sans);
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  text-transform: none;
+  color: var(--accent-ink);
+}
 .post-head__title {
   margin-top: 0;
   margin-bottom: 0;
@@ -1218,7 +1248,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .post-nav__item--next { text-align: right; grid-column: 2; }
 .post-nav__dir { font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .post-nav__title { font-family: var(--serif); font-size: 23px; line-height: 1.2; color: var(--ink); }
-.post-nav__num { display: block; margin-bottom: 4px; font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.post-nav__title .num-badge { margin-right: 8px; vertical-align: 3px; }
 .post-foot__back { display: inline-block; margin-top: 32px; font-size: 14.5px; color: var(--muted); transition: color .2s; }
 .post-foot__back:hover { color: var(--accent); }
 
