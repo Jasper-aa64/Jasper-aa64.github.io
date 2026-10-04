@@ -91,20 +91,10 @@
     var place = function () { order.forEach(function (c, i) { c.dataset.pos = String(i); }); };
     var advance = function () {
       if (busy || order.length < 2) return;
-      var front = order.shift();
-      order.push(front);
-      if (reduce) { place(); return; }
       busy = true;
-      front.classList.add("is-leaving");
-      setTimeout(function () {
-        front.classList.add("no-anim");
-        front.classList.remove("is-leaving");
-        place();
-        void front.offsetWidth;
-        front.classList.remove("no-anim");
-        busy = false;
-      }, 480);
-      order.forEach(function (c, i) { if (c !== front) c.dataset.pos = String(i); });
+      order.push(order.shift());
+      place();
+      setTimeout(function () { busy = false; }, reduce ? 0 : 450);
     };
     deck.addEventListener("click", advance);
     deck.addEventListener("keydown", function (e) {
