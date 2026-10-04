@@ -5,7 +5,7 @@
   </section>
 <section class="wrap page-body">
   {{ if $isCats }}
-    {{ partial "area-grid.html" . }}
+    {{ partial "area-grid.html" (dict "page" . "art" true) }}
     <h2 class="sub-head reveal">{{ i18n "tagsTitle" }}</h2>
     {{/* Tags of this language, plus (on the Chinese site) tags that only English notes use. */}}
     {{ $tags := slice }}{{ $seen := slice }}

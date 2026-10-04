@@ -1,7 +1,9 @@
-{{/* The four doors into the notes (home page and Categories page). */}}
-{{ $posts := partial "posts-all.html" . }}
-{{ $ix := partial "class-index.html" . }}
-  <div class="area-grid">
+{{/* The four doors into the notes. Context: dict page, art (bool).
+     Home page: one row of four, text only. Categories page (art: true): 2 x 2 with illustrations. */}}
+{{ $art := .art }}
+{{ $posts := partial "posts-all.html" .page }}
+{{ $ix := partial "class-index.html" .page }}
+  <div class="area-grid{{ if $art }} area-grid--art{{ end }}">
     {{ range $i, $c := slice
       (dict "key" "lowlatency" "name" (i18n "catLowLatency") "blurb" (i18n "catLowLatencyBlurb") "href" (print ("posts/" | relLangURL) "#lowlatency"))
       (dict "key" "algorithms" "name" (i18n "catAlgorithms") "blurb" (i18n "catAlgorithmsBlurb") "href" (print ("posts/" | relLangURL) "#algorithms"))
@@ -17,7 +19,7 @@
             <span class="area__arrow" aria-hidden="true">→</span>
           </span>
         </span>
-        <span class="area__art">{{ partial (print "art/" $c.key ".html") . }}</span>
+        {{ if $art }}<span class="area__art">{{ partial (print "art/" $c.key ".html") . }}</span>{{ end }}
       </a>
     {{ end }}
   </div>
