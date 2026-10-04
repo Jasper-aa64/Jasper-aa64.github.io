@@ -24,11 +24,9 @@
       {{ range $i, $ph := $p.photos }}
         <figure class="deck__card" data-pos="{{ $i }}">
           <img src="{{ $ph.src }}" alt="{{ $ph.caption }}" width="800" height="600" {{ if gt $i 0 }}loading="lazy" {{ end }}decoding="async" draggable="false">
-          <figcaption>{{ $ph.caption }}</figcaption>
         </figure>
       {{ end }}
     </div>
-    <p class="deck__hint">{{ i18n "photoHint" }}</p>
   </div>
 </section>
 
