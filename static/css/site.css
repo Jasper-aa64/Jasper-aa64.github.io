@@ -1009,20 +1009,33 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .prose ul li::marker { color: var(--faint); }
 .prose ol li::marker { font-family: var(--mono); font-size: .86em; color: var(--muted); }
 .prose blockquote {
-  position: relative;
-  padding: .2em 0 .2em 1.3em;
-  border-left: 2px solid var(--accent);
-  color: var(--ink-2);
+  /* Callout box, as in the original theme: thick accent bar on the left, frosted panel. */
+  margin: 1.4em 0 1.6em;
+  padding: .9rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--rule-strong) 34%, transparent);
+  border-left: 7px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  background: rgba(255, 255, 255, .55);
+  -webkit-backdrop-filter: blur(20px) saturate(118%);
+  backdrop-filter: blur(20px) saturate(118%);
+  color: #274263;
+  box-shadow: 0 18px 42px rgba(23, 24, 30, .10), inset 0 1px 0 rgba(255, 255, 255, .68);
+}
+:root[data-theme="dark"] .prose blockquote {
+  background: rgba(50, 28, 29, .58);
+  border: 1px solid rgba(239, 178, 182, .16);
+  border-left: 7px solid #e07882;
+  color: #f6ebe7;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255, 250, 244, .10);
 }
 .prose blockquote > :last-child { margin-bottom: 0; }
+.prose blockquote strong { color: inherit; }
 .prose hr {
-  height: auto;
-  margin: 3.2em 0;
+  height: 1px;
+  margin: 2.6em 0;
   border: 0;
-  text-align: center;
-  color: var(--faint);
+  background: var(--rule);
 }
-.prose hr::before { content: "∗  ∗  ∗"; letter-spacing: .5em; font-size: 14px; }
 .prose code {
   font-family: var(--mono);
   font-size: .84em;
