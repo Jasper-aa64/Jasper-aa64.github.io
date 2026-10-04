@@ -90,3 +90,11 @@ categoriesTitle: "Categories"
 categoriesLede: "Browse the notes by area."
 subAll: "All"
 topicTag: "Topic"
+
+# home notebook panel
+statsLabel: "Stats"
+statNotes: "Notes"
+statWords: "Words"
+statUpdated: "Updated"
+topTags: "Frequent tags"
+allTags: "All tags"

@@ -18,15 +18,29 @@
       <a class="btn" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>
     </div>
   </div>
-  <div class="hero__photos reveal">
-    <div class="deck" data-deck role="button" tabindex="0" aria-label="{{ i18n "photoHint" }}">
-      {{ range $i, $ph := $p.photos }}
-        <figure class="deck__card" data-pos="{{ $i }}">
-          <img src="{{ $ph.src }}" alt="{{ $ph.caption }}" width="800" height="600" decoding="async" draggable="false">
-        </figure>
-      {{ end }}
+  {{/* Photos are kept in data/profile.yaml but not shown for now; the right column is a small notebook panel instead. */}}
+  {{ $words := 0 }}{{ range $posts }}{{ $words = add $words .WordCount }}{{ end }}
+  <aside class="hero__panel reveal" aria-label="{{ i18n "statsLabel" }}">
+    <dl class="stats">
+      <div class="stats__item">
+        <dt>{{ i18n "statNotes" }}</dt>
+        <dd><a href="{{ "posts/" | relLangURL }}">{{ len $posts }}</a></dd>
+      </div>
+      <div class="stats__item">
+        <dt>{{ i18n "statWords" }}</dt>
+        <dd>{{ if eq site.Language.Lang "zh" }}{{ lang.FormatNumber 1 (div (float $words) 10000) }}<small>万</small>{{ else }}{{ lang.FormatNumber 0 (div (float $words) 1000) }}<small>k</small>{{ end }}</dd>
+      </div>
+      <div class="stats__item">
+        <dt>{{ i18n "statUpdated" }}</dt>
+        {{ with index $recent 0 }}<dd><a href="{{ .RelPermalink }}"><time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format "2006.01.02" }}</time></a></dd>{{ end }}
+      </div>
+    </dl>
+    <p class="hero__panel-label">{{ i18n "topTags" }}</p>
+    <div class="tag-cloud tag-cloud--hero">
+      {{ range first 14 (partial "tag-list.html" .) }}<a class="tag" href="{{ .u }}">{{ .t }}<sup>{{ .n }}</sup></a>{{ end }}
+      <a class="tag tag--more" href="{{ "categories/" | relLangURL }}">{{ i18n "allTags" }} →</a>
     </div>
-  </div>
+  </aside>
 </section>
 
 <section class="home-sec home-sec--areas wrap" id="areas" aria-label="{{ i18n "categoriesTitle" }}">

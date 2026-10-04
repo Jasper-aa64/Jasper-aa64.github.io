@@ -1,0 +1,23 @@
+# Display names for tags whose slug reads badly (acronyms, symbols). Other tags show as "number theory".
+ntt: NTT
+fft: FFT
+hft: HFT
+cpp: C++
+dp: DP
+gf2: GF(2)
+numa: NUMA
+mesi: MESI
+tlb-shootdown: TLB shootdown
+pmr: PMR
+stl: STL
+spsc: SPSC
+crt: CRT
+bsgs: BSGS
+ogf: OGF
+x86: x86
+ai: AI
+ai-coding: AI coding
+agents-md: AGENTS.md
+linux: Linux
+c-states: C-states
+nohz-full: nohz_full

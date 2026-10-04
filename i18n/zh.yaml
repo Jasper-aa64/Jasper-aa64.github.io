@@ -89,3 +89,11 @@ categoriesTitle: "分类"
 categoriesLede: "按方向浏览笔记。"
 subAll: "全部"
 topicTag: "专题"
+
+# home notebook panel
+statsLabel: "统计"
+statNotes: "笔记"
+statWords: "字数"
+statUpdated: "最近更新"
+topTags: "常用标签"
+allTags: "全部标签"
