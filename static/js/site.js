@@ -117,36 +117,57 @@
     });
   }
 
-  /* ---------- Home showcase: auto-slides on wide screens, pauses on hover / focus / hidden tab ---------- */
+  /* ---------- Click feedback: a ring and six sparks where the mouse clicks ---------- */
+  if (!reduce && window.matchMedia("(pointer: fine)").matches) {
+    document.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      var fx = document.createElement("span");
+      fx.className = "click-fx";
+      fx.style.left = e.clientX + "px";
+      fx.style.top = e.clientY + "px";
+      for (var k = 0; k < 6; k++) {
+        var sp = document.createElement("i");
+        sp.style.setProperty("--a", (k * 60 + 30) + "deg");
+        fx.appendChild(sp);
+      }
+      document.body.appendChild(fx);
+      setTimeout(function () { fx.remove(); }, 600);
+    }, { passive: true });
+  }
+
+  /* ---------- Home showcase: cross-fades on wide screens; the progress bar of the current slide
+     drives autoplay (its fill animation ending = next slide), so pausing the bar pauses the show ---------- */
   var show = document.querySelector("[data-showcase]");
   if (show) {
-    var track = show.querySelector(".showcase__track");
     var slides = Array.prototype.slice.call(show.querySelectorAll(".slide"));
-    var dots = Array.prototype.slice.call(show.querySelectorAll(".showcase__dot"));
+    var segs = Array.prototype.slice.call(show.querySelectorAll(".showcase__seg"));
+    var countEl = show.querySelector("[data-count]");
     var wide = window.matchMedia("(min-width: 1200px)");
-    var cur = 0, timer = null, hold = false;
+    var cur = 0, hold = false;
+    if (reduce || slides.length < 2) show.classList.add("no-auto");
     var go = function (n) {
       cur = (n + slides.length) % slides.length;
-      track.style.transform = "translateX(" + (-100 * cur) + "%)";
       slides.forEach(function (sl, i) {
         var on = i === cur;
+        sl.classList.toggle("is-active", on);
         sl.setAttribute("aria-hidden", on ? "false" : "true");
         sl.tabIndex = on ? 0 : -1;
       });
-      dots.forEach(function (d, i) { d.classList.toggle("is-on", i === cur); });
+      segs.forEach(function (g, i) {
+        g.classList.remove("is-on");
+        g.classList.toggle("is-done", i < cur);
+      });
+      void show.offsetWidth;                    // restart the fill animation
+      if (segs[cur]) segs[cur].classList.add("is-on");
+      if (countEl) countEl.textContent = (cur < 9 ? "0" : "") + (cur + 1);
     };
-    var stop = function () { if (timer) { clearInterval(timer); timer = null; } };
-    var start = function () {
-      stop();
-      if (reduce || hold || slides.length < 2 || !wide.matches || document.hidden) return;
-      timer = setInterval(function () { go(cur + 1); }, 5000);
+    var sync = function () {
+      show.classList.toggle("is-paused", hold || document.hidden || !wide.matches);
     };
-    var wake = function () {
-      if (!wide.matches) return;
-      show.querySelectorAll("img[loading=lazy]").forEach(function (im) { im.loading = "eager"; });
-      start();
-    };
-    dots.forEach(function (d) { d.addEventListener("click", function () { go(+d.dataset.go); start(); }); });
+    show.addEventListener("animationend", function (e) {
+      if (e.animationName === "seg-fill" && !hold) go(cur + 1);
+    });
+    segs.forEach(function (g) { g.addEventListener("click", function () { go(+g.dataset.go); }); });
     show.querySelectorAll("[data-step]").forEach(function (b) {
       b.addEventListener("click", function () { go(cur + +b.dataset.step); });
     });
@@ -154,11 +175,15 @@
       if (e.key === "ArrowLeft") { e.preventDefault(); go(cur - 1); }
       else if (e.key === "ArrowRight") { e.preventDefault(); go(cur + 1); }
     });
-    show.addEventListener("mouseenter", function () { hold = true; stop(); });
-    show.addEventListener("mouseleave", function () { hold = false; start(); });
-    show.addEventListener("focusin", function () { hold = true; stop(); });
-    show.addEventListener("focusout", function () { hold = false; start(); });
-    document.addEventListener("visibilitychange", start);
+    show.addEventListener("mouseenter", function () { hold = true; sync(); });
+    show.addEventListener("mouseleave", function () { hold = false; sync(); });
+    show.addEventListener("focusin", function () { hold = true; sync(); });
+    show.addEventListener("focusout", function () { hold = false; sync(); });
+    document.addEventListener("visibilitychange", sync);
+    var wake = function () {
+      if (wide.matches) show.querySelectorAll("img[loading=lazy]").forEach(function (im) { im.loading = "eager"; });
+      sync();
+    };
     if (wide.addEventListener) wide.addEventListener("change", wake);
     wake();
   }

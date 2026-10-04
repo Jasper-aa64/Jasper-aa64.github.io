@@ -28,26 +28,27 @@
   {{ range $pool }}{{ $pg := . }}{{ if lt (len $slides) 6 }}{{ with partial "thumb.html" $pg }}{{ $slides = $slides | append (dict "p" $pg "t" .) }}{{ end }}{{ end }}{{ end }}
   {{ with $slides }}
   <section class="showcase reveal" data-showcase aria-roledescription="carousel" aria-label="{{ i18n "showcaseLabel" }}">
-    <div class="showcase__viewport">
-      <div class="showcase__track">
-        {{ range $i, $sl := . }}{{ $s := partial "series.html" $sl.p }}
-          <a class="slide" href="{{ $sl.p.RelPermalink }}" aria-roledescription="slide"{{ if $i }} aria-hidden="true" tabindex="-1"{{ end }}>
-            <span class="slide__img"><img src="{{ $sl.t }}" alt="" {{ if $i }}loading="lazy" {{ end }}decoding="async"></span>
-            <span class="slide__body">
-              <span class="slide__meta"><span class="card__series">{{ $s.label }}</span>{{ with $s.num }}<span class="num-badge">{{ . }}</span>{{ end }}</span>
-              <strong class="slide__title">{{ $s.title }}</strong>
-              <span class="slide__sum">{{ with $sl.p.Summary }}{{ . | plainify | htmlUnescape | truncate 140 }}{{ else }}{{ $sl.p.Plain | truncate 140 }}{{ end }}</span>
-            </span>
-          </a>
-        {{ end }}
-      </div>
+    <div class="showcase__stage">
+      {{ range $i, $sl := . }}{{ $s := partial "series.html" $sl.p }}
+        <a class="slide{{ if not $i }} is-active{{ end }}" href="{{ $sl.p.RelPermalink }}" aria-roledescription="slide"{{ if $i }} aria-hidden="true" tabindex="-1"{{ end }}>
+          <span class="slide__media">
+            <img src="{{ $sl.t }}" alt="" {{ if $i }}loading="lazy" {{ end }}decoding="async">
+            <span class="slide__chip">{{ $s.label }}{{ with $s.num }}<b>{{ . }}</b>{{ end }}</span>
+          </span>
+          <span class="slide__body">
+            <strong class="slide__title">{{ $s.title }}</strong>
+            <span class="slide__sum">{{ with $sl.p.Summary }}{{ . | plainify | htmlUnescape | truncate 140 }}{{ else }}{{ $sl.p.Plain | truncate 140 }}{{ end }}</span>
+          </span>
+        </a>
+      {{ end }}
+      <span class="showcase__count" aria-hidden="true"><b data-count>01</b><i>/</i>{{ printf "%02d" (len .) }}</span>
     </div>
     <div class="showcase__bar">
-      <button type="button" class="showcase__nav" data-step="-1" aria-label="{{ i18n "prevPost" }}"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <div class="showcase__dots">
-        {{ range $i, $sl := . }}<button type="button" class="showcase__dot{{ if not $i }} is-on{{ end }}" data-go="{{ $i }}" aria-label="{{ add $i 1 }} / {{ len $slides }}"></button>{{ end }}
+      <div class="showcase__progress">
+        {{ range $i, $sl := . }}<button type="button" class="showcase__seg{{ if not $i }} is-on{{ end }}" data-go="{{ $i }}" aria-label="{{ add $i 1 }} / {{ len $slides }}"><i></i></button>{{ end }}
       </div>
-      <button type="button" class="showcase__nav" data-step="1" aria-label="{{ i18n "nextPost" }}"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="showcase__nav" data-step="-1" aria-label="{{ i18n "prevPost" }}"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" class="showcase__nav" data-step="1" aria-label="{{ i18n "nextPost" }}"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
   </section>
   {{ end }}
