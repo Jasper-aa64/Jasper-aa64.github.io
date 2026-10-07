@@ -65,7 +65,20 @@
     <header class="site-header">
       <div class="wrap site-header__inner">
         <a class="brand" href="{{ site.Home.RelPermalink }}" aria-label="{{ site.Title }}">
-          <img class="brand__logo" src="/images/logo.svg" alt="" width="52" height="45">
+          <span class="brand__logo" aria-hidden="true">
+            <img class="brand__mark" src="/images/studio-mascot.svg?v=20261007-mascot-2" alt="" width="48" height="48">
+            <span class="brand__bulb">
+              <svg viewBox="-6 -8 12 13">
+                <g class="brand__bulb-rays" stroke="#f59e0b" stroke-width="0.9" stroke-linecap="round">
+                  <line x1="0" y1="-5.6" x2="0" y2="-7.2"/>
+                  <line x1="-4.1" y1="-3.6" x2="-5.4" y2="-4.7"/>
+                  <line x1="4.1" y1="-3.6" x2="5.4" y2="-4.7"/>
+                </g>
+                <circle cx="0" cy="-1.6" r="3.5" fill="#fde68a" stroke="#f59e0b" stroke-width="0.8"/>
+                <rect x="-1.8" y="1.2" width="3.6" height="2" fill="#9ca3af"/>
+              </svg>
+            </span>
+          </span>
           <span class="brand__name">Jasper</span>
         </a>
 
