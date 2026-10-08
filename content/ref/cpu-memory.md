@@ -12,10 +12,10 @@ math: true
 This page is a map to keep open, not a post. It has three parts, in the order "where → how big and how fast → how to combine":
 
 1. [Map](#map): which boxes a read or a write passes through, and which post covers each box.
-2. [Numbers](#numbers): latency, bandwidth and capacity for each box, how many requests can be in flight, and how fast the CPU itself wants data. Every number says where it comes from.
+2. [Numbers](#numbers): latency, bandwidth and capacity for each box, how many requests can be in flight, and how fast the CPU itself wants data. They are rough magnitudes for intuition, not any particular machine.
 3. [Estimates](#estimate): one formula that strings the numbers of Part 2 together, to tell whether code is slow because it moves too much or because each move is slow.
 
-When a later post covers a new hardware layer or measures a new number, it goes here.
+When a later post covers a new hardware layer, it goes here.
 
 ## 1. Map: The Boxes One Access Passes Through {#map}
 
@@ -27,7 +27,7 @@ Blue text says where something is covered: #N is Trading System Notes #N, MESI i
 
 <a href="/images/ref/load-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.en.svg" alt="One load, step by step. 1: the address splits into page number and set index, and TLB translation and L1D set selection happen at once. 2: L1D compares tags; on a miss it takes a fill-buffer entry and asks L2, then L3. 3: on a miss everywhere the memory controller picks channel, bank and row and reads the DIMM. 4: the whole 64-byte line returns the same way and lands in each cache level. Each step is labelled with the latency so far." loading="lazy" decoding="async"></a>
 
-The latencies are magnitudes; numbers for specific chips are in [2.1](#latency) and [2.7](#chips).
+The latencies are magnitudes; see [2.1](#latency).
 
 ### 1.2 A Store Takes Two More Steps {#store}
 
@@ -48,67 +48,62 @@ A store first goes into the **store buffer**, so later instructions don't wait f
 
 ## 2. Numbers: How Big and How Fast Each Box Is {#numbers}
 
-These are magnitudes, not a spec sheet. Every row says where its number comes from:
-
-- **Measured**: measured on my own machines (Ryzen 5 5600GT on Windows, or an M1 MacBook Air), in the post named;
-- **Public data**: the public database from Chips and Cheese ([bandwidth](https://jsmemtest.chipsandcheese.com/bwdata), [latency](https://jsmemtest.chipsandcheese.com/latencydata)); the chips are listed in [2.7](#chips), and the structure sizes in [2.3](#in-flight) come from their [Golden Cove article](https://chipsandcheese.com/p/popping-the-hood-on-golden-cove);
-- **Derived**: calculated from other numbers;
-- **Typical**: a typical value from specs or references, not measured.
-
-Cycles and nanoseconds are converted at about 4 GHz: 1 ns ≈ 4 cycles.
+These are rough magnitudes to build intuition, not the numbers of any particular machine. Cycles and nanoseconds are converted at about 4 GHz: 1 ns ≈ 4 cycles.
 
 ### 2.1 Latency: How Long One Access Waits {#latency}
 
-| One… | About | Source |
-|---|---|---|
-| Register read | 0–1 cycles | Typical |
-| L1D hit | ~1 ns (4–5 cycles) | Public data: 0.7–1.4 ns |
-| L2 hit | ~2.5–5 ns (12–16 cycles) | Public data: 2.4–5.5 ns |
-| L3 hit | ~10–15 ns on desktops, ~20–25 ns on servers | Public data |
-| Uncontended atomic read-modify-write (`lock add`, CAS, line in your own L1) | ~10–20 cycles | Typical |
-| Line sitting in another core's cache | Tens of ns; shorter within one core complex, longer across CCDs or sockets | Typical |
-| Local memory | ~75–90 ns on desktops, ~85–120 ns on servers, ~105 ns on M1 | Public data (random reads over 1 GiB) |
-| …of which TLB misses | ~10–30 ns: with huge pages, Zen 3 89 → 79 ns, Zen 4 84 → 73 ns, Ice Lake server 117 → 85 ns | Public data |
-| Remote NUMA memory | Local plus tens of ns | Typical |
-| Running into a DRAM refresh | A few hundred ns more; about 4.5% of random accesses | Typical + derived ([2.5](#dram)) |
-| First write to a page (page fault) | ~1.5 µs | Measured (5600GT on Windows, [#5](/posts/spmc-shared-memory-broadcast-ring/)) |
-| Simplest system call | ~0.1–0.5 µs, depending on the kernel and its vulnerability mitigations | Typical |
-| Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards | Typical |
-| NVMe SSD 4 KiB read | 10–100 µs | Typical |
+| One… | About |
+|---|---|
+| Register read | 0–1 cycles |
+| L1D hit | ~1 ns (4–5 cycles) |
+| L2 hit | ~3–5 ns |
+| L3 hit | ~10–30 ns |
+| Uncontended atomic read-modify-write (`lock add`, CAS, line in your own L1) | ~3–5 ns (10–20 cycles) |
+| Line sitting in another core's cache | ~20–100 ns |
+| Memory, translation hits in the TLB | ~70–90 ns |
+| Memory, translation misses the TLB too | ~85–120 ns |
+| The other socket's memory (remote NUMA) | ~120–200 ns |
+| Running into a DRAM refresh | A few hundred ns more |
+| First write to a page (page fault) | ~1–2 µs |
+| Simplest system call | ~0.1–0.5 µs |
+| Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
+| NVMe SSD 4 KiB read | 10–100 µs |
 
-From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as 1,500 L1 hits.
+The two memory rows differ in the first step, the address translation in [1.1](#load)'s figure: when the TLB has no entry for the page, the hardware walks the page tables level by level to find the physical address before it can issue the real read. The page-table entries are usually in cache, so this adds only ten to thirty-odd ns. Random reads over a large region pay it almost every time. With 2 MiB huge pages one TLB entry covers 512 times as much memory, and this part mostly disappears.
+
+From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as one or two thousand L1 hits.
 
 ### 2.2 Bandwidth: How Much Arrives per Second {#bandwidth}
 
-| Data in | One core, sequential reads | Whole chip | Source |
-|---|---|---|---|
-| L1D | ~150–420 GB/s | Cores × one core | Public data |
-| L2 | ~85–210 GB/s | Cores × one core | Public data |
-| L3 | ~100–150 GB/s on desktops, ~35 GB/s on servers | Hundreds of GB/s to over 1 TB/s | Public data |
-| Memory | ~35–57 GB/s on desktops, ~16 GB/s on servers, ~45–57 GB/s on M1 | 50–100 GB/s on dual-channel desktops; hundreds of GB/s on 8–12-channel servers | Public data + derived |
-| PCIe 4.0 ×16 | — | ~32 GB/s each way | Typical |
-| NVMe SSD | — | 3–7 GB/s | Typical |
+| Data in | One core, sequential reads | Whole chip |
+|---|---|---|
+| L1D | ~150–400 GB/s | Cores × one core |
+| L2 | ~80–200 GB/s | Cores × one core |
+| L3 | ~30–150 GB/s | Hundreds of GB/s to over 1 TB/s |
+| Memory | ~15–60 GB/s | ~50–500 GB/s, depending on the number of channels ([2.5](#dram)) |
+| PCIe 4.0 ×16 | — | ~32 GB/s each way |
+| NVMe SSD | — | 3–7 GB/s |
 
 Two things to notice:
 
 - **Latency spans 100×, bandwidth only 10×.** From L1 to memory, one core's bandwidth drops from hundreds of GB/s to tens. The two columns aren't two ways of writing one quantity; what sits between them is how many requests are in flight ([2.3](#in-flight)).
-- **How much of the chip one core gets depends on the platform.** On a Zen 3 desktop one core reads 35 GB/s and all cores 51 GB/s, so a single core gets about 70%. On an Ice Lake server one core reads 16.6 GB/s and 10 cores 124 GB/s, so a single core gets just over a tenth. On an M1, one big core gets nearly all of it. A server core sits farther from memory (higher latency) and has more channels behind it (a higher peak), and both push that ratio down. When you see a single-core bandwidth figure, first ask whether it's a desktop or a server.
+- **One core can't take the whole chip.** What one core gets is set by in flight ÷ latency ([2.3](#in-flight)); the chip's peak is set by the number of channels. The longer the latency and the more channels, the smaller one core's share, anywhere from a tenth to most of it.
 
 ### 2.3 How Many Can Be in Flight {#in-flight}
 
 One core's bandwidth = requests in flight × 64 B ÷ latency (Little's law). A miss takes an entry at every level on its way out and back, and whichever level fills first sets the limit:
 
-| Structure | Size | What it limits | Source |
-|---|---|---|---|
-| ROB (reorder buffer) | 200–600 entries: Skylake 224, Zen 3 256, Sunny Cove 352, Golden Cove 512, M1 ~630 | Instructions enter in program order, execute out of order, and retire in order. It sets how far ahead out-of-order execution can look: while a miss is stuck at the head, only the independent loads inside the window can go early | Typical (Sunny Cove, Golden Cove: public data) |
-| Load queue | Sunny Cove 128, Golden Cove 192 | Every load holds an entry from entering the window until it retires. In load-dense code it can fill before the ROB | Public data |
-| L1D fill buffer (AMD: MAB) | 12–24 entries: Sunny Cove 12, Golden Cove 16, Zen 3 24 | How many L1D misses one core's own loads can have outstanding | Public data |
-| L2 outstanding-request queue | A few dozen: Sunny Cove 32, Golden Cove 48, Zen 3 ~64 (estimate) | Where the L2 prefetcher's extra requests wait, without using fill buffers | Public data |
-| Store buffer | ~50–110 entries: Skylake 56, Zen 3 64, Sunny Cove 72, Golden Cove 114 | Stores park here instead of waiting for the cache | Typical (Sunny Cove, Golden Cove: public data) |
+| Structure | Entries, roughly | What it limits |
+|---|---|---|
+| ROB (reorder buffer) | 200–600 | Instructions enter in program order, execute out of order, and retire in order. It sets how far ahead out-of-order execution can look: while a miss is stuck at the head, only the independent loads inside the window can go early |
+| Load queue | 70–200 | Every load holds an entry from entering the window until it retires. In load-dense code it can fill before the ROB |
+| L1D fill buffer | 10–25 | How many L1D misses one core's own loads can have outstanding |
+| L2 outstanding-request queue | 30–60 | Where the L2 prefetcher's extra requests wait, without using fill buffers |
+| Store buffer | 50–110 | Stores park here instead of waiting for the cache |
 
 Below that sits the memory controller, which spreads requests over channels and banks to work in parallel ([2.5](#dram)).
 
-**Why the ROB is often the look-ahead limit** (derived): a memory miss takes ~80 ns, ~320 cycles. Once the missing load reaches the head of the ROB it can't retire, and everything behind it waits, while the front end keeps adding at the tail: Golden Cove adds up to 6 per cycle, so 512 entries fill in as little as ~85 cycles (~21 ns). After that the core just waits. So the only loads that can overlap this miss are the independent ones among the next five hundred or so instructions:
+**Why the ROB is often the look-ahead limit**: a memory miss takes a few hundred cycles. Once the missing load reaches the head of the ROB it can't retire, and everything behind it waits, while the front end keeps adding 4–8 instructions per cycle at the tail, so a ROB of a few hundred entries fills in about a hundred cycles (20–30 ns). After that the core just waits. So the only loads that can overlap this miss are the independent ones among the next few hundred instructions. With a 500-entry ROB:
 
 | Code | Instructions between independent misses | In the window | Hits first |
 |---|---|---|---|
@@ -116,19 +111,19 @@ Below that sits the memory controller, which spreads requests over channels and 
 | `s += a[idx[i]]` with a huge `a` and shuffled `idx` | ~5 | ~100 | Fill buffers |
 | ~150 instructions of hashing before each lookup | ~150 | ~3 | The ROB |
 
-Same core, same memory, and only the number in flight changes: bandwidth moves by two orders of magnitude (derived, at 80 ns and 64 B per line):
+Same core, same memory, and only the number in flight changes: bandwidth moves by tens of times (at 80 ns and 64 B per line):
 
 | Access pattern | In flight | One core's bandwidth |
 |---|---|---|
 | Linked list: the next address waits for this read | 1 | 64 B ÷ 80 ns ≈ 0.8 GB/s |
-| Independent addresses the prefetcher can't help with (random, or a stride that crosses a page every time: prefetchers don't cross 4 KiB pages) | The 12–24 fill buffers | ~10–19 GB/s |
-| Sequential reads, prefetchers at full speed | ~40–45 (back-calculated: 35 GB/s × 80 ns ≈ 2.8 KB) | ~35 GB/s (Zen 3, public data) |
+| Independent addresses the prefetcher can't help with (random, or a stride that crosses a page every time: prefetchers don't cross 4 KiB pages) | The 10–25 fill buffers | ~10–20 GB/s |
+| Sequential reads, prefetchers at full speed | Dozens | ~15–60 GB/s (the figure in 2.2) |
 
-The 40-odd requests in the last row are about twice Zen 3's 24 fill buffers. The extra ones are the L2 prefetcher's, waiting in its own queue on your behalf.
+The last row has more requests in flight than there are fill buffers. The extra ones are the L2 prefetcher's, waiting in its own queue on your behalf.
 
 ### 2.4 How Fast the CPU Wants Data {#appetite}
 
-Whether memory bandwidth is the bottleneck also depends on the other side: if data arrived for free, how many bytes per second would the loop consume? One core at about 4 GHz (derived):
+Whether memory bandwidth is the bottleneck also depends on the other side: if data arrived for free, how many bytes per second would the loop consume? One core at about 4 GHz:
 
 | Loop | Per cycle | Per second | Compared with memory |
 |---|---|---|---|
@@ -142,40 +137,18 @@ Whether memory bandwidth is the bottleneck also depends on the other side: if da
 
 ### 2.5 Inside the DIMMs: Channels, Row Buffers, Refresh {#dram}
 
-| Quantity | Number | Source |
-|---|---|---|
-| One channel's peak | Transfer rate × 8 B: DDR4-3200 → 25.6 GB/s, DDR5-6000 → 48 GB/s (a DDR5 DIMM is two 32-bit subchannels, still 8 B together) | Derived |
-| The chip's peak | Channels × one channel: 51–96 GB/s on dual-channel desktops; hundreds of GB/s on 8–12-channel servers | Derived |
-| What you actually get | All cores reading: from just over 70% to nearly 90% of peak (Zen 4 73 / 96 GB/s, Zen 3 51 / 57.6 GB/s) | Public data |
-| Row buffer | ~14 ns on a hit to the open row, ~28 ns with no row open, ~41 ns on a row conflict (DDR4-3200 CL22) | Typical |
-| Refresh | Every ~7.8 µs, blocking a few hundred ns each time (~350 ns for 8 Gb DDR4); about 4.5% of random accesses run into one | Typical + derived |
-| Loaded latency | The fuller the bandwidth, the slower each access; near the limit it can exceed twice the idle latency | Typical |
+| Quantity | About |
+|---|---|
+| One channel's peak | Transfer rate × 8 B: ~20–25 GB/s for DDR4, ~40–50 GB/s for DDR5 |
+| The chip's peak | Channels × one channel: ~50–100 GB/s with 2 channels, hundreds of GB/s with 8–12 |
+| What you actually get | All cores reading: 70–90% of peak |
+| Row buffer | ~15 ns on a hit to the open row, ~30 ns with no row open, ~40 ns on a row conflict |
+| Refresh | Every ~7.8 µs, blocking a few hundred ns each time |
+| Loaded latency | The fuller the bandwidth, the slower each access; near the limit it can exceed twice the idle latency |
 
 ### 2.6 A Line Bouncing Between Cores {#cross-core}
 
-One producer writes into a ring nonstop while readers on other cores busy-poll the same blocks (measured: 5600GT on Windows, a 512 KiB ring, [#5](/posts/spmc-shared-memory-broadcast-ring/)):
-
-| Readers | 0 | 1 | 2 | 5 |
-|---|---|---|---|---|
-| Producer, per write | 2.8 ns | 18.5 ns | 24.0 ns | 28.0 ns |
-
-With no readers, the line stays in the producer's own L1. With one reader, every block has to invalidate the reader's copy before it can be written ([MESI](/posts/low-latency-mesi-cache-coherence/)), and each write gets more than six times more expensive. That's throughput, with the store buffer absorbing part of the wait; a single cross-core round trip by itself is tens of nanoseconds.
-
-### 2.7 A Few Specific Chips {#chips}
-
-Public data from Chips and Cheese. My 5600GT is also Zen 3, so its numbers should be close to the first column (not measured).
-
-| | Zen 3 desktop<br>Ryzen 9 5950X, dual-channel DDR4-3600 | Ice Lake server<br>Xeon 8370C, cloud VM | Apple M1<br>LPDDR4X-4266 |
-|---|---|---|---|
-| L1D latency | 0.8 ns | 1.4 ns | 0.9 ns |
-| L2 latency | 2.4 ns | 4.0 ns | 5.5 ns |
-| L3 latency (at 8 MiB) | 10.7 ns | 23.1 ns | — (no L3; a 12 MiB L2 shared by the four big cores) |
-| Memory latency (random reads over 1 GiB) | 91 ns | 117 ns | 106 ns |
-| One core reading L1 | 311 GB/s | 240 GB/s | 150 GB/s |
-| One core reading L2 | 158 GB/s | 157 GB/s | 86 GB/s |
-| One core reading L3 | 122 GB/s | 34 GB/s | — |
-| One core reading memory | 35 GB/s | 16.6 GB/s | 57 GB/s |
-| All cores reading memory | 51 GB/s (peak 57.6) | 124 GB/s (10 cores) | ~60 GB/s (peak 68) |
+One producer writes into a ring nonstop while readers on other cores busy-poll the same blocks (the experiment in [#5](/posts/spmc-shared-memory-broadcast-ring/)). With no readers, the line stays in the producer's own L1 and each write takes about 3 ns. With readers, every block has to invalidate their copies before it can be written ([MESI](/posts/low-latency-mesi-cache-coherence/)), and each write climbs to about 20–30 ns, more with more readers. That's throughput, with the store buffer absorbing part of the wait; a single cross-core round trip by itself is tens of nanoseconds.
 
 ## 3. Estimates: Lines to Move × Time per Line {#estimate}
 
@@ -204,16 +177,14 @@ $$
 - **Q3: which level supplies it.** That sets the latency and the peak bandwidth; numbers in [2.1](#latency) and [2.2](#bandwidth).
 - **Q4: how many can be in flight at once.** If the next address waits for this read (linked lists, trees, hash chains), there is one, and every line pays a full latency. If addresses are computed, out-of-order execution issues later loads early from within the ROB's window, up to a full fill buffer. If the walk is sequential, the prefetcher keeps another batch outstanding for you ([2.3](#in-flight)). That's what "the pipeline hides latency" means: latency doesn't get shorter; many waits overlap.
 
-### 3.2 Five Examples {#examples}
+### 3.2 Examples {#examples}
 
-All estimated with the Zen 3 desktop numbers (derived, not measured):
+These are estimates from one set of typical numbers: memory latency ~90 ns, one core reading memory at ~35 GB/s, the whole chip at ~50 GB/s.
 
-1. **Sequential sum over a big array, vectorized.** Q1: every line is fully used. Q4: prefetchers at full speed, about 35 GB/s for one core, while the CPU wants about 256 GB/s. The smaller one wins: about 35 GB/s, bound by memory bandwidth. With four cores scanning, they hit the chip's ~51 GB/s together and each gets only about 13 GB/s.
+1. **Sequential sum over a big array, vectorized.** Q1: every line is fully used. Q4: prefetchers at full speed, about 35 GB/s for one core, while the CPU wants about 256 GB/s. The smaller one wins: about 35 GB/s, bound by memory bandwidth. With four cores scanning, they hit the chip's ~50 GB/s together and each gets only about 12 GB/s.
 2. **The same sum with `float` and one accumulator.** The CPU only wants about 4 GB/s, less than memory delivers. Data in L1 or in memory runs at nearly the same speed; going faster means breaking the dependency chain (several accumulators, [#2](/posts/memory-ordering-false-sharing-dependency-chains/)), and faster memory does nothing.
 3. **Walking a linked list scattered over the heap.** Q4 is 1: each node pays a full memory latency, about 90 ns, so a million nodes take about 90 ms. The road is wide, and 0.7 GB/s of it is used. The only fixes are keeping nodes next to each other (an array, a pool) or keeping them in cache.
 4. **One table lookup on the hot path that goes to memory.** About 90 ns: 360 cycles at 4 GHz, the time of ninety L1 hits. A hot path touches only a few lines per market-data message, so bytes are tiny; what hurts is a dependent miss like this one (Q3, Q4), not bandwidth.
-5. **Another process on the same machine scanning memory hard (a backtest, a market-data replay).** It fills the chip's bandwidth, the memory controller queues up, and every miss on the hot path gets slower (loaded latency, [2.5](#dram)). Pinning cores isolates compute; it doesn't isolate this road.
-
 ### 3.3 Easy to Mix Up {#pitfalls}
 
 - **A full fill buffer means maximum overlap, not "falling back to serial".** With N entries in flight, miss N+1 waits for the oldest one to return and free its slot, so the steady state keeps N in flight and each line costs latency ÷ N. Only dependency chains are truly serial. So bandwidth and latency aren't either-or: one core's bandwidth *is* in-flight × 64 B ÷ latency, and when latency grows (DRAM row conflicts, TLB misses), the same N moves fewer lines per second.

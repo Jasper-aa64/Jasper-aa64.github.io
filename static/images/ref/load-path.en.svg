@@ -28,7 +28,7 @@
   </defs>
   <rect x="0" y="0" width="1100" height="990" fill="#ffffff"/>
   <text x="30" y="40" class="h">One load, step by step</text>
-  <text x="30" y="66" class="s">Four steps in order. The middle column is the latency so far, counted from issuing the load: typical x86 desktop magnitudes (~4 GHz).</text>
+  <text x="30" y="66" class="s">Four steps in order. The middle column is the latency so far, counted from issuing the load.</text>
   <!-- Step 1: the address splits; translation and set selection happen at the same time -->
   <circle cx="60" cy="130" r="14" class="dot"/>
   <text x="60" y="135" class="dt" text-anchor="middle">1</text>
@@ -81,7 +81,7 @@
   <text x="130" y="576" class="t">L3 (shared by all cores)</text>
   <text x="130" y="598" class="s">Hit: fill L2 and L1D on the way up.</text>
   <rect x="740" y="567" width="100" height="28" rx="14" class="pill"/>
-  <text x="790" y="586" class="pt" text-anchor="middle">≈ 10–15 ns</text>
+  <text x="790" y="586" class="pt" text-anchor="middle">≈ 10–30 ns</text>
   <line x1="415" y1="612" x2="415" y2="668" class="line" marker-end="url(#arr)"/>
   <text x="425" y="645" class="lab">miss</text>
   <!-- Step 3: memory controller and the DIMM -->
@@ -94,11 +94,11 @@
   <rect x="110" y="770" width="610" height="100" rx="6" class="mem"/>
   <text x="130" y="796" class="t">DIMM: read the whole 64 B line through one bank's row buffer</text>
   <rect x="130" y="812" width="180" height="40" rx="6" class="box"/>
-  <text x="220" y="837" class="f" text-anchor="middle">row hit ≈ 14 ns</text>
+  <text x="220" y="837" class="f" text-anchor="middle">row hit ≈ 15 ns</text>
   <rect x="320" y="812" width="180" height="40" rx="6" class="box"/>
-  <text x="410" y="837" class="f" text-anchor="middle">row empty ≈ 28 ns</text>
+  <text x="410" y="837" class="f" text-anchor="middle">row empty ≈ 30 ns</text>
   <rect x="510" y="812" width="190" height="40" rx="6" class="box"/>
-  <text x="605" y="837" class="f" text-anchor="middle">row conflict ≈ 41 ns</text>
+  <text x="605" y="837" class="f" text-anchor="middle">row conflict ≈ 40 ns</text>
   <rect x="740" y="806" width="100" height="28" rx="14" class="pill"/>
   <text x="790" y="825" class="pt" text-anchor="middle">≈ 70–120 ns</text>
   <text x="860" y="815" class="s">One memory access in total,</text>
@@ -109,5 +109,5 @@
   <text x="60" y="920" class="dt" text-anchor="middle">4</text>
   <rect x="110" y="890" width="970" height="50" rx="6" class="ban"/>
   <text x="130" y="921" class="t">What comes back is always a whole 64 B line: it returns the same way (the blue line) and lands in L3, L2 and L1D.</text>
-  <text x="30" y="972" class="s">Numbers: typical x86 desktop magnitudes; per-chip public data in Ref 2.7.</text>
+  <text x="30" y="972" class="s">Numbers are rough magnitudes for intuition, not any particular machine.</text>
 </svg>
