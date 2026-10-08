@@ -41,6 +41,10 @@ browseArchive: "Archive"
 browseAlgorithms: "Algorithm posts by topic"
 emptyFilter: "Nothing in this series yet."
 
+# reference pages (living look-up pages, not posts)
+secRef: "Reference"
+refUpdated: "Updated {{ . }}"
+
 # post
 prevPost: "Previous"
 nextPost: "Next"

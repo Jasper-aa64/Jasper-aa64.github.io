@@ -15,6 +15,11 @@
         <span aria-hidden="true">·</span>
         <span>{{ i18n "minRead" .ReadingTime }}</span>
       </div>
+    {{ else if eq .Section "ref" }}
+      <a class="eyebrow post-head__kicker reveal" href="{{ "ref/" | relLangURL }}">{{ i18n "secRef" }}</a>
+      <h1 class="post-head__title reveal">{{ .Title }}</h1>
+      {{ with .Description }}<p class="post-head__dek reveal">{{ . }}</p>{{ end }}
+      <div class="post-head__meta reveal"><time datetime="{{ .Lastmod.Format `2006-01-02` }}">{{ i18n "refUpdated" (.Lastmod.Format (i18n "dateLong")) }}</time></div>
     {{ else }}
       {{ if eq .Section "life" }}<p class="eyebrow reveal">{{ i18n "secLife" }}</p>{{ end }}
       <h1 class="post-head__title reveal">{{ .Title }}</h1>
