@@ -65,7 +65,7 @@
   <text x="425" y="404" class="lab">没命中</text>
   <line x1="415" y1="380" x2="858" y2="380" class="dash"/>
   <rect x="860" y="352" width="220" height="100" rx="6" class="buf"/>
-  <text x="874" y="376" class="t">填充缓冲：十几项</text>
+  <text x="874" y="376" class="t">填充缓冲：十几到二十几项</text>
   <text x="874" y="398" class="s">没命中时先登记一项：</text>
   <text x="874" y="416" class="s">“这条行已经去取了、还没回来”。</text>
   <text x="874" y="434" class="s">一个核同时能挂的缺失最多这么多。</text>

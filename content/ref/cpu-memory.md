@@ -44,14 +44,14 @@ A store first goes into the **store buffer**, so later instructions don't wait f
 | Several cores reading and writing one line | [#4 Lock-Free Queues](/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
 | Page faults | [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
 | Alignment, layout, set associativity, inside a DIMM, refresh, channels | [#6 Alignment, Layout, and Geometry](/posts/alignment-layout-cache-dram-geometry/) |
-| The roads between the boxes: latency, bandwidth, fill buffers | Parts 2 and 3 of this page |
+| The roads between the boxes: latency, bandwidth, ROB, fill buffers | Parts 2 and 3 of this page |
 
 ## 2. Numbers: How Big and How Fast Each Box Is {#numbers}
 
 These are magnitudes, not a spec sheet. Every row says where its number comes from:
 
 - **Measured**: measured on my own machines (Ryzen 5 5600GT on Windows, or an M1 MacBook Air), in the post named;
-- **Public data**: the public database from Chips and Cheese ([bandwidth](https://jsmemtest.chipsandcheese.com/bwdata), [latency](https://jsmemtest.chipsandcheese.com/latencydata)); the chips are listed in [2.7](#chips);
+- **Public data**: the public database from Chips and Cheese ([bandwidth](https://jsmemtest.chipsandcheese.com/bwdata), [latency](https://jsmemtest.chipsandcheese.com/latencydata)); the chips are listed in [2.7](#chips), and the structure sizes in [2.3](#in-flight) come from their [Golden Cove article](https://chipsandcheese.com/p/popping-the-hood-on-golden-cove);
 - **Derived**: calculated from other numbers;
 - **Typical**: a typical value from specs or references, not measured.
 
@@ -96,24 +96,35 @@ Two things to notice:
 
 ### 2.3 How Many Can Be in Flight {#in-flight}
 
-One core's bandwidth = requests in flight × 64 B ÷ latency (Little's law). The structures that limit "in flight":
+One core's bandwidth = requests in flight × 64 B ÷ latency (Little's law). A miss takes an entry at every level on its way out and back, and whichever level fills first sets the limit:
 
 | Structure | Size | What it limits | Source |
 |---|---|---|---|
-| ROB (reorder buffer) | 200–600 entries: Skylake 224, Zen 3 256, Golden Cove 512, M1 ~630 | How far ahead out-of-order execution can look for independent loads to issue early | Typical |
-| L1D fill buffer | A dozen or so (Intel generations ~10–16) | How many misses one core's own loads can have outstanding | Typical |
-| L2 outstanding-request queue | A few dozen | Where the L2 prefetcher's extra requests wait, without using fill buffers | Typical |
-| Store buffer | ~50–110 entries: Skylake 56, Zen 3 64, Golden Cove 114 | Stores park here instead of waiting for the cache | Typical |
+| ROB (reorder buffer) | 200–600 entries: Skylake 224, Zen 3 256, Sunny Cove 352, Golden Cove 512, M1 ~630 | Instructions enter in program order, execute out of order, and retire in order. It sets how far ahead out-of-order execution can look: while a miss is stuck at the head, only the independent loads inside the window can go early | Typical (Sunny Cove, Golden Cove: public data) |
+| Load queue | Sunny Cove 128, Golden Cove 192 | Every load holds an entry from entering the window until it retires. In load-dense code it can fill before the ROB | Public data |
+| L1D fill buffer (AMD: MAB) | 12–24 entries: Sunny Cove 12, Golden Cove 16, Zen 3 24 | How many L1D misses one core's own loads can have outstanding | Public data |
+| L2 outstanding-request queue | A few dozen: Sunny Cove 32, Golden Cove 48, Zen 3 ~64 (estimate) | Where the L2 prefetcher's extra requests wait, without using fill buffers | Public data |
+| Store buffer | ~50–110 entries: Skylake 56, Zen 3 64, Sunny Cove 72, Golden Cove 114 | Stores park here instead of waiting for the cache | Typical (Sunny Cove, Golden Cove: public data) |
+
+Below that sits the memory controller, which spreads requests over channels and banks to work in parallel ([2.5](#dram)).
+
+**Why the ROB is often the look-ahead limit** (derived): a memory miss takes ~80 ns, ~320 cycles. Once the missing load reaches the head of the ROB it can't retire, and everything behind it waits, while the front end keeps adding at the tail: Golden Cove adds up to 6 per cycle, so 512 entries fill in as little as ~85 cycles (~21 ns). After that the core just waits. So the only loads that can overlap this miss are the independent ones among the next five hundred or so instructions:
+
+| Code | Instructions between independent misses | In the window | Hits first |
+|---|---|---|---|
+| Linked list `p = p->next` | The next address waits for this read | 1 | The dependency chain; a bigger ROB doesn't help |
+| `s += a[idx[i]]` with a huge `a` and shuffled `idx` | ~5 | ~100 | Fill buffers |
+| ~150 instructions of hashing before each lookup | ~150 | ~3 | The ROB |
 
 Same core, same memory, and only the number in flight changes: bandwidth moves by two orders of magnitude (derived, at 80 ns and 64 B per line):
 
 | Access pattern | In flight | One core's bandwidth |
 |---|---|---|
 | Linked list: the next address waits for this read | 1 | 64 B ÷ 80 ns ≈ 0.8 GB/s |
-| Independent addresses the prefetcher can't help with (random, or a stride that crosses a page every time: prefetchers don't cross 4 KiB pages) | The dozen or so fill buffers | ~10–13 GB/s |
+| Independent addresses the prefetcher can't help with (random, or a stride that crosses a page every time: prefetchers don't cross 4 KiB pages) | The 12–24 fill buffers | ~10–19 GB/s |
 | Sequential reads, prefetchers at full speed | ~40–45 (back-calculated: 35 GB/s × 80 ns ≈ 2.8 KB) | ~35 GB/s (Zen 3, public data) |
 
-The 40-odd requests in the last row are far more than a dozen fill buffers. The extra ones are the L2 prefetcher's, waiting in its own queue on your behalf.
+The 40-odd requests in the last row are about twice Zen 3's 24 fill buffers. The extra ones are the L2 prefetcher's, waiting in its own queue on your behalf.
 
 ### 2.4 How Fast the CPU Wants Data {#appetite}
 
@@ -191,7 +202,7 @@ $$
 - **Q1: how many bytes of each line are used (spatial locality).** Reading `int`s one after another, one 64 B line feeds 16 of them; with a stride of 64 B or more, each line feeds just 4 B, so the same useful data takes 16 times as many lines. "Wasted bandwidth" is about this question only, and has nothing to do with whether the bus is full. A 64 B stride is already the worst case; larger strides aren't worse on this count.
 - **Q2: does a fetched line survive until it's needed again (temporal locality).** It fails to survive for exactly three reasons: a **cold miss** (first touch, which nobody avoids), a **capacity miss** (more reused lines than the level holds), and a **conflict miss** (addresses crowding into one set, the critical stride in [#6](/posts/alignment-layout-cache-dram-geometry/)). Padding fixes only conflicts; capacity takes blocking, which means working on one cache-sized chunk at a time.
 - **Q3: which level supplies it.** That sets the latency and the peak bandwidth; numbers in [2.1](#latency) and [2.2](#bandwidth).
-- **Q4: how many can be in flight at once.** If the next address waits for this read (linked lists, trees, hash chains), there is one, and every line pays a full latency. If addresses are computed, out-of-order execution issues later loads early, up to a full fill buffer. If the walk is sequential, the prefetcher keeps another batch outstanding for you ([2.3](#in-flight)). That's what "the pipeline hides latency" means: latency doesn't get shorter; many waits overlap.
+- **Q4: how many can be in flight at once.** If the next address waits for this read (linked lists, trees, hash chains), there is one, and every line pays a full latency. If addresses are computed, out-of-order execution issues later loads early from within the ROB's window, up to a full fill buffer. If the walk is sequential, the prefetcher keeps another batch outstanding for you ([2.3](#in-flight)). That's what "the pipeline hides latency" means: latency doesn't get shorter; many waits overlap.
 
 ### 3.2 Five Examples {#examples}
 
