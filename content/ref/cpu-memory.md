@@ -25,10 +25,9 @@ Blue text says where something is covered: #N is Trading System Notes #N, MESI i
 
 ### 1.1 One Load, Step by Step {#load}
 
-1. The **TLB** translates the virtual address into a physical one; meanwhile **L1D** has already picked the set from address bits 6–11 (the address fields at the bottom of the map).
-2. An L1D hit ends here, in about 1 ns. On a miss, L1D first takes an entry in its **fill buffer** to record "this line has been requested and hasn't come back yet", then asks the core's own **L2**, then the **L3** shared by all cores. The fill buffer has only a dozen or so entries, which caps how many misses one core can have outstanding on its own ([2.3](#in-flight)).
-3. If L3 misses too, the **memory controller** takes over and picks a channel, bank and row from the address: about 14 ns on a row-buffer hit, 28–41 ns otherwise; with the queueing and transfers along the way, one memory access takes about 70–120 ns ([2.1](#latency)).
-4. What comes back is always a whole **64-byte cache line**, which is placed in each cache level on the way up.
+<a href="/images/ref/load-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.en.svg" alt="One load, step by step. 1: the address splits into page number and set index, and TLB translation and L1D set selection happen at once. 2: L1D compares tags; on a miss it takes a fill-buffer entry and asks L2, then L3. 3: on a miss everywhere the memory controller picks channel, bank and row and reads the DIMM. 4: the whole 64-byte line returns the same way and lands in each cache level. Each step is labelled with the latency so far." loading="lazy" decoding="async"></a>
+
+The latencies are magnitudes; numbers for specific chips are in [2.1](#latency) and [2.7](#chips).
 
 ### 1.2 A Store Takes Two More Steps {#store}
 

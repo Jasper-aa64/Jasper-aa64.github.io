@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 990" width="1100" height="990" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0969da"/>
+    </marker>
+    <style>
+      .t    { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s    { font-size: 12.5px; fill: #57606a; }
+      .h    { font-size: 21px; font-weight: 700; fill: #1f2328; }
+      .f    { font-size: 13px; fill: #1f2328; }
+      .lab  { font-size: 12px; fill: #57606a; }
+      .pill { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1.2; }
+      .pt   { font-size: 13.5px; font-weight: 700; fill: #1f2328; }
+      .box  { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .cache{ fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .buf  { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .mem  { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.2; }
+      .ban  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .line { stroke: #555; stroke-width: 1.5; fill: none; }
+      .dash { stroke: #9a6700; stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+      .back { stroke: #0969da; stroke-width: 2; fill: none; }
+      .dot  { fill: #1f2328; }
+      .dt   { font-size: 14px; font-weight: 700; fill: #ffffff; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="990" fill="#ffffff"/>
+  <text x="30" y="40" class="h">One load, step by step</text>
+  <text x="30" y="66" class="s">Four steps in order. The middle column is the latency so far, counted from issuing the load: typical x86 desktop magnitudes (~4 GHz).</text>
+  <!-- Step 1: the address splits; translation and set selection happen at the same time -->
+  <circle cx="60" cy="130" r="14" class="dot"/>
+  <text x="60" y="135" class="dt" text-anchor="middle">1</text>
+  <text x="110" y="100" class="lab">The address to read (virtual)</text>
+  <rect x="110" y="110" width="310" height="40" class="buf"/>
+  <text x="265" y="135" class="f" text-anchor="middle">virtual page number (bits 12+)</text>
+  <rect x="420" y="110" width="160" height="40" class="cache"/>
+  <text x="500" y="135" class="f" text-anchor="middle">set index, bits 6–11</text>
+  <rect x="580" y="110" width="140" height="40" class="box"/>
+  <text x="650" y="135" class="f" text-anchor="middle">offset, bits 0–5</text>
+  <line x1="265" y1="150" x2="265" y2="188" class="line" marker-end="url(#arr)"/>
+  <line x1="500" y1="150" x2="500" y2="188" class="line" marker-end="url(#arr)"/>
+  <rect x="110" y="190" width="290" height="48" rx="6" class="buf"/>
+  <text x="255" y="219" class="t" text-anchor="middle">TLB: virtual page → physical page</text>
+  <rect x="430" y="190" width="290" height="48" rx="6" class="cache"/>
+  <text x="575" y="219" class="t" text-anchor="middle">L1D: bits 6–11 pick one set</text>
+  <text x="860" y="194" class="s">Bits 0–11 don't change in</text>
+  <text x="860" y="212" class="s">translation, so the set is picked</text>
+  <text x="860" y="230" class="s">without waiting for the TLB:</text>
+  <text x="860" y="248" class="s">both happen at once (VIPT).</text>
+  <line x1="255" y1="238" x2="255" y2="286" class="line" marker-end="url(#arr)"/>
+  <text x="264" y="267" class="lab">physical page</text>
+  <line x1="575" y1="238" x2="575" y2="286" class="line" marker-end="url(#arr)"/>
+  <text x="584" y="267" class="lab">the set's 8 slots</text>
+  <!-- Step 2: L1D, then the fill buffer, L2, L3 -->
+  <text x="790" y="276" class="lab" text-anchor="middle">latency so far</text>
+  <circle cx="60" cy="319" r="14" class="dot"/>
+  <text x="60" y="324" class="dt" text-anchor="middle">2</text>
+  <rect x="110" y="288" width="610" height="62" rx="6" class="cache"/>
+  <text x="130" y="314" class="t">L1D: compare the set's 8 tags with the physical page</text>
+  <text x="130" y="336" class="s">Hit: the data goes to the register, and that's it.</text>
+  <rect x="740" y="305" width="100" height="28" rx="14" class="pill"/>
+  <text x="790" y="324" class="pt" text-anchor="middle">≈ 1 ns</text>
+  <line x1="415" y1="350" x2="415" y2="418" class="line" marker-end="url(#arr)"/>
+  <text x="425" y="404" class="lab">miss</text>
+  <line x1="415" y1="380" x2="858" y2="380" class="dash"/>
+  <rect x="860" y="352" width="220" height="100" rx="6" class="buf"/>
+  <text x="874" y="376" class="t">Fill buffer: a dozen or so</text>
+  <text x="874" y="398" class="s">On a miss, take an entry first:</text>
+  <text x="874" y="416" class="s">"this line is on its way".</text>
+  <text x="874" y="434" class="s">That caps one core's misses.</text>
+  <rect x="110" y="420" width="610" height="62" rx="6" class="cache"/>
+  <text x="130" y="446" class="t">L2 (private to the core)</text>
+  <text x="130" y="468" class="s">Hit: fill L1D, then hand the data to the register.</text>
+  <rect x="740" y="437" width="100" height="28" rx="14" class="pill"/>
+  <text x="790" y="456" class="pt" text-anchor="middle">≈ 3–5 ns</text>
+  <line x1="415" y1="482" x2="415" y2="548" class="line" marker-end="url(#arr)"/>
+  <text x="425" y="520" class="lab">miss</text>
+  <rect x="110" y="550" width="610" height="62" rx="6" class="cache"/>
+  <text x="130" y="576" class="t">L3 (shared by all cores)</text>
+  <text x="130" y="598" class="s">Hit: fill L2 and L1D on the way up.</text>
+  <rect x="740" y="567" width="100" height="28" rx="14" class="pill"/>
+  <text x="790" y="586" class="pt" text-anchor="middle">≈ 10–15 ns</text>
+  <line x1="415" y1="612" x2="415" y2="668" class="line" marker-end="url(#arr)"/>
+  <text x="425" y="645" class="lab">miss</text>
+  <!-- Step 3: memory controller and the DIMM -->
+  <circle cx="60" cy="701" r="14" class="dot"/>
+  <text x="60" y="706" class="dt" text-anchor="middle">3</text>
+  <rect x="110" y="670" width="610" height="62" rx="6" class="mem"/>
+  <text x="130" y="696" class="t">Memory controller (on the CPU die)</text>
+  <text x="130" y="718" class="s">Picks the channel, bank and row from the address, then goes to the DIMM.</text>
+  <line x1="415" y1="732" x2="415" y2="768" class="line" marker-end="url(#arr)"/>
+  <rect x="110" y="770" width="610" height="100" rx="6" class="mem"/>
+  <text x="130" y="796" class="t">DIMM: read the whole 64 B line through one bank's row buffer</text>
+  <rect x="130" y="812" width="180" height="40" rx="6" class="box"/>
+  <text x="220" y="837" class="f" text-anchor="middle">row hit ≈ 14 ns</text>
+  <rect x="320" y="812" width="180" height="40" rx="6" class="box"/>
+  <text x="410" y="837" class="f" text-anchor="middle">row empty ≈ 28 ns</text>
+  <rect x="510" y="812" width="190" height="40" rx="6" class="box"/>
+  <text x="605" y="837" class="f" text-anchor="middle">row conflict ≈ 41 ns</text>
+  <rect x="740" y="806" width="100" height="28" rx="14" class="pill"/>
+  <text x="790" y="825" class="pt" text-anchor="middle">≈ 70–120 ns</text>
+  <text x="860" y="815" class="s">One memory access in total,</text>
+  <text x="860" y="834" class="s">queueing and transfers included.</text>
+  <!-- Step 4: the whole line comes back the same way -->
+  <path d="M110,845 H96 V319 H106" class="back" marker-end="url(#arrb)"/>
+  <circle cx="60" cy="915" r="14" class="dot"/>
+  <text x="60" y="920" class="dt" text-anchor="middle">4</text>
+  <rect x="110" y="890" width="970" height="50" rx="6" class="ban"/>
+  <text x="130" y="921" class="t">What comes back is always a whole 64 B line: it returns the same way (the blue line) and lands in L3, L2 and L1D.</text>
+  <text x="30" y="972" class="s">Numbers: typical x86 desktop magnitudes; per-chip public data in Ref 2.7.</text>
+</svg>
