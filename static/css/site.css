@@ -905,6 +905,26 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .page-head__lede { max-width: 46em; margin: 8px 0 0; font-size: 16px; line-height: 1.6; color: var(--muted); }
 .page-head .eyebrow { margin-bottom: 10px; }
+/* Blog page: the title row also carries the Reference entry (reference pages have no menu item). */
+.page-head__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.ref-entry {
+  display: inline-block;
+  height: 36px;
+  padding: 0 15px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 34px;
+  white-space: nowrap;
+  color: var(--muted);
+  transition: color .2s, border-color .2s;
+}
+.ref-entry b { font-weight: 650; color: var(--accent-ink); }
+.ref-entry sup { margin-left: 1px; font-family: var(--mono); color: var(--faint); }
+.ref-entry span { display: inline-block; margin-left: 6px; transition: transform .25s var(--ease); }
+.ref-entry:hover { color: var(--ink); border-color: var(--rule-strong); }
+.ref-entry:hover span { transform: translateX(3px); }
 .page-body { padding-bottom: 12px; }
 
 .filter {

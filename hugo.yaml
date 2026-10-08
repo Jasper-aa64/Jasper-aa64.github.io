@@ -34,7 +34,6 @@ languages:
         - { name: "Home", url: "/", weight: 10 }
         - { name: "Blog", url: "/posts/", weight: 20 }
         - { name: "Categories", url: "/categories/", weight: 30 }
-        - { name: "Reference", url: "/ref/", weight: 35 }
         - { name: "About", url: "/about/", weight: 40 }
     params:
       description: "Jasper's personal site: C++ that has to be fast, low-latency systems, competitive programming, and how to tell whether an AI-written speedup is real."
@@ -48,7 +47,6 @@ languages:
         - { name: "首页", url: "/zh/", weight: 10 }
         - { name: "博客", url: "/zh/posts/", weight: 20 }
         - { name: "分类", url: "/zh/categories/", weight: 30 }
-        - { name: "速查", url: "/zh/ref/", weight: 35 }
         - { name: "知悉", url: "/zh/about/", weight: 40 }
     params:
       description: "Jasper 的个人主页:要跑得快的 C++、低延迟系统、算法竞赛,以及怎么判断 AI 写出来的加速是不是真的。"

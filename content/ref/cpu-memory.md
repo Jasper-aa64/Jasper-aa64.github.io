@@ -6,6 +6,7 @@ lastmod: 2026-10-08
 slug: "cpu-memory"
 weight: 10
 toc: true
+math: true
 ---
 
 This page is a map to keep open, not a post. It has three parts, in the order "where → how big and how fast → how to combine":
@@ -168,21 +169,23 @@ Public data from Chips and Cheese. My 5600GT is also Zen 3, so its numbers shoul
 
 ## 3. Estimates: Lines to Move × Time per Line {#estimate}
 
-None of the numbers in Part 2 explains slow code on its own. Strung together they make one formula:
+None of the numbers in Part 2 explains slow code on its own. Strung together they make one formula, and each of the four questions ([3.1](#four-questions)) belongs to one factor:
 
-> **Total time ≈ lines to move × time each line costs on average**
+$$
+\text{total time} \;\approx\; \underbrace{\text{lines to move}}_{\substack{\text{Q1 bytes used per line} \\ \text{Q2 does a line survive until reuse}}} \;\times\; \underbrace{\text{time per line}}_{\substack{\text{Q3 which level serves it} \\ \text{Q4 how many in flight}}}
+$$
 
-```
-lines to move   ← Q1 bytes used per line?     Q2 does a line survive until reuse?
-time per line   ← Q3 which level serves it?   Q4 how many in flight at once?
+Turn the time per line upside down and you get lines per second. It has two ceilings, and the lower one wins:
 
-lines per second = min( in flight ÷ latency ,  peak bandwidth ÷ 64 B )
-                        └ one core hits this ┘  └ takes many cores ┘
-```
+$$
+\text{lines per second} \;=\; \min\Bigg(\underbrace{\frac{\text{in flight}}{\text{latency}}}_{\substack{\text{one core hits this first} \\ \text{(Little's law)}}},\;\; \underbrace{\frac{\text{peak bandwidth}}{64\ \text{B}}}_{\substack{\text{usually takes} \\ \text{many cores}}}\Bigg)
+$$
 
-Then take the smaller of that and the demand side ([2.4](#appetite)):
+Finally take the smaller of that and the demand side ([2.4](#appetite)):
 
-> **Actual speed = min(how fast the CPU wants data, useful bytes per line × lines per second)**
+$$
+\text{actual speed} \;=\; \min\big(\,\text{how fast the CPU wants data},\;\; \text{useful bytes per line} \times \text{lines per second}\,\big)
+$$
 
 ### 3.1 Four Questions {#four-questions}
 
