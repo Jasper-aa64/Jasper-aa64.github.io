@@ -20,7 +20,7 @@
 
   <rect x="0" y="0" width="1200" height="1768" fill="#ffffff"/>
   <text x="20" y="38" class="h" style="font-size:22px">Hardware map: the layers one memory access passes through</text>
-  <text x="20" y="60" class="s">Blue = where it is covered (#N = Trading System Notes #N; MESI = the MESI topic post). Numbers are typical x86 (Zen 3) magnitudes.</text>
+  <text x="20" y="60" class="s">Blue = where it is covered (#N = Trading System Notes #N; MESI = the MESI topic post; Ref N.N = a section of the Reference page). Numbers are typical x86 (Zen 3) magnitudes.</text>
 
   <!-- ===== Socket 0 ===== -->
   <rect x="20" y="75" width="840" height="700" rx="10" class="sock"/>
@@ -64,8 +64,8 @@
 
   <rect x="245" y="370" width="165" height="70" class="cache"/>
   <text x="257" y="393" class="t">L1D 32 KiB · 8-way</text>
-  <text x="257" y="411" class="tag">#6 alignment / line splits</text>
-  <text x="257" y="428" class="tag">#6 set associativity</text>
+  <text x="257" y="411" class="tag">#6 alignment · sets</text>
+  <text x="257" y="428" class="tag">Ref 2.3 fill buffer</text>
 
   <rect x="60" y="455" width="350" height="62" class="cache"/>
   <text x="72" y="478" class="t">L2 512 KiB · 8-way (private to the core)</text>

@@ -20,7 +20,7 @@
 
   <rect x="0" y="0" width="1200" height="1768" fill="#ffffff"/>
   <text x="20" y="38" class="h" style="font-size:22px">硬件地图:一次访存会经过哪些层</text>
-  <text x="20" y="60" class="s">蓝字 = 在哪篇文章讲过(#N = 交易系统笔记 #N,MESI = 专题)。数字是典型 x86(Zen 3)的量级。</text>
+  <text x="20" y="60" class="s">蓝字 = 在哪里讲过(#N = 交易系统笔记 #N,MESI = 专题,速查 N.N = 速查页的小节)。数字是典型 x86(Zen 3)的量级。</text>
 
   <!-- ===== Socket 0 ===== -->
   <rect x="20" y="75" width="840" height="700" rx="10" class="sock"/>
@@ -64,8 +64,8 @@
 
   <rect x="245" y="370" width="165" height="70" class="cache"/>
   <text x="257" y="393" class="t">L1D 32 KiB · 8 路</text>
-  <text x="257" y="411" class="tag">#6 对齐 / 跨行</text>
-  <text x="257" y="428" class="tag">#6 组相联</text>
+  <text x="257" y="411" class="tag">#6 对齐 / 跨行 · 组相联</text>
+  <text x="257" y="428" class="tag">速查 2.3 填充缓冲</text>
 
   <rect x="60" y="455" width="350" height="62" class="cache"/>
   <text x="72" y="478" class="t">L2 512 KiB · 8 路(本核私有)</text>

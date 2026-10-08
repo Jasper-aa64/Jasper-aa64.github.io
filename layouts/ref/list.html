@@ -1,0 +1,25 @@
+{{ define "main" }}
+{{/* Reference pages: living look-up pages (hardware map, numbers, how to estimate) that grow with the series.
+     They are not posts, so they stay out of the Blog list, categories, archives and the homepage. */}}
+<section class="page-head wrap">
+  <h1 class="page-head__title reveal">{{ .Title }}</h1>
+  {{ with .Description }}<p class="page-head__lede reveal">{{ . }}</p>{{ end }}
+</section>
+<section class="wrap page-body">
+  <div class="card-list">
+    {{ range .Pages.ByWeight }}
+      <article class="card">
+        <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
+        <div class="card__main">
+          <div class="card__meta">
+            <span class="card__series">{{ i18n "secRef" }}</span>
+            <time datetime="{{ .Lastmod.Format `2006-01-02` }}">{{ i18n "refUpdated" (.Lastmod.Format (i18n "dateLong")) }}</time>
+          </div>
+          <h3 class="card__title">{{ .Title }}</h3>
+          {{ with .Description }}<p class="card__summary">{{ . }}</p>{{ end }}
+        </div>
+      </article>
+    {{ end }}
+  </div>
+</section>
+{{ end }}

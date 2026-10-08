@@ -89,6 +89,7 @@
             {{ $isCat := and (in (slice "taxonomy" "term") $.Kind) (eq $.Data.Plural "categories") }}
             {{ $active = or $active (and (eq .URL ("posts/" | relLangURL)) (or (eq $.Section "posts") (eq $.Section "archives") (eq $.Section "algorithms") (and (in (slice "taxonomy" "term") $.Kind) (not $isCat)))) }}
             {{ $active = or $active (and (eq .URL ("categories/" | relLangURL)) $isCat) }}
+            {{ $active = or $active (and (eq .URL ("ref/" | relLangURL)) (eq $.Section "ref")) }}
             <a class="site-nav__link{{ if $active }} is-active{{ end }}" href="{{ .URL }}"{{ if $active }} aria-current="page"{{ end }}>{{ .Name }}</a>
             {{ if and (eq .Weight 20) (gt $lifeCount 0) }}
               <a class="site-nav__link{{ if eq $.Section "life" }} is-active{{ end }}" href="{{ "life/" | relLangURL }}">{{ i18n "secLife" }}</a>
