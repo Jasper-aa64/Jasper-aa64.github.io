@@ -1,29 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="1.8 -7 37 31.8">
-  <!-- The original brain mascot (layouts/partials/brain-mascot.html), frozen on the "got an idea" frame:
-       right arm raised, lightbulb lit. Same geometry and colours, nothing redrawn. -->
-  <g stroke="#f59e0b" stroke-width="0.9" stroke-linecap="round">
-    <line x1="32" y1="-4.6" x2="32" y2="-6.2"/>
-    <line x1="27.9" y1="-2.6" x2="26.6" y2="-3.7"/>
-    <line x1="36.1" y1="-2.6" x2="37.4" y2="-3.7"/>
-  </g>
-  <circle cx="32" cy="-1" r="3.5" fill="#fde68a" stroke="#f59e0b" stroke-width="0.8"/>
-  <rect x="30.2" y="1.8" width="3.6" height="2" fill="#9ca3af"/>
-  <g fill="#7c4f5d" shape-rendering="crispEdges">
-    <rect x="12.55" y="20" width="1.7" height="3.4"/>
-    <rect x="11.85" y="22.8" width="3.1" height="1.6"/>
-    <rect x="17.75" y="20" width="1.7" height="3.4"/>
-    <rect x="17.05" y="22.8" width="3.1" height="1.6"/>
-    <rect x="2.6" y="18.6" width="2.7" height="2.7"/>
-    <rect x="24.8" y="3.6" width="2.8" height="2.8"/>
-  </g>
-  <g fill="none" stroke="#7c4f5d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M7.5,12.5 Q4.6,15.2 4,19.4"/>
-    <path d="M24,13 C27.2,11.2 27.6,6.5 26,5.2"/>
-  </g>
-  <path d="M10,6 H22 V8 H24 V10 H26 V16 H24 V18 H22 V20 H10 V18 H8 V16 H6 V10 H8 V8 H10 Z" fill="#f6bcca" stroke="#c46d87" stroke-width="1.4" stroke-linejoin="miter" shape-rendering="crispEdges"/>
-  <path d="M16,8 V18 M10.5,10 H13.5 M18.5,10 H21.5 M10,16 H13 M19,16 H22" fill="none" stroke="#b15775" stroke-width="1.2" opacity="0.85"/>
-  <g fill="#3a2530" shape-rendering="crispEdges">
-    <rect x="12" y="12.4" width="2" height="2"/>
-    <rect x="18" y="12.4" width="2" height="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  <title>IELTS Studio brain</title>
+  <!-- Canonical rounded brain body. Bulbs are separate page decorations; raster exports keep eyes open. -->
+  <style>
+    .brain-eyes { transform-box: fill-box; transform-origin: center; animation: brain-blink 6.4s infinite; }
+    @keyframes brain-blink { 0%, 43%, 47%, 100% { transform: scaleY(1); } 45% { transform: scaleY(.12); } }
+    @media (prefers-reduced-motion: reduce) { .brain-eyes { animation: none; } }
+  </style>
+  <rect x=".55" y=".55" width="18.9" height="18.9" rx="4.2" fill="#f6bcca" stroke="#c46d87" stroke-width="1.1"/>
+  <path d="M10 3.2V16.8M4.2 5.6H7.2M12.8 5.6H15.8M3.8 14.4H6.8M13.2 14.4H16.2" fill="none" stroke="#b15775" stroke-width="1.2" opacity=".85"/>
+  <g class="brain-eyes" fill="#3a2530" shape-rendering="crispEdges">
+    <rect x="5.38" y="8.78" width="2.44" height="2.44"/>
+    <rect x="12.18" y="8.78" width="2.44" height="2.44"/>
   </g>
 </svg>
