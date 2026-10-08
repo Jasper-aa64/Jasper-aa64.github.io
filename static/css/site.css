@@ -250,6 +250,9 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .site-header.is-scrolled { border-bottom-color: var(--rule); }
 .site-header__inner {
+  /* Full-width bar: on wide screens the brand sits at the left edge and the buttons at the right edge,
+     not inside the 1320px content column (the page content below stays centred). */
+  max-width: none;
   height: 100%;
   display: flex;
   align-items: center;
