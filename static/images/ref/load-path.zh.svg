@@ -28,7 +28,7 @@
   </defs>
   <rect x="0" y="0" width="1100" height="990" fill="#ffffff"/>
   <text x="30" y="40" class="h">一次读（load）走一遍</text>
-  <text x="30" y="66" class="s">按顺序走四步。中间一列是从发出 load 算起的累计延迟，典型 x86 桌面的量级（约 4 GHz）。</text>
+  <text x="30" y="66" class="s">按顺序走四步。中间一列是从发出 load 算起的累计延迟。</text>
   <!-- Step 1: the address splits; translation and set selection happen at the same time -->
   <circle cx="60" cy="130" r="14" class="dot"/>
   <text x="60" y="135" class="dt" text-anchor="middle">1</text>
@@ -80,7 +80,7 @@
   <text x="130" y="576" class="t">L3（全核共享）</text>
   <text x="130" y="598" class="s">命中：沿路放进 L2、L1D。</text>
   <rect x="740" y="567" width="100" height="28" rx="14" class="pill"/>
-  <text x="790" y="586" class="pt" text-anchor="middle">≈ 10–15 ns</text>
+  <text x="790" y="586" class="pt" text-anchor="middle">≈ 10–30 ns</text>
   <line x1="415" y1="612" x2="415" y2="668" class="line" marker-end="url(#arr)"/>
   <text x="425" y="645" class="lab">没命中</text>
   <!-- Step 3: memory controller and the DIMM -->
@@ -93,11 +93,11 @@
   <rect x="110" y="770" width="610" height="100" rx="6" class="mem"/>
   <text x="130" y="796" class="t">内存条：从一个 bank 的行缓冲里读出整条 64 B</text>
   <rect x="130" y="812" width="180" height="40" rx="6" class="box"/>
-  <text x="220" y="837" class="f" text-anchor="middle">行缓冲命中 ≈ 14 ns</text>
+  <text x="220" y="837" class="f" text-anchor="middle">行缓冲命中 ≈ 15 ns</text>
   <rect x="320" y="812" width="180" height="40" rx="6" class="box"/>
-  <text x="410" y="837" class="f" text-anchor="middle">行空 ≈ 28 ns</text>
+  <text x="410" y="837" class="f" text-anchor="middle">行空 ≈ 30 ns</text>
   <rect x="510" y="812" width="190" height="40" rx="6" class="box"/>
-  <text x="605" y="837" class="f" text-anchor="middle">行冲突 ≈ 41 ns</text>
+  <text x="605" y="837" class="f" text-anchor="middle">行冲突 ≈ 40 ns</text>
   <rect x="740" y="806" width="100" height="28" rx="14" class="pill"/>
   <text x="790" y="825" class="pt" text-anchor="middle">≈ 70–120 ns</text>
   <text x="860" y="815" class="s">一次内存访问的总时间，</text>
@@ -108,5 +108,5 @@
   <text x="60" y="920" class="dt" text-anchor="middle">4</text>
   <rect x="110" y="890" width="970" height="50" rx="6" class="ban"/>
   <text x="130" y="921" class="t">拿回来的永远是一整条 64 B 缓存行：原路返回（左边的蓝线），沿路放进 L3、L2、L1D。</text>
-  <text x="30" y="972" class="s">数字：典型 x86 桌面的量级，各型号的公开测量见速查 2.7。</text>
+  <text x="30" y="972" class="s">数字都是帮助理解的量级，不对应哪台机器。</text>
 </svg>

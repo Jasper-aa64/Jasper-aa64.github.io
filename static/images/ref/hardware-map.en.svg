@@ -20,7 +20,7 @@
 
   <rect x="0" y="0" width="1200" height="1768" fill="#ffffff"/>
   <text x="20" y="38" class="h" style="font-size:22px">Hardware map: the layers one memory access passes through</text>
-  <text x="20" y="60" class="s">Blue = where it is covered (#N = Trading System Notes #N; MESI = the MESI topic post; Ref N.N = a section of the Reference page). Numbers are typical x86 (Zen 3) magnitudes.</text>
+  <text x="20" y="60" class="s">Blue = where it is covered (#N = Trading System Notes #N; MESI = the MESI topic post; Ref N.N = a section of the Reference page). Numbers are rough magnitudes.</text>
 
   <!-- ===== Socket 0 ===== -->
   <rect x="20" y="75" width="840" height="700" rx="10" class="sock"/>
@@ -140,7 +140,7 @@
   <text x="68" y="902" class="t">a bank = rows × columns</text>
   <rect x="68" y="914" width="204" height="30" class="buf"/>
   <text x="78" y="934" class="s">row buffer: the row currently open</text>
-  <text x="68" y="964" class="s">hit in the open row ~14 ns</text>
+  <text x="68" y="964" class="s">hit in the open row ~15 ns</text>
   <text x="68" y="983" class="s">switch rows (conflict) ~40 ns</text>
   <text x="68" y="1006" class="s">refresh every ~7.8 µs stalls</text>
   <text x="68" y="1024" class="s">a few hundred ns → P99 spikes</text>
@@ -191,7 +191,7 @@
   <rect x="340" y="1392" width="840" height="46" fill="#f1f5f9"/>
   <line x1="340" y1="1392" x2="1180" y2="1392" stroke="#ffffff" stroke-width="3"/>
   <text x="480" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">4–5 cycles (~1 ns)</text>
-  <text x="750" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">32 KiB / core</text>
+  <text x="750" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">32–48 KiB / core</text>
   <text x="1030" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">Hardware</text>
   <rect x="170" y="1398" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
   <text x="245" y="1420" text-anchor="middle" style="font-size:13px;fill:#ffffff">L1D cache</text>
@@ -199,8 +199,8 @@
   <line x1="880" y1="1392" x2="880" y2="1438" stroke="#ffffff" stroke-width="3"/>
   <rect x="340" y="1438" width="840" height="46" fill="#e3ebf3"/>
   <line x1="340" y1="1438" x2="1180" y2="1438" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">12–14 cycles (~3–4 ns)</text>
-  <text x="750" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">512 KiB / core</text>
+  <text x="480" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">~12–20 cycles (~3–5 ns)</text>
+  <text x="750" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">0.5–2 MiB / core</text>
   <text x="1030" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">Hardware</text>
   <rect x="170" y="1444" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
   <text x="245" y="1466" text-anchor="middle" style="font-size:13px;fill:#ffffff">L2 cache</text>
@@ -208,8 +208,8 @@
   <line x1="880" y1="1438" x2="880" y2="1484" stroke="#ffffff" stroke-width="3"/>
   <rect x="340" y="1484" width="840" height="46" fill="#f1f5f9"/>
   <line x1="340" y1="1484" x2="1180" y2="1484" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">~40–60 cycles (~10–15 ns)</text>
-  <text x="750" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">16 MiB, shared</text>
+  <text x="480" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">~40–120 cycles (~10–30 ns)</text>
+  <text x="750" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">tens to hundreds of MiB, shared</text>
   <text x="1030" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">Hardware</text>
   <rect x="170" y="1490" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
   <text x="245" y="1512" text-anchor="middle" style="font-size:13px;fill:#ffffff">L3 cache</text>
@@ -217,8 +217,8 @@
   <line x1="880" y1="1484" x2="880" y2="1530" stroke="#ffffff" stroke-width="3"/>
   <rect x="340" y="1530" width="840" height="46" fill="#e3ebf3"/>
   <line x1="340" y1="1530" x2="1180" y2="1530" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">~300–400 cycles (~80–100 ns)</text>
-  <text x="750" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">tens of GB</text>
+  <text x="480" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">~300–500 cycles (~70–120 ns)</text>
+  <text x="750" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">tens of GB to a few TB</text>
   <text x="1030" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">OS (page tables)</text>
   <rect x="170" y="1536" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
   <text x="245" y="1558" text-anchor="middle" style="font-size:13px;fill:#ffffff">Local DRAM</text>
@@ -226,7 +226,7 @@
   <line x1="880" y1="1530" x2="880" y2="1576" stroke="#ffffff" stroke-width="3"/>
   <rect x="340" y="1576" width="840" height="46" fill="#f1f5f9"/>
   <line x1="340" y1="1576" x2="1180" y2="1576" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">slower than local</text>
+  <text x="480" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">~500–800 cycles (~120–200 ns)</text>
   <text x="750" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">the other socket's DRAM</text>
   <text x="1030" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">OS + your pinning</text>
   <rect x="170" y="1582" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
@@ -255,6 +255,6 @@
   <text x="95" y="1581" text-anchor="middle" style="font-size:14px;fill:#1f2328">Off chip</text>
   <line x1="30" y1="1622" x2="330" y2="1622" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
   <text x="95" y="1650" text-anchor="middle" style="font-size:14px;fill:#1f2328">Devices</text>
-  <text x="340" y="1694" class="tag">First write to a page (page fault) ≈ 1.5 µs: measured in #5 (Windows). The rest are typical x86 (Zen 3) magnitudes, not measurements.</text>
+  <text x="340" y="1694" class="tag">Numbers are rough magnitudes for intuition, not any particular machine.</text>
   <text x="20" y="1748" class="s">Updated as the series goes on: new hardware layers get labels when a post covers them.</text>
 </svg>
