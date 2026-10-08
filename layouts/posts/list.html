@@ -2,7 +2,14 @@
 {{ $posts := partial "posts-all.html" . }}
 {{ $ix := partial "class-index.html" . }}
 <section class="page-head wrap">
-  <h1 class="page-head__title reveal">{{ i18n "writingTitle" }}</h1>
+  <div class="page-head__row">
+    <h1 class="page-head__title reveal">{{ i18n "writingTitle" }}</h1>
+    {{/* Reference pages (hardware map, numbers, …) are their own section with no menu item: this button on the Blog page is the way in,
+         and the Reference index lists every page, so new pages need no change here. */}}
+    {{ with site.GetPage "/ref" }}{{ if .Pages }}
+      <a class="ref-entry reveal" href="{{ .RelPermalink }}"><b>{{ i18n "secRef" }}</b> <sup>{{ len .Pages }}</sup><span aria-hidden="true">→</span></a>
+    {{ end }}{{ end }}
+  </div>
 </section>
 
 <section class="wrap page-body" data-writing>
