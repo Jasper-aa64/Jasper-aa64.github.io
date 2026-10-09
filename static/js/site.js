@@ -279,13 +279,35 @@
     var heads = ids.map(function (id) { return document.getElementById(id); }).filter(Boolean);
     var side = document.querySelector(".toc-side");
     var current = null;
+    // A jump leaves a heading below the root's scroll-padding plus its own scroll-margin (the two add up),
+    // so the "being read" line sits just below that point instead of at a fixed 140px.
+    var line = 140;
+    var setLine = function () {
+      var pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+      var margin = parseFloat(getComputedStyle(heads[0]).scrollMarginTop) || 0;
+      line = pad + margin + 8;
+    };
+    // After a click in the table of contents, keep that entry lit while its heading is on screen,
+    // even when the page bottoms out before the heading reaches the line. Any user scroll releases it.
+    var pinned = null;
+    tocLinks.forEach(function (a) {
+      a.addEventListener("click", function () {
+        pinned = document.getElementById(decodeURIComponent((a.getAttribute("href") || "").replace(/^#/, "")));
+      });
+    });
+    ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (t) {
+      window.addEventListener(t, function () { pinned = null; }, { passive: true });
+    });
     var mark = function () {
-      var line = 140;
       var active = heads[0];
       for (var i = 0; i < heads.length; i++) {
         if (heads[i].getBoundingClientRect().top <= line) active = heads[i]; else break;
       }
       if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) active = heads[heads.length - 1];
+      if (pinned) {
+        var r = pinned.getBoundingClientRect();
+        if (r.top >= 0 && r.top < window.innerHeight) active = pinned;
+      }
       if (!active || active === current) return;
       current = active;
       tocLinks.forEach(function (a) {
@@ -298,6 +320,8 @@
       });
     };
     if (heads.length) {
+      setLine();
+      window.addEventListener("resize", setLine, { passive: true });
       window.addEventListener("scroll", function () { requestAnimationFrame(mark); }, { passive: true });
       mark();
     }
