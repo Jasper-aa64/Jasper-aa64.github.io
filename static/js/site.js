@@ -11,14 +11,18 @@
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
 
-  /* ---------- Theme ---------- */
+  /* ---------- Theme: one click steps light → dark → pure black → light ---------- */
   var themeBtn = document.querySelector(".theme-btn");
   if (themeBtn) {
-    var sync = function () { themeBtn.setAttribute("aria-pressed", String(root.dataset.theme === "dark")); };
+    var order = ["light", "dark", "black"];
+    var sync = function () {
+      var label = (I18N.themes || {})[root.dataset.theme];
+      if (label) { themeBtn.setAttribute("aria-label", label); themeBtn.title = label; }
+    };
     sync();
     var flip = function () {
       root.classList.add("theme-switching");
-      root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+      root.dataset.theme = order[(order.indexOf(root.dataset.theme) + 1) % order.length];
       store.set("theme", root.dataset.theme);
       sync();
       void root.offsetWidth;
