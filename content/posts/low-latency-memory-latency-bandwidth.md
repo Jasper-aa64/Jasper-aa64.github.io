@@ -309,6 +309,19 @@ $$
 
 The store buffer hides only the **latency** of a store: later instructions don't wait for it. It has 50–110 entries, and a store-dense loop fills it; then the core stalls, and RFO bandwidth sets the speed.
 
+How much is RFO bandwidth? It depends on where the line is:
+
+$$
+\text{one core's useful write bandwidth to memory} \;\approx\; \frac{\text{RFOs in flight} \times 64\ \text{B}}{\text{latency}}, \qquad
+\text{chip's useful write bandwidth} \;\lesssim\; \frac{\text{chip peak} \times (70\%\text{–}90\%)}{2}
+$$
+
+- **The line is already in L1/L2 and owned by this core**: no RFO; the store ports set the speed. 1–2 stores of 32 B per cycle at 4 GHz is about 130–250 GB/s. A hot path rewriting the same few lines is in this case.
+- **One core writing an array far larger than L3**: bound by how many RFOs are in flight. RFOs occupy LFB entries like read misses, and the L2 prefetcher issues RFOs ahead for sequential stores too, so the arithmetic is the same as for reads: about 10–40 GB/s of useful write bandwidth, usually somewhat below the same core's sequential read, because write-backs also use the road and the store buffer hands stores over in order.
+- **Many cores writing together**: they hit the chip's bus. Every line written crosses it twice (RFO + write-back), so useful write bandwidth is at most about half the peak, and with read/write turnaround only 35%–45% of it. On a 2-channel chip with a 50–100 GB/s peak, all cores writing get about 20–40 GB/s of useful writes.
+
+These are derived from the read-side numbers, not measured. NT stores turn the two bus trips into one, and the chip's useful write bandwidth climbs back to 70%–90% of peak.
+
 Reads and writes are asymmetric in one more way: the DRAM data bus is shared by both directions, and switching from reads to writes and back costs idle cycles, so a mixed read/write stream reaches a lower fraction of peak than pure reads. Some CPUs optimize bulk string instructions like `rep stosb` / `rep movsb`: knowing the whole line will be overwritten, they skip the RFO. glibc's large `memset` / `memcpy` use them, or the streaming stores in the next section.
 
 ### 2.3 Non-Temporal Stores: No Read-Back, No Cache
