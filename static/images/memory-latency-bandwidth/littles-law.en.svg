@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 500" width="1100" height="500" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><style>.t{font-size:22px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.h{font-size:16px;font-weight:700;fill:#1f2328}.n{font-size:13px;fill:#57606a}.b{font-size:13px;fill:#1f2328}.a{font-size:15px;fill:#1f2328}.f{font-size:16px;font-weight:700;fill:#1f2328}.ax{font-size:12.5px;fill:#57606a}</style></defs>
+<rect x="0" y="0" width="1100" height="500" fill="#ffffff"/>
+<text class="t" x="60" y="40">Same latency, more requests in flight, more bandwidth</text>
+<text class="s" x="60" y="66">Each bar is one cache-line request; its length is the latency, 100 ns. Time runs left to right.</text>
+<line x1="260" y1="114" x2="260" y2="158" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="260" y1="228" x2="260" y2="380" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="460" y1="114" x2="460" y2="158" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="460" y1="228" x2="460" y2="380" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="660" y1="114" x2="660" y2="158" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="660" y1="228" x2="660" y2="380" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="860" y1="114" x2="860" y2="158" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="860" y1="228" x2="860" y2="380" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<text x="60" y="106"><tspan class="h">One at a time</tspan><tspan class="n" dx="12">the next address waits for this read (a dependency chain)</tspan></text>
+<rect x="60" y="122" width="196" height="30" rx="4" fill="#ffebe9" stroke="#cf222e"/>
+<text class="b" x="158" y="142" text-anchor="middle">req 1</text>
+<rect x="260" y="122" width="196" height="30" rx="4" fill="#ffebe9" stroke="#cf222e"/>
+<text class="b" x="358" y="142" text-anchor="middle">req 2</text>
+<rect x="460" y="122" width="196" height="30" rx="4" fill="#ffebe9" stroke="#cf222e"/>
+<text class="b" x="558" y="142" text-anchor="middle">req 3</text>
+<rect x="660" y="122" width="196" height="30" rx="4" fill="#ffebe9" stroke="#cf222e"/>
+<text class="b" x="758" y="142" text-anchor="middle">req 4</text>
+<text class="a" x="60" y="182">One line back every 100 ns: 64 B ÷ 100 ns = <tspan font-weight="700">0.64 GB/s</tspan></text>
+<text x="60" y="220"><tspan class="h">Four at once</tspan><tspan class="n" dx="12">addresses are computed, so out-of-order execution issues later loads early</tspan></text>
+<rect x="60" y="236" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="158" y="256" text-anchor="middle">1</text>
+<rect x="260" y="236" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="358" y="256" text-anchor="middle">5</text>
+<rect x="460" y="236" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="558" y="256" text-anchor="middle">9</text>
+<rect x="660" y="236" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="758" y="256" text-anchor="middle">13</text>
+<rect x="110" y="272" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="208" y="292" text-anchor="middle">2</text>
+<rect x="310" y="272" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="408" y="292" text-anchor="middle">6</text>
+<rect x="510" y="272" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="608" y="292" text-anchor="middle">10</text>
+<rect x="710" y="272" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="808" y="292" text-anchor="middle">14</text>
+<rect x="160" y="308" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="258" y="328" text-anchor="middle">3</text>
+<rect x="360" y="308" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="458" y="328" text-anchor="middle">7</text>
+<rect x="560" y="308" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="658" y="328" text-anchor="middle">11</text>
+<rect x="760" y="308" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="858" y="328" text-anchor="middle">15</text>
+<rect x="210" y="344" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="308" y="364" text-anchor="middle">4</text>
+<rect x="410" y="344" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="508" y="364" text-anchor="middle">8</text>
+<rect x="610" y="344" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="708" y="364" text-anchor="middle">12</text>
+<rect x="810" y="344" width="196" height="30" rx="4" fill="#dafbe1" stroke="#1a7f37"/>
+<text class="b" x="908" y="364" text-anchor="middle">16</text>
+<line x1="60" y1="388" x2="1010" y2="388" stroke="#57606a"/>
+<line x1="60" y1="388" x2="60" y2="394" stroke="#57606a"/>
+<text class="ax" x="60" y="410" text-anchor="middle">0</text>
+<line x1="260" y1="388" x2="260" y2="394" stroke="#57606a"/>
+<text class="ax" x="260" y="410" text-anchor="middle">100</text>
+<line x1="460" y1="388" x2="460" y2="394" stroke="#57606a"/>
+<text class="ax" x="460" y="410" text-anchor="middle">200</text>
+<line x1="660" y1="388" x2="660" y2="394" stroke="#57606a"/>
+<text class="ax" x="660" y="410" text-anchor="middle">300</text>
+<line x1="860" y1="388" x2="860" y2="394" stroke="#57606a"/>
+<text class="ax" x="860" y="410" text-anchor="middle">400 ns</text>
+<text class="a" x="60" y="442">Each bar still takes 100 ns, but a line comes back every 25 ns: 4 × 64 B ÷ 100 ns = <tspan font-weight="700">2.56 GB/s</tspan></text>
+<text class="f" x="60" y="480">Bandwidth = requests in flight × 64 B ÷ latency (Little's law)</text>
+</svg>
