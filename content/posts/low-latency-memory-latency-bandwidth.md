@@ -285,6 +285,8 @@ On a machine with a 32 KiB L1D, 512 KiB L2 and 16 MiB L3, the curve has four ste
 | ~512 KiB – 16 MiB | L3 | ~30–150 GB/s |
 | > ~16 MiB | Memory | ~15–60 GB/s |
 
+<a href="/images/memory-latency-bandwidth/working-set-steps.en.svg" target="_blank" rel="noopener"><img src="/images/memory-latency-bandwidth/working-set-steps.en.svg" alt="Working-set step curve: x axis is working-set size (4 KiB to 256 MiB, log scale), y axis is bytes read per second by one core (log scale). Four steps: L1D hit ~150–400 GB/s, L2 hit ~80–200 GB/s, L3 hit ~30–150 GB/s, memory ~15–60 GB/s. Dashed lines mark L1D 32 KiB, L2 512 KiB and L3 16 MiB; each drop starts before its line." loading="lazy" decoding="async"></a>
+
 Past each capacity, the lines you keep reusing go from "fits in this level" to **capacity misses** that come from the next level down. Four things to watch when reading the curve:
 
 - **The knee comes early, and it is a slope, not a corner.** Other data takes room too: the stack, code, page-table entries. Set associativity is not perfect LRU either: L2 and L3 pick the set by physical address, the OS hands out scattered physical pages, and some sets fill and start evicting before the whole cache is full. L3 is also shared by every core.

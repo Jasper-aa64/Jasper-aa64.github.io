@@ -285,6 +285,8 @@ for (int rep = 0; rep < reps; ++rep)
 | 约 512 KiB – 16 MiB | L3 | 约 30–150 GB/s |
 | > 约 16 MiB | 内存 | 约 15–60 GB/s |
 
+<a href="/images/memory-latency-bandwidth/working-set-steps.zh.svg" target="_blank" rel="noopener"><img src="/images/memory-latency-bandwidth/working-set-steps.zh.svg" alt="工作集台阶曲线：横轴是工作集大小（4 KiB 到 256 MiB，对数坐标），纵轴是一个核每秒读多少（对数坐标）。曲线有 4 级台阶：L1D 命中约 150–400 GB/s，L2 命中约 80–200 GB/s，L3 命中约 30–150 GB/s，内存约 15–60 GB/s。三条虚线标出 L1D 32 KiB、L2 512 KiB、L3 16 MiB，每级的下坡在虚线之前就开始。" loading="lazy" decoding="async"></a>
+
 每过一个容量，反复访问的行就从“这一层装得下”变成**容量缺失**，要去下一层取。读这条曲线要注意 4 点：
 
 - **拐点比标称容量早，而且是斜坡，不是直角**。别的数据也占着位置：栈、代码、页表项。组相联也不是完美的 LRU：L2、L3 按物理地址选组，操作系统给的物理页是零散的，有的组先满，整体还没装满就开始踢。L3 还是全核共享的。
