@@ -33,7 +33,7 @@ The **LFB** (line fill buffer) in step 2 is L1D's small table of misses still on
 
 ### 1.2 Stores: Store Buffer and RFO {#store}
 
-A store first goes into the **store buffer**, so later instructions don't wait for it. Before it can be written into L1D, the core needs exclusive ownership of the line: every copy in another core has to be invalidated (**MESI**), and each of those cores queues the invalidation in its **invalidate queue** first. If the line isn't in the cache, the whole line has to be read in before it can be modified, which is called an **RFO** (read for ownership). So a store miss also moves a whole line from memory.
+A store first goes into the **store buffer**, so later instructions don't wait for it. Before it can be written into L1D, the core needs exclusive ownership of the line: every copy in another core has to be invalidated (**MESI**), and each of those cores queues the invalidation in its **invalidate queue** first. If the line isn't in the cache, the whole line has to be read in before it can be modified, which is called an **RFO** (read for ownership). So a store miss also moves a whole line from memory. The modified line is written back when evicted, so an ordinary store to a line not in cache crosses the bus twice. A **non-temporal store** skips the read and the cache, writing each completed 64 B line straight to memory in one trip; it suits bulk data nobody reads soon.
 
 ### 1.3 Post Index: Which Post Covers Which Box {#posts}
 
@@ -90,6 +90,7 @@ Two things to notice:
 
 - **Latency spans 100×, bandwidth only 10×.** From L1 to memory, one core's bandwidth drops from 150–400 GB/s to 15–60 GB/s. The two columns aren't two ways of writing one quantity; what sits between them is the number of requests in flight ([2.3](#in-flight)).
 - **One core can't take the whole chip.** What one core gets is set by its requests in flight and the latency (Little's law, [2.3](#in-flight)); the chip's peak is set by the number of channels. The longer the latency and the more channels, the smaller one core's share, anywhere from ~10% to ~80%.
+- **More cores, smaller shares.** With k cores scanning, each gets about $\min(\text{alone},\ \text{chip peak} \times (70\%\text{–}90\%) / k)$. A 2-channel chip saturates with 2–4 cores; with 8–12 channels and 32–128 cores, each core gets a few GB/s when all scan. More channels raise only the second term.
 
 ### 2.3 Memory-Level Parallelism (MLP): How Many Can Be in Flight {#in-flight}
 

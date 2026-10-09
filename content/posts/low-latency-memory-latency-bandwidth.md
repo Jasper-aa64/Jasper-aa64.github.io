@@ -2,7 +2,7 @@
 title: "Low-Latency Trading — Memory Latency and Bandwidth"
 date: 2026-10-09
 slug: "low-latency-memory-latency-bandwidth"
-description: "Latency is how long one request takes to come back; bandwidth is how many bytes come back per second. The number of requests in flight links the two (Little's law), so bandwidth is not 1/latency. Part 1: what each quantity is, the numbers for each level, Little's law, how out-of-order execution and the ROB keep several requests in flight, how to tell which limit your code hits, how fast the CPU wants data (arithmetic intensity, vectorization, multiple accumulators), total time = lines to move × time per line, and why someone else saturating bandwidth slows your hot path."
+description: "Latency is how long one request takes to come back; bandwidth is how many bytes come back per second. The number of requests in flight links the two (Little's law), so bandwidth is not 1/latency. Part 1: what each quantity is, the numbers for each level, Little's law, how out-of-order execution and the ROB keep several requests in flight, how to tell which limit your code hits, how fast the CPU wants data (arithmetic intensity, vectorization, multiple accumulators), total time = lines to move × time per line, and why someone else saturating bandwidth slows your hot path. Part 2: working-set steps, RFO making each written line cross the bus twice, non-temporal stores, and the two bandwidth ceilings when cores share memory."
 summary: "One memory access takes about 100 ns and brings back 64 B. One at a time, that's 0.64 GB/s, yet one core reading sequentially gets 15–60 GB/s. The missing factor is the number of requests in flight. Whether the next load's address has to wait for this load decides whether your code is latency-bound or bandwidth-bound."
 chapter: 1
 categories: [Systems]
@@ -251,3 +251,101 @@ What it means for HFT:
 - The hot path is "receive a market-data message → look up the order book → decide → send an order": a chain of **dependent** accesses on a tiny amount of data. What hurts is **latency**.
 - But the memory controller and L3 are shared by all cores. When another process on the same chip is scanning memory hard (a backtest, log flushing, market-data replay), bandwidth fills up and every miss on the hot path has to queue. **Pinning and isolating cores isolates the compute, not this road** ([#1](/posts/cpu-affinity-core-isolation-numa/)).
 - So on production machines, either move such bandwidth-hungry jobs elsewhere or limit them with the hardware's allocation features: Intel CAT partitions L3, and MBA throttles each core's memory bandwidth.
+
+## 2. The Bandwidth Side: Capacity, Writes, Many Cores
+
+Zero a 1 GiB block of memory with the plainest loop:
+
+```cpp
+void plain_zero(int* dst, size_t n) {
+    for (size_t i = 0; i < n; ++i) dst[i] = 0;
+}
+```
+
+There is not a single load in the code, yet 2 GiB cross the memory bus, and half of it is reads. On the same core, a 16 KiB array is read at hundreds of GB/s and a 256 MiB array at a few tens. And on a 64-core chip with a ~300 GB/s peak, one core scanning memory alone gets a small slice of it. All three answer the two quantities in Part 1's overall picture: how many lines must move, and how wide the road is.
+
+### 2.1 Working Set: Which Level the Data Fits In
+
+The **working set** is the bytes a piece of code keeps touching over a stretch of time. Whichever level the working set fits in is where the repeated accesses hit, and that level's speed is the speed you get.
+
+Sum an `int` array sequentially, over and over, growing the array from 16 KiB to 256 MiB, and measure the bytes read per second at each size:
+
+```cpp
+// a holds n ints; n × 4 B is the working set; scan it reps times
+for (int rep = 0; rep < reps; ++rep)
+    for (size_t i = 0; i < n; ++i) s += a[i];
+```
+
+On a machine with a 32 KiB L1D, 512 KiB L2 and 16 MiB L3, the curve has four steps (estimated from the ranges on the [quick reference](/ref/cpu-memory/#bandwidth)):
+
+| Working set | Hits in | One core, sequential read |
+|---|---|---|
+| ≤ ~32 KiB | L1D | ~150–400 GB/s |
+| ~32 KiB – 512 KiB | L2 | ~80–200 GB/s |
+| ~512 KiB – 16 MiB | L3 | ~30–150 GB/s |
+| > ~16 MiB | Memory | ~15–60 GB/s |
+
+Past each capacity, the lines you keep reusing go from "fits in this level" to **capacity misses** that come from the next level down. Four things to watch when reading the curve:
+
+- **The knee comes early, and it is a slope, not a corner.** Other data takes room too: the stack, code, page-table entries. Set associativity is not perfect LRU either: L2 and L3 pick the set by physical address, the OS hands out scattered physical pages, and some sets fill and start evicting before the whole cache is full. L3 is also shared by every core.
+- **On some chips the knee comes late.** When L3 is a victim cache of L2 (lines enter L3 only when L2 evicts them, and L3 keeps no second copy of what L2 holds), the total capacity is about L2 + L3.
+- **Sequential steps are shallower than random ones.** Sequential reads have prefetchers fetching ahead, which hide most of the next level's latency, so you see the bandwidth gap, about 10× overall. Random pointer chasing gets no prefetching, so you see the latency gap, about 100× overall.
+- Random access adds one more step for the TLB: once the working set exceeds the few MiB the TLB covers, every access pays an extra page walk.
+
+The hot path's data structures (order book, positions, parameter tables) have to fit in L1/L2 before "a few nanoseconds per access" is on the table. The compact layouts from [#6](/posts/alignment-layout-cache-dram-geometry/) save more than lines: they move the working set up a level.
+
+### 2.2 Write Misses and RFO: One Line Written, Two Trips on the Bus
+
+A store goes into the store buffer first. Before it can be written into L1D, the core needs exclusive ownership of the line (the I→M step in [MESI](/posts/low-latency-mesi-cache-coherence/)). If the line isn't in the cache, the whole line must first be read from memory and then modified. This is **RFO** (read for ownership). The reason is that caches manage whole 64 B lines: you wrote 4 B, and the other 60 B still have to be correct. Allocating the line into the cache on a write miss is called **write-allocate**.
+
+The modified line is dirty, and when it is evicted it is written back to memory (write-back). So an ordinary store moves each line across the bus twice:
+
+$$
+\text{bus traffic} \;=\; \underbrace{64\ \text{B}}_{\text{RFO read}} \;+\; \underbrace{64\ \text{B}}_{\text{write-back on eviction}}
+$$
+
+- Zeroing 1 GiB (far larger than L3), as in the opening example, moves 2 GiB over the bus. Write bandwidth computed as "bytes written ÷ time" is only half the bus traffic.
+- `memcpy` of 1 GiB: read 1 GiB of source, RFO 1 GiB of destination, write back 1 GiB, 3 GiB in total, of which 2 GiB is useful.
+
+The store buffer hides only the **latency** of a store: later instructions don't wait for it. It has 50–110 entries, and a store-dense loop fills it; then the core stalls, and RFO bandwidth sets the speed.
+
+Reads and writes are asymmetric in one more way: the DRAM data bus is shared by both directions, and switching from reads to writes and back costs idle cycles, so a mixed read/write stream reaches a lower fraction of peak than pure reads. Some CPUs optimize bulk string instructions like `rep stosb` / `rep movsb`: knowing the whole line will be overwritten, they skip the RFO. glibc's large `memset` / `memcpy` use them, or the streaming stores in the next section.
+
+### 2.3 Non-Temporal Stores: No Read-Back, No Cache
+
+A **non-temporal store** (NT store; non-temporal means "not reused soon") is a different store instruction (`movnti`, `movntdq` on x86; intrinsics such as `_mm_stream_si128`). It neither reads the line back nor puts it in the cache: stores to the same line are collected in a **write-combining buffer** (WC buffer; on Intel it shares the 12–24 LFB entries), and once 64 B are complete the whole line is written straight to memory. One trip on the bus, so `memcpy` goes from 3 trips to 2.
+
+```cpp
+#include <immintrin.h>
+// dst aligned to 16 B, bytes a multiple of 64 (whole lines written)
+void stream_zero(void* dst, size_t bytes) {
+    __m128i z = _mm_setzero_si128();
+    auto* p = static_cast<__m128i*>(dst);
+    for (size_t i = 0; i < bytes / 16; ++i) _mm_stream_si128(p + i, z);
+    _mm_sfence();   // NT stores are weakly ordered: sfence before publishing "done"
+}
+```
+
+Three traps:
+
+1. **Write whole lines, contiguously.** Write half a line and the WC buffer is flushed early as several partial writes, slower than ordinary stores.
+2. **They are weakly ordered.** Ordinary x86 stores become visible in order (TSO, [#2](/posts/memory-ordering-false-sharing-dependency-chains/)); NT stores are the exception. Writing a batch of data and then a "ready" flag needs `_mm_sfence()` in between, or another core may see the flag before the data.
+3. **The data lands in memory, not in cache.** Any cached copy of the line is invalidated too. Whoever reads it next, you or another core, pays a full memory miss, about 80–120 ns.
+
+So it suits data that is written in bulk and not read soon: copies larger than L3, log writes into a big file buffer. glibc's `memcpy` switches to NT stores above a threshold on the order of the L3 size. The opposite case is an inter-core SPSC queue ([#4](/posts/lock-free-queue-logger-micro-batching/), [#5](/posts/spmc-shared-memory-broadcast-ring/)): what goes in is read by another core right away, and NT stores would push the data out to memory only for the consumer to pull it back.
+
+### 2.4 Shared Bandwidth Across Cores: Which Ceiling Belongs to Whom
+
+L3, the memory controller and the channels are shared by all cores. The two ceilings from Part 1's overall picture split cleanly once more cores join:
+
+$$
+\text{one core alone} \;\approx\; \frac{\text{requests in flight} \times 64\ \text{B}}{\text{latency}}, \qquad
+\text{each of k cores together} \;\approx\; \min\Big(\text{alone},\;\; \frac{\text{chip peak} \times (70\%\text{–}90\%)}{k}\Big)
+$$
+
+- **One core alone hits the first ceiling.** 40 in flight at 100 ns: 40 × 64 B ÷ 100 ns ≈ 25.6 GB/s, regardless of how many channels the chip has.
+- **Many cores hit the second.** On a 2-channel chip with a ~50–100 GB/s peak, 2–4 cores scanning together saturate it. Add more cores and the total stays flat, each core's share shrinks, and latency climbs (loaded latency, section 1.7).
+- **Chips with many channels are chips with many cores.** 8–12 channels and ~200–500 GB/s come with 32–128 cores; with every core scanning, each gets a few GB/s, less than one core alone. The on-chip path on such chips is longer and memory latency is often higher, so one core alone also takes only a small fraction of the peak.
+- **More channels raise only the second ceiling.** For one core alone, extra channels barely help. Raising the first ceiling takes more requests in flight (prefetching, removing dependency chains) or shorter latency. Locking the core frequency high ([#1](/posts/cpu-affinity-core-isolation-numa/)) doesn't raise it either: the DRAM part of the trip doesn't shrink in nanoseconds with core frequency, and a faster core just counts more cycles per miss.
+
+The hot path uses very little bandwidth; what it cares about is queuing once someone else saturates the second ceiling. Bandwidth-hungry jobs such as backtests, market-data replay and logging belong on another machine or another NUMA node, or under an MBA limit.
