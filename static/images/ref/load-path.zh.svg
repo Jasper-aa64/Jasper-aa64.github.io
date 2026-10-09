@@ -27,7 +27,7 @@
     </style>
   </defs>
   <rect x="0" y="0" width="1100" height="990" fill="#ffffff"/>
-  <text x="30" y="40" class="h">一次读（load）走一遍</text>
+  <text x="30" y="40" class="h">读（load）的路径</text>
   <text x="30" y="66" class="s">按顺序走四步。中间一列是从发出 load 算起的累计延迟。</text>
   <!-- Step 1: the address splits; translation and set selection happen at the same time -->
   <circle cx="60" cy="130" r="14" class="dot"/>
@@ -65,7 +65,7 @@
   <text x="425" y="404" class="lab">没命中</text>
   <line x1="415" y1="380" x2="858" y2="380" class="dash"/>
   <rect x="860" y="352" width="220" height="100" rx="6" class="buf"/>
-  <text x="874" y="376" class="t">填充缓冲：十几到二十几项</text>
+  <text x="874" y="376" class="t">LFB（填充缓冲）：12–24 项</text>
   <text x="874" y="398" class="s">没命中时先登记一项：</text>
   <text x="874" y="416" class="s">“这条行已经去取了、还没回来”。</text>
   <text x="874" y="434" class="s">一个核同时能挂的缺失最多这么多。</text>

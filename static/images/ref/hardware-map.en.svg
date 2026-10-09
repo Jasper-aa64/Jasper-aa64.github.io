@@ -66,7 +66,7 @@
   <rect x="245" y="370" width="165" height="70" class="cache"/>
   <text x="257" y="393" class="t">L1D 32 KiB · 8-way</text>
   <text x="257" y="411" class="tag">#6 alignment · sets</text>
-  <text x="257" y="428" class="tag">Ref 2.3 fill buffer</text>
+  <text x="257" y="428" class="tag">Ref 2.3 LFB (fill buffer)</text>
 
   <rect x="60" y="455" width="350" height="62" class="cache"/>
   <text x="72" y="478" class="t">L2 512 KiB · 8-way (private to the core)</text>
@@ -143,7 +143,7 @@
   <text x="68" y="964" class="s">hit in the open row ~15 ns</text>
   <text x="68" y="983" class="s">switch rows (conflict) ~40 ns</text>
   <text x="68" y="1006" class="s">refresh every ~7.8 µs stalls</text>
-  <text x="68" y="1024" class="s">a few hundred ns → P99 spikes</text>
+  <text x="68" y="1024" class="s">300–500 ns → P99 spikes</text>
 
   <rect x="320" y="820" width="240" height="230" rx="8" class="mem"/>
   <text x="336" y="844" class="t">Channel 1</text>
@@ -209,7 +209,7 @@
   <rect x="340" y="1484" width="840" height="46" fill="#f1f5f9"/>
   <line x1="340" y1="1484" x2="1180" y2="1484" stroke="#ffffff" stroke-width="3"/>
   <text x="480" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">~40–120 cycles (~10–30 ns)</text>
-  <text x="750" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">tens to hundreds of MiB, shared</text>
+  <text x="750" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">~10–500 MiB, shared</text>
   <text x="1030" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">Hardware</text>
   <rect x="170" y="1490" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
   <text x="245" y="1512" text-anchor="middle" style="font-size:13px;fill:#ffffff">L3 cache</text>
@@ -218,7 +218,7 @@
   <rect x="340" y="1530" width="840" height="46" fill="#e3ebf3"/>
   <line x1="340" y1="1530" x2="1180" y2="1530" stroke="#ffffff" stroke-width="3"/>
   <text x="480" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">~300–500 cycles (~70–120 ns)</text>
-  <text x="750" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">tens of GB to a few TB</text>
+  <text x="750" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">~16 GB to 4 TB</text>
   <text x="1030" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">OS (page tables)</text>
   <rect x="170" y="1536" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
   <text x="245" y="1558" text-anchor="middle" style="font-size:13px;fill:#ffffff">Local DRAM</text>
