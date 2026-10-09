@@ -73,6 +73,8 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 
 The two memory rows differ in the first step, the address translation in [1.1](#load)'s figure: when the TLB has no entry for the page, the hardware walks the page tables level by level (a page walk) to find the physical address before it can issue the real read. The page-table entries are usually in cache, so this adds only ~15–30 ns. Random reads over a large region pay it almost every time. With 2 MiB huge pages one TLB entry covers 512 times as much memory, and this part mostly disappears.
 
+How much a TLB covers is $\text{TLB entries} \times \text{page size}$: 64–96 entries in the L1 dTLB and 1500–3000 in the STLB cover only ~6–12 MiB with 4 KiB pages, several GiB with 2 MiB pages. For the other-socket row: which node a physical page lands on is decided at **first touch**, by whoever writes it first, and it doesn't follow the thread afterwards. Pinning a thread to the other node leaves its memory where it was.
+
 From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as 1,000–2,000 L1 hits.
 
 ### 2.2 Bandwidth: How Much Arrives per Second {#bandwidth}
@@ -132,6 +134,8 @@ Same core, same memory, and only the number in flight changes: bandwidth moves b
 | Sequential reads, prefetchers at full speed | ~30–70 | ~15–60 GB/s (the figure in 2.2) |
 
 The last row has more requests in flight than the LFB has entries. The extra ones are the L2 prefetcher's, waiting in the L2 MSHRs on your behalf.
+
+**How far ahead to software-prefetch**: one full latency early, $D \approx \text{latency of one miss} / \text{time per element}$, e.g. 100 ns ÷ 5 ns = 20. Too small and you still wait; too large and the LFB runs out, or lines wait in L1 so long they get pushed out. Hardware prefetchers usually stop at 4 KiB page boundaries.
 
 ### 2.4 Bandwidth Demand and Arithmetic Intensity: How Fast the CPU Wants Data {#appetite}
 
