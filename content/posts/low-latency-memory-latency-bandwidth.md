@@ -383,11 +383,11 @@ On the [quick reference's hardware map](/ref/cpu-memory/#load) this is the four-
 
 $$
 \text{latency of one load} \;\approx\;
-\underbrace{t_{\text{TLB}}}_{\substack{\text{hit: 0} \\ \text{miss: 15–30 ns}}}
-+ \underbrace{t_{\text{L1}} + t_{\text{L2}} + t_{\text{L3}}}_{\substack{\text{check each level, all miss} \\ \text{~15–35 ns}}}
-+ \underbrace{t_{\text{to controller}}}_{\substack{\text{on-chip network} \\ \text{~10–30 ns}}}
-+ \underbrace{t_{\text{DRAM}}}_{\substack{\text{row hit / empty / conflict} \\ \text{~15 / 30 / 40 ns}}}
-+ \underbrace{t_{\text{return}}}_{\substack{\text{back, filling each level} \\ \text{~10–20 ns}}}
+\underbrace{t_{\text{TLB}}}_{\substack{\text{hit: 0} \\ \text{miss: 15–30 ns}}} +
+\underbrace{t_{\text{L1}} + t_{\text{L2}} + t_{\text{L3}}}_{\substack{\text{check each level, all miss} \\ \text{~15–35 ns}}} +
+\underbrace{t_{\text{to controller}}}_{\substack{\text{on-chip network} \\ \text{~10–30 ns}}} +
+\underbrace{t_{\text{DRAM}}}_{\substack{\text{row hit / empty / conflict} \\ \text{~15 / 30 / 40 ns}}} +
+\underbrace{t_{\text{return}}}_{\substack{\text{back, filling each level} \\ \text{~10–20 ns}}}
 $$
 
 With a TLB hit, that adds up to about 80–120 ns. Three points:
