@@ -169,7 +169,7 @@ The compiler vectorizes an `int` sum by itself, while a `float` sum needs `-ffas
 | The chip's peak | $\text{channels} \times \text{one channel's peak}$: ~50–100 GB/s with 2 channels, ~200–500 GB/s with 8–12 |
 | What you actually get | All cores reading: 70–90% of peak |
 | Row buffer | ~15 ns on a hit to the open row, ~30 ns with no row open, ~40 ns on a row conflict |
-| Refresh | Every ~7.8 µs (tREFI), blocking ~300–500 ns each time (tRFC) |
+| Refresh | Every ~7.8 µs (tREFI), blocking ~300–500 ns each time (tRFC). A memory access hits one with probability ≈ 300–500 ns ÷ 7.8 µs ≈ 4–6%; that's more than 1%, so the P99 of memory accesses is basically the ones that hit a refresh |
 | Loaded latency | The fuller the bandwidth, the slower each access; near the limit it can exceed 2× the idle latency |
 
 ### 2.6 Cache-Line Ping-Pong: A Line Bouncing Between Cores {#cross-core}
