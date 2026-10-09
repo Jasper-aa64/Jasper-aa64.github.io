@@ -140,9 +140,14 @@ Whether memory bandwidth is the bottleneck also depends on the demand side: if d
 |---|---|---|---|
 | `float` sum, one accumulator, no `-ffast-math` | 4 B every 3–4 cycles: each add waits for the previous one | ~4–5 GB/s | Below one core's memory bandwidth: stuck on the add chain, not on memory |
 | `int` sum, one accumulator, not vectorized | 4 B | 16 GB/s | Only memory barely keeps up with it |
-| Vectorized, several accumulators (two 32 B loads per cycle) | 64 B | ~256 GB/s | Memory-bound as soon as data leaves L1 |
+| Vectorized (SIMD), several accumulators (two 32 B loads per cycle) | 64 B | ~256 GB/s | Memory-bound as soon as data leaves L1 |
 | The L1 load ports' limit (2–3 loads per cycle, 32–64 B each) | 64–128 B | 250–500 GB/s | — |
 | 100+ operations per element | Under 1 B | — | Almost always compute-bound |
+
+Two terms in the table:
+
+- **Vectorization** (also SIMD, single instruction multiple data): one instruction works on a whole row of values. An AVX2 vector register is 256 bits (32 B) wide and holds 8 `int`s or 8 `float`s, so one add instruction does 8 additions where a scalar loop does 1. One vector load reads 32 B and fills exactly one register, and most cores can issue 2 loads per cycle: that is the table's "two 32 B loads per cycle". You can leave it to the compiler (`-O3`, plus `-mavx2` or `-march=native` to allow AVX2; by default it uses only 16 B-wide SSE) or write intrinsics by hand (compiler built-in functions such as `_mm256_add_epi32`).
+- **Multiple accumulators**: in `s += a[i]` each step waits for the previous result, and that chain is the **dependency chain**. With one accumulator the adds run one after another and the load ports can't be kept fed. Splitting `s` into several independent accumulators and combining them at the end lets several adds run in the execution units at the same time, which is **instruction-level parallelism** (ILP). How many you need is Little's law from 2.3 again: $\text{adds in flight} = \text{adds completed per cycle} \times \text{add latency}$. Vector integer adds have a latency of about 1 cycle, so 2 × 1 = 2 accumulators are enough. `float` adds take 3–4 cycles, so you need 2 × 3–4 = 6–8. Floating-point addition isn't associative (adding in a different order changes the last few bits), so without `-ffast-math` the compiler neither vectorizes the sum nor splits the accumulators, and you write that by hand.
 
 "How fast is the CPU" isn't one number: the same sum, written differently, ranges from 4 GB/s to 250 GB/s, a 60× spread. Bandwidth is the bottleneck only when the loop eats faster than memory delivers.
 
