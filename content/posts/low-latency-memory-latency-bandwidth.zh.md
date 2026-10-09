@@ -287,6 +287,13 @@ for (int rep = 0; rep < reps; ++rep)
 
 <a href="/images/memory-latency-bandwidth/working-set-steps.zh.svg" target="_blank" rel="noopener"><img src="/images/memory-latency-bandwidth/working-set-steps.zh.svg" alt="工作集台阶曲线：横轴是工作集大小（4 KiB 到 256 MiB，对数坐标），纵轴是一个核每秒读多少（对数坐标）。曲线有 4 级台阶：L1D 命中约 150–400 GB/s，L2 命中约 80–200 GB/s，L3 命中约 30–150 GB/s，内存约 15–60 GB/s。三条虚线标出 L1D 32 KiB、L2 512 KiB、L3 16 MiB，每级的下坡在虚线之前就开始。" loading="lazy" decoding="async"></a>
 
+<a href="/images/memory-latency-bandwidth/working-set-measured.zh.svg" target="_blank" rel="noopener"><img src="/images/memory-latency-bandwidth/working-set-measured.zh.svg" alt="工作集台阶实测曲线（AMD Ryzen 5 5600GT，一个核）：横轴是工作集大小（4 KiB 到 256 MiB，对数坐标），纵轴是一个核每秒读多少（GB/s，对数坐标）。四级台阶实测为 L1D 约 280、L2 约 145、L3 约 116、内存约 26 GB/s；虚线标出 L1D 32 KiB、L2 512 KiB、L3 16 MiB，L1D 的拐点正好切在 32 KiB 虚线上，L2、L3 的斜坡比虚线略早、拖得较长。" loading="lazy" decoding="async"></a>
+
+实测一条（Ryzen 5 5600GT，一个核，GCC 16.2.0 编译，`-O3 -march=native`，4 个向量累加器，每个大小测 5 次取最快；测的是这段循环本身，不是硬件峰值）：
+
+- **四层平台的数都落在示意图给的范围里**：L1D 约 280 GB/s（267–289），L2 约 145 GB/s（144–146），L3 约 116 GB/s（114–117），内存约 26 GB/s（25.9–27.5）。
+- **拐点和虚线的关系**：L1D→L2 正好切在 32 KiB 虚线上（32 KiB 还是 279 GB/s，下一个点 39 KiB 就掉到 146 GB/s）。L2→L3 的斜坡从约 300 KiB 开始，比 512 KiB 虚线早，虚线处已滑过大半（121 GB/s），约 1 MiB 落到 L3 平台。L3→内存的斜坡约 9 MiB 就开始，比 16 MiB 虚线略早，16 MiB 处约 47 GB/s、才掉到一半；victim cache 没有让拐点整体右移，偏晚的是斜坡的结束——32 MiB 处还有约 33 GB/s，约 48 MiB 才完全贴到内存平台的 26 GB/s，脱离 L3 是渐进的。
+
 每过一个容量，反复访问的行就从“这一层装得下”变成**容量缺失**，要去下一层取。读这条曲线要注意 4 点：
 
 - **拐点比标称容量早，而且是斜坡，不是直角**。别的数据也占着位置：栈、代码、页表项。组相联也不是完美的 LRU：L2、L3 按物理地址选组，操作系统给的物理页是零散的，有的组先满，整体还没装满就开始踢。L3 还是全核共享的。
