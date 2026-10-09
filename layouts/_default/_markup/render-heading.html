@@ -1,0 +1,9 @@
+{{- /* A leading outline number on h2-h4 ("2.", "2.1", "1.1.1", "1)") gets its own span, so CSS can colour it apart from the title. */ -}}
+{{- $inner := .Text -}}
+{{- if and (ge .Level 2) (le .Level 4) -}}
+  {{- with findRESubmatch `(?s)^(\d+(?:\.\d+)*[.)）、]|\d+(?:\.\d+)+)(\s.*)?$` (string .Text) 1 -}}
+    {{- $m := index . 0 -}}
+    {{- $inner = printf `<span class="h-num">%s</span>%s` (index $m 1) (index $m 2) | safeHTML -}}
+  {{- end -}}
+{{- end -}}
+<h{{ .Level }} id="{{ .Anchor }}"{{ range $k, $v := .Attributes }}{{ if and $v (ne $k "id") }} {{ printf "%s=%q" $k ($v | transform.HTMLEscape) | safeHTMLAttr }}{{ end }}{{ end }}>{{ $inner }}</h{{ .Level }}>

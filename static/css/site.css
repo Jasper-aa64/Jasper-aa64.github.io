@@ -1373,6 +1373,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   line-height: 1.4;
 }
 .prose h5 { margin: 1.6em 0 .4em; font-size: 15px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+/* The outline number in front of a heading ("2.1", "1.", "1.1.1") is split off by layouts/_default/_markup/render-heading.html. */
+.prose .h-num { color: var(--accent-ink); }
 .prose a {
   color: var(--ink);
   text-decoration: underline;
