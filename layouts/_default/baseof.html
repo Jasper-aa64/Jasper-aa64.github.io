@@ -57,7 +57,7 @@
           div.textContent = el.textContent;
           pre.parentNode.replaceChild(div, pre);
         });
-        mermaid.initialize({ startOnLoad: true, theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'neutral' });
+        mermaid.initialize({ startOnLoad: true, theme: document.documentElement.dataset.theme === 'light' ? 'neutral' : 'dark' });
       </script>
     {{ end }}
   </head>
@@ -105,6 +105,7 @@
           <button class="icon-btn theme-btn" type="button" aria-label="{{ i18n "switchTheme" }}">
             <svg class="theme-btn__sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
             <svg class="theme-btn__moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 14.6A8.2 8.2 0 0 1 9.4 3.8a8.2 8.2 0 1 0 10.8 10.8z"/></svg>
+            <svg class="theme-btn__black" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/></svg>
           </button>
           <button class="icon-btn nav-btn" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="{{ i18n "toggleNav" }}">
             <span></span><span></span>
@@ -129,7 +130,7 @@
       </div>
     </footer>
 
-    <script>window.SITE_I18N = { copy: {{ i18n "copy" }}, copied: {{ i18n "copied" }}, copyAria: {{ i18n "copyAria" }} };</script>
+    <script>window.SITE_I18N = { copy: {{ i18n "copy" }}, copied: {{ i18n "copied" }}, copyAria: {{ i18n "copyAria" }}, themes: { light: {{ i18n "themeLight" }}, dark: {{ i18n "themeDark" }}, black: {{ i18n "themeBlack" }} } };</script>
     <script src="/js/site.js" defer></script>
   </body>
 </html>

@@ -1,4 +1,7 @@
 switchTheme: "切换主题"
+themeLight: "浅色主题"
+themeDark: "深色主题"
+themeBlack: "纯黑主题"
 toggleNav: "菜单"
 langSwitchLabel: "EN"
 langSwitchAria: "Switch to English"

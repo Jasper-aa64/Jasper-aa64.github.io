@@ -1,4 +1,7 @@
 switchTheme: "Switch theme"
+themeLight: "Light theme"
+themeDark: "Dark theme"
+themeBlack: "Pure black theme"
 toggleNav: "Menu"
 langSwitchLabel: "中文"
 langSwitchAria: "切换到中文"
