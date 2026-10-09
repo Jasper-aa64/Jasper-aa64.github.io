@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ if .IsHome }}{{ site.Title }} — {{ i18n "homeTitle" }}{{ else if and (eq .Kind "term") (eq .Data.Plural "categories") }}{{ partial "cat-name.html" .Title }} · {{ site.Title }}{{ else }}{{ .Title }} · {{ site.Title }}{{ end }}</title>
+    {{ $pt := .Title }}{{ if and .IsPage (eq .Section "posts") }}{{ $s := partial "series.html" . }}{{ if eq $s.key "lowlatency" }}{{ $pt = print $s.label " " (cond (eq $s.num "") "" (print $s.num " ")) $s.title }}{{ end }}{{ end }}
+    <title>{{ if .IsHome }}{{ site.Title }} — {{ i18n "homeTitle" }}{{ else if and (eq .Kind "term") (eq .Data.Plural "categories") }}{{ partial "cat-name.html" .Title }} · {{ site.Title }}{{ else }}{{ $pt }} · {{ site.Title }}{{ end }}</title>
     <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
     <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)">
@@ -11,7 +12,7 @@
     {{ range .AllTranslations }}<link rel="alternate" hreflang="{{ .Language.LanguageCode }}" href="{{ .Permalink }}">
     {{ end }}
     {{ with .OutputFormats.Get "rss" }}<link rel="alternate" type="application/rss+xml" href="{{ .RelPermalink }}" title="{{ site.Title }}">{{ end }}
-    <meta property="og:title" content="{{ .Title }}">
+    <meta property="og:title" content="{{ $pt }}">
     <meta property="og:description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
     <meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
     <meta property="og:url" content="{{ .Permalink }}">
