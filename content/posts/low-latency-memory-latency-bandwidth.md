@@ -2,7 +2,7 @@
 title: "Low-Latency Trading — Memory Latency and Bandwidth"
 date: 2026-10-09
 slug: "low-latency-memory-latency-bandwidth"
-description: "Latency is how long one request takes to come back; bandwidth is how many bytes come back per second. The number of requests in flight links the two (Little's law), so bandwidth is not 1/latency. Part 1: what each quantity is, the numbers for each level, Little's law, how out-of-order execution and the ROB keep several requests in flight, how to tell which limit your code hits, how fast the CPU wants data (arithmetic intensity, vectorization, multiple accumulators), total time = lines to move × time per line, and why someone else saturating bandwidth slows your hot path. Part 2: working-set steps, RFO making each written line cross the bus twice, non-temporal stores, and the two bandwidth ceilings when cores share memory."
+description: "Latency is how long one request takes to come back; bandwidth is how many bytes come back per second. The number of requests in flight links the two (Little's law), so bandwidth is not 1/latency. Part 1: what each quantity is, the numbers for each level, Little's law, how out-of-order execution and the ROB keep several requests in flight, how to tell which limit your code hits, how fast the CPU wants data (arithmetic intensity, vectorization, multiple accumulators), total time = lines to move × time per line, and why someone else saturating bandwidth slows your hot path. Part 2: working-set steps, RFO making each written line cross the bus twice, non-temporal stores, and the two bandwidth ceilings when cores share memory. Part 3: the 80–120 ns of one miss itemized, TLBs and huge pages, why hardware prefetching stops at page boundaries and how far ahead to software-prefetch, NUMA remote memory and first touch."
 summary: "One memory access takes about 100 ns and brings back 64 B. One at a time, that's 0.64 GB/s, yet one core reading sequentially gets 15–60 GB/s. The missing factor is the number of requests in flight. Whether the next load's address has to wait for this load decides whether your code is latency-bound or bandwidth-bound."
 chapter: 1
 categories: [Systems]
@@ -293,6 +293,7 @@ One measured run (Ryzen 5 5600GT, one core, GCC 16.2.0, `-O3 -march=native`, fou
 
 - **All four plateaus land inside the ranges the schematic gives**: L1D ~280 GB/s (267–289), L2 ~145 (144–146), L3 ~116 (114–117), memory ~26 (25.9–27.5).
 - **Knees versus the dashed lines**: L1D→L2 cuts right at the 32 KiB line (32 KiB still reads 279 GB/s; the next point, 39 KiB, is already down to 146). The L2→L3 slope starts around 300 KiB — before the 512 KiB line — and is already most of the way down at the line (121 GB/s), settling onto the L3 plateau by 1 MiB. The L3→memory slope starts around 9 MiB, slightly before the 16 MiB line, where it is only halfway down (~47 GB/s); the victim cache does not push the knee right as a whole — what runs late is the end of the slope: 32 MiB still reads ~33 GB/s, and only around 48 MiB does it settle onto the memory plateau of 26 GB/s. Leaving L3 behind is gradual.
+- **Why the L3 tail runs out to ~48 MiB**: if L3 replaced lines in strict LRU order, a sequential scan of an array larger than L3 would evict every line before its reuse, the hit rate would drop straight to 0, and the curve would fall off a cliff near 16 MiB. The measured curve falls gradually, which says L3 replacement is not pure LRU: each pass, some lines happen to survive. The larger the array, the smaller the surviving share, roughly $\text{L3 size} / \text{working set}$: about half at 16 MiB, and only around 48 MiB does it reach the memory plateau. This is inferred from the curve's shape; the replacement policy itself was not measured.
 
 Past each capacity, the lines you keep reusing go from "fits in this level" to **capacity misses** that come from the next level down. Four things to watch when reading the curve:
 
@@ -371,3 +372,97 @@ $$
 - **More channels raise only the second ceiling.** For one core alone, extra channels barely help. Raising the first ceiling takes more requests in flight (prefetching, removing dependency chains) or shorter latency. Locking the core frequency high ([#1](/posts/cpu-affinity-core-isolation-numa/)) doesn't raise it either: the DRAM part of the trip doesn't shrink in nanoseconds with core frequency, and a faster core just counts more cycles per miss.
 
 The hot path uses very little bandwidth; what it cares about is queuing once someone else saturates the second ceiling. Bandwidth-hungry jobs such as backtests, market-data replay and logging belong on another machine or another NUMA node, or under an MBA limit.
+
+## 3. The Latency Side: The Bill for One Miss, TLBs, Prefetching, NUMA
+
+The same hash-table lookup takes about 90 ns on one machine; move it to a dual-socket server where another thread initialized the memory and it takes about 180 ns; move the table from 4 KiB pages to 2 MiB pages and it drops by another 20 ns or so. Not a line of code changed. What changed is how far this one load has to travel. This part breaks the latency of one miss into segments, then looks at what TLBs, prefetching and NUMA each add to the bill or hide from it.
+
+### 3.1 One Miss, Itemized: Where 80–120 ns Goes
+
+On the [quick reference's hardware map](/ref/cpu-memory/#load) this is the four-step load path: translate the address, look up each cache level, have the memory controller fetch from the DIMM, and bring the whole line back the same way. Split one load that goes all the way to memory into segments (the split is for intuition; chips differ a lot):
+
+$$
+\text{latency of one load} \;\approx\;
+\underbrace{t_{\text{TLB}}}_{\substack{\text{hit: 0} \\ \text{miss: 15–30 ns}}}
++ \underbrace{t_{\text{L1}} + t_{\text{L2}} + t_{\text{L3}}}_{\substack{\text{check each level, all miss} \\ \text{~15–35 ns}}}
++ \underbrace{t_{\text{to controller}}}_{\substack{\text{on-chip network} \\ \text{~10–30 ns}}}
++ \underbrace{t_{\text{DRAM}}}_{\substack{\text{row hit / empty / conflict} \\ \text{~15 / 30 / 40 ns}}}
++ \underbrace{t_{\text{return}}}_{\substack{\text{back, filling each level} \\ \text{~10–20 ns}}}
+$$
+
+With a TLB hit, that adds up to about 80–120 ns. Three points:
+
+- **DRAM itself is only about a third.** A DIMM's CAS latency converted to nanoseconds has stayed around 13–16 ns from DDR3 to DDR5; each generation raised bandwidth, not latency. Faster DIMMs barely change the latency of one miss.
+- **More cache levels and bigger chips make "not found" itself more expensive.** Each level has to finish its lookup and report a miss before the next is asked, and the bigger the L3 slices and the on-chip network, the longer the trip. Chips with many cores often have longer memory latency, which is why one core alone gets so little of the peak (2.4).
+- **On top of the 80–120 ns come four kinds of extra wait**: a TLB miss (3.2), an address on the other socket (3.4), a DRAM refresh (up to ~300–500 ns more in the worst case, [#6](/posts/alignment-layout-cache-dram-geometry/)), and a bus saturated by others (loaded latency, 1.7, 2× or more). A hot path's P99 is mostly these stacking up.
+
+### 3.2 TLB and Huge Pages: The Translation Step
+
+This is step 1 of the load path. First the prerequisite: programs use **virtual addresses**, the DIMMs understand **physical addresses**. The OS manages the mapping in **pages** (4 KiB by default): the low 12 bits of a virtual address are the offset within the page and don't change in translation; the high bits are the **page number**, which has to be looked up in the **page table** to find its physical page. x86-64 page tables have 4 levels, so one lookup reads 4 page-table entries in turn. Doing that on every load would be far too slow, so the CPU caches recent translations in the **TLB** (translation lookaside buffer).
+
+The TLB has two levels too, each entry covering one page:
+
+| TLB | Entries | Covers with 4 KiB pages |
+|---|---|---|
+| L1 dTLB | 64–96 | ~256–384 KiB |
+| L2 TLB (STLB) | 1500–3000 | ~6–12 MiB |
+
+$$
+\text{TLB reach} \;=\; \text{TLB entries} \times \text{page size}
+$$
+
+When the working set exceeds the STLB's reach and the access pattern is random, almost every access has to walk the page table: a **page walk**. Random reads over a 1 GiB array, for example: 1 GiB ÷ 4 KiB = 262,144 pages, against 1500–3000 STLB entries, a hit chance of about 1%.
+
+A page walk costs only about 15–30 ns extra, not four more memory accesses, for two reasons: page-table entries are ordinary data, and the frequently used lines sit in L1/L2/L3; and the CPU has **page-walk caches** holding the upper levels, so usually only the last level is read. When the page-table entries themselves miss in cache (huge, very random working sets), one walk costs a memory access or more, and the latency can double.
+
+**Huge pages** attack both ends:
+
+- One entry covers 2 MiB, 512× the reach. The same STLB covers several GiB; a 1 GiB array needs only 512 entries, which fit, and page walks all but disappear.
+- One fewer page-table level: a 2 MiB translation stops at level 3, so the walk itself is shorter.
+
+This is also the extra TLB step mentioned in 2.1: the latency curve for random access drops one more level once the working set passes a few MiB. Putting the hot path's large tables (order book, id maps) on huge pages removes that level.
+
+### 3.3 Hardware and Software Prefetching: Hiding Latency, Within One Page
+
+A **hardware prefetcher** watches your access pattern and issues requests for lines you'll need later, without costing you instructions. It doesn't make a miss shorter; it starts the miss before you need the data, so more requests are in flight (1.3: sequential reads reach 30–70 in flight because of it). Two common kinds:
+
+- **L1 prefetchers**: the next line (next-line), or a fixed stride per load instruction (IP-stride).
+- **The L2 streamer**: recognizes an ascending or descending stream and runs 10–30 lines ahead; its requests sit in L2's MSHRs, not in the LFB.
+
+**It usually doesn't cross a 4 KiB page.** Caches from L2 down work on physical addresses, and that's all the prefetcher has. The next page in virtual address order could be anywhere physically; finding out takes a translation, and the L2 prefetcher has no TLB to ask. So a stream stops at the page boundary, the next page has to be recognized afresh, and its first few accesses are ordinary misses. With a large stride (say 8 KiB per step), every step crosses a page and the prefetcher can't help at all; that is one reason walking a big matrix by column is slow in [#6](/posts/alignment-layout-cache-dram-geometry/). (Some newer chips can cross 4 KiB boundaries inside a 2 MiB huge page; it depends on the implementation.)
+
+**Two kinds of access a prefetcher can't guess**: pointer chasing (the next address waits for this load, and nobody can issue it early) and random access (no pattern). For the second, if **you** know the addresses ahead of time, use a **software prefetch**:
+
+```cpp
+// a batch of order ids, each looked up in a hash table; prefetch the slot D ids ahead
+void lookup_batch(const uint64_t* ids, size_t n, const Slot* slots, uint64_t mask, size_t D) {
+    for (size_t i = 0; i < n; ++i) {
+        if (i + D < n) __builtin_prefetch(&slots[hash(ids[i + D]) & mask]);
+        process(slots[hash(ids[i]) & mask]);
+    }
+}
+```
+
+How far ahead is Little's law again: the prefetch has to go out one full latency early,
+
+$$
+D \;\approx\; \frac{\text{latency of one miss}}{\text{time to process one element}}
+$$
+
+- 100 ns latency and 5 ns per element: D ≈ 20.
+- **D too small**: the data is still in flight when you need it, so you still wait, just less.
+- **D too large**: too many prefetches in flight fill the LFB and block real misses; or the line arrives in L1 and waits so long that other data pushes it out, a wasted trip.
+
+On a hot path the more common form is to gather such lookups into a batch: when one market-data message needs several tables, compute all the addresses first, prefetch them together, then use them in turn, so the misses overlap.
+
+### 3.4 NUMA Remote Memory: One Machine, Two Distances to Memory
+
+This is the socket and memory-controller layer of the hardware map. On a multi-socket server each socket has its own memory controller and DIMMs, forming a **NUMA node**. Reading local memory takes about 80–120 ns; reading the other socket's memory goes over the inter-socket link first, about 120–200 ns, and the link's bandwidth is lower than local memory's.
+
+Which node a physical page lands on is decided by default on **first touch**: the node of the thread that first writes the page. A common trap:
+
+- An init thread on node 0 `memset`s the order book and market-data buffers, so every physical page lands on node 0.
+- The strategy thread is pinned to an isolated core on node 1, and every miss on the hot path is a remote access, 40–100 ns more for nothing.
+- **Pinning the thread doesn't move the memory.** Either have a thread pinned on the target node do the first write, or start with `numactl --cpunodebind=1 --membind=1` (or `mbind` / libnuma) to place the memory on node 1.
+
+One more runtime trap: Linux's **automatic NUMA balancing** (`kernel.numa_balancing`) periodically marks pages inaccessible, uses the resulting faults to see who touches them, and migrates them. For a hot path that means page faults and TLB shootdowns out of nowhere, so it is usually turned off on low-latency machines ([#1](/posts/cpu-affinity-core-isolation-numa/)).
