@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 420" width="1100" height="420" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#eaeef2"/><line x1="0" y1="0" x2="0" y2="8" stroke="#afb8c1" stroke-width="3"/></pattern><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:14px;font-weight:600;fill:#1f2328}.s{font-size:13px;fill:#57606a}.c{font-size:13px;font-weight:600;fill:#1f2328}.red{fill:#cf222e}.k{font-size:12px;fill:#57606a}</style></defs>
+<rect x="0" y="0" width="1100" height="420" fill="#ffffff"/>
+<text x="20" y="34" class="t">In the even_sum loop, sum always waits for the previous result: the length of this chain is the time per element</text>
+<line x1="60" y1="62" x2="60" y2="372" stroke="#eaeef2"/>
+<text x="115.0" y="66" class="k" text-anchor="middle">cycle 1</text>
+<line x1="170" y1="62" x2="170" y2="372" stroke="#eaeef2"/>
+<text x="225.0" y="66" class="k" text-anchor="middle">cycle 2</text>
+<line x1="280" y1="62" x2="280" y2="372" stroke="#eaeef2"/>
+<text x="335.0" y="66" class="k" text-anchor="middle">cycle 3</text>
+<line x1="390" y1="62" x2="390" y2="372" stroke="#eaeef2"/>
+<text x="445.0" y="66" class="k" text-anchor="middle">cycle 4</text>
+<line x1="500" y1="62" x2="500" y2="372" stroke="#eaeef2"/>
+<text x="555.0" y="66" class="k" text-anchor="middle">cycle 5</text>
+<line x1="610" y1="62" x2="610" y2="372" stroke="#eaeef2"/>
+<text x="665.0" y="66" class="k" text-anchor="middle">cycle 6</text>
+<line x1="720" y1="62" x2="720" y2="372" stroke="#eaeef2"/>
+<text x="775.0" y="66" class="k" text-anchor="middle">cycle 7</text>
+<line x1="830" y1="62" x2="830" y2="372" stroke="#eaeef2"/>
+<text x="885.0" y="66" class="k" text-anchor="middle">cycle 8</text>
+<line x1="940" y1="62" x2="940" y2="372" stroke="#eaeef2"/>
+<text x="60" y="100" class="t">Branch kept, predicted right: only add is on the chain</text>
+<rect x="68" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="115.0" y="141" class="c" text-anchor="middle">add</text>
+<rect x="178" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="225.0" y="141" class="c" text-anchor="middle">add</text>
+<rect x="288" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="335.0" y="141" class="c" text-anchor="middle">add</text>
+<rect x="398" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="445.0" y="141" class="c" text-anchor="middle">add</text>
+<rect x="508" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="555.0" y="141" class="c" text-anchor="middle">add</text>
+<rect x="618" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="665.0" y="141" class="c" text-anchor="middle">add</text>
+<rect x="728" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="775.0" y="141" class="c" text-anchor="middle">add</text>
+<rect x="838" y="116" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="885.0" y="141" class="c" text-anchor="middle">add</text>
+<line x1="162" y1="136" x2="178" y2="136" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="272" y1="136" x2="288" y2="136" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="382" y1="136" x2="398" y2="136" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="492" y1="136" x2="508" y2="136" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="602" y1="136" x2="618" y2="136" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="712" y1="136" x2="728" y2="136" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="822" y1="136" x2="838" y2="136" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<path d="M70,164 v6 H160 v-6" fill="none" stroke="#8c959f"/>
+<text x="115.0" y="186" class="k" text-anchor="middle">elem 1</text>
+<path d="M180,164 v6 H270 v-6" fill="none" stroke="#8c959f"/>
+<text x="225.0" y="186" class="k" text-anchor="middle">elem 2</text>
+<path d="M290,164 v6 H380 v-6" fill="none" stroke="#8c959f"/>
+<text x="335.0" y="186" class="k" text-anchor="middle">elem 3</text>
+<path d="M400,164 v6 H490 v-6" fill="none" stroke="#8c959f"/>
+<text x="445.0" y="186" class="k" text-anchor="middle">elem 4</text>
+<path d="M510,164 v6 H600 v-6" fill="none" stroke="#8c959f"/>
+<text x="555.0" y="186" class="k" text-anchor="middle">elem 5</text>
+<path d="M620,164 v6 H710 v-6" fill="none" stroke="#8c959f"/>
+<text x="665.0" y="186" class="k" text-anchor="middle">elem 6</text>
+<path d="M730,164 v6 H820 v-6" fill="none" stroke="#8c959f"/>
+<text x="775.0" y="186" class="k" text-anchor="middle">elem 7</text>
+<path d="M840,164 v6 H930 v-6" fill="none" stroke="#8c959f"/>
+<text x="885.0" y="186" class="k" text-anchor="middle">elem 8</text>
+<text x="60" y="212" class="s">load, and, je are off the chain: the direction is already guessed, the CPU runs ahead and checks the condition later</text>
+<text x="60" y="250" class="t">cmov: add + cmove are on the chain</text>
+<rect x="68" y="266" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="115.0" y="291" class="c" text-anchor="middle">add</text>
+<rect x="178" y="266" width="94" height="40" rx="6" fill="#fff1c2" stroke="#d4a72c" stroke-width="1.6"/>
+<text x="225.0" y="291" class="c" text-anchor="middle">cmove</text>
+<rect x="288" y="266" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="335.0" y="291" class="c" text-anchor="middle">add</text>
+<rect x="398" y="266" width="94" height="40" rx="6" fill="#fff1c2" stroke="#d4a72c" stroke-width="1.6"/>
+<text x="445.0" y="291" class="c" text-anchor="middle">cmove</text>
+<rect x="508" y="266" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="555.0" y="291" class="c" text-anchor="middle">add</text>
+<rect x="618" y="266" width="94" height="40" rx="6" fill="#fff1c2" stroke="#d4a72c" stroke-width="1.6"/>
+<text x="665.0" y="291" class="c" text-anchor="middle">cmove</text>
+<rect x="728" y="266" width="94" height="40" rx="6" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.6"/>
+<text x="775.0" y="291" class="c" text-anchor="middle">add</text>
+<rect x="838" y="266" width="94" height="40" rx="6" fill="#fff1c2" stroke="#d4a72c" stroke-width="1.6"/>
+<text x="885.0" y="291" class="c" text-anchor="middle">cmove</text>
+<line x1="162" y1="286" x2="178" y2="286" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="272" y1="286" x2="288" y2="286" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="382" y1="286" x2="398" y2="286" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="492" y1="286" x2="508" y2="286" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="602" y1="286" x2="618" y2="286" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="712" y1="286" x2="728" y2="286" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="822" y1="286" x2="838" y2="286" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<path d="M70,314 v6 H270 v-6" fill="none" stroke="#8c959f"/>
+<text x="170.0" y="336" class="k" text-anchor="middle">elem 1</text>
+<path d="M290,314 v6 H490 v-6" fill="none" stroke="#8c959f"/>
+<text x="390.0" y="336" class="k" text-anchor="middle">elem 2</text>
+<path d="M510,314 v6 H710 v-6" fill="none" stroke="#8c959f"/>
+<text x="610.0" y="336" class="k" text-anchor="middle">elem 3</text>
+<path d="M730,314 v6 H930 v-6" fill="none" stroke="#8c959f"/>
+<text x="830.0" y="336" class="k" text-anchor="middle">elem 4</text>
+<text x="60" y="362" class="s">cmove needs the condition from and and sum + x from add before it can produce the new sum; the next element's add waits for it</text>
+<text x="60" y="400" class="s">Measured (Section 1.5): predicted right, about 0.25 ns per element, about 1 cycle; cmov about 0.44 ns, about 2 cycles, whatever the data looks like.</text>
+</svg>

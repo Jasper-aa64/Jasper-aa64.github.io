@@ -130,3 +130,223 @@ C++ 里会产生分支的写法，按 1.3 对上号：
 三元 `?:` 和短路求值不一定真的产生跳转：编译器可能把它们变成 `cmov`，就像 1.5 那样。短路求值则相反，`a && b` 往往会多出一条分支（`a` 为假就跳过 `b`）。
 
 虚函数的预测看的是“这一处调用的实际类型有没有规律”：一个循环里对象类型总是一样，目标每次一样，几乎不错；类型随机混在一起，每次都可能错，和 1.5 的不排序一样。
+
+## 2. 消除分支：把“猜往哪走”换成“按条件选”
+
+第 1 部分最后留了一个问题：100 万个随机数时，`cmov` 版平在约 0.44 ns/个，比保留分支的 2.87 ns 快 6 倍多；可数据全是偶数时，保留分支只要约 0.25 ns，又比 `cmov` 快。消除分支不是白拿的，这一部分讲它换掉了什么、有哪几种写法、什么时候该换。
+
+### 2.1 控制依赖与数据依赖：消除分支换掉了什么
+
+一条 `if` 在机器码里是条件跳转，后面的指令**取哪条**取决于条件，这叫**控制依赖**（control dependency）。1.2 讲过，CPU 不等它，直接猜一个方向往下跑：猜对了，条件什么时候算出来都不影响速度；猜错了，付约 15–20 个周期。
+
+把分支消掉，就是让后面要执行的指令固定下来，条件只决定**选哪个值**。这叫**数据依赖**（data dependency）：结果要等条件和两个候选值都算出来才能定，下一条用到结果的指令也得等。没有东西可猜，所以不会猜错。可它也没法“先往下跑”，条件那几个周期的延迟每次都要付。
+
+所以消除分支是拿“偶尔一次 15–20 周期”换“每次多 1–2 个周期”。下面五种写法（2.2–2.6）都是这一笔交易，2.7 算什么时候划算。下面的汇编都是 GCC 13.3 `-O2` 的真实输出。
+
+### 2.2 三元与 cmov：两个值都备好，按条件选
+
+```cpp
+int pick(int input, int threshold, int value1, int value2) {
+    return (input > threshold) ? value1 : value2;
+}
+```
+
+GCC 生成：
+
+```asm
+cmpl    %esi, %edi        # input 和 threshold 比较
+movl    %edx, %eax        # 先放 value1
+cmovle  %ecx, %eax        # 如果 input <= threshold，换成 value2
+ret
+```
+
+**`cmov`**（conditional move，条件传送）不是跳转：它总是执行，只是按标志位决定目标寄存器要不要换成源的值。前端不用猜任何东西，取指一路往下走。
+
+编译器只在“两边都算一遍也安全、也不贵”时才这么做：
+
+- **两边有副作用**（函数调用、写内存、I/O）：两边都执行就改变了程序的行为，不能变。
+- **有一边要读内存、而这次读可能不合法**：
+
+  ```cpp
+  int load_or_zero(const int* p) {
+      return p ? *p : 0;
+  }
+  ```
+
+  GCC 生成的是 `testq %rdi, %rdi` + `je`，保留了分支。变成 `cmov` 就得无条件执行 `*p`，`p` 是空指针时会崩。
+- **两边的计算很长**：两边都算，就把便宜那边省下的活白白做了。
+
+反过来也成立：写成 `if`，编译器也可能自己变成 `cmov`。1.5 的 `even_sum` 就是这样；下一节 `sign` 的有分支写法，在 GCC `-O2` 下也被编成了 `setne` + `cmovg`。三元只是更容易被变成 `cmov`，不保证。要确认，就看汇编。Clang 有 `__builtin_unpredictable(cond)`，告诉编译器这个条件难猜，倾向用 `cmov`。
+
+### 2.3 无分支计算：用比较结果和掩码算出来
+
+**比较的结果本身就是 0 或 1**：
+
+```cpp
+int sign(int x) {
+    if (x > 0) return 1;
+    if (x < 0) return -1;
+    return 0;
+}
+
+int sign_branchless(int x) {
+    return (x > 0) - (x < 0);   // 比较结果是 0 或 1，正数 1 - 0，负数 0 - 1
+}
+```
+
+GCC 把 `sign_branchless` 编成 `setg` 取 `x > 0`，再用 `shrl $31` 取出符号位当作 `x < 0`，两者相减，没有跳转。
+
+**掩码选择**：条件为真时掩码全 1，为假时全 0，再用 `&` 和 `|` 拼出结果。
+
+```cpp
+int select_mask(bool cond, int a, int b) {
+    int mask = -static_cast<int>(cond);   // 1 -> 0xFFFFFFFF，0 -> 0
+    return (a & mask) | (b & ~mask);      // cond ? a : b
+}
+```
+
+掩码必须是“全 1 或全 0”。直接拿 `bool` 去 `&`，`1 & a` 只留下 `a` 的最低位，结果是错的。要按符号得到掩码，可以写 `x >> 31`：负数得到全 1，非负得到 0（C++20 起规定有符号右移是算术右移，之前是实现定义）。
+
+**1.5 的 `even_sum` 不用 `if`**：
+
+```cpp
+for (unsigned c = 0; c < n; ++c) {
+    int x = data[c];
+    sum += x & -static_cast<int>((x & 1) == 0);   // 偶数加 x，奇数加 0
+}
+```
+
+编出来是 `not`、`and $1`、`neg`、`and`、`add`，循环里只剩末尾那条回跳。和 `cmov` 一样，`sum` 每次都要等这几条算完。
+
+适合数值计算、选最大最小、钳位（clamp）。代价是可读性差，而且多数情况下编译器自己就能把简单的 `if` 变成 `cmov`，手写前先看汇编。
+
+### 2.4 查表：用下标取结果
+
+**值查表**：输入范围小，就把每个输入的结果提前算好，运行时用输入当下标去取。
+
+```cpp
+constexpr int fee_bps[3] = {2, 5, 10};   // 三种订单类型的手续费率（万分之几）
+int fee_lookup(unsigned type) { return fee_bps[type]; }
+```
+
+编出来就是一条 `movl (%rax,%rdi,4), %eax`，真的没有分支。代价变成一次访存：表在 L1D 里约 1 ns；表大到落进 L2 约 3–5 ns，已经和一次猜错差不多；落到内存约 80–120 ns，比猜错贵得多（见<a href="/zh/ref/cpu-memory/#latency" target="_blank" rel="noopener">速查页 2.1</a>）。所以查表只适合小表，热路径上的表要能一直待在 L1D 里。
+
+**函数指针表**：
+
+```cpp
+using HandlerFunc = void(*)(const Order&);
+constexpr HandlerFunc handlers[] = {handle_type_0, handle_type_1, handle_type_2};
+
+void process_order(const Order& order) {
+    if (order.type < 3) {
+        handlers[order.type](order);
+    }
+}
+```
+
+编出来是：
+
+```asm
+movl    (%rdi), %eax            # order.type
+cmpl    $2, %eax
+ja      .L28                    # 边界检查：一条条件跳转
+leaq    handlers(%rip), %rdx
+jmp     *(%rdx,%rax,8)          # 间接跳转：目标从表里读
+```
+
+它没有消除分支，是把几条条件跳转换成了**一条间接跳转**，归**间接目标预测器**（1.3）。订单类型有规律（全是同一种、或者短周期重复），几乎不错；类型随机混在一起，照样经常猜错，和虚函数一样。它的好处是：不管有多少种类型，都只有一条要猜的跳转，而不是一串 `if`。边界检查那条 `ja` 几乎总是不跳，好猜。
+
+### 2.5 if-else 链与 switch：编译器怎么排
+
+**`if-else` 链**：每个条件是一条单独的条件跳转。代价看“一次走下来执行了几条、每条好不好猜”：最常见的情况放最前面，大多数时候只执行一两条就出来了。每条各自有预测器的记录，条件多了不会让每一条更难猜，只是走得越深，要过的条件跳转越多。
+
+**`switch`**：GCC 按 `case` 的分布选三种做法。
+
+- **`case` 连续、每个 `case` 做不同的事 → 跳转表**：
+
+  ```cpp
+  switch (kind) {
+      case 0: handle_type_0(o); break;
+      case 1: handle_type_1(o); break;
+      // ... case 2、3、4
+  }
+  ```
+
+  ```asm
+  cmpl    $4, %eax
+  ja      .L30                     # 超出 0–4 就跳走
+  leaq    .L33(%rip), %rdx         # .L33 是一张表，存每个 case 代码的相对地址
+  movslq  (%rdx,%rax,4), %rax
+  addq    %rdx, %rax
+  notrack jmp *%rax                # 间接跳转
+  ```
+
+  和函数指针表一样，是一条间接跳转。查表本身和 `case` 数量无关，但“猜不猜得准”仍看 `kind` 有没有规律。
+- **`case` 连续、每个 `case` 只返回一个值 → 值查表**：
+
+  ```cpp
+  switch (type) {
+      case 0: return 2;
+      case 1: return 5;
+      // ... case 2、3、4
+      default: return 0;
+  }
+  ```
+
+  GCC 直接生成一张常量数组（汇编里叫 `CSWTCH`），一条 `movl (%rax,%rdi,4), %eax` 取值，只剩一条好猜的边界检查。这才是真的没有分支。
+- **`case` 稀疏（1、10、1000）→ 一串比较**：`cmpl $10` + `je`、`cmpl $1000` + `je`，最后一个用 `cmovne`。`case` 多时会排成二分查找的比较树。
+
+所以“把 `case` 改成连续”有用，但它换来的是跳转表或值查表。前者仍要猜，后者才消掉了分支。
+
+### 2.6 循环展开：少几次回跳，主要的收益不在分支
+
+一次迭代做原来几次的活：
+
+```cpp
+long long sum_unroll4(const int* a, unsigned n) {
+    long long s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    unsigned i = 0;
+    for (; i + 4 <= n; i += 4) {
+        s0 += a[i];
+        s1 += a[i + 1];
+        s2 += a[i + 2];
+        s3 += a[i + 3];
+    }
+    for (; i < n; ++i) s0 += a[i];   // 剩下不到 4 个
+    return s0 + s1 + s2 + s3;
+}
+```
+
+**分支上省了什么**：每 4 个元素才有一次回跳。可 1.3 讲过，固定往回跳的循环分支本来就几乎不会猜错，展开省下的主要是 `i++`、`cmp`、`jne` 这几条指令本身，猜错几乎没少。循环体里如果有一条难猜的 `if`，展开以后它变成 4 条，一条也没少。
+
+**真正的收益**：四个累加器 `s0`–`s3` 是四条独立的依赖链，可以同时跑（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 讲过的多累加器），这和分支无关。
+
+- 固定 4 次这种短循环，GCC `-O2` 自己就会全部展开，不用手写。
+- 让编译器展开：GCC 写 `#pragma GCC unroll 4`，`#pragma unroll` 是 Clang 的写法。
+- 展开越多，代码越大，会挤占 L1I 和 uop 缓存，热路径上不是越多越好。
+
+### 2.7 无分支不总是更快：怎么判断
+
+先看 `even_sum` 每个元素的依赖链：
+
+<a href="/images/branch-prediction/cmov-chain.zh.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/cmov-chain.zh.svg" alt="两行依赖链，横轴是周期 1–8。保留分支并猜对时，链上只有 add，每个元素 1 个周期，load、and、je 不在链上。cmov 版链上是 add 加 cmove，每个元素 2 个周期，cmove 要等条件和 sum + x 都算出来。实测猜对时约 0.25 ns/个，cmov 约 0.44 ns/个。" loading="lazy" decoding="async"></a>
+
+`sum` 每次都要等上一次的结果。保留分支并且猜对时，链上只有一条 `add`，约 1 个周期；判断奇偶的 `and`、`je` 不在链上，晚点核对就行。换成 `cmov`，链上是 `add` 再 `cmove`，`cmove` 还要等条件，约 2 个周期。1.5 的实测正好对上：p = 100% 时分支版约 0.25 ns/个，`cmov` 版约 0.44 ns/个；排序后分支版约 0.40 ns/个，也比 `cmov` 快。
+
+**什么时候换**：比较两边每个元素多付的时间。
+
+$$
+\underbrace{\text{猜错率} \times \text{一次猜错的代价}}_{\text{留分支多付的}}
+\quad\text{vs}\quad
+\underbrace{\text{cmov 每个元素多付的}}_{\text{约 } 0.44 - 0.25 = 0.19\ \text{ns}}
+$$
+
+一次猜错约 4.9 ns，所以这个循环的平衡点在猜错率约 $0.19 / 4.9 \approx 4\%$：低于约 4% 留分支，高于约 4% 换 `cmov`。实测里，p = 95%（猜错约 5%）时分支版约 0.51 ns，已经比 `cmov` 慢；p = 100% 时约 0.25 ns，比 `cmov` 快。这个 4% 只属于这个循环：`cmov` 多付多少看链上多了什么，换一个循环要重新算。
+
+**`cmov` 会把访存也挂到链上**：二分查找用 `cmov` 选下一步的左右边界，就没有猜错了。可下一次读的地址要等这次 `cmov` 算完才知道。数组小、在缓存里时，这很划算。数组大到放不下缓存时，每一层都要等一次完整的内存延迟（约 80–120 ns）。有分支的版本虽然一半会猜错，但猜对的那一半已经提前把下一层的读发出去了，推测执行顺带起了预取的作用。所以大数组上谁快要实测，不能想当然。
+
+**怎么决定**：
+
+1. 先看汇编，确认那条分支真的在：编译器可能已经把它变成了 `cmov`，也可能把你写的三元编回了分支。
+2. 用 `perf stat -e branches,branch-misses` 看猜错率。几个百分点以下，留着分支。
+3. 猜错率高、而且分支在关键路径上，再换 `cmov`、掩码或查表，换完再测一次。
