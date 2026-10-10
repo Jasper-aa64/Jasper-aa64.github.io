@@ -2,7 +2,7 @@
 title: "Trading System Notes #7: Branch Prediction and Branch Optimization"
 date: 2026-10-09
 slug: "branch-prediction-branch-optimization"
-description: "Why a CPU has to guess branches, how it guesses, what a wrong guess costs, and how to remove, hint and separate branches. Part 1: the front end and speculative execution, the BTB / RAS / indirect target predictor / history-based direction prediction, a misprediction costing about 15–20 cycles, predictability coming from the data (the sorting experiment and the compiler's if-conversion), and which predictor handles each kind of C++ branch."
+description: "Why a CPU has to guess branches, how it guesses, what a wrong guess costs, and how to remove, hint and separate branches. Part 1: the front end and speculative execution, the BTB / RAS / indirect target predictor / history-based direction prediction, a misprediction costing about 15–20 cycles, predictability coming from the data (the sorting experiment and the compiler's if-conversion), and which predictor handles each kind of C++ branch. Part 2: cmov, masks, lookup tables, switch layouts, unrolling, and when branchless loses. Part 3: likely/unlikely, hot/cold splitting, PGO and its trap in trading systems, compile-time branches, semi-static branches, compile-time decision trees."
 summary: "The front end has to fetch instructions every cycle, but a branch isn't resolved until a dozen-plus cycles later, so the CPU guesses. A right guess costs almost nothing; a wrong one throws away everything after it, about 15–20 cycles. The same if is predictable when the data has a pattern and a coin flip when it's random, and the compiler may already have turned it into a cmov."
 chapter: 1
 categories: [Systems]
@@ -395,3 +395,267 @@ const int* lower_bound_prefetch(const int* base, std::size_t n, int key) {
 1. Read the assembly and confirm the branch is really there: the compiler may already have turned it into `cmov`, or turned your ternary back into a branch.
 2. Measure the miss rate with `perf stat -e branches,branch-misses`. Below a few percent, keep the branch.
 3. If the miss rate is high and the branch is on the critical path, switch to `cmov`, a mask, or a table, then measure again.
+
+## 3. Hints and Separation: Tell the Compiler Which Side Is Common, Move the Rare Side Away
+
+Branch optimization can be ordered in three steps: eliminate, then predict, then separate. Part 2 was elimination. For the branches that can't be eliminated and have to stay, what's left is to lay the common side out as a straight line and move the rare side far away. And whatever can be decided at compile time shouldn't wait until run time. Everything in this part changes how the compiler lays out code, not the CPU's predictor. All assembly below is GCC 13.3 `-O2` output.
+
+### 3.1 Branch Hints: They Change Layout, Not the Predictor
+
+```cpp
+#define LIKELY(x) __builtin_expect(!!(x), 1)     // !! turns x into 0 or 1
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+
+int process(const int* q, int n) {
+    if (UNLIKELY(n <= 0)) {    // C++20 can also write if (n <= 0) [[unlikely]] {
+        report_error(n);
+        return -1;
+    }
+    return q[0] + q[n - 1];
+}
+```
+
+On the left of the figure is the machine code for this version; on the right, the hint deliberately reversed to `LIKELY(n <= 0)`:
+
+<a href="/images/branch-prediction/hint-layout.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/hint-layout.en.svg" alt="Two layouts of the same process(). With UNLIKELY: test, jle .L9, then the hot path movslq, movl, addl, ret directly after, and the error handling at the end; jle is rarely taken. With the hint reversed to LIKELY: test, jg .L11, then the error handling, and the hot path at the end; jg is taken every time." loading="lazy" decoding="async"></a>
+
+The instructions are almost identical; only the **order** differs:
+
+- Hint right: `jle .L9` jumps only on error, the hot path's 4 instructions follow it directly and fall through to `ret`; the error handling goes at the end.
+- Hint reversed: the error handling follows the test, and the hot path is reached by `jg .L11`, taken every time.
+
+There is no "hint bit" in the machine code: `__builtin_expect` is only for the compiler, and the CPU just sees ordinary `jle` and `jg`. At run time the predictor still guesses from this jump's history, and it predicts both layouts well. So why is falling through better?
+
+- **Taken jumps break up fetch**: a taken branch makes fetch restart at a new address; that's the "about one taken jump per cycle" limit in 1.5's measurements. A hot path that doesn't jump keeps fetch going straight ahead.
+- **Hot code packs together**: the hot path's instructions form one contiguous run, using fewer L1I cache lines and uop-cache entries, with no rare error code in the middle.
+- **With no predictor record, the fall-through side is the "right guess"**: when the predictor has no record of this jump (first execution, or it hasn't run for a while and the record was evicted), fetch doesn't even know there's a jump here and simply keeps fetching sequentially, which amounts to guessing "not taken." With the hot path on the fall-through side, a cold start doesn't mispredict either. A trading system's order path runs rarely, so this point matters most.
+
+**The compiler guesses too**: without any hint, GCC has its own heuristics. Replace the error handling with a `printf` and write no hint at all, and GCC lays it out the same as the left side (the side that calls a function and returns a negative constant is treated as rare). Hints only help when the compiler's guess is wrong. Also, a strongly biased condition makes the compiler more likely to keep a branch instead of turning it into `cmov`.
+
+**The cost of a backwards hint**: the hot path takes an extra jump every time, and the hot code is split by the error handling. It doesn't add mispredicts in steady state, but every pass is a bit slower, and a cold start mispredicts. So write hints to match the real probabilities; if unsure, don't write them, or leave it to PGO (3.3).
+
+**Other hints**:
+
+- `[[assume(expr)]]` (C++23, supported by GCC 13): tells the compiler `expr` always holds, so it can drop checks based on it. If it's wrong, the behavior is undefined. It's equivalent to `if (!(expr)) __builtin_unreachable();`.
+- `[[noreturn]]`: the function never returns (like `std::abort`). GCC treats the path leading to it as rare.
+- `noexcept` isn't a branch hint: it promises the function won't throw, so the compiler can drop exception-handling paths, and the standard library (e.g. `std::vector` growth) uses it to move instead of copy. That's why low-latency code often uses error codes instead of exceptions.
+
+### 3.2 Hot/Cold Splitting: Move the Rare Path Out
+
+Pull the rare path into its own function and mark it `cold` and `noinline`:
+
+```cpp
+__attribute__((noinline, cold))
+void handle_slow_path(const Packet& pkt) {
+    // handle the error, log, drop the packet...
+}
+
+void process_packet_refactored(const Packet& pkt) {
+    if (!pkt.is_valid() || pkt.type != MsgType::TRADE) {
+        return handle_slow_path(pkt);   // the slow path is a single call
+    }
+    // everything left is the fast path, a straight line
+}
+```
+
+It compiles to:
+
+```asm
+        .text
+process_packet_refactored:
+        movslq  4(%rdi), %rax
+        testl   %eax, %eax
+        jle     .L3                     # invalid packet: jump to the cold area
+        cmpl    $1, (%rdi)
+        jne     .L3                     # not a trade: jump to the cold area
+        addq    %rax, g_traded(%rip)    # fast path
+        ret
+
+        .section .text.unlikely         # cold area: placed apart from hot code
+process_packet_refactored.cold:
+.L3:    jmp     handle_slow_path
+handle_slow_path:                       # the cold function lives entirely here
+        ...
+```
+
+Three things happened:
+
+- `handle_slow_path` goes entirely into the `.text.unlikely` section. The linker groups all `.text.unlikely` together, far from hot code.
+- `cold` also makes the compiler treat **the path that calls it** as rare: without any `UNLIKELY`, GCC split the jump to the slow path into `process_packet_refactored.cold` and put it in the cold area too.
+- `noinline` keeps the slow path from being inlined back. Inlined into the hot function, it would bloat it and might force extra register saves, slowing the hot path down.
+
+The hot function is left with 7 instructions, so L1I and the uop cache hold only code that actually runs. Conversely, `__attribute__((hot))` puts a function in `.text.hot`, next to the other hot functions.
+
+### 3.3 PGO: Measured Statistics Instead of Hand-Written Hints
+
+**PGO** (profile-guided optimization) takes three steps:
+
+```bash
+g++ -O2 -fprofile-generate main.cpp -o app   # 1. instrumented build: counters on every branch and function
+./app <representative input>                 # 2. run it; counts are written to .gcda files
+g++ -O2 -fprofile-use main.cpp -o app        # 3. rebuild using the counts
+```
+
+In step 3 the compiler knows the real taken ratio of every branch, so it does what 3.1 and 3.2 did by hand: which side falls through, which functions are cold, whether to inline, whether to use `cmov`. It beats hand-written hints because the numbers are measured.
+
+**The trap in trading systems**: PGO only knows what ran during training. A trading system spends most of its time receiving market data and updating state; the path that actually sends an order runs rarely. If the training run sends few or no orders, the order path is treated as cold code. A small program to try it:
+
+```cpp
+void on_quote(const Quote& q, double threshold) {
+    g_fair = g_fair * 0.99 + (q.bid + q.ask) * 0.005;
+    double edge = g_fair - q.ask;
+    if (edge > threshold) send_order(q, edge);   // rarely true on real market data
+}
+```
+
+| During training | Where `send_order` goes | The calling code in `on_quote` |
+|---|---|---|
+| No orders at all | `.text.unlikely` | split into `on_quote.cold`, in the cold area |
+| An order on every quote (simulated dummy execution) | `.text.hot` | stays in the hot area |
+| No orders, with `-fprofile-partial-training` | `.text.hot` | stays in the hot area, no cold part |
+
+The most important path ends up in the coldest place, and on a cold start it also mispredicts because it isn't on the fall-through side. GCC's documentation also says functions never executed in training are optimized for size, as with `-Os` (this small function shows no difference; only its placement changed). Two fixes:
+
+- **Dummy execution**: in a test mode, run the order path on every quote without actually sending the order. The profile then counts it as hot.
+- **`-fprofile-partial-training`** (GCC 10 and later): code that didn't run during training is optimized normally instead of being moved to the cold area.
+
+The stages before the order path that run on every quote (parsing, updating the book, computing signals) run plenty during training, and PGO still helps them.
+
+### 3.4 Compile-Time Branches: The Condition Is Settled at Compile Time
+
+**First, correct an intuition**: when the condition is a compile-time constant, a plain `if` leaves no branch under `-O2` either.
+
+```cpp
+template <typename T> int k() { if (std::is_integral_v<T>) return 1; else return 2; }
+int kk() { return k<int>(); }   // GCC -O2: movl $1, %eax; ret
+```
+
+So `if constexpr` isn't about "no branch at run time." What it really changes is that **the branch not taken isn't instantiated**, so it can contain code that wouldn't even compile for this `T`.
+
+```cpp
+template <typename T>
+std::size_t get_size(const T& t) {
+    if constexpr (requires { t.size(); }) return t.size();   // discarded when T is int
+    else return 0;
+}
+```
+
+`get_size(42)` returns 0. With a plain `if (std::is_class_v<T>) return t.size();`, it fails to compile when `T` is `int` (GCC: `request for member 'size' in 't', which is of non-class type 'const int'`), even though that branch would never run.
+
+**`std::enable_if`**: instead of branching inside a function, it chooses among overloads. When the condition fails, the template's signature is ill-formed and the compiler drops it from the candidates (SFINAE: substitution failure is not an error). In the template parameter list it has to be a non-type template parameter:
+
+```cpp
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+void print(T value) { std::cout << "integral: " << value << std::endl; }
+
+template <typename T, std::enable_if_t<!std::is_integral_v<T>, int> = 0>
+void print(T value) { std::cout << "non-integral: " << value << std::endl; }
+```
+
+A common mistake is writing it as a default template argument, `typename = std::enable_if_t<…>`: both templates then have the same signature and GCC reports `redefinition`. Since C++20, `requires` says it directly:
+
+```cpp
+template <typename T> requires std::is_integral_v<T>
+void print20(T value) { std::cout << "integral: " << value << std::endl; }
+
+template <typename T>
+void print20(T value) { std::cout << "non-integral: " << value << std::endl; }
+```
+
+When both match, the constrained one is more specialized and wins. Concepts give such constraints a name, e.g. `template <Arithmetic T> T add(T a, T b)`.
+
+**`std::conditional_t`**: chooses a **type** by a compile-time condition.
+
+```cpp
+enum class QueueMode { Blocking, NonBlocking };
+struct BlockingQueue { /* sleeps when empty */ };
+struct SpinQueue { /* busy-waits when empty */ };
+
+template <QueueMode Mode>
+using Queue = std::conditional_t<Mode == QueueMode::Blocking, BlockingQueue, SpinQueue>;
+```
+
+In a trading system all of these mean the same thing: **configuration that can be fixed at compile time belongs in a template parameter**. "Blocking or not" written as a run-time `if (config.blocking)` reads the config and tests it on every message; as a template parameter, only the chosen code exists in the binary.
+
+### 3.5 Semi-Static Branches: When the Direction Rarely Changes, Patch a jmp Instead of Testing
+
+A hot loop picks a strategy by a flag that changes only occasionally (say, risk control switching strategies). Schematic code:
+
+```cpp
+// Version A: a plain if
+for (...) {
+  if (use_strategy_a)
+    handle_a(x);
+  else
+    handle_b(x);
+}
+
+// Version B: a semi-static condition (the maxlucuta/semi-static-conditions library)
+BranchChanger ch(handle_a, handle_b);
+void refresh_strategy(bool use_a) {
+  ch.set_direction(use_a);  // rare: rewrite the target of the jmp in the stub
+}
+for (...) {
+  ch.branch(x);             // hot path: one unconditional jmp straight into handle_a or handle_b
+}
+```
+
+**How it works**: `ch.branch` is a stub that starts with a `jmp rel32` (opcode `0xE9` plus a 4-byte relative displacement). `set_direction` `memcpy`s a different target's displacement into those 4 bytes. That's **self-modifying code** (SMC): the program rewrites instructions it's about to execute.
+
+**What it actually saves**: when the flag rarely changes, version A's `if` is already predicted very well in a loop that runs all the time; it mispredicts only on the one pass after the flag flips. So "random branches mispredict a lot" isn't the reason for it, and a branch whose direction really is random each time isn't semi-static at all. What it saves:
+
+- The load of the flag, the compare, and the conditional jump on every pass.
+- **Mispredicts on a cold start**: when the hot path runs only once in a long while, the predictor's record of this `if` may have been evicted, and a mispredict costs the full 15–20 cycles. A direct `jmp` carries its target in the instruction, so even without a record the decoder computes it and redirects fetch, losing only a few cycles.
+
+**The costs**:
+
+- `set_direction` is expensive: it modifies instructions about to run, so the CPU has to throw away the stale instructions already in the pipeline (a machine clear) and make sure fetch sees the new bytes, which costs over a hundred cycles. Call it rarely.
+- The code page must be writable: by default it stays readable, writable and executable (RWX), breaking the "writable XOR executable" (W^X) security rule; the safe mode only changes permissions around each patch, which makes `set_direction` even slower.
+- Patching while another core is executing the stub needs extra care, and usually only one `BranchChanger` is allowed per function signature.
+
+**Try the simple fix first**: when the flag doesn't change during a run of the loop, hoist the `if` out and duplicate the loop (**loop unswitching**):
+
+```cpp
+if (use_strategy_a) {
+    for (int i = 0; i < n; ++i) handle_a(xs[i]);
+} else {
+    for (int i = 0; i < n; ++i) handle_b(xs[i]);
+}
+```
+
+When the flag is something like a function parameter that can't change inside the loop, GCC 13 `-O2` does this split by itself. When it's a global and the loop calls other functions, the compiler can't prove it stays the same, so it re-reads and re-tests it every time; only then do you split by hand, or instantiate both versions with a template and choose outside.
+
+### 3.6 Compile-Time Decision Trees: A Strategy Tree Built from Types
+
+Each node is a type, the conditions are template parameters, and the whole tree is assembled at compile time:
+
+```cpp
+template<typename Cond, typename Left, typename Right>
+struct DecisionNode {
+    HFT_FORCE_INLINE static ActionType evaluate(const MarketContext& ctx) {
+        if (HFT_LIKELY(Cond::check(ctx))) return Left::evaluate(ctx);
+        return Right::evaluate(ctx);
+    }
+};
+
+using ExampleStrategy = DecisionNode<
+    IsPositionSafe<100>,                 // |position| < 100 ?
+    DecisionNode<
+        IsHighVol<500>,                  // volatility > 0.5 ?
+        ActionNode<ActionType::NONE>,
+        MomentumBlock<200>               // OBI > 0.2 buy, OBI > -0.2 hold, else sell
+    >,
+    ActionNode<ActionType::CLOSE>
+>;
+```
+
+`ActionNode<A>` is a leaf that returns an action; conditions like `IsHighVol` each have a `static bool check(ctx)`; `HFT_LIKELY` is `__builtin_expect(!!(x), 1)` and `HFT_FORCE_INLINE` forces inlining.
+
+**What it compiles to**: the whole tree inlines into one function with **3 conditional jumps and 1 `setbe`**. The compiler turns `std::abs(position) < 100` into a single unsigned compare (`position + 99 <= 198`), and the last node becomes a branchless `setbe`.
+
+**What's left at run time**: all the tests are still there, because they look at market data (volatility, OBI, position) that's only known at run time. It compiles to the same thing as hand-written nested `if`s, and whether each branch is predictable still depends on whether the market data has a pattern (1.5). What it saves is the cost of a **tree configurable at run time**: if the nodes were objects with virtual functions assembled at run time, every level would be an indirect call (2.4).
+
+**Watch out**:
+
+- Every node uses `HFT_LIKELY`, which assumes every condition is usually true and the left side is common. That's fine for `IsPositionSafe`; but if `IsHighVol` is usually false, the hint here is backwards (the cost in 3.1). Write hints per node from the real probabilities, or leave it to PGO.
+- Changing the strategy means recompiling; a deep tree costs compile time and code size.
