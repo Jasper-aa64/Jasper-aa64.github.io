@@ -1,6 +1,6 @@
 ---
 title: "C++ 语法：机器码里是什么"
-description: "常用的 C++ 语法编译出来是什么指令、要付什么代价、有什么替代。第一条：虚函数。"
+description: "常用的 C++ 语法编译出来是什么指令、要付什么代价、有什么替代。目前两条：虚函数；组合与 Mixin。"
 date: 2026-10-10
 lastmod: 2026-10-10
 slug: "cpp-syntax"
@@ -114,3 +114,82 @@ int run_variant(const AnyOrder& o) {
 - **类型集合固定、对象要放在一起**：`std::variant` + `std::visit`。
 - **类型在编译期就能定**：模板或 CRTP，能标 `final` 的就标上。
 - **不在热路径上**：虚函数最好读，不用纠结。
+
+## 2. 组合与继承：复用实现用成员，叠加功能用 Mixin {#composition}
+
+### 2.1 组合（composition）：复用一个类的实现，把它放成成员 {#composition-member}
+
+```cpp
+class InheritanceOrderBook : public std::vector<Order> {   // 继承：直接“是”一个 vector
+};
+
+class CompositionOrderBook {                                // 组合：“有”一个 vector
+    std::vector<Order> orders_;
+public:
+    auto size() const noexcept { return orders_.size(); }  // 只暴露需要的接口
+};
+```
+
+**编译出来一样**：读成员和调 `size()` 都是直接读 `orders_` 里的字段，`size()` 内联。差别全在设计上，public 继承 `std::vector` 有三个问题：
+
+- **接口全部暴露**：`push_back`、`erase` 谁都能调，订单簿“按价格排序”这类不变量就守不住。组合只给出愿意给的函数。
+- **析构函数不是虚的**：`std::vector<Order>* p = new InheritanceOrderBook;` 再 `delete p` 是未定义行为。标准容器不是设计来当基类的。
+- **和底层绑死**：想把 `std::vector` 换成别的容器，继承的写法所有调用方都要改，组合只改类内部。
+
+规则：要的是“用它的实现”，放成成员（has-a）；真要“当成它来用”（is-a），并且基类是为继承设计的（有虚析构函数），才 public 继承。
+
+### 2.2 Mixin：用模板继承链在编译期叠功能 {#mixin}
+
+**问题**：一个迭代器要叠几层功能（遍历矩阵 → 只保留奇数 → 值翻倍），还想随意组合。运行期的装饰器模式是每层一个对象、持有指向下一层的 `Iterator*`、接口是虚函数：每层多一次堆分配和一次虚调用（[第 1 条](#virtual-cost)的代价）。
+
+**Mixin**：每层是一个模板，把下一层当模板参数并继承它。
+
+```cpp
+template <class Base>
+class OddOnly : public Base {          // 只保留奇数
+public:
+    template <class... Args>
+    explicit OddOnly(Args&&... args) : Base(std::forward<Args>(args)...) {
+        while (Base::valid() && (Base::cell().value % 2 == 0)) Base::next();
+    }
+    void next() {
+        do {
+            Base::next();
+        } while (Base::valid() && (Base::cell().value % 2 == 0));
+    }
+};
+
+template <class Base>
+class DoubleValue : public Base {      // 值翻倍
+public:
+    template <class... Args>
+    explicit DoubleValue(Args&&... args) : Base(std::forward<Args>(args)...) {}
+    Cell cell() const {
+        Cell x = Base::cell();
+        x.value *= 2;
+        return x;
+    }
+};
+
+using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // 模板实参的顺序就是叠加的顺序
+```
+
+（`MatrixWalk` 是最底层，按行遍历一个二维 `vector`，提供 `valid()`、`cell()`、`next()`。）**编译出来**：`Iter` 是**一个对象**，没有每层的堆对象、没有指针、没有虚函数，`Base::next()`、`Base::cell()` 都是直接调用，可以一路内联。它是装饰器模式的**静态多态**版本，和 [CRTP 替代虚函数](#virtual-alternatives)是同一笔交易。
+
+### 2.3 顺序就是语义 {#mixin-order}
+
+同一个矩阵 `{{1, 2, 3}, {}, {4, 5, 6}}`：
+
+| 类型 | 输出 | 为什么 |
+|---|---|---|
+| `DoubleValue<OddOnly<MatrixWalk>>` | `2 6 10` | 先在原值上筛奇数（1、3、5），再翻倍 |
+| `OddOnly<DoubleValue<MatrixWalk>>` | 空 | 先翻倍，全变成偶数，再筛奇数一个不剩 |
+
+装饰器可以运行时按配置叠；Mixin 的顺序写在类型里，编译完就定了。
+
+### 2.4 代价 {#mixin-cost}
+
+- **类型组合爆炸**：每种组合都是新类型、实例化一份代码，编译时间和二进制体积涨。
+- **报错难读**：模板嵌套几层后错误信息很长。
+- **构造要转发**：每层把参数转给 `Base`（上面的可变参数模板构造函数，或者 `using Base::Base;`）。
+- **遮蔽不是重写**：`OddOnly::next()` 只是遮住了 `Base::next()`，不是虚函数重写。拿着 `MatrixWalk&` 调 `next()`，调到的还是 `MatrixWalk::next()`。Mixin 只在一直用完整类型时成立。
