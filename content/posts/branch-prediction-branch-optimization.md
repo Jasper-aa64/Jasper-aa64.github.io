@@ -523,14 +523,11 @@ The stages before the order path that run on every quote (parsing, updating the 
 
 ### 3.4 Compile-Time Branches: The Condition Is Settled at Compile Time
 
-**First, correct an intuition**: when the condition is a compile-time constant, a plain `if` leaves no branch under `-O2` either.
+There are four forms, grouped by what they choose: `if constexpr` picks a block of code inside a function, `enable_if` and `requires` pick one function among overloads, and `std::conditional_t` picks a type. In every case the condition has to be known at compile time.
 
-```cpp
-template <typename T> int k() { if (std::is_integral_v<T>) return 1; else return 2; }
-int kk() { return k<int>(); }   // GCC -O2: movl $1, %eax; ret
-```
+#### 3.4.1 `if constexpr`: Pick One Branch at Compile Time, Don't Instantiate the Other
 
-So `if constexpr` isn't about "no branch at run time." What it really changes is that **the branch not taken isn't instantiated**, so it can contain code that wouldn't even compile for this `T`.
+**What it is**: since C++17, the condition of `if constexpr (cond)` must be a compile-time constant. The compiler picks a branch at compile time and **discards the other one without instantiating it**.
 
 ```cpp
 template <typename T>
@@ -540,9 +537,24 @@ std::size_t get_size(const T& t) {
 }
 ```
 
-`get_size(42)` returns 0. With a plain `if (std::is_class_v<T>) return t.size();`, it fails to compile when `T` is `int` (GCC: `request for member 'size' in 't', which is of non-class type 'const int'`), even though that branch would never run.
+`get_size(std::string("hello"))` returns 5 and `get_size(42)` returns 0.
 
-**`std::enable_if`**: instead of branching inside a function, it chooses among overloads. When the condition fails, the template's signature is ill-formed and the compiler drops it from the candidates (SFINAE: substitution failure is not an error). In the template parameter list it has to be a non-type template parameter:
+**How it differs from a plain `if`**: not at run time. When the condition is a compile-time constant, a plain `if` leaves no branch under `-O2` either:
+
+```cpp
+template <typename T> int k() { if (std::is_integral_v<T>) return 1; else return 2; }
+int kk() { return k<int>(); }   // GCC -O2: movl $1, %eax; ret
+```
+
+The difference is whether it compiles. Both branches of a plain `if` are instantiated, so both must be valid for this `T`. Replace the `if constexpr` above with `if (std::is_class_v<T>) return t.size();` and it fails to compile when `T` is `int` (GCC: `request for member 'size' in 't', which is of non-class type 'const int'`), even though that branch would never run.
+
+**When to use it**: inside one template, when different types need different code and some of that code is only valid for some types.
+
+#### 3.4.2 `std::enable_if`: If the Condition Fails, the Overload Doesn't Exist
+
+**What it is**: `if constexpr` branches inside one function; `enable_if` chooses among several overloads. `std::enable_if_t<cond, Type>` is `Type` when the condition holds and undefined otherwise. Use it in a template's signature and, when the condition fails, the signature is ill-formed and the compiler quietly drops that overload from the candidates. The rule is called **SFINAE** (substitution failure is not an error).
+
+**How to write it**: in the template parameter list, make it a non-type template parameter (type `int`, default 0):
 
 ```cpp
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
@@ -552,7 +564,13 @@ template <typename T, std::enable_if_t<!std::is_integral_v<T>, int> = 0>
 void print(T value) { std::cout << "non-integral: " << value << std::endl; }
 ```
 
-A common mistake is writing it as a default template argument, `typename = std::enable_if_t<…>`: both templates then have the same signature and GCC reports `redefinition`. Since C++20, `requires` says it directly:
+`print(1)` takes the first and `print(2.5)` the second.
+
+**The common mistake**: writing it as a default template argument, `typename = std::enable_if_t<…>`. Default arguments aren't part of the signature, so both templates have the same signature and GCC reports `redefinition`.
+
+#### 3.4.3 `requires` and Concepts: The C++20 Way
+
+**What it is**: since C++20 a constraint goes straight after `requires`, without borrowing the return type or a template parameter:
 
 ```cpp
 template <typename T> requires std::is_integral_v<T>
@@ -562,9 +580,11 @@ template <typename T>
 void print20(T value) { std::cout << "non-integral: " << value << std::endl; }
 ```
 
-When both match, the constrained one is more specialized and wins. Concepts give such constraints a name, e.g. `template <Arithmetic T> T add(T a, T b)`.
+When both match (say, `int`), the constrained one is more specialized and wins; `double` matches only the second. A **concept** gives a set of constraints a name, e.g. `template <Arithmetic T> T add(T a, T b)`. Prefer this in new code: it reads better than `enable_if` and gives clearer errors.
 
-**`std::conditional_t`**: chooses a **type** by a compile-time condition.
+#### 3.4.4 `std::conditional_t`: Pick a Type at Compile Time
+
+**What it is**: the first three choose code; `std::conditional_t<cond, A, B>` chooses a **type**: `A` if the condition holds, `B` otherwise.
 
 ```cpp
 enum class QueueMode { Blocking, NonBlocking };
@@ -575,7 +595,7 @@ template <QueueMode Mode>
 using Queue = std::conditional_t<Mode == QueueMode::Blocking, BlockingQueue, SpinQueue>;
 ```
 
-In a trading system all of these mean the same thing: **configuration that can be fixed at compile time belongs in a template parameter**. "Blocking or not" written as a run-time `if (config.blocking)` reads the config and tests it on every message; as a template parameter, only the chosen code exists in the binary.
+**In a trading system**: all four say the same thing: **configuration that can be fixed at compile time belongs in a template parameter**. "Blocking or not" written as a run-time `if (config.blocking)` reads the config and tests it on every message; as a template parameter, only the chosen code exists in the binary.
 
 ### 3.5 Semi-Static Branches: When the Direction Rarely Changes, Patch a jmp Instead of Testing
 
