@@ -2,7 +2,7 @@
 title: "交易系统笔记 #7:分支预测与分支优化"
 date: 2026-10-09
 slug: "branch-prediction-branch-optimization"
-description: "CPU 为什么必须猜分支、怎么猜、猜错多贵，以及怎么把分支消掉、提示和分离。第一部分：前端与推测执行、BTB / RAS / 间接目标预测器 / 带历史的方向预测、一次预测失败约 15–20 个周期、可预测性来自数据（排序实验和编译器的 if-conversion）、各种 C++ 分支归哪个预测器。"
+description: "CPU 为什么必须猜分支、怎么猜、猜错多贵，以及怎么把分支消掉、提示和分离。第一部分：前端与推测执行、BTB / RAS / 间接目标预测器 / 带历史的方向预测、一次预测失败约 15–20 个周期、可预测性来自数据（排序实验和编译器的 if-conversion）、各种 C++ 分支归哪个预测器。第二部分：cmov、掩码、查表、switch 的编法、循环展开，以及无分支什么时候更慢。第三部分：likely / unlikely、冷热分离、PGO 和它在交易系统里的坑、编译期分支、半静态分支、编译期决策树。"
 summary: "前端每个周期都要取指令，可一条分支要十几个周期后才算出往哪走，所以只能先猜。猜对几乎不花钱，猜错要把之后的活全部扔掉，约 15–20 个周期。同一条 if，数据有规律就猜得准，随机就只能猜对一半；而编译器可能早已把它变成了 cmov。"
 chapter: 1
 categories: [Systems]
@@ -396,3 +396,267 @@ const int* lower_bound_prefetch(const int* base, std::size_t n, int key) {
 1. 先看汇编，确认那条分支真的在：编译器可能已经把它变成了 `cmov`，也可能把你写的三元编回了分支。
 2. 用 `perf stat -e branches,branch-misses` 看猜错率。几个百分点以下，留着分支。
 3. 猜错率高、而且分支在关键路径上，再换 `cmov`、掩码或查表，换完再测一次。
+
+## 3. 提示与分离：告诉编译器哪边常走，把罕见的挪开
+
+分支优化可以排成三步：先消除，再预测，最后分离。第 2 部分是消除。剩下消不掉、又必须留的分支，能做的是让常走的那边排成一条直线、罕见的那边挪远。能在编译期决定的，就别留到运行时。这一部分的几种办法，改的都是编译器怎么排代码，不是 CPU 的预测器。下面的汇编都是 GCC 13.3 `-O2` 的输出。
+
+### 3.1 分支提示：改的是代码布局，不是预测器
+
+```cpp
+#define LIKELY(x) __builtin_expect(!!(x), 1)     // !! 把 x 转成 0 或 1
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+
+int process(const int* q, int n) {
+    if (UNLIKELY(n <= 0)) {    // C++20 也可以写 if (n <= 0) [[unlikely]] {
+        report_error(n);
+        return -1;
+    }
+    return q[0] + q[n - 1];
+}
+```
+
+下图左边是这样写时的机器码，右边是故意写反成 `LIKELY(n <= 0)`：
+
+<a href="/images/branch-prediction/hint-layout.zh.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/hint-layout.zh.svg" alt="同一个 process() 的两种排法。UNLIKELY 时：test、jle .L9，后面紧跟热路径的 movslq、movl、addl、ret，错误处理放在最后，jle 很少跳。LIKELY 写反时：test、jg .L11，后面紧跟错误处理，热路径放在最后，jg 每次都跳。" loading="lazy" decoding="async"></a>
+
+两边的指令几乎一样，差别只在**顺序**：
+
+- 提示对：`jle .L9` 只在出错时跳，热路径的 4 条指令紧跟在后面，顺着走到 `ret`；错误处理放到后面。
+- 提示反：错误处理紧跟在判断后面，热路径要靠 `jg .L11` 每次跳过去。
+
+机器码里没有任何“提示位”：`__builtin_expect` 只给编译器看，CPU 收到的就是普通的 `jle`、`jg`。运行起来，预测器照样按这条跳转的历史去猜，两种排法都能猜对。那顺着走为什么更好：
+
+- **跳转打断取指**：一条跳了的分支，要从新的地址重新取指，1.5 实测里“每个周期大约只能执行一次跳转”就是这个限制。热路径不跳，取指一路往下。
+- **热代码挤在一起**：热路径的指令连成一段，占的 L1I 缓存行和 uop 缓存更少，罕见的错误处理不夹在中间。
+- **预测器没有记录时，顺着走的那边才是“猜对”**：预测器里没有这条跳转的记录时（第一次执行，或者很久没跑、记录被挤掉了），取指单元根本不知道这里有跳转，只会顺着往下取，等于猜“不跳”。热路径排在顺着走的那边，冷启动时也不会猜错。交易系统的下单路径很久才走一次，这一条最要紧。
+
+**编译器自己也会猜**：不写提示，GCC 也有一套启发式。把错误处理换成 `printf`、不写任何提示，GCC 排出来和左图一样（调用、返回负常数的那一边被当成罕见）。提示要在编译器猜错时才有用。另外，带了强烈倾向的条件，编译器更可能保留分支、不变成 `cmov`。
+
+**写反的代价**：热路径每次都多跳一次，热代码被错误处理隔开。不会因此多出猜错，但每次都慢一点，冷启动时还会猜错。所以提示要对着真实的概率写，没把握就别写，或者交给 3.3 的 PGO。
+
+**其他提示**：
+
+- `[[assume(expr)]]`（C++23，GCC 13 支持）：告诉编译器 `expr` 一定成立，它可以据此删掉检查。写错了是未定义行为。效果相当于 `if (!(expr)) __builtin_unreachable();`。
+- `[[noreturn]]`：函数不会返回（如 `std::abort`）。GCC 会把通向它的那条路径当成罕见。
+- `noexcept` 不是分支提示：它保证函数不抛异常，编译器可以省掉异常处理的路径，标准库（如 `std::vector` 扩容）也会据此用移动代替拷贝。低延迟代码里常用错误码代替异常，原因在这里。
+
+### 3.2 冷热分离：把罕见路径挪出去
+
+把罕见路径整个提到一个单独的函数里，标上 `cold` 和 `noinline`：
+
+```cpp
+__attribute__((noinline, cold))
+void handle_slow_path(const Packet& pkt) {
+    // 处理错误、记录日志、丢弃数据包...
+}
+
+void process_packet_refactored(const Packet& pkt) {
+    if (!pkt.is_valid() || pkt.type != MsgType::TRADE) {
+        return handle_slow_path(pkt);   // 慢路径只有一个函数调用
+    }
+    // 剩下的所有代码都属于快路径，是一条直线
+}
+```
+
+编译出来：
+
+```asm
+        .text
+process_packet_refactored:
+        movslq  4(%rdi), %rax
+        testl   %eax, %eax
+        jle     .L3                     # 无效包：跳去冷区
+        cmpl    $1, (%rdi)
+        jne     .L3                     # 不是成交：跳去冷区
+        addq    %rax, g_traded(%rip)    # 快路径
+        ret
+
+        .section .text.unlikely         # 冷区：和热代码分开放
+process_packet_refactored.cold:
+.L3:    jmp     handle_slow_path
+handle_slow_path:                       # cold 函数整个在冷区
+        ...
+```
+
+做了三件事：
+
+- `handle_slow_path` 整个放进 `.text.unlikely` 段。链接时所有 `.text.unlikely` 排在一起，离热代码远。
+- `cold` 还让编译器把**调用它的那条路径**当成罕见：不用写 `UNLIKELY`，GCC 就把跳去慢路径的那一小段拆成了 `process_packet_refactored.cold`，也放进冷区。
+- `noinline` 保证慢路径不被内联回来。慢路径内联进热函数，会把热函数撑大，还可能多保存几个寄存器，热路径跟着变慢。
+
+热函数因此只剩 7 条指令，L1I 和 uop 缓存里装的全是会跑的代码。反过来，`__attribute__((hot))` 把函数放进 `.text.hot`，和别的热函数排在一起。
+
+### 3.3 PGO：用真实统计代替手写提示
+
+**PGO**（profile-guided optimization，按运行统计优化）分三步：
+
+```bash
+g++ -O2 -fprofile-generate main.cpp -o app   # 1. 插桩编译：每条分支、每个函数加计数器
+./app <有代表性的输入>                        # 2. 跑一遍，计数写进 .gcda 文件
+g++ -O2 -fprofile-use main.cpp -o app        # 3. 按计数重新编译
+```
+
+第 3 步编译器知道了每条分支真实的走向比例，于是 3.1、3.2 手写的东西它自己做：哪边排成顺着走、哪些函数是冷的、该不该内联、该不该变成 `cmov`。比手写提示好在数是量出来的。
+
+**交易系统里的坑**：PGO 只知道训练时跑了什么。交易系统大部分时间在收行情、更新状态，真正下单的路径很少走。训练那一遍要是没下几单，下单路径就被当成冷代码。拿下面这个小程序试一下：
+
+```cpp
+void on_quote(const Quote& q, double threshold) {
+    g_fair = g_fair * 0.99 + (q.bid + q.ask) * 0.005;
+    double edge = g_fair - q.ask;
+    if (edge > threshold) send_order(q, edge);   // 真实行情里很少成立
+}
+```
+
+| 训练时 | `send_order` 放在哪 | `on_quote` 里调用它的那段 |
+|---|---|---|
+| 一单没下 | `.text.unlikely` | 拆成 `on_quote.cold`，放进冷区 |
+| 每条都下单（模拟 dummy 执行） | `.text.hot` | 留在热区 |
+| 一单没下，加 `-fprofile-partial-training` | `.text.hot` | 留在热区，没有冷区 |
+
+最关键的路径被排到了最冷的地方，冷启动时还会因为不在顺着走的那边而猜错。GCC 文档还说，训练时没跑过的函数按 `-Os` 那样优化大小（这个小函数看不出区别，只看到了位置的变化）。两种办法：
+
+- **dummy 执行**：在测试模式下让下单路径每次都走一遍，订单不真的发出去。训练出来的统计就把它算成热的。
+- **`-fprofile-partial-training`**（GCC 10 起）：训练时没跑到的代码照常优化，不挪进冷区。
+
+热路径前面那些每条行情都会走的环节（解析、更新订单簿、算信号），训练时跑得够多，PGO 对它们照样有用。
+
+### 3.4 编译期分支：条件在编译期就定了
+
+**先纠正一个直觉**：条件是编译期常量时，普通的 `if` 在 `-O2` 下也不会留下分支。
+
+```cpp
+template <typename T> int k() { if (std::is_integral_v<T>) return 1; else return 2; }
+int kk() { return k<int>(); }   // GCC -O2：movl $1, %eax; ret
+```
+
+所以 `if constexpr` 的作用不是“让运行时没有分支”。它真正的不同是：**没选中的那一支不实例化**，里面可以写对这个 `T` 根本编不过的代码。
+
+```cpp
+template <typename T>
+std::size_t get_size(const T& t) {
+    if constexpr (requires { t.size(); }) return t.size();   // T 是 int 时，这一支被丢掉
+    else return 0;
+}
+```
+
+`get_size(42)` 返回 0。换成普通的 `if (std::is_class_v<T>) return t.size();`，`T` 是 `int` 时就编不过（GCC：`request for member 'size' in 't', which is of non-class type 'const int'`），虽然那一支运行时永远不会走。
+
+**`std::enable_if`**：不在函数里面分，而是在重载里挑。条件不成立时，这个模板的签名就不成立，编译器把它从候选里去掉（SFINAE，替换失败不是错误）。放在模板参数里时，要写成非类型模板参数：
+
+```cpp
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+void print(T value) { std::cout << "整数类型: " << value << std::endl; }
+
+template <typename T, std::enable_if_t<!std::is_integral_v<T>, int> = 0>
+void print(T value) { std::cout << "非整数类型: " << value << std::endl; }
+```
+
+常见的错法是写成 `typename = std::enable_if_t<…>` 的默认实参：两个模板的签名一模一样，GCC 直接报 `redefinition`。C++20 起更直接的写法是 `requires`：
+
+```cpp
+template <typename T> requires std::is_integral_v<T>
+void print20(T value) { std::cout << "整数类型: " << value << std::endl; }
+
+template <typename T>
+void print20(T value) { std::cout << "非整数类型: " << value << std::endl; }
+```
+
+两个都能匹配时，带约束的那个更“特殊”，优先选它。concepts 就是给这类约束起名字，例如 `template <Arithmetic T> T add(T a, T b)`。
+
+**`std::conditional_t`**：按编译期条件选**类型**。
+
+```cpp
+enum class QueueMode { Blocking, NonBlocking };
+struct BlockingQueue { /* 空了就睡眠等待 */ };
+struct SpinQueue { /* 空了就忙等 */ };
+
+template <QueueMode Mode>
+using Queue = std::conditional_t<Mode == QueueMode::Blocking, BlockingQueue, SpinQueue>;
+```
+
+这几样放在交易系统里，意思是一样的：**配置能在编译期定的，就写成模板参数**。同样是“阻塞还是不阻塞”，写成运行时的 `if (config.blocking)`，每条消息都要读一次配置、判断一次；写成模板参数，编译出来就只有选中的那一种代码。
+
+### 3.5 半静态分支：方向很少变时，把 if 换成改写过的 jmp
+
+热循环里按一个标志选策略，标志偶尔才变（比如风控切换策略）。示意代码：
+
+```cpp
+// 写法 A：普通的 if
+for (...) {
+  if (use_strategy_a)
+    handle_a(x);
+  else
+    handle_b(x);
+}
+
+// 写法 B：半静态条件（maxlucuta/semi-static-conditions 库）
+BranchChanger ch(handle_a, handle_b);
+void refresh_strategy(bool use_a) {
+  ch.set_direction(use_a);  // 低频：改写桩函数里 jmp 的目标
+}
+for (...) {
+  ch.branch(x);             // 热路径：一条无条件 jmp，直接进 handle_a 或 handle_b
+}
+```
+
+**它怎么做**：`ch.branch` 是一个桩函数，开头就是一条 `jmp rel32`（机器码 `0xE9` + 4 字节相对位移）。`set_direction` 用 `memcpy` 把那 4 字节改成另一个目标的位移，这是**自修改代码**（self-modifying code，SMC）：程序在运行时改写自己将要执行的指令。
+
+**它到底省了什么**：标志很少变时，写法 A 的 `if` 在一个一直在跑的循环里本来就猜得很准，只在标志翻转的那一次猜错。所以“分支随机、猜错多”不是它的理由；分支方向真的每次随机变，也就谈不上半静态了。它省的是：
+
+- 每次读标志、比较、条件跳转这几条指令。
+- **冷启动时的猜错**：热路径很久才走一次时，预测器对这条 `if` 的记录可能已经被挤掉，猜错就要付整整 15–20 个周期。直接 `jmp` 的目标写在指令里，就算没有记录，译码时就能算出来、改去取目标，只损失几个周期。
+
+**代价**：
+
+- `set_direction` 很贵：改了即将执行的指令，CPU 要清掉流水线里已经取进来的旧指令（machine clear）、保证取指看到新的字节，要上百个周期。只能低频调用。
+- 代码页要能写：默认保持可读可写可执行（RWX），违反了“可写的不可执行”（W^X）这条安全约束；安全模式只在改写前后临时改权限，`set_direction` 更贵。
+- 一个线程改写时，另一个核正在执行这段桩函数，要额外小心；同一个函数签名通常只允许一个 `BranchChanger`。
+
+**先试简单的办法**：标志在一段循环里不变时，把 `if` 提到循环外面，复制两个循环（**loop unswitching**）。
+
+```cpp
+if (use_strategy_a) {
+    for (int i = 0; i < n; ++i) handle_a(xs[i]);
+} else {
+    for (int i = 0; i < n; ++i) handle_b(xs[i]);
+}
+```
+
+标志是函数参数这类“循环里不会变”的值时，GCC 13 `-O2` 自己就会这么拆。标志是全局变量、循环里又调了别的函数时，编译器没法保证它不变，每次都会重新读、重新判断，这时才需要手动拆，或者用模板把两个版本都实例化出来、在外面选。
+
+### 3.6 编译期决策树：一棵策略树拼成类型
+
+每个节点是一个类型，条件是模板参数，整棵树在编译期拼好：
+
+```cpp
+template<typename Cond, typename Left, typename Right>
+struct DecisionNode {
+    HFT_FORCE_INLINE static ActionType evaluate(const MarketContext& ctx) {
+        if (HFT_LIKELY(Cond::check(ctx))) return Left::evaluate(ctx);
+        return Right::evaluate(ctx);
+    }
+};
+
+using ExampleStrategy = DecisionNode<
+    IsPositionSafe<100>,                 // |仓位| < 100 ？
+    DecisionNode<
+        IsHighVol<500>,                  // 波动率 > 0.5 ？
+        ActionNode<ActionType::NONE>,
+        MomentumBlock<200>               // OBI > 0.2 买，OBI > -0.2 不动，否则卖
+    >,
+    ActionNode<ActionType::CLOSE>
+>;
+```
+
+`ActionNode<A>` 是叶子，直接返回动作；`IsHighVol` 这类条件都有一个 `static bool check(ctx)`；`HFT_LIKELY` 就是 `__builtin_expect(!!(x), 1)`，`HFT_FORCE_INLINE` 是强制内联。
+
+**编译出来**：整棵树内联成一个函数，**3 条条件跳转加 1 条 `setbe`**。`std::abs(position) < 100` 被编译器变成了一次无符号比较（`position + 99 <= 198`），最后一个节点被变成了无分支的 `setbe`。
+
+**运行时还剩什么**：条件判断都还在，因为条件看的是行情（波动率、OBI、仓位），只有运行时才知道。它和手写的嵌套 `if` 编出来是一样的，每条分支好不好猜，照样看行情有没有规律（1.5）。它省掉的是**运行时可配置的树**的开销：节点要是写成带虚函数的对象、运行时拼起来，每走一层就是一次间接调用（2.4）。
+
+**要注意**：
+
+- 每个节点都用了 `HFT_LIKELY`，等于假设每个条件都多半成立，左边常走。`IsPositionSafe` 多半成立没问题；`IsHighVol` 要是多半不成立，这里的提示就写反了（3.1 的代价）。提示要按每个节点的真实概率写，或者交给 PGO。
+- 改策略要重新编译；树很深时，编译时间和代码体积都会涨。
