@@ -1,265 +1,324 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1768" width="1200" height="1768" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1950" width="1600" height="1950" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
     </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/>
+    </marker>
     <style>
-      .t  { font-size: 14px; font-weight: 600; fill: #1f2328; }
-      .s  { font-size: 11px; fill: #57606a; }
-      .h  { font-size: 16px; font-weight: 700; fill: #1f2328; }
-      .tag{ font-size: 11px; fill: #0969da; }
-      .box   { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; rx: 6; }
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .box   { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
       .core  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.5; }
       .sock  { fill: #fbfbfc; stroke: #1f2328; stroke-width: 2; }
       .cache { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
       .buf   { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
       .mem   { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.2; }
       .line  { stroke: #555; stroke-width: 1.5; fill: none; }
+      .flush { stroke: #cf222e; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; }
+      .coh   { stroke: #6e7781; stroke-width: 1.5; fill: none; stroke-dasharray: 5 3; }
     </style>
   </defs>
-
-  <rect x="0" y="0" width="1200" height="1768" fill="#ffffff"/>
-  <text x="20" y="38" class="h" style="font-size:22px">硬件地图：一次访存会经过哪些层</text>
+  <rect x="0" y="0" width="1600" height="1950" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">硬件地图：一次访存会经过哪些层</text>
   <text x="20" y="60" class="s">蓝字 = 在哪里讲过（#N = 交易系统笔记 #N，MESI = 专题，速查 N.N = 速查页的小节）。数字都是量级。</text>
-
-  <!-- ===== Socket 0 ===== -->
-  <rect x="20" y="75" width="840" height="700" rx="10" class="sock"/>
-  <text x="36" y="98" class="h">CPU 插槽 0 = 一个 NUMA 节点</text>
-  <text x="300" y="98" class="tag">#1 绑核 / 隔离 · NUMA</text>
-
-  <!-- Core 0 -->
-  <rect x="40" y="110" width="390" height="460" rx="8" class="core"/>
-  <text x="56" y="132" class="t">核心 0</text>
-  <text x="110" y="132" class="tag">2 个硬件线程共用这个核（SMT，超线程，#1）</text>
-
-  <rect x="60" y="145" width="165" height="62" class="box"/>
-  <text x="72" y="165" class="t">前端（front end）</text>
-  <text x="72" y="181" class="s">取指 fetch → 译码 decode</text>
-  <text x="72" y="196" class="tag">#7 分支预测 · BTB</text>
-
-  <rect x="245" y="145" width="165" height="62" class="box"/>
-  <text x="257" y="163" class="t">后端（back end）</text>
-  <text x="257" y="178" class="s">乱序执行 OoO → 退休 retire</text>
-  <text x="257" y="192" class="tag">#2 依赖链 · 多累加器</text>
-  <text x="257" y="204" class="tag">速查 2.3 ROB</text>
-
-  <rect x="60" y="220" width="165" height="62" class="box"/>
-  <text x="72" y="243" class="t">寄存器</text>
-  <text x="72" y="261" class="tag">#2 寄存器溢出</text>
-  <text x="72" y="275" class="tag">#6 存储类别</text>
-
-  <rect x="245" y="220" width="165" height="62" class="buf"/>
-  <text x="257" y="243" class="t">Store buffer</text>
-  <text x="257" y="261" class="tag">#2 store buffer</text>
-  <text x="257" y="275" class="tag">#2 store-to-load 转发</text>
-
-  <rect x="60" y="295" width="165" height="62" class="buf"/>
-  <text x="72" y="318" class="t">TLB（地址翻译）</text>
-  <text x="72" y="336" class="tag">#6 2 MiB 对齐与大页</text>
-  <text x="72" y="350" class="tag">#3 TLB shootdown</text>
-
-  <rect x="245" y="295" width="165" height="62" class="buf"/>
-  <text x="257" y="318" class="t">Invalidate queue</text>
-  <text x="257" y="336" class="tag">#2 invalidate queue</text>
-  <text x="257" y="350" class="tag">#2 acquire</text>
-
-  <rect x="60" y="370" width="165" height="70" class="cache"/>
-  <text x="72" y="393" class="t">L1I 32 KiB</text>
-  <text x="72" y="411" class="s">指令缓存</text>
-  <text x="72" y="428" class="tag">#6 函数分组</text>
-
-  <rect x="245" y="370" width="165" height="70" class="cache"/>
-  <text x="257" y="393" class="t">L1D 32 KiB · 8 路</text>
-  <text x="257" y="411" class="tag">#6 对齐 / 跨行 · 组相联</text>
-  <text x="257" y="428" class="tag">速查 2.3 LFB（line fill buffer）</text>
-
-  <rect x="60" y="455" width="350" height="62" class="cache"/>
-  <text x="72" y="478" class="t">L2 512 KiB · 8 路（本核私有）</text>
-  <text x="72" y="497" class="tag">#6 关键步长 64 KiB · #2 L1/L2 私有</text>
-
-  <text x="56" y="545" class="s">缓存和内存之间按 64 B 一整条“缓存行”搬运</text>
-  <text x="56" y="561" class="tag">#2 · #6 一次访问碰几条行</text>
-
-  <!-- Core 1..5 -->
-  <rect x="450" y="110" width="390" height="460" rx="8" class="core"/>
-  <text x="466" y="132" class="t">核心 1 … 核心 5（结构相同）</text>
-  <text x="466" y="175" class="s">同一条缓存行可以在多个核的 L1/L2 里各有一份副本。</text>
-  <text x="466" y="193" class="s">谁要写，就得先让别人的副本作废：</text>
-  <text x="466" y="219" class="t">MESI：单写者 / 多读者</text>
-  <text x="466" y="239" class="tag">MESI 专题</text>
-  <text x="466" y="257" class="tag">#2 伪共享（两个核抢同一行）</text>
-  <text x="466" y="275" class="tag">#4 缓存游标 · #5 读者越多写越贵</text>
-  <text x="466" y="293" class="tag">#6 alignas(64) 让对象独占一行</text>
-
-  <rect x="660" y="370" width="165" height="70" class="cache"/>
-  <text x="672" y="393" class="t">L1D</text>
-  <text x="672" y="411" class="s">(L1I、TLB、store</text>
-  <text x="672" y="427" class="s">buffer 也各有一份）</text>
-
-  <rect x="470" y="455" width="350" height="62" class="cache"/>
-  <text x="482" y="478" class="t">L2（本核私有）</text>
-  <text x="482" y="497" class="s">每个核各一份</text>
-
-  <!-- coherence arrow -->
-  <line x1="412" y1="486" x2="468" y2="486" class="line" marker-start="url(#arr)" marker-end="url(#arr)" stroke-dasharray="5 3"/>
-  <text x="413" y="476" class="tag">一致性</text>
-
-  <!-- L3 -->
-  <rect x="40" y="590" width="800" height="62" class="cache"/>
-  <text x="56" y="614" class="t">L3 16 MiB · 16 路（全部核共享）</text>
-  <text x="56" y="634" class="tag">#2 L3 共享 · #6 高位哈希选组</text>
-  <line x1="380" y1="517" x2="380" y2="588" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="645" y1="517" x2="645" y2="588" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-
-  <!-- Memory controller -->
-  <rect x="40" y="680" width="800" height="62" class="mem"/>
-  <text x="56" y="704" class="t">内存控制器：把连续地址轮流分到各个通道（交织）</text>
-  <text x="56" y="724" class="tag">#6 多通道均衡（行数和通道数互质）</text>
-  <line x1="440" y1="652" x2="440" y2="678" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-
-  <!-- ===== Right column ===== -->
-  <rect x="880" y="75" width="300" height="160" rx="10" class="sock"/>
-  <text x="896" y="100" class="h">CPU 插槽 1</text>
-  <text x="896" y="125" class="s">自己的核、L3、内存控制器和内存</text>
-  <text x="896" y="145" class="s">访问另一个插槽的内存要过互连，更慢</text>
-  <text x="896" y="170" class="tag">#1 NUMA：线程和内存放同一节点</text>
-  <line x1="862" y1="160" x2="878" y2="160" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-
-  <rect x="880" y="255" width="300" height="100" rx="8" class="box"/>
-  <text x="896" y="280" class="t">网卡 → 中断 → 某个核</text>
-  <text x="896" y="302" class="tag">#1 中断绑到非热路径的核</text>
-  
-  <text x="896" y="342" class="s">（操作系统层，不是缓存层）</text>
-
-  <!-- ===== DRAM ===== -->
-  <text x="20" y="805" class="h">内存条（DRAM）</text>
-  <text x="160" y="805" class="tag">#6</text>
-  <line x1="250" y1="742" x2="250" y2="818" class="line" marker-end="url(#arr)"/>
-  <line x1="440" y1="742" x2="440" y2="818" class="line" marker-end="url(#arr)"/>
-  <line x1="710" y1="742" x2="710" y2="818" class="line" marker-end="url(#arr)"/>
-
-  <rect x="40" y="820" width="260" height="230" rx="8" class="mem"/>
-  <text x="56" y="844" class="t">通道 0</text>
-  <text x="56" y="866" class="s">DIMM → rank → 多个 bank</text>
-  <rect x="56" y="880" width="228" height="155" class="box"/>
-  <text x="68" y="902" class="t">一个 bank = 行 × 列的表</text>
-  <rect x="68" y="914" width="204" height="30" class="buf"/>
-  <text x="78" y="934" class="s">行缓冲：当前打开的那一行</text>
-  <text x="68" y="964" class="s">命中已打开的行 ~15 ns</text>
-  <text x="68" y="983" class="s">换一行（行冲突）~40 ns</text>
-  <text x="68" y="1006" class="s">刷新：每 ~7.8 µs 一次，</text>
-  <text x="68" y="1024" class="s">卡 300–500 ns → P99 毛刺</text>
-
-  <rect x="320" y="820" width="240" height="230" rx="8" class="mem"/>
-  <text x="336" y="844" class="t">通道 1</text>
-  <text x="336" y="866" class="s">结构同通道 0</text>
-  <text x="336" y="900" class="s">各通道能同时工作，</text>
-  <text x="336" y="920" class="s">带宽 ≈ 通道数 × 单通道</text>
-
-  <rect x="580" y="820" width="260" height="230" rx="8" class="mem"/>
-  <text x="596" y="844" class="t">通道 2 …</text>
-  <text x="596" y="866" class="s">结构同通道 0</text>
-
-  <!-- ===== Address bits ===== -->
-  <text x="20" y="1095" class="h">一个地址的各段（4 KiB 页，L1D 32 KiB 8 路，64 B 行）</text>
-  <rect x="40"  y="1110" width="560" height="44" fill="#fff8c5" stroke="#d4a72c"/>
-  <rect x="600" y="1110" width="300" height="44" fill="#ddf4ff" stroke="#54aeff"/>
-  <rect x="900" y="1110" width="280" height="44" fill="#ffffff" stroke="#8c959f"/>
-  <text x="56"  y="1137" class="t">虚拟页号（bit 12 以上）→ TLB 翻译</text>
-  <text x="616" y="1137" class="t">组号 bit 6–11</text>
-  <text x="916" y="1137" class="t">行内偏移 bit 0–5</text>
-  <text x="56"  y="1174" class="tag">大页：页号变少，TLB 装得下</text>
-  <text x="616" y="1174" class="tag">#6 相差 4 KiB 倍数 → 同一组</text>
-  <text x="916" y="1174" class="tag">#6 对齐 = 这几位为 0</text>
-  <path d="M600,1188 L600,1198 L1180,1198 L1180,1188" class="line"/>
-  <text x="620" y="1220" class="s">页内偏移 bit 0–11：翻译前后不变，所以 L1 能一边翻译一边选组（VIPT）</text>
-  <text x="620" y="1238" class="s">→ L1 的“组数 × 行大小”被卡在 4 KiB，做大只能加路数</text>
-
-  <!-- ===== Latency ladder ===== -->
-  <text x="20" y="1270" class="h">访问延迟量级</text>
-  <text x="20" y="1290" class="s">周期按约 4 GHz 折算。每往下一层，大约慢 3–10 倍。</text>
-  <rect x="340" y="1304" width="840" height="42" fill="#7f9db9"/>
-  <text x="480" y="1331" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">访问时间</text>
-  <text x="750" y="1331" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">容量</text>
-  <text x="1030" y="1331" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">谁来管理</text>
-  <line x1="620" y1="1304" x2="620" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1304" x2="880" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1346" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1346" x2="1180" y2="1346" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1375" text-anchor="middle" style="font-size:15px;fill:#1f2328">~1 周期（&lt; 1 ns）</text>
-  <text x="750" y="1375" text-anchor="middle" style="font-size:15px;fill:#1f2328">约 1 KB</text>
-  <text x="1030" y="1375" text-anchor="middle" style="font-size:15px;fill:#1f2328">编译器</text>
-  <rect x="170" y="1352" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1374" text-anchor="middle" style="font-size:13px;fill:#ffffff">寄存器</text>
-  <line x1="620" y1="1346" x2="620" y2="1392" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1346" x2="880" y2="1392" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1392" width="840" height="46" fill="#f1f5f9"/>
-  <line x1="340" y1="1392" x2="1180" y2="1392" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">4–5 周期（~1 ns）</text>
-  <text x="750" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">32–48 KiB / 核</text>
-  <text x="1030" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">硬件</text>
-  <rect x="170" y="1398" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1420" text-anchor="middle" style="font-size:13px;fill:#ffffff">L1D 缓存</text>
-  <line x1="620" y1="1392" x2="620" y2="1438" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1392" x2="880" y2="1438" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1438" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1438" x2="1180" y2="1438" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">~12–20 周期（~3–5 ns）</text>
-  <text x="750" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">0.5–2 MiB / 核</text>
-  <text x="1030" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">硬件</text>
-  <rect x="170" y="1444" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1466" text-anchor="middle" style="font-size:13px;fill:#ffffff">L2 缓存</text>
-  <line x1="620" y1="1438" x2="620" y2="1484" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1438" x2="880" y2="1484" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1484" width="840" height="46" fill="#f1f5f9"/>
-  <line x1="340" y1="1484" x2="1180" y2="1484" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">~40–120 周期（~10–30 ns）</text>
-  <text x="750" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">约 10–500 MiB，全部核共享</text>
-  <text x="1030" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">硬件</text>
-  <rect x="170" y="1490" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1512" text-anchor="middle" style="font-size:13px;fill:#ffffff">L3 缓存</text>
-  <line x1="620" y1="1484" x2="620" y2="1530" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1484" x2="880" y2="1530" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1530" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1530" x2="1180" y2="1530" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">~300–500 周期（~70–120 ns）</text>
-  <text x="750" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">约 16 GB 到 4 TB</text>
-  <text x="1030" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">操作系统（页表）</text>
-  <rect x="170" y="1536" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1558" text-anchor="middle" style="font-size:13px;fill:#ffffff">本地内存</text>
-  <line x1="620" y1="1530" x2="620" y2="1576" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1530" x2="880" y2="1576" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1576" width="840" height="46" fill="#f1f5f9"/>
-  <line x1="340" y1="1576" x2="1180" y2="1576" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">~500–800 周期（~120–200 ns）</text>
-  <text x="750" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">另一个插槽的内存</text>
-  <text x="1030" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">操作系统 + 你绑的位置</text>
-  <rect x="170" y="1582" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1604" text-anchor="middle" style="font-size:13px;fill:#ffffff">远端 NUMA 内存</text>
-  <line x1="620" y1="1576" x2="620" y2="1622" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1576" x2="880" y2="1622" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1622" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1622" x2="1180" y2="1622" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1651" text-anchor="middle" style="font-size:15px;fill:#1f2328">10–100 µs</text>
-  <text x="750" y="1651" text-anchor="middle" style="font-size:15px;fill:#1f2328">TB 级</text>
-  <text x="1030" y="1651" text-anchor="middle" style="font-size:15px;fill:#1f2328">操作系统（文件系统）</text>
-  <rect x="170" y="1628" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1650" text-anchor="middle" style="font-size:13px;fill:#ffffff">NVMe SSD</text>
-  <line x1="620" y1="1622" x2="620" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1622" x2="880" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <line x1="245" y1="1386" x2="245" y2="1398" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1432" x2="245" y2="1444" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1478" x2="245" y2="1490" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1524" x2="245" y2="1536" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1570" x2="245" y2="1582" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1616" x2="245" y2="1628" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <text x="95" y="1374" text-anchor="middle" style="font-size:14px;fill:#1f2328">核内</text>
-  <line x1="30" y1="1392" x2="330" y2="1392" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
-  <text x="95" y="1466" text-anchor="middle" style="font-size:14px;fill:#1f2328">芯片内</text>
-  <line x1="30" y1="1530" x2="330" y2="1530" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
-  <text x="95" y="1581" text-anchor="middle" style="font-size:14px;fill:#1f2328">芯片外</text>
-  <line x1="30" y1="1622" x2="330" y2="1622" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
-  <text x="95" y="1650" text-anchor="middle" style="font-size:14px;fill:#1f2328">外部设备</text>
-  <text x="340" y="1694" class="tag">数字都是帮助理解的量级，不对应哪台机器。</text>
-  <text x="20" y="1748" class="s">图随文章更新：后续文章讲到新的硬件层时再往上补标注。</text>
+  <text x="20" y="78" class="s">实线箭头 = 指令和数据怎么走；红色虚线 = 分支猜错后冲刷、重新取指；灰色虚线 = 核与核之间的一致性消息。</text>
+  <rect x="20" y="92" width="1560" height="853" rx="10" class="sock"/>
+  <text x="36" y="116" class="h">CPU 插槽 0（socket）= 一个 NUMA 节点</text>
+  <text x="366" y="116" class="tag">#1 绑核 / 隔离 · NUMA</text>
+  <rect x="40" y="128" width="1000" height="617" rx="8" class="core"/>
+  <text x="56" y="152" class="t">核心 0（core）</text>
+  <text x="156" y="152" class="tag">2 个硬件线程共用这个核（SMT，超线程，#1）</text>
+  <rect x="52" y="162" width="296" height="418" rx="8" fill="#f7f2ff" stroke="#c8a8ff" stroke-dasharray="6 4"/>
+  <text x="60" y="182" class="lane-h" style="fill:#8250df">前端（front end）：取指令</text>
+  <rect x="392" y="162" width="296" height="418" rx="8" fill="#eefbf1" stroke="#8ddb9c" stroke-dasharray="6 4"/>
+  <text x="400" y="182" class="lane-h" style="fill:#1a7f37">后端（back end）：乱序执行</text>
+  <rect x="722" y="162" width="306" height="418" rx="8" fill="#eef6ff" stroke="#8cc4ff" stroke-dasharray="6 4"/>
+  <text x="730" y="182" class="lane-h" style="fill:#0969da">访存（memory）：load / store</text>
+  <rect x="60" y="190" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="213" class="t">分支预测器（BPU）</text>
+  <text x="72" y="231" class="s">BTB · RAS · 方向预测器</text>
+  <text x="72" y="249" class="s">猜下一条指令在哪</text>
+  <text x="72" y="266" class="tag">#7 分支预测</text>
+  <rect x="60" y="290" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="313" class="t">取指（fetch）</text>
+  <text x="72" y="331" class="s">按预测的地址从 L1I 取指令</text>
+  <text x="72" y="349" class="s">猜错的路径上取的全部作废</text>
+  <text x="72" y="366" class="tag">#7 推测执行</text>
+  <rect x="60" y="390" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="413" class="t">译码（decode）</text>
+  <text x="72" y="431" class="s">指令 → 微操作（µop）</text>
+  <rect x="60" y="490" width="280" height="80" rx="6" class="cache"/>
+  <text x="72" y="513" class="t">L1I 32 KiB（指令缓存）</text>
+  <text x="72" y="531" class="s">存指令，不存数据</text>
+  <text x="72" y="548" class="tag">#6 函数分组</text>
+  <rect x="400" y="190" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="213" class="t">重命名 + ROB</text>
+  <text x="412" y="231" class="s">ROB（reorder buffer，重排序缓冲）</text>
+  <text x="412" y="249" class="s">记着还没退休的指令</text>
+  <text x="412" y="266" class="tag">速查 2.3 ROB 与 MLP</text>
+  <rect x="400" y="290" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="313" class="t">调度 → 执行单元</text>
+  <text x="412" y="331" class="s">ALU 算数 · AGU 算地址</text>
+  <text x="412" y="349" class="s">分支在这里算出真假</text>
+  <text x="412" y="366" class="tag">#2 依赖链 · 多累加器</text>
+  <rect x="400" y="390" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="413" class="t">退休（retire）</text>
+  <text x="412" y="431" class="s">按程序顺序提交结果</text>
+  <rect x="400" y="490" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="513" class="t">寄存器（register file）</text>
+  <text x="412" y="530" class="tag">#2 寄存器溢出</text>
+  <text x="412" y="547" class="tag">#6 存储类别</text>
+  <rect x="730" y="190" width="290" height="80" rx="6" class="buf"/>
+  <text x="742" y="213" class="t">dTLB（数据 TLB，地址翻译）</text>
+  <text x="742" y="231" class="s">虚拟地址 → 物理地址</text>
+  <text x="742" y="248" class="tag">#6 2 MiB 大页 · #3 TLB shootdown</text>
+  <text x="742" y="265" class="tag">速查 2.1 TLB 覆盖范围</text>
+  <rect x="730" y="290" width="138" height="180" rx="6" class="buf"/>
+  <text x="742" y="313" class="t">Store buffer</text>
+  <text x="742" y="331" class="s">存储缓冲</text>
+  <text x="742" y="349" class="s">写先在这排队，</text>
+  <text x="742" y="367" class="s">按顺序写进 L1D</text>
+  <text x="742" y="384" class="tag">#2 store buffer</text>
+  <text x="742" y="401" class="tag">#2 store-to-load</text>
+  <text x="742" y="418" class="tag">转发</text>
+  <rect x="882" y="290" width="138" height="180" rx="6" class="buf"/>
+  <text x="894" y="313" class="t">Invalidate queue</text>
+  <text x="894" y="331" class="s">失效队列</text>
+  <text x="894" y="349" class="s">别的核发来的</text>
+  <text x="894" y="367" class="s">失效请求先排队</text>
+  <text x="894" y="384" class="tag">#2 invalidate queue</text>
+  <text x="894" y="401" class="tag">#2 acquire</text>
+  <rect x="730" y="490" width="290" height="80" rx="6" class="cache"/>
+  <text x="742" y="513" class="t">L1D 32 KiB · 8 路（数据缓存）</text>
+  <text x="742" y="531" class="s">LFB（line fill buffer，行填充缓冲）</text>
+  <text x="742" y="548" class="tag">#6 对齐 / 跨行 · 组相联</text>
+  <text x="742" y="565" class="tag">速查 2.3 LFB</text>
+  <rect x="60" y="605" width="960" height="64" rx="6" class="cache"/>
+  <text x="72" y="630" class="t">L2 512 KiB · 8 路（本核私有，指令和数据共用）</text>
+  <text x="72" y="652" class="tag">#6 关键步长 64 KiB · #2 L1/L2 私有</text>
+  <text x="56" y="702" class="s">缓存和内存之间按 64 B 一整条“缓存行”搬运</text>
+  <text x="56" y="720" class="tag">#2 · #6 一次访问碰几条行</text>
+  <path d="M200,270 L200,288" class="line" marker-end="url(#arr)"/>
+  <path d="M200,370 L200,388" class="line" marker-end="url(#arr)"/>
+  <path d="M60,530 L56,530 L56,340 L58,340" class="line" marker-end="url(#arr)"/>
+  <path d="M340,430 L370,430 L370,230 L398,230" class="line" marker-end="url(#arr)"/>
+  <text x="374" y="290" class="lab">µop</text>
+  <path d="M540,270 L540,288" class="line" marker-end="url(#arr)"/>
+  <path d="M540,370 L540,388" class="line" marker-end="url(#arr)"/>
+  <path d="M540,470 L540,488" class="line" marker-end="url(#arr)"/>
+  <text x="548" y="484" class="lab">提交</text>
+  <path d="M400,348 L342,348" class="flush" marker-end="url(#arrR)"/>
+  <path d="M680,312 L705,312 L705,230 L728,230" class="line" marker-end="url(#arr)"/>
+  <path d="M680,348 L728,348" class="line" marker-end="url(#arr)"/>
+  <text x="686" y="342" class="lab">store</text>
+  <path d="M875,270 L875,488" class="line" marker-end="url(#arr)"/>
+  <path d="M799,470 L799,488" class="line" marker-end="url(#arr)"/>
+  <path d="M951,470 L951,488" class="line" marker-end="url(#arr)"/>
+  <path d="M200,570 L200,603" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <path d="M875,570 L875,603" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="1060" y="128" width="500" height="617" rx="8" class="core"/>
+  <text x="1076" y="152" class="t">核心 1 … 核心 5（结构和核心 0 相同）</text>
+  <rect x="1080" y="168" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="192" class="t" style="font-size:13px">核心 1</text>
+  <rect x="1160" y="175" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="191" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="175" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="191" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="175" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="191" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="175" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="191" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="214" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="238" class="t" style="font-size:13px">核心 2</text>
+  <rect x="1160" y="221" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="237" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="221" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="237" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="221" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="237" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="221" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="237" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="260" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="284" class="t" style="font-size:13px">核心 3</text>
+  <rect x="1160" y="267" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="283" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="267" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="283" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="267" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="283" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="267" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="283" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="306" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="330" class="t" style="font-size:13px">核心 4</text>
+  <rect x="1160" y="313" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="329" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="313" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="329" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="313" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="329" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="313" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="329" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="352" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="376" class="t" style="font-size:13px">核心 5</text>
+  <rect x="1160" y="359" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="375" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="359" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="375" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="359" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="375" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="359" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="375" class="s" text-anchor="middle">L2</text>
+  <text x="1080" y="448" class="t">MESI：单写者 / 多读者</text>
+  <text x="1080" y="472" class="s">同一条缓存行可以在多个核的 L1/L2 里各有一份副本。</text>
+  <text x="1080" y="490" class="s">谁要写，就得先让别人的副本作废（发失效请求）。</text>
+  <text x="1080" y="520" class="tag">MESI 专题</text>
+  <text x="1080" y="538" class="tag">#2 伪共享（两个核抢同一行）</text>
+  <text x="1080" y="556" class="tag">#4 缓存游标 · #5 读者越多写越贵</text>
+  <text x="1080" y="574" class="tag">#6 alignas(64) 让对象独占一行</text>
+  <rect x="1080" y="605" width="460" height="64" rx="6" class="cache"/>
+  <text x="1094" y="630" class="t">每个核各有自己的 L1、L2</text>
+  <text x="1094" y="652" class="s">（TLB、store buffer 也各有一份）</text>
+  <path d="M1540,412 L1022,412" class="coh" marker-end="url(#arrG)"/>
+  <text x="1080" y="406" class="lab">别的核要写某一行：发失效请求，排进核心 0 的 invalidate queue</text>
+  <path d="M1022,637 L1078,637" class="coh" marker-start="url(#arrG)" marker-end="url(#arrG)"/>
+  <text x="1050.0" y="628" class="lab" text-anchor="middle" style="font-size:10.5px">一致性</text>
+  <rect x="40" y="770" width="1520" height="64" rx="6" class="cache"/>
+  <text x="56" y="795" class="t">L3 16 MiB · 16 路（全部核共享）</text>
+  <text x="56" y="817" class="tag">#2 L3 共享 · #6 高位哈希选组</text>
+  <path d="M930,669 L930,768" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <path d="M1310,669 L1310,768" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="40" y="860" width="1520" height="64" rx="6" class="mem"/>
+  <text x="56" y="885" class="t">内存控制器：把连续地址轮流分到各个通道（交织）</text>
+  <text x="56" y="907" class="tag">#6 多通道均衡（行数和通道数互质）</text>
+  <path d="M800,834 L800,858" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="20" y="985" class="h">内存条（DRAM）</text>
+  <text x="150" y="985" class="tag">#6</text>
+  <path d="M210,924 L210,998" class="line" marker-end="url(#arr)"/>
+  <path d="M560,924 L560,998" class="line" marker-end="url(#arr)"/>
+  <path d="M900,924 L900,998" class="line" marker-end="url(#arr)"/>
+  <rect x="40" y="1000" width="340" height="240" rx="8" class="mem"/>
+  <text x="56" y="1024" class="t">通道 0</text>
+  <text x="56" y="1046" class="s">DIMM → rank → 多个 bank</text>
+  <rect x="56" y="1060" width="308" height="165" rx="6" class="box"/>
+  <text x="68" y="1082" class="t">一个 bank = 行 × 列的表</text>
+  <rect x="68" y="1094" width="284" height="30" rx="6" class="buf"/>
+  <text x="78" y="1114" class="s">行缓冲：当前打开的那一行</text>
+  <text x="68" y="1146" class="s">命中已打开的行 ~15 ns</text>
+  <text x="68" y="1165" class="s">换一行（行冲突）~40 ns</text>
+  <text x="68" y="1184" class="s">刷新：每 ~7.8 µs 一次，</text>
+  <text x="68" y="1203" class="s">卡 300–500 ns → P99 毛刺</text>
+  <rect x="400" y="1000" width="320" height="240" rx="8" class="mem"/>
+  <text x="416" y="1024" class="t">通道 1</text>
+  <text x="416" y="1046" class="s">结构同通道 0</text>
+  <text x="416" y="1080" class="s">各通道能同时工作，</text>
+  <text x="416" y="1100" class="s">带宽 ≈ 通道数 × 单通道</text>
+  <rect x="740" y="1000" width="320" height="240" rx="8" class="mem"/>
+  <text x="756" y="1024" class="t">通道 2 …</text>
+  <text x="756" y="1046" class="s">结构同通道 0</text>
+  <rect x="1090" y="1000" width="490" height="140" rx="10" class="sock"/>
+  <text x="1106" y="1026" class="h">CPU 插槽 1</text>
+  <text x="1106" y="1050" class="s">自己的核、L3、内存控制器和内存</text>
+  <text x="1106" y="1069" class="s">访问另一个插槽的内存要过互连，更慢</text>
+  <text x="1106" y="1096" class="tag">#1 NUMA：线程和内存放同一节点</text>
+  <text x="1106" y="1115" class="tag">速查 2.1 first-touch 放置</text>
+  <path d="M1470,947 L1470,998" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="1480" y="978" class="lab">插槽间互连</text>
+  <rect x="1090" y="1160" width="490" height="80" rx="8" class="box"/>
+  <text x="1106" y="1185" class="t">网卡 → 中断 → 某个核</text>
+  <text x="1106" y="1206" class="tag">#1 中断绑到非热路径的核</text>
+  <text x="1106" y="1226" class="s">（操作系统层，不是缓存层）</text>
+  <text x="20" y="1290" class="h">一个地址的各段（4 KiB 页，L1D 32 KiB 8 路，64 B 行）</text>
+  <rect x="40" y="1305" width="700" height="44" fill="#fff8c5" stroke="#d4a72c"/>
+  <text x="56" y="1332" class="t">虚拟页号（bit 12 以上）→ TLB 翻译</text>
+  <text x="56" y="1370" class="tag">大页：页号变少，TLB 装得下</text>
+  <rect x="740" y="1305" width="400" height="44" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="756" y="1332" class="t">组号 bit 6–11</text>
+  <text x="756" y="1370" class="tag">#6 相差 4 KiB 倍数 → 同一组</text>
+  <rect x="1140" y="1305" width="420" height="44" fill="#ffffff" stroke="#8c959f"/>
+  <text x="1156" y="1332" class="t">行内偏移 bit 0–5</text>
+  <text x="1156" y="1370" class="tag">#6 对齐 = 这几位为 0</text>
+  <path d="M740,1384 L740,1394 L1560,1394 L1560,1384" class="line"/>
+  <text x="760" y="1416" class="s">页内偏移 bit 0–11：翻译前后不变，所以 L1 能一边翻译一边选组（VIPT）</text>
+  <text x="760" y="1434" class="s">→ L1 的“组数 × 行大小”被卡在 4 KiB，做大只能加路数</text>
+  <text x="20" y="1470" class="h">访问延迟量级</text>
+  <text x="20" y="1490" class="s">周期按约 4 GHz 折算。每往下一层，大约慢 3–10 倍。</text>
+  <rect x="340" y="1504" width="1220" height="42" fill="#7f9db9"/>
+  <text x="560.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">访问时间</text>
+  <text x="970.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">容量</text>
+  <text x="1360.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">谁来管理</text>
+  <rect x="340" y="1546" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1546" x2="1560" y2="1546" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~1 周期（&lt; 1 ns）</text>
+  <text x="970.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">约 1 KB</text>
+  <text x="1360.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">编译器</text>
+  <rect x="170" y="1552" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1574" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">寄存器</text>
+  <rect x="340" y="1592" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1592" x2="1560" y2="1592" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">4–5 周期（~1 ns）</text>
+  <text x="970.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">32–48 KiB / 核</text>
+  <text x="1360.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">硬件</text>
+  <rect x="170" y="1598" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1620" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L1D 缓存</text>
+  <path d="M245,1586 L245,1598" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1638" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1638" x2="1560" y2="1638" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~12–20 周期（~3–5 ns）</text>
+  <text x="970.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">0.5–2 MiB / 核</text>
+  <text x="1360.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">硬件</text>
+  <rect x="170" y="1644" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1666" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L2 缓存</text>
+  <path d="M245,1632 L245,1644" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1684" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1684" x2="1560" y2="1684" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~40–120 周期（~10–30 ns）</text>
+  <text x="970.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">约 10–500 MiB，全部核共享</text>
+  <text x="1360.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">硬件</text>
+  <rect x="170" y="1690" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1712" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L3 缓存</text>
+  <path d="M245,1678 L245,1690" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1730" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1730" x2="1560" y2="1730" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~300–500 周期（~70–120 ns）</text>
+  <text x="970.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">约 16 GB 到 4 TB</text>
+  <text x="1360.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">操作系统（页表）</text>
+  <rect x="170" y="1736" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1758" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">本地内存</text>
+  <path d="M245,1724 L245,1736" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1776" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1776" x2="1560" y2="1776" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~500–800 周期（~120–200 ns）</text>
+  <text x="970.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">另一个插槽的内存</text>
+  <text x="1360.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">操作系统 + 你绑的位置</text>
+  <rect x="170" y="1782" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1804" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">远端 NUMA 内存</text>
+  <path d="M245,1770 L245,1782" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1822" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1822" x2="1560" y2="1822" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">10–100 µs</text>
+  <text x="970.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">TB 级</text>
+  <text x="1360.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">操作系统（文件系统）</text>
+  <rect x="170" y="1828" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1850" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">NVMe SSD</text>
+  <path d="M245,1816 L245,1828" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line x1="780" y1="1504" x2="780" y2="1868" stroke="#ffffff" stroke-width="3"/>
+  <line x1="1160" y1="1504" x2="1160" y2="1868" stroke="#ffffff" stroke-width="3"/>
+  <text x="95" y="1574" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">核内</text>
+  <text x="95" y="1666.0" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">芯片内</text>
+  <text x="95" y="1781.0" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">芯片外</text>
+  <text x="95" y="1850" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">外部设备</text>
+  <line x1="30" y1="1592" x2="330" y2="1592" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <line x1="30" y1="1730" x2="330" y2="1730" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <line x1="30" y1="1822" x2="330" y2="1822" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="340" y="1894" class="tag">数字都是帮助理解的量级，不对应哪台机器。</text>
+  <text x="20" y="1930" class="s">图随文章更新：后续文章讲到新的硬件层时再往上补标注。</text>
 </svg>

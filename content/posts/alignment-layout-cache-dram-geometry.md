@@ -27,7 +27,7 @@ The intuition is "nothing, maybe slightly slower — the array got bigger". In f
 
 How can bytes you never read make a program faster? The answer isn't in the algorithm; it's in the **addresses**. The CPU always moves data in whole 64-byte **cache lines**, and a few bits of an address decide which slot of the cache a line goes into and which corner of the DIMM it lives in. This post starts from alignment and works down to DRAM, and by the end the question answers itself (section 3.2.1).
 
-First, the route. A load works its way down: the TLB translates the virtual address, then L1D, L2 and the shared L3 are asked in turn, and on a miss everywhere the memory controller goes to a DIMM. Everything below happens in one of the boxes along that route; the full [hardware map](/ref/cpu-memory/#map) lives on the Reference page and grows with the series.
+First, the route. A load works its way down: the TLB translates the virtual address, then L1D, L2 and the shared L3 are asked in turn, and on a miss everywhere the memory controller goes to a DIMM. Everything below happens in one of the boxes along that route; the full <a href="/maps/hardware-map.en.html" target="_blank" rel="noopener">hardware map</a> lives on the Reference page and grows with the series.
 
 So "is this code fast" is largely two questions. First, **how many lines does one access touch?** A value straddling two lines costs two; a loop that uses a third of each line moves the other two-thirds for nothing. That's alignment (Part 1) and layout (Part 2), which you control directly when writing code. Second, **where do those lines live?** If your access pattern keeps certain address bits equal, most of the hardware sits idle while a small part thrashes. That's Part 3, the layer that's easiest not to see.
 
@@ -385,7 +385,7 @@ Parts 1 and 2 asked how many lines an access touches. Part 3 goes one level down
 
 #### 3.1.1 Where It Happens and What Problem It Solves
 
-On the [hardware map](/ref/cpu-memory/#map) this is the **inside** of the "L1D 32 KiB · 8-way" box; L2 and L3 have the same structure, only bigger. It happens at the first step of a load: the CPU takes an address to L1D and asks "do you have this line?" — set associativity is **how L1D answers that question**.
+On the <a href="/maps/hardware-map.en.html" target="_blank" rel="noopener">hardware map</a> this is the **inside** of the "L1D 32 KiB · 8-way" box; L2 and L3 have the same structure, only bigger. It happens at the first step of a load: the CPU takes an address to L1D and asks "do you have this line?" — set associativity is **how L1D answers that question**.
 
 <a href="/images/memory-geometry/l1d-sets.en.svg" target="_blank" rel="noopener"><img src="/images/memory-geometry/l1d-sets.en.svg" alt="L1D as a cabinet of 64 rows by 8 slots: an address splits into tag, set index and offset; the set index picks one row, and 8 tags are compared in parallel" loading="lazy" decoding="async"></a>
 
@@ -528,7 +528,7 @@ If a cache is a cabinet, a DIMM is cabinets inside cabinets: the memory controll
 
 #### 3.4.1 Where This Is
 
-On the [hardware map](/ref/cpu-memory/#map), it's the "memory controller" and "DIMMs" boxes below L3. When a load misses L1, L2 and L3, the request goes to the **memory controller** — on the CPU die, not on the DIMM — which fetches the whole 64-byte line over the motherboard traces. This section is about that last stretch: how the DIMM finds those 64 bytes.
+On the <a href="/maps/hardware-map.en.html" target="_blank" rel="noopener">hardware map</a>, it's the "memory controller" and "DIMMs" boxes below L3. When a load misses L1, L2 and L3, the request goes to the **memory controller** — on the CPU die, not on the DIMM — which fetches the whole 64-byte line over the motherboard traces. This section is about that last stretch: how the DIMM finds those 64 bytes.
 
 #### 3.4.2 The Smallest Unit: a Bank and Its Row Buffer
 

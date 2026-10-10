@@ -28,7 +28,7 @@ To explain it, separate two quantities: **latency** and **bandwidth**. "Memory i
 
 ### 1.1 Latency and Bandwidth: The Road Between the Boxes
 
-The earlier posts were about the **boxes** on the hardware map: L1D, L2, L3, the memory controller, the DIMMs (the map is on the [reference page](/ref/cpu-memory/#map)). Latency and bandwidth are about **the road between the boxes**:
+The earlier posts were about the **boxes** on the hardware map: L1D, L2, L3, the memory controller, the DIMMs (see the <a href="/maps/hardware-map.en.html" target="_blank" rel="noopener">hardware map</a>). Latency and bandwidth are about **the road between the boxes**:
 
 - **Latency**: the time from the core issuing a load to the data landing in a register. The farther it goes, the longer it takes: an L1 hit stays inside the core, a memory access travels all the way to the DIMM and back.
 - **Bandwidth**: how many bytes that road delivers per unit of time, in GB/s.
@@ -379,7 +379,7 @@ The same hash-table lookup takes about 90 ns on one machine; move it to a dual-s
 
 ### 3.1 One Miss, Itemized: Where 80–120 ns Goes
 
-On the [quick reference's hardware map](/ref/cpu-memory/#load) this is the four-step load path: translate the address, look up each cache level, have the memory controller fetch from the DIMM, and bring the whole line back the same way. Split one load that goes all the way to memory into segments (the split is for intuition; chips differ a lot):
+On the quick reference's <a href="/maps/hardware-map.en.html#load" target="_blank" rel="noopener">hardware map</a> this is the four-step load path: translate the address, look up each cache level, have the memory controller fetch from the DIMM, and bring the whole line back the same way. Split one load that goes all the way to memory into segments (the split is for intuition; chips differ a lot):
 
 $$
 \text{latency of one load} \;\approx\;
