@@ -48,6 +48,8 @@ A branch needs two guesses: **taken or not** (direction) and **where to** (targe
 - **Indirect branches** (virtual functions, function pointers, `switch` jump tables): one instruction can go to many targets; the **indirect target predictor** records the target by "this instruction + recent history".
 - **Direction**: the simplest scheme gives each branch a **2-bit saturating counter**: +1 when taken, −1 when not, clamped to 0–3, and predict "taken" at ≥ 2. It predicts loops well (taken 99 times, not taken once at the end, only the last one is wrong), and one odd outcome doesn't flip its mind at once.
 
+<a href="/images/branch-prediction/two-bit-counter.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/two-bit-counter.en.svg" alt="The four states 0, 1, 2, 3 of a 2-bit saturating counter: +1 when the branch is taken, −1 when not; 0 and 1 predict not taken, 2 and 3 predict taken. Below, a loop taken 7 times, not taken once at the exit, then entered again: only the exit is mispredicted, and the counter drops from 3 to 2, still predicting taken." loading="lazy" decoding="async"></a>
+
 Modern predictors add **history** on top: the outcomes (taken / not taken) of the last 50–1000 branches, recorded as one **global history** string, are used together with the branch address to look up a table. That lets them learn patterns like "if the previous branch was taken, this one isn't" or "taken once every 3 times". The mainstream design (the TAGE family) uses several tables with different history lengths and picks the longest one that hits. The upshot: **a branch with a pattern can be learned, even a long pattern; a branch without one can't be learned by anyone.** A condition that is a fresh 50/50 coin flip every time is predicted right half the time by even the best predictor.
 
 In ordinary programs these structures together predict well over 95%–99% of branches.
@@ -59,6 +61,8 @@ When a branch executes and turns out to be mispredicted:
 1. Every instruction fetched after it (still in the pipeline, already in the ROB, even already executed) is discarded.
 2. Fetch goes back to the correct address and starts over.
 3. The new instructions go through fetch, decode and rename again before the back end fills up.
+
+<a href="/images/branch-prediction/pipeline-flush.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/pipeline-flush.en.svg" alt="Timeline of a 4-stage pipeline (fetch, decode, execute, retire) over cycles 1–10. Predicted right, instructions after branch B flow in one per cycle. Mispredicted, B executes in cycle 5, wrong-path W1 and W2 are discarded, I3 is fetched from cycle 6, and Execute idles for 2 cycles." loading="lazy" decoding="async"></a>
 
 The cost is roughly the pipeline depth from fetch to execute, **about 15–20 cycles**, about 4–5 ns at 4 GHz. At 4–8 instructions per cycle, that is 60–160 instructions' worth of execution lost. (Loads issued on the wrong path have already brought lines into the cache, and that is not undone; this is where Spectre-class vulnerabilities come from, not covered here.)
 
@@ -81,7 +85,9 @@ for (unsigned i = 0; i < 10000; ++i) {
 Run the same loop with `data` unsorted and sorted; the sorted version adds a single line, `std::sort(data, data + arraySize)`.
 
 - **Unsorted**: whether each number is even is completely random, the `if` has no pattern, and the predictor gets about half right. Each element pays about $0.5 \times (15\text{–}20) \approx 8\text{–}10$ extra cycles on average, several times the loop body itself (1–2 cycles).
-- **Sorted**: each value in 0–199 appears about 82 times, so the sorted array alternates in runs: 82 evens, 82 odds, 82 evens… 200 runs in all. The direction changes only at run boundaries, so a pass of 16384 mispredicts only about 200 times, about 1%.
+- **Sorted**: each value in 0–199 appears about 82 times, so the sorted array alternates in runs: 82 evens, 82 odds, 82 evens… 200 runs in all. The direction changes only at run boundaries, each boundary mispredicts 1–2 times, so a pass of 16384 mispredicts only about 200–400 times, about 1%–2%.
+
+<a href="/images/branch-prediction/sorted-strip.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/sorted-strip.en.svg" alt="Two strips: unsorted, 20 random numbers flip between even and odd and the 2-bit counter mispredicts 10; sorted, a run of 36s then a run of 37s, mispredicted only twice at the boundary." loading="lazy" decoding="async"></a>
 
 So the sorted run is several times faster (estimated from the numbers above). The lesson: **the same branch in the same code is predictable or not depending on the data.**
 
