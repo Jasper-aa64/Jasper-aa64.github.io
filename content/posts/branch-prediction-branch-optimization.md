@@ -739,7 +739,7 @@ GCC 13.3 `-O2`:
 
 The compile-time tree and the hand-written `if`s compile to nearly identical instructions (only the order differs, because every level of the tree carries `HFT_LIKELY`): `std::abs(position) < 100` becomes one unsigned compare, and the last node becomes a branchless `setbe`. The tests remain, because they look at market data that's only known at run time; whether each branch is predictable still depends on whether the data has a pattern (1.5).
 
-So its relation to virtual functions is this: **it replaces version 2**. It's no faster than hand-written `if`s; it's faster than the run-time tree while keeping the run-time tree's composability.
+So its relation to virtual functions is this: **it replaces version 2**. It's no faster than hand-written `if`s; it's faster than the run-time tree while keeping the run-time tree's composability. Put another way: the run-time tree is **dynamic polymorphism** (virtual functions, choosing the function by the object at run time), and the compile-time tree is **static polymorphism** (templates, choosing the function by the type at compile time). It's the same trade as [replacing virtual functions with CRTP](/ref/cpp-syntax/#virtual-alternatives): inlining and speed in exchange for a structure fixed at compile time.
 
 #### 3.6.3 When to Use It, and When Not
 
