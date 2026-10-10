@@ -1,6 +1,6 @@
 ---
 title: "C++ Syntax: What It Compiles To"
-description: "What common C++ features compile to, what they cost, and the alternatives. First entry: virtual functions."
+description: "What common C++ features compile to, what they cost, and the alternatives. So far: virtual functions; composition and mixins."
 date: 2026-10-10
 lastmod: 2026-10-10
 slug: "cpp-syntax"
@@ -114,3 +114,82 @@ This compiles to a load of the type index (1 byte) plus two compare-and-jumps, w
 - **Fixed set of types, objects stored together**: `std::variant` + `std::visit`.
 - **Type known at compile time**: templates or CRTP; mark classes `final` where you can.
 - **Not on a hot path**: virtual functions read best; don't agonize.
+
+## 2. Composition and Inheritance: Reuse an Implementation as a Member, Stack Features with Mixins {#composition}
+
+### 2.1 Composition: To Reuse a Class's Implementation, Make It a Member {#composition-member}
+
+```cpp
+class InheritanceOrderBook : public std::vector<Order> {   // inheritance: "is" a vector
+};
+
+class CompositionOrderBook {                                // composition: "has" a vector
+    std::vector<Order> orders_;
+public:
+    auto size() const noexcept { return orders_.size(); }  // expose only what's needed
+};
+```
+
+**They compile the same**: member access and `size()` both read the field inside `orders_` directly, and `size()` inlines. The difference is all design; publicly inheriting `std::vector` has three problems:
+
+- **The whole interface is exposed**: anyone can call `push_back` or `erase`, so invariants like "the book is sorted by price" can't be protected. Composition exposes only the functions you choose.
+- **The destructor isn't virtual**: `std::vector<Order>* p = new InheritanceOrderBook;` followed by `delete p` is undefined behavior. Standard containers aren't designed to be base classes.
+- **Tied to the implementation**: replacing `std::vector` with another container means changing every caller with inheritance, but only the class's internals with composition.
+
+The rule: if you want "its implementation," make it a member (has-a); public inheritance only when you really mean "usable as one" (is-a) and the base is designed for it (it has a virtual destructor).
+
+### 2.2 Mixins: Stack Features at Compile Time with a Template Inheritance Chain {#mixin}
+
+**The problem**: an iterator needs several stacked features (walk a matrix → keep only odd values → double the value), in any combination. The run-time decorator pattern makes each layer an object holding an `Iterator*` to the next, with a virtual interface: every layer adds a heap allocation and a virtual call (the costs in [entry 1](#virtual-cost)).
+
+**A mixin**: each layer is a template that takes the next layer as its template parameter and inherits from it.
+
+```cpp
+template <class Base>
+class OddOnly : public Base {          // keep only odd values
+public:
+    template <class... Args>
+    explicit OddOnly(Args&&... args) : Base(std::forward<Args>(args)...) {
+        while (Base::valid() && (Base::cell().value % 2 == 0)) Base::next();
+    }
+    void next() {
+        do {
+            Base::next();
+        } while (Base::valid() && (Base::cell().value % 2 == 0));
+    }
+};
+
+template <class Base>
+class DoubleValue : public Base {      // double the value
+public:
+    template <class... Args>
+    explicit DoubleValue(Args&&... args) : Base(std::forward<Args>(args)...) {}
+    Cell cell() const {
+        Cell x = Base::cell();
+        x.value *= 2;
+        return x;
+    }
+};
+
+using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // the template-argument order is the stacking order
+```
+
+(`MatrixWalk` is the bottom layer: it walks a 2-D `vector` row by row and provides `valid()`, `cell()` and `next()`.) **What it compiles to**: `Iter` is **one object**, with no per-layer heap objects, no pointers and no virtual functions; `Base::next()` and `Base::cell()` are direct calls that inline all the way down. It's the **static polymorphism** version of the decorator pattern, the same trade as [replacing virtual functions with CRTP](#virtual-alternatives).
+
+### 2.3 Order Is Meaning {#mixin-order}
+
+For the same matrix `{{1, 2, 3}, {}, {4, 5, 6}}`:
+
+| Type | Output | Why |
+|---|---|---|
+| `DoubleValue<OddOnly<MatrixWalk>>` | `2 6 10` | keep the odd originals (1, 3, 5), then double |
+| `OddOnly<DoubleValue<MatrixWalk>>` | empty | doubling makes everything even, so the odd filter keeps nothing |
+
+A decorator can be stacked at run time from config; a mixin's order is written into the type and fixed at compile time.
+
+### 2.4 Costs {#mixin-cost}
+
+- **Combinatorial types**: every combination is a new type with its own instantiated code, growing compile time and binary size.
+- **Hard-to-read errors**: a few levels of nested templates make long error messages.
+- **Constructors must forward**: each layer passes its arguments to `Base` (the variadic constructor above, or `using Base::Base;`).
+- **Hiding, not overriding**: `OddOnly::next()` only hides `Base::next()`; it isn't a virtual override. Call `next()` through a `MatrixWalk&` and you get `MatrixWalk::next()`. Mixins only work when you keep using the full type.
