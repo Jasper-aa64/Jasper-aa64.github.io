@@ -597,43 +597,57 @@ using Queue = std::conditional_t<Mode == QueueMode::Blocking, BlockingQueue, Spi
 
 **In a trading system**: all four say the same thing: **configuration that can be fixed at compile time belongs in a template parameter**. "Blocking or not" written as a run-time `if (config.blocking)` reads the config and tests it on every message; as a template parameter, only the chosen code exists in the binary.
 
-### 3.5 Semi-Static Branches: When the Direction Rarely Changes, Patch a jmp Instead of Testing
+### 3.5 Semi-Static Branches: When the Switch Rarely Changes, Stop Testing It
 
-A hot loop picks a strategy by a flag that changes only occasionally (say, risk control switching strategies). Schematic code:
+Here's the problem: a hot loop has a switch that picks strategy A or strategy B. The switch changes maybe once an hour, but the loop checks it on every pass. A semi-static branch stops checking: it hard-codes "which strategy to jump to" into a single jump instruction, and when the switch changes, it rewrites that instruction.
+
+#### 3.5.1 The Setup: A Switch That Rarely Changes
 
 ```cpp
-// Version A: a plain if
 for (...) {
-  if (use_strategy_a)
+  if (use_strategy_a)    // every pass: load the switch, compare, jump on the result
     handle_a(x);
   else
     handle_b(x);
 }
+```
 
-// Version B: a semi-static condition (the maxlucuta/semi-static-conditions library)
+`use_strategy_a` is set by low-frequency logic such as risk control and may change once an hour. Yet the loop loads and tests it for every item it processes.
+
+#### 3.5.2 How It Works: Hard-Code the Target, Rewrite the Instruction to Switch
+
+```cpp
 BranchChanger ch(handle_a, handle_b);
 void refresh_strategy(bool use_a) {
-  ch.set_direction(use_a);  // rare: rewrite the target of the jmp in the stub
+  ch.set_direction(use_a);  // rare: rewrite the jump to go to handle_a or handle_b
 }
 for (...) {
-  ch.branch(x);             // hot path: one unconditional jmp straight into handle_a or handle_b
+  ch.branch(x);             // hot path: no test, just jump
 }
 ```
 
-**How it works**: `ch.branch` is a stub that starts with a `jmp rel32` (opcode `0xE9` plus a 4-byte relative displacement). `set_direction` `memcpy`s a different target's displacement into those 4 bytes. That's **self-modifying code** (SMC): the program rewrites instructions it's about to execute.
+(Schematic code from the maxlucuta/semi-static-conditions library.) Three steps:
 
-**What it actually saves**: when the flag rarely changes, version A's `if` is already predicted very well in a loop that runs all the time; it mispredicts only on the one pass after the flag flips. So "random branches mispredict a lot" isn't the reason for it, and a branch whose direction really is random each time isn't semi-static at all. What it saves:
+1. **`ch.branch` contains one jump**: it's a tiny function made of a single instruction (a stub), and that instruction says "jump to handle_a, unconditionally." The hot path calls it and lands in the strategy without loading or testing anything.
+2. **The target address is inside the instruction**: this x86 `jmp` is 5 bytes; the first byte means "jump" (`0xE9`) and the other 4 are the target (strictly, how far it is from the current position).
+3. **Switching strategy means rewriting those 4 bytes**: `set_direction` `memcpy`s handle_b's position into them. A program rewriting its own instructions at run time is **self-modifying code** (SMC).
 
-- The load of the flag, the compare, and the conditional jump on every pass.
-- **Mispredicts on a cold start**: when the hot path runs only once in a long while, the predictor's record of this `if` may have been evicted, and a mispredict costs the full 15–20 cycles. A direct `jmp` carries its target in the instruction, so even without a record the decoder computes it and redirects fetch, losing only a few cycles.
+#### 3.5.3 What It Saves: Not Mispredicts
 
-**The costs**:
+First, what it does **not** save: with the switch changing once an hour, version A's `if` goes the same way every time, so the predictor is right almost every time and misses only on the pass right after the switch flips. Reducing mispredicts isn't the point. It saves two things:
 
-- `set_direction` is expensive: it modifies instructions about to run, so the CPU has to throw away the stale instructions already in the pipeline (a machine clear) and make sure fetch sees the new bytes, which costs over a hundred cycles. Call it rarely.
-- The code page must be writable: by default it stays readable, writable and executable (RWX), breaking the "writable XOR executable" (W^X) security rule; the safe mode only changes permissions around each patch, which makes `set_direction` even slower.
-- Patching while another core is executing the stub needs extra care, and usually only one `BranchChanger` is allowed per function signature.
+- **A few instructions every pass**: the load of the switch, the compare and the conditional jump, saved on every item.
+- **The first pass after a long idle stretch**: a trading system's hot path may really run only once every few minutes. Other code runs in between, and the predictor's record of this `if` may have been evicted. When execution gets here again, the predictor can only guess blindly, and a wrong guess costs 15–20 cycles. A direct jump carries its target in the instruction: even if the predictor remembers nothing, the CPU knows where to go as soon as it reads the instruction, losing only a few cycles.
 
-**Try the simple fix first**: when the flag doesn't change during a run of the loop, hoist the `if` out and duplicate the loop (**loop unswitching**):
+#### 3.5.4 The Costs: Switching Is Expensive and Not Very Safe
+
+- **One switch costs over a hundred cycles**: the CPU may already have fetched the old jump into the pipeline. Once the instruction changes, it has to throw all of that away and fetch again. So `set_direction` can only be called occasionally.
+- **The code's memory has to be writable**: normal program code is read-only, and "writable memory isn't executable" (W^X) is a basic security rule that exists precisely to stop anyone writing into code. By default this library keeps the code readable, writable and executable; the safe mode opens write permission only around each rewrite, which makes `set_direction` slower still.
+- **Threads need care**: while one thread rewrites the instruction, another core may be executing it. Also, usually only one `BranchChanger` is allowed per function signature.
+
+#### 3.5.5 Try the Simpler Fix First: Move the Test Out of the Loop
+
+If the switch doesn't change during a whole run of the loop, there's no need to rewrite instructions. Move the `if` outside and write two loops (**loop unswitching**):
 
 ```cpp
 if (use_strategy_a) {
@@ -643,7 +657,7 @@ if (use_strategy_a) {
 }
 ```
 
-When the flag is something like a function parameter that can't change inside the loop, GCC 13 `-O2` does this split by itself. When it's a global and the loop calls other functions, the compiler can't prove it stays the same, so it re-reads and re-tests it every time; only then do you split by hand, or instantiate both versions with a template and choose outside.
+The test goes from once per item to once per run of the loop. When the switch is something like a function parameter that can't change inside the loop, GCC 13 `-O2` makes this split by itself. When it's a global and the loop calls other functions, the compiler can't be sure nobody changes it, so it re-reads and re-tests it every time; only then do you split by hand, or generate both versions with a template and pick one outside. Semi-static branches are for the case where the switch may change in the middle of a running loop and the hot path runs only once in a long while.
 
 ### 3.6 Compile-Time Decision Trees: A Strategy Tree Built from Types
 
