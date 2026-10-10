@@ -2,7 +2,7 @@
 title: "CPU 与内存：地图、数字、怎么估算"
 description: "一次访存经过哪些框，每个框多大、多快，以及怎么把这些数合起来，估一段代码的访存时间。"
 date: 2026-10-08
-lastmod: 2026-10-09
+lastmod: 2026-10-10
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -19,7 +19,7 @@ math: true
 
 ## 1. 存储层次（memory hierarchy）：一次访存经过哪些框 {#map}
 
-<a href="/images/ref/hardware-map.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/hardware-map.zh.svg" alt="硬件地图：从流水线和 store buffer，经 L1、L2、L3、内存控制器到内存条，附访问延迟量级表和一个地址的各段" loading="lazy" decoding="async"></a>
+<a href="/images/ref/hardware-map.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/hardware-map.zh.svg" alt="硬件地图：从前端、后端和 store buffer，经 L1、L2、L3、内存控制器到内存条，附访问延迟量级表和一个地址的各段" loading="lazy" decoding="async"></a>
 
 图里的蓝字是“在哪里讲过”：#N 是交易系统笔记 #N，MESI 是专题，“速查 N.N”是本页的小节。点图看原图。
 
