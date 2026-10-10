@@ -20,7 +20,7 @@ homepage: false
 
 ### 1.1 在硬件地图上的位置：前端
 
-[速查页的硬件地图](/zh/ref/cpu-memory/#map)上画的大多是“数据”那一侧：load / store、缓存、内存。分支预测在另一侧，**前端**（front end）：负责取指令、译码，把指令送进后端去执行。顺序是：
+速查页的<a href="/maps/hardware-map.zh.html" target="_blank" rel="noopener">硬件地图</a>上画的大多是“数据”那一侧：load / store、缓存、内存。分支预测在另一侧，**前端**（front end）：负责取指令、译码，把指令送进后端去执行。顺序是：
 
 1. **取指**（fetch）：按“下一条指令的地址”从 L1I（指令缓存）取一段字节。
 2. **译码**（decode）：拆成微操作（µop）。

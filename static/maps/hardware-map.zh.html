@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>硬件地图</title>
+<link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
+<style>
+:root { --bg:#f6f7f9; --card:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --accent:#0969da; --hl:#bf3989; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#1c1a19; --card:#26231f; --fg:#ece6df; --muted:#b3aaa0; --line:#463f38; --accent:#e9a0b4; --hl:#ff7bb0; } }
+:root[data-theme="dark"] { --bg:#1c1a19; --card:#26231f; --fg:#ece6df; --muted:#b3aaa0; --line:#463f38; --accent:#e9a0b4; --hl:#ff7bb0; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font: 15px/1.6 PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif; -webkit-tap-highlight-color: transparent; }
+header { padding: 14px 16px 10px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:baseline; }
+h1 { font-size: 22px; margin: 0; }
+header .lead { flex: 1 1 420px; margin:0; color:var(--muted); font-size:14px; }
+header nav { display:flex; gap:12px; font-size:14px; }
+a { color: var(--accent); }
+.tours { display:flex; flex-wrap:wrap; gap:8px; padding: 0 16px 10px; }
+.tours button, .stepbar button { font: inherit; font-size:14px; padding: 5px 12px; border-radius: 999px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+.tours button[aria-pressed="true"] { border-color: var(--hl); color: var(--hl); }
+.tours .zoom { margin-left: auto; }
+.map.full svg { width: 1600px; max-width: none; }
+.layout { display:grid; grid-template-columns: minmax(0,1fr) 340px; gap: 12px; padding: 0 16px 16px; align-items:start; }
+.map { background:#ffffff; border:1px solid var(--line); border-radius:10px; overflow:auto; max-height: calc(100vh - 140px); }
+.map svg { display:block; width:100%; height:auto; min-width: 1000px; }
+.side { position: sticky; top: 12px; display:flex; flex-direction:column; gap:12px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding: 12px 14px; }
+.card h2 { font-size:17px; margin:0 0 6px; }
+.card p { margin: 4px 0; color: var(--muted); font-size:14px; }
+.card h3 { font-size:13px; margin:10px 0 4px; color:var(--muted); font-weight:600; }
+.card ul { margin:0; padding-left: 18px; font-size:14px; }
+.stepbar { display:none; }
+.stepbar.on { display:block; }
+.stepbar .count { font-size:13px; color:var(--muted); }
+.stepbar .cap { margin: 6px 0 10px; font-size:15px; color:var(--fg); }
+.stepbar .btns { display:flex; gap:8px; }
+.node { cursor:pointer; outline:none; }
+.node:hover > rect:first-of-type, .node:focus-visible > rect:first-of-type { stroke:#bf3989; stroke-width:2.5; }
+.node.sel > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
+svg .tag a tspan { text-decoration: underline; text-decoration-color: rgba(9,105,218,.35); }
+svg .tag a:hover tspan { fill:#bf3989; }
+svg.dim .node, svg.dim .edge { opacity:.18; transition: opacity .25s; }
+svg.dim .node.on, svg.dim .edge.on { opacity:1; }
+svg .edge.on { stroke:#bf3989; stroke-width:3; }
+svg.dim .node.on > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .side { position: static; order: -1; }
+  .map { max-height: 70vh; }
+}
+@media (prefers-reduced-motion: reduce) { svg.dim .node, svg.dim .edge { transition:none; } }
+</style>
+</head>
+<body>
+<header>
+<h1>硬件地图</h1>
+<p class="lead">点一个框看它是什么、在哪篇讲过；选一条路径，一步一步看指令和数据怎么走。蓝字可以直接点开对应的文章。</p>
+<nav><a href="hardware-map.en.html">English</a><a href="/zh/ref/cpu-memory/">速查页</a><a href="/images/ref/hardware-map.zh.svg">静态图</a></nav>
+</header>
+<div class="tours"><button type="button" data-k="load" aria-pressed="false">一次 load 走到内存</button><button type="button" data-k="store" aria-pressed="false">一次 store</button><button type="button" data-k="branch" aria-pressed="false">分支猜错</button><button type="button" data-k="insn" aria-pressed="false">指令从哪来</button><button type="button" class="zoom" aria-pressed="false">看原尺寸</button></div>
+<div class="layout">
+<div class="map">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1950" width="1600" height="1950" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .box   { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .core  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.5; }
+      .sock  { fill: #fbfbfc; stroke: #1f2328; stroke-width: 2; }
+      .cache { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .buf   { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .mem   { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.2; }
+      .line  { stroke: #555; stroke-width: 1.5; fill: none; }
+      .flush { stroke: #cf222e; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; }
+      .coh   { stroke: #6e7781; stroke-width: 1.5; fill: none; stroke-dasharray: 5 3; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1950" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">硬件地图：一次访存会经过哪些层</text>
+  <text x="20" y="60" class="s">蓝字 = 在哪里讲过（#N = 交易系统笔记 #N，MESI = 专题，速查 N.N = 速查页的小节）。数字都是量级。</text>
+  <text x="20" y="78" class="s">实线箭头 = 指令和数据怎么走；红色虚线 = 分支猜错后冲刷、重新取指；灰色虚线 = 核与核之间的一致性消息。</text>
+  <rect x="20" y="92" width="1560" height="853" rx="10" class="sock"/>
+  <text x="36" y="116" class="h">CPU 插槽 0（socket）= 一个 NUMA 节点</text>
+  <text x="366" y="116" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 绑核 / 隔离 · NUMA</tspan></a></text>
+  <rect x="40" y="128" width="1000" height="617" rx="8" class="core"/>
+  <text x="56" y="152" class="t">核心 0（core）</text>
+  <text x="156" y="152" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>2 个硬件线程共用这个核（SMT，超线程，#1）</tspan></a></text>
+  <rect x="52" y="162" width="296" height="418" rx="8" fill="#f7f2ff" stroke="#c8a8ff" stroke-dasharray="6 4"/>
+  <text x="60" y="182" class="lane-h" style="fill:#8250df">前端（front end）：取指令</text>
+  <rect x="392" y="162" width="296" height="418" rx="8" fill="#eefbf1" stroke="#8ddb9c" stroke-dasharray="6 4"/>
+  <text x="400" y="182" class="lane-h" style="fill:#1a7f37">后端（back end）：乱序执行</text>
+  <rect x="722" y="162" width="306" height="418" rx="8" fill="#eef6ff" stroke="#8cc4ff" stroke-dasharray="6 4"/>
+  <text x="730" y="182" class="lane-h" style="fill:#0969da">访存（memory）：load / store</text>
+  <g id="bpu" class="node" tabindex="0" role="button" aria-label="分支预测器（BPU）">
+  <rect x="60" y="190" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="213" class="t">分支预测器（BPU）</text>
+  <text x="72" y="231" class="s">BTB · RAS · 方向预测器</text>
+  <text x="72" y="249" class="s">猜下一条指令在哪</text>
+  <text x="72" y="266" class="tag"><a href="/zh/posts/branch-prediction-branch-optimization/" target="_blank" rel="noopener"><tspan>#7 分支预测</tspan></a></text>
+  </g>
+  <g id="fetch" class="node" tabindex="0" role="button" aria-label="取指（fetch）">
+  <rect x="60" y="290" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="313" class="t">取指（fetch）</text>
+  <text x="72" y="331" class="s">按预测的地址从 L1I 取指令</text>
+  <text x="72" y="349" class="s">猜错的路径上取的全部作废</text>
+  <text x="72" y="366" class="tag"><a href="/zh/posts/branch-prediction-branch-optimization/" target="_blank" rel="noopener"><tspan>#7 推测执行</tspan></a></text>
+  </g>
+  <g id="decode" class="node" tabindex="0" role="button" aria-label="译码（decode）">
+  <rect x="60" y="390" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="413" class="t">译码（decode）</text>
+  <text x="72" y="431" class="s">指令 → 微操作（µop）</text>
+  </g>
+  <g id="l1i" class="node" tabindex="0" role="button" aria-label="L1I 32 KiB（指令缓存）">
+  <rect x="60" y="490" width="280" height="80" rx="6" class="cache"/>
+  <text x="72" y="513" class="t">L1I 32 KiB（指令缓存）</text>
+  <text x="72" y="531" class="s">存指令，不存数据</text>
+  <text x="72" y="548" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 函数分组</tspan></a></text>
+  </g>
+  <g id="rob" class="node" tabindex="0" role="button" aria-label="重命名 + ROB">
+  <rect x="400" y="190" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="213" class="t">重命名 + ROB</text>
+  <text x="412" y="231" class="s">ROB（reorder buffer，重排序缓冲）</text>
+  <text x="412" y="249" class="s">记着还没退休的指令</text>
+  <text x="412" y="266" class="tag"><a href="/zh/ref/cpu-memory/#in-flight" target="_blank" rel="noopener"><tspan>速查 2.3 ROB 与 MLP</tspan></a></text>
+  </g>
+  <g id="exec" class="node" tabindex="0" role="button" aria-label="调度 → 执行单元">
+  <rect x="400" y="290" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="313" class="t">调度 → 执行单元</text>
+  <text x="412" y="331" class="s">ALU 算数 · AGU 算地址</text>
+  <text x="412" y="349" class="s">分支在这里算出真假</text>
+  <text x="412" y="366" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 依赖链 · 多累加器</tspan></a></text>
+  </g>
+  <g id="retire" class="node" tabindex="0" role="button" aria-label="退休（retire）">
+  <rect x="400" y="390" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="413" class="t">退休（retire）</text>
+  <text x="412" y="431" class="s">按程序顺序提交结果</text>
+  </g>
+  <g id="regs" class="node" tabindex="0" role="button" aria-label="寄存器（register file）">
+  <rect x="400" y="490" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="513" class="t">寄存器（register file）</text>
+  <text x="412" y="530" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 寄存器溢出</tspan></a></text>
+  <text x="412" y="547" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 存储类别</tspan></a></text>
+  </g>
+  <g id="dtlb" class="node" tabindex="0" role="button" aria-label="dTLB（数据 TLB，地址翻译）">
+  <rect x="730" y="190" width="290" height="80" rx="6" class="buf"/>
+  <text x="742" y="213" class="t">dTLB（数据 TLB，地址翻译）</text>
+  <text x="742" y="231" class="s">虚拟地址 → 物理地址</text>
+  <text x="742" y="248" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 2 MiB 大页</tspan></a><a href="/zh/posts/hot-path-memory-allocators/" target="_blank" rel="noopener"><tspan> · #3 TLB shootdown</tspan></a></text>
+  <text x="742" y="265" class="tag"><a href="/zh/ref/cpu-memory/#latency" target="_blank" rel="noopener"><tspan>速查 2.1 TLB 覆盖范围</tspan></a></text>
+  </g>
+  <g id="sb" class="node" tabindex="0" role="button" aria-label="Store buffer">
+  <rect x="730" y="290" width="138" height="180" rx="6" class="buf"/>
+  <text x="742" y="313" class="t">Store buffer</text>
+  <text x="742" y="331" class="s">存储缓冲</text>
+  <text x="742" y="349" class="s">写先在这排队，</text>
+  <text x="742" y="367" class="s">按顺序写进 L1D</text>
+  <text x="742" y="384" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 store buffer</tspan></a></text>
+  <text x="742" y="401" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 store-to-load</tspan></a></text>
+  <text x="742" y="418" class="tag"><tspan>转发</tspan></text>
+  </g>
+  <g id="iq" class="node" tabindex="0" role="button" aria-label="Invalidate queue">
+  <rect x="882" y="290" width="138" height="180" rx="6" class="buf"/>
+  <text x="894" y="313" class="t">Invalidate queue</text>
+  <text x="894" y="331" class="s">失效队列</text>
+  <text x="894" y="349" class="s">别的核发来的</text>
+  <text x="894" y="367" class="s">失效请求先排队</text>
+  <text x="894" y="384" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 invalidate queue</tspan></a></text>
+  <text x="894" y="401" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 acquire</tspan></a></text>
+  </g>
+  <g id="l1d" class="node" tabindex="0" role="button" aria-label="L1D 32 KiB · 8 路（数据缓存）">
+  <rect x="730" y="490" width="290" height="80" rx="6" class="cache"/>
+  <text x="742" y="513" class="t">L1D 32 KiB · 8 路（数据缓存）</text>
+  <text x="742" y="531" class="s">LFB（line fill buffer，行填充缓冲）</text>
+  <text x="742" y="548" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 对齐 / 跨行 · 组相联</tspan></a></text>
+  <text x="742" y="565" class="tag"><a href="/zh/ref/cpu-memory/#in-flight" target="_blank" rel="noopener"><tspan>速查 2.3 LFB</tspan></a></text>
+  </g>
+  <g id="l2" class="node" tabindex="0" role="button" aria-label="L2 512 KiB · 8 路（本核私有，指令和数据共用）">
+  <rect x="60" y="605" width="960" height="64" rx="6" class="cache"/>
+  <text x="72" y="630" class="t">L2 512 KiB · 8 路（本核私有，指令和数据共用）</text>
+  <text x="72" y="652" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 关键步长 64 KiB</tspan></a><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan> · #2 L1/L2 私有</tspan></a></text>
+  </g>
+  <text x="56" y="702" class="s">缓存和内存之间按 64 B 一整条“缓存行”搬运</text>
+  <text x="56" y="720" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2</tspan></a><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan> · #6 一次访问碰几条行</tspan></a></text>
+  <path d="M200,270 L200,288" class="line edge" id="e_bpu_fetch" marker-end="url(#arr)"/>
+  <path d="M200,370 L200,388" class="line edge" id="e_fetch_decode" marker-end="url(#arr)"/>
+  <path d="M60,530 L56,530 L56,340 L58,340" class="line edge" id="e_l1i_fetch" marker-end="url(#arr)"/>
+  <path d="M340,430 L370,430 L370,230 L398,230" class="line edge" id="e_decode_rob" marker-end="url(#arr)"/>
+  <text x="374" y="290" class="lab">µop</text>
+  <path d="M540,270 L540,288" class="line edge" id="e_rob_exec" marker-end="url(#arr)"/>
+  <path d="M540,370 L540,388" class="line edge" id="e_exec_retire" marker-end="url(#arr)"/>
+  <path d="M540,470 L540,488" class="line edge" id="e_retire_regs" marker-end="url(#arr)"/>
+  <text x="548" y="484" class="lab">提交</text>
+  <path d="M400,348 L342,348" class="flush edge" id="e_flush" marker-end="url(#arrR)"/>
+  <path d="M680,312 L705,312 L705,230 L728,230" class="line edge" id="e_exec_dtlb" marker-end="url(#arr)"/>
+  <path d="M680,348 L728,348" class="line edge" id="e_exec_sb" marker-end="url(#arr)"/>
+  <text x="686" y="342" class="lab">store</text>
+  <path d="M875,270 L875,488" class="line edge" id="e_dtlb_l1d" marker-end="url(#arr)"/>
+  <path d="M799,470 L799,488" class="line edge" id="e_sb_l1d" marker-end="url(#arr)"/>
+  <path d="M951,470 L951,488" class="line edge" id="e_iq_l1d" marker-end="url(#arr)"/>
+  <path d="M200,570 L200,603" class="line edge" id="e_l1i_l2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <path d="M875,570 L875,603" class="line edge" id="e_l1d_l2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <g id="others" class="node" tabindex="0" role="button" aria-label="MESI：单写者 / 多读者">
+  <rect x="1060" y="128" width="500" height="617" rx="8" class="core"/>
+  <text x="1076" y="152" class="t">核心 1 … 核心 5（结构和核心 0 相同）</text>
+  <rect x="1080" y="168" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="192" class="t" style="font-size:13px">核心 1</text>
+  <rect x="1160" y="175" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="191" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="175" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="191" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="175" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="191" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="175" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="191" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="214" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="238" class="t" style="font-size:13px">核心 2</text>
+  <rect x="1160" y="221" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="237" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="221" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="237" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="221" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="237" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="221" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="237" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="260" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="284" class="t" style="font-size:13px">核心 3</text>
+  <rect x="1160" y="267" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="283" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="267" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="283" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="267" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="283" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="267" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="283" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="306" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="330" class="t" style="font-size:13px">核心 4</text>
+  <rect x="1160" y="313" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="329" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="313" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="329" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="313" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="329" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="313" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="329" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="352" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="376" class="t" style="font-size:13px">核心 5</text>
+  <rect x="1160" y="359" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="375" class="s" text-anchor="middle">前端</text>
+  <rect x="1240" y="359" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="375" class="s" text-anchor="middle">后端</text>
+  <rect x="1320" y="359" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="375" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="359" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="375" class="s" text-anchor="middle">L2</text>
+  <text x="1080" y="448" class="t">MESI：单写者 / 多读者</text>
+  <text x="1080" y="472" class="s">同一条缓存行可以在多个核的 L1/L2 里各有一份副本。</text>
+  <text x="1080" y="490" class="s">谁要写，就得先让别人的副本作废（发失效请求）。</text>
+  <text x="1080" y="520" class="tag"><a href="/zh/posts/low-latency-mesi-cache-coherence/" target="_blank" rel="noopener"><tspan>MESI 专题</tspan></a></text>
+  <text x="1080" y="538" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 伪共享（两个核抢同一行）</tspan></a></text>
+  <text x="1080" y="556" class="tag"><a href="/zh/posts/lock-free-queue-logger-micro-batching/" target="_blank" rel="noopener"><tspan>#4 缓存游标</tspan></a><a href="/zh/posts/spmc-shared-memory-broadcast-ring/" target="_blank" rel="noopener"><tspan> · #5 读者越多写越贵</tspan></a></text>
+  <text x="1080" y="574" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 alignas(64) 让对象独占一行</tspan></a></text>
+  </g>
+  <g id="priv" class="node" tabindex="0" role="button" aria-label="每个核各有自己的 L1、L2">
+  <rect x="1080" y="605" width="460" height="64" rx="6" class="cache"/>
+  <text x="1094" y="630" class="t">每个核各有自己的 L1、L2</text>
+  <text x="1094" y="652" class="s">（TLB、store buffer 也各有一份）</text>
+  </g>
+  <path d="M1540,412 L1022,412" class="coh edge" id="e_inv" marker-end="url(#arrG)"/>
+  <text x="1080" y="406" class="lab">别的核要写某一行：发失效请求，排进核心 0 的 invalidate queue</text>
+  <path d="M1022,637 L1078,637" class="coh edge" id="e_coh" marker-start="url(#arrG)" marker-end="url(#arrG)"/>
+  <text x="1050.0" y="628" class="lab" text-anchor="middle" style="font-size:10.5px">一致性</text>
+  <g id="l3" class="node" tabindex="0" role="button" aria-label="L3 16 MiB · 16 路（全部核共享）">
+  <rect x="40" y="770" width="1520" height="64" rx="6" class="cache"/>
+  <text x="56" y="795" class="t">L3 16 MiB · 16 路（全部核共享）</text>
+  <text x="56" y="817" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 L3 共享</tspan></a><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan> · #6 高位哈希选组</tspan></a></text>
+  </g>
+  <path d="M930,669 L930,768" class="line edge" id="e_l2_l3" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <path d="M1310,669 L1310,768" class="line edge" id="e_priv_l3" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <g id="mc" class="node" tabindex="0" role="button" aria-label="内存控制器：把连续地址轮流分到各个通道（交织）">
+  <rect x="40" y="860" width="1520" height="64" rx="6" class="mem"/>
+  <text x="56" y="885" class="t">内存控制器：把连续地址轮流分到各个通道（交织）</text>
+  <text x="56" y="907" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 多通道均衡（行数和通道数互质）</tspan></a></text>
+  </g>
+  <path d="M800,834 L800,858" class="line edge" id="e_l3_mc" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="20" y="985" class="h">内存条（DRAM）</text>
+  <text x="150" y="985" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6</tspan></a></text>
+  <path d="M210,924 L210,998" class="line edge" id="e_mc_ch0" marker-end="url(#arr)"/>
+  <path d="M560,924 L560,998" class="line edge" id="e_mc_ch1" marker-end="url(#arr)"/>
+  <path d="M900,924 L900,998" class="line edge" id="e_mc_ch2" marker-end="url(#arr)"/>
+  <g id="ch0" class="node" tabindex="0" role="button" aria-label="通道 0">
+  <rect x="40" y="1000" width="340" height="240" rx="8" class="mem"/>
+  <text x="56" y="1024" class="t">通道 0</text>
+  <text x="56" y="1046" class="s">DIMM → rank → 多个 bank</text>
+  <rect x="56" y="1060" width="308" height="165" rx="6" class="box"/>
+  <text x="68" y="1082" class="t">一个 bank = 行 × 列的表</text>
+  <rect x="68" y="1094" width="284" height="30" rx="6" class="buf"/>
+  <text x="78" y="1114" class="s">行缓冲：当前打开的那一行</text>
+  <text x="68" y="1146" class="s">命中已打开的行 ~15 ns</text>
+  <text x="68" y="1165" class="s">换一行（行冲突）~40 ns</text>
+  <text x="68" y="1184" class="s">刷新：每 ~7.8 µs 一次，</text>
+  <text x="68" y="1203" class="s">卡 300–500 ns → P99 毛刺</text>
+  </g>
+  <g id="ch1" class="node" tabindex="0" role="button" aria-label="通道 1">
+  <rect x="400" y="1000" width="320" height="240" rx="8" class="mem"/>
+  <text x="416" y="1024" class="t">通道 1</text>
+  <text x="416" y="1046" class="s">结构同通道 0</text>
+  <text x="416" y="1080" class="s">各通道能同时工作，</text>
+  <text x="416" y="1100" class="s">带宽 ≈ 通道数 × 单通道</text>
+  </g>
+  <g id="ch2" class="node" tabindex="0" role="button" aria-label="通道 2 …">
+  <rect x="740" y="1000" width="320" height="240" rx="8" class="mem"/>
+  <text x="756" y="1024" class="t">通道 2 …</text>
+  <text x="756" y="1046" class="s">结构同通道 0</text>
+  </g>
+  <g id="sock1" class="node" tabindex="0" role="button" aria-label="CPU 插槽 1">
+  <rect x="1090" y="1000" width="490" height="140" rx="10" class="sock"/>
+  <text x="1106" y="1026" class="h">CPU 插槽 1</text>
+  <text x="1106" y="1050" class="s">自己的核、L3、内存控制器和内存</text>
+  <text x="1106" y="1069" class="s">访问另一个插槽的内存要过互连，更慢</text>
+  <text x="1106" y="1096" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 NUMA：线程和内存放同一节点</tspan></a></text>
+  <text x="1106" y="1115" class="tag"><a href="/zh/ref/cpu-memory/#latency" target="_blank" rel="noopener"><tspan>速查 2.1 first-touch 放置</tspan></a></text>
+  </g>
+  <path d="M1470,947 L1470,998" class="line edge" id="e_qpi" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="1480" y="978" class="lab">插槽间互连</text>
+  <g id="nic" class="node" tabindex="0" role="button" aria-label="网卡 → 中断 → 某个核">
+  <rect x="1090" y="1160" width="490" height="80" rx="8" class="box"/>
+  <text x="1106" y="1185" class="t">网卡 → 中断 → 某个核</text>
+  <text x="1106" y="1206" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 中断绑到非热路径的核</tspan></a></text>
+  <text x="1106" y="1226" class="s">（操作系统层，不是缓存层）</text>
+  </g>
+  <text x="20" y="1290" class="h">一个地址的各段（4 KiB 页，L1D 32 KiB 8 路，64 B 行）</text>
+  <rect x="40" y="1305" width="700" height="44" fill="#fff8c5" stroke="#d4a72c"/>
+  <text x="56" y="1332" class="t">虚拟页号（bit 12 以上）→ TLB 翻译</text>
+  <text x="56" y="1370" class="tag"><tspan>大页：页号变少，TLB 装得下</tspan></text>
+  <rect x="740" y="1305" width="400" height="44" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="756" y="1332" class="t">组号 bit 6–11</text>
+  <text x="756" y="1370" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 相差 4 KiB 倍数 → 同一组</tspan></a></text>
+  <rect x="1140" y="1305" width="420" height="44" fill="#ffffff" stroke="#8c959f"/>
+  <text x="1156" y="1332" class="t">行内偏移 bit 0–5</text>
+  <text x="1156" y="1370" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 对齐 = 这几位为 0</tspan></a></text>
+  <path d="M740,1384 L740,1394 L1560,1394 L1560,1384" class="line"/>
+  <text x="760" y="1416" class="s">页内偏移 bit 0–11：翻译前后不变，所以 L1 能一边翻译一边选组（VIPT）</text>
+  <text x="760" y="1434" class="s">→ L1 的“组数 × 行大小”被卡在 4 KiB，做大只能加路数</text>
+  <text x="20" y="1470" class="h">访问延迟量级</text>
+  <text x="20" y="1490" class="s">周期按约 4 GHz 折算。每往下一层，大约慢 3–10 倍。</text>
+  <rect x="340" y="1504" width="1220" height="42" fill="#7f9db9"/>
+  <text x="560.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">访问时间</text>
+  <text x="970.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">容量</text>
+  <text x="1360.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">谁来管理</text>
+  <rect x="340" y="1546" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1546" x2="1560" y2="1546" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~1 周期（&lt; 1 ns）</text>
+  <text x="970.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">约 1 KB</text>
+  <text x="1360.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">编译器</text>
+  <rect x="170" y="1552" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1574" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">寄存器</text>
+  <rect x="340" y="1592" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1592" x2="1560" y2="1592" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">4–5 周期（~1 ns）</text>
+  <text x="970.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">32–48 KiB / 核</text>
+  <text x="1360.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">硬件</text>
+  <rect x="170" y="1598" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1620" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L1D 缓存</text>
+  <path d="M245,1586 L245,1598" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1638" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1638" x2="1560" y2="1638" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~12–20 周期（~3–5 ns）</text>
+  <text x="970.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">0.5–2 MiB / 核</text>
+  <text x="1360.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">硬件</text>
+  <rect x="170" y="1644" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1666" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L2 缓存</text>
+  <path d="M245,1632 L245,1644" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1684" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1684" x2="1560" y2="1684" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~40–120 周期（~10–30 ns）</text>
+  <text x="970.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">约 10–500 MiB，全部核共享</text>
+  <text x="1360.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">硬件</text>
+  <rect x="170" y="1690" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1712" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L3 缓存</text>
+  <path d="M245,1678 L245,1690" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1730" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1730" x2="1560" y2="1730" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~300–500 周期（~70–120 ns）</text>
+  <text x="970.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">约 16 GB 到 4 TB</text>
+  <text x="1360.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">操作系统（页表）</text>
+  <rect x="170" y="1736" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1758" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">本地内存</text>
+  <path d="M245,1724 L245,1736" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1776" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1776" x2="1560" y2="1776" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~500–800 周期（~120–200 ns）</text>
+  <text x="970.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">另一个插槽的内存</text>
+  <text x="1360.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">操作系统 + 你绑的位置</text>
+  <rect x="170" y="1782" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1804" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">远端 NUMA 内存</text>
+  <path d="M245,1770 L245,1782" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1822" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1822" x2="1560" y2="1822" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">10–100 µs</text>
+  <text x="970.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">TB 级</text>
+  <text x="1360.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">操作系统（文件系统）</text>
+  <rect x="170" y="1828" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1850" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">NVMe SSD</text>
+  <path d="M245,1816 L245,1828" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line x1="780" y1="1504" x2="780" y2="1868" stroke="#ffffff" stroke-width="3"/>
+  <line x1="1160" y1="1504" x2="1160" y2="1868" stroke="#ffffff" stroke-width="3"/>
+  <text x="95" y="1574" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">核内</text>
+  <text x="95" y="1666.0" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">芯片内</text>
+  <text x="95" y="1781.0" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">芯片外</text>
+  <text x="95" y="1850" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">外部设备</text>
+  <line x1="30" y1="1592" x2="330" y2="1592" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <line x1="30" y1="1730" x2="330" y2="1730" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <line x1="30" y1="1822" x2="330" y2="1822" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="340" y="1894" class="tag">数字都是帮助理解的量级，不对应哪台机器。</text>
+  <text x="20" y="1930" class="s">图随文章更新：后续文章讲到新的硬件层时再往上补标注。</text>
+</svg>
+</div>
+<aside class="side">
+<div class="card stepbar" id="stepbar"><div class="count"></div><div class="cap"></div><div class="btns"><button type="button" class="prev">上一步</button><button type="button" class="next">下一步</button><button type="button" class="exit">退出</button></div></div>
+<div class="card" id="panel"><p>点图里的任意一个框。</p></div>
+</aside>
+</div>
+<script>
+const DATA = {"nodes": {"bpu": {"title": "分支预测器（BPU）", "lines": ["BTB · RAS · 方向预测器", "猜下一条指令在哪"], "tags": [[["#7 分支预测", "/zh/posts/branch-prediction-branch-optimization/"]]]}, "fetch": {"title": "取指（fetch）", "lines": ["按预测的地址从 L1I 取指令", "猜错的路径上取的全部作废"], "tags": [[["#7 推测执行", "/zh/posts/branch-prediction-branch-optimization/"]]]}, "decode": {"title": "译码（decode）", "lines": ["指令 → 微操作（µop）"], "tags": []}, "l1i": {"title": "L1I 32 KiB（指令缓存）", "lines": ["存指令，不存数据"], "tags": [[["#6 函数分组", "/zh/posts/alignment-layout-cache-dram-geometry/"]]]}, "rob": {"title": "重命名 + ROB", "lines": ["ROB（reorder buffer，重排序缓冲）", "记着还没退休的指令"], "tags": [[["速查 2.3 ROB 与 MLP", "/zh/ref/cpu-memory/#in-flight"]]]}, "exec": {"title": "调度 → 执行单元", "lines": ["ALU 算数 · AGU 算地址", "分支在这里算出真假"], "tags": [[["#2 依赖链 · 多累加器", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]]]}, "retire": {"title": "退休（retire）", "lines": ["按程序顺序提交结果"], "tags": []}, "regs": {"title": "寄存器（register file）", "lines": [], "tags": [[["#2 寄存器溢出", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]], [["#6 存储类别", "/zh/posts/alignment-layout-cache-dram-geometry/"]]]}, "dtlb": {"title": "dTLB（数据 TLB，地址翻译）", "lines": ["虚拟地址 → 物理地址"], "tags": [[["#6 2 MiB 大页", "/zh/posts/alignment-layout-cache-dram-geometry/"], [" · #3 TLB shootdown", "/zh/posts/hot-path-memory-allocators/"]], [["速查 2.1 TLB 覆盖范围", "/zh/ref/cpu-memory/#latency"]]]}, "sb": {"title": "Store buffer", "lines": ["存储缓冲", "写先在这排队，", "按顺序写进 L1D"], "tags": [[["#2 store buffer", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]], [["#2 store-to-load", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]], [["转发", null]]]}, "iq": {"title": "Invalidate queue", "lines": ["失效队列", "别的核发来的", "失效请求先排队"], "tags": [[["#2 invalidate queue", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]], [["#2 acquire", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]]]}, "l1d": {"title": "L1D 32 KiB · 8 路（数据缓存）", "lines": ["LFB（line fill buffer，行填充缓冲）"], "tags": [[["#6 对齐 / 跨行 · 组相联", "/zh/posts/alignment-layout-cache-dram-geometry/"]], [["速查 2.3 LFB", "/zh/ref/cpu-memory/#in-flight"]]]}, "l2": {"title": "L2 512 KiB · 8 路（本核私有，指令和数据共用）", "lines": [], "tags": [[["#6 关键步长 64 KiB", "/zh/posts/alignment-layout-cache-dram-geometry/"], [" · #2 L1/L2 私有", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]]]}, "others": {"title": "MESI：单写者 / 多读者", "lines": ["同一条缓存行可以在多个核的 L1/L2 里各有一份副本。", "谁要写，就得先让别人的副本作废（发失效请求）。"], "tags": [[["MESI 专题", "/zh/posts/low-latency-mesi-cache-coherence/"]], [["#2 伪共享（两个核抢同一行）", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"]], [["#4 缓存游标", "/zh/posts/lock-free-queue-logger-micro-batching/"], [" · #5 读者越多写越贵", "/zh/posts/spmc-shared-memory-broadcast-ring/"]], [["#6 alignas(64) 让对象独占一行", "/zh/posts/alignment-layout-cache-dram-geometry/"]]]}, "priv": {"title": "每个核各有自己的 L1、L2", "lines": ["（TLB、store buffer 也各有一份）"], "tags": []}, "l3": {"title": "L3 16 MiB · 16 路（全部核共享）", "lines": [], "tags": [[["#2 L3 共享", "/zh/posts/memory-ordering-false-sharing-dependency-chains/"], [" · #6 高位哈希选组", "/zh/posts/alignment-layout-cache-dram-geometry/"]]]}, "mc": {"title": "内存控制器：把连续地址轮流分到各个通道（交织）", "lines": [], "tags": [[["#6 多通道均衡（行数和通道数互质）", "/zh/posts/alignment-layout-cache-dram-geometry/"]]]}, "ch0": {"title": "通道 0", "lines": ["DIMM → rank → 多个 bank", "一个 bank = 行 × 列的表", "行缓冲：当前打开的那一行", "命中已打开的行 ~15 ns", "换一行（行冲突）~40 ns", "刷新：每 ~7.8 µs 一次，", "卡 300–500 ns → P99 毛刺"], "tags": [[["#6", "/zh/posts/alignment-layout-cache-dram-geometry/"]]]}, "ch1": {"title": "通道 1", "lines": ["结构同通道 0", "各通道能同时工作，", "带宽 ≈ 通道数 × 单通道"], "tags": []}, "ch2": {"title": "通道 2 …", "lines": ["结构同通道 0"], "tags": []}, "sock1": {"title": "CPU 插槽 1", "lines": ["自己的核、L3、内存控制器和内存", "访问另一个插槽的内存要过互连，更慢"], "tags": [[["#1 NUMA：线程和内存放同一节点", "/zh/posts/cpu-affinity-core-isolation-numa/"]], [["速查 2.1 first-touch 放置", "/zh/ref/cpu-memory/#latency"]]]}, "nic": {"title": "网卡 → 中断 → 某个核", "lines": ["（操作系统层，不是缓存层）"], "tags": [[["#1 中断绑到非热路径的核", "/zh/posts/cpu-affinity-core-isolation-numa/"]]]}}, "ui": {"page_title": "硬件地图", "lead": "点一个框看它是什么、在哪篇讲过；选一条路径，一步一步看指令和数据怎么走。蓝字可以直接点开对应的文章。", "other_lang": ["English", "hardware-map.en.html"], "static": ["静态图", "/images/ref/hardware-map.zh.svg"], "ref": ["速查页", "/zh/ref/cpu-memory/"], "prev": "上一步", "next": "下一步", "exit": "退出", "step": "第 {i} / {n} 步", "panel_empty": "点图里的任意一个框。", "zoom": ["看原尺寸", "适应宽度"], "panel_links": "在哪里讲过", "tours": {"load": ["一次 load 走到内存", [[["exec"], "执行单元算出要读的地址（虚拟地址）。"], [["e_exec_dtlb", "dtlb"], "dTLB 把虚拟地址翻译成物理地址。命中不额外花时间；没命中要走页表，约 15–30 ns。"], [["e_dtlb_l1d", "l1d"], "L1D 按组号选组、比对标签。命中约 1 ns；没命中先在 LFB 登记一项，再往下问。"], [["e_l1d_l2", "l2"], "L2 是本核私有的，命中约 3–5 ns。"], [["e_l2_l3", "l3"], "L3 是全部核共享的，命中约 10–30 ns。"], [["e_l3_mc", "mc"], "都没命中，请求交给内存控制器，它按地址选通道。"], [["e_mc_ch0", "ch0"], "通道里按 rank、bank、行找到这条行。整条 64 B 行原路返回，沿路放进各级缓存，一共约 80–120 ns。"]]], "store": ["一次 store", [[["exec", "e_exec_sb", "sb"], "store 执行时把地址和数据写进 store buffer，后面的指令不用等它写进缓存。"], [["retire", "e_exec_retire"], "这条 store 退休以后，才允许真正写出去（猜错路径上的 store 不能写出去）。"], [["e_sb_l1d", "l1d"], "store buffer 按顺序把写交给 L1D。行不在 L1D，就要先把整条行读回来（RFO），再改其中几个字节。"], [["others", "e_inv", "iq", "e_iq_l1d"], "要写的行如果别的核也有副本，得先让它们作废（MESI）。反过来，别的核要写时，发来的失效请求排进核心 0 的 invalidate queue。"]]], "branch": ["分支猜错", [[["bpu"], "分支预测器猜：这条分支跳不跳、跳到哪（BTB、RAS、方向预测器）。"], [["e_bpu_fetch", "fetch", "e_fetch_decode", "decode", "e_decode_rob", "rob"], "前端不等结果，按猜的方向一路取指、译码，把微操作送进后端。"], [["e_rob_exec", "exec"], "分支到了执行单元才算出真假。猜对了，什么都不用做。"], [["e_flush", "fetch"], "猜错了：错误路径上的微操作全部作废，从正确地址重新取指。损失约 15–20 周期（约 4–5 ns）。"]]], "insn": ["指令从哪来", [[["l2", "e_l1i_l2", "l1i"], "指令和数据一样存在内存里，经 L2 进入 L1I（指令缓存）。"], [["e_l1i_fetch", "fetch"], "取指按预测的地址从 L1I 读指令。"], [["e_fetch_decode", "decode"], "译码把指令拆成微操作（µop）。"], [["e_decode_rob", "rob", "e_rob_exec", "exec"], "微操作进 ROB 登记，等操作数到齐就乱序执行。"], [["e_exec_retire", "retire", "e_retire_regs", "regs"], "按程序顺序退休，结果提交到寄存器。"]]]}}};
+const svg = document.querySelector('.map svg');
+const panel = document.getElementById('panel');
+const bar = document.getElementById('stepbar');
+let tour = null, step = 0;
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function show(id){
+  svg.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+  const n = DATA.nodes[id]; if (!n) return;
+  document.getElementById(id).classList.add('sel');
+  let h = '<h2>' + esc(n.title) + '</h2>' + n.lines.map(l => '<p>' + esc(l) + '</p>').join('');
+  const links = [];
+  n.tags.forEach(line => line.forEach(([txt, url]) => { if (url) links.push('<li><a href="' + url + '" target="_blank" rel="noopener">' + esc(txt.replace(/^ · /, '')) + '</a></li>'); }));
+  if (links.length) h += '<h3>' + esc(DATA.ui.panel_links) + '</h3><ul>' + links.join('') + '</ul>';
+  panel.innerHTML = h;
+}
+svg.querySelectorAll('.node').forEach(g => {
+  g.addEventListener('click', e => { if (e.target.closest('a')) return; show(g.id); });
+  g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(g.id); } });
+});
+function render(){
+  svg.querySelectorAll('.on').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.tours button[data-k]').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === tour ? 'true' : 'false'));
+  if (!tour) { svg.classList.remove('dim'); bar.classList.remove('on'); return; }
+  const steps = DATA.ui.tours[tour][1];
+  svg.classList.add('dim'); bar.classList.add('on');
+  for (let i = 0; i <= step; i++) steps[i][0].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('on'); });
+  bar.querySelector('.count').textContent = DATA.ui.step.replace('{i}', step + 1).replace('{n}', steps.length);
+  bar.querySelector('.cap').textContent = steps[step][1];
+  bar.querySelector('.prev').disabled = step === 0;
+  bar.querySelector('.next').disabled = step === steps.length - 1;
+  const last = steps[step][0].map(id => document.getElementById(id)).filter(el => el && el.classList.contains('node')).pop();
+  if (last) { show(last.id); last.scrollIntoView({block:'nearest', inline:'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); }
+}
+document.querySelector('.tours .zoom').addEventListener('click', e => {
+  const on = document.querySelector('.map').classList.toggle('full');
+  e.currentTarget.setAttribute('aria-pressed', on ? 'true' : 'false');
+  e.currentTarget.textContent = on ? DATA.ui.zoom[1] : DATA.ui.zoom[0];
+});
+document.querySelectorAll('.tours button[data-k]').forEach(b => b.addEventListener('click', () => { tour = tour === b.dataset.k ? null : b.dataset.k; step = 0; render(); }));
+bar.querySelector('.prev').addEventListener('click', () => { step--; render(); });
+bar.querySelector('.next').addEventListener('click', () => { step++; render(); });
+bar.querySelector('.exit').addEventListener('click', () => { tour = null; render(); });
+document.addEventListener('keydown', e => {
+  if (!tour) return;
+  const n = DATA.ui.tours[tour][1].length;
+  if (e.key === 'ArrowRight' && step < n - 1) { step++; render(); }
+  if (e.key === 'ArrowLeft' && step > 0) { step--; render(); }
+  if (e.key === 'Escape') { tour = null; render(); }
+});
+const h = location.hash.slice(1);
+if (DATA.ui.tours[h]) { tour = h; step = 0; render(); }
+try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</body>
+</html>

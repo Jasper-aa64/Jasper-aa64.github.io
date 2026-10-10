@@ -19,9 +19,9 @@ When a later post covers a new hardware layer, it goes here.
 
 ## 1. Memory Hierarchy: The Boxes One Access Passes Through {#map}
 
-<a href="/images/ref/hardware-map.en.svg" target="_blank" rel="noopener"><img src="/images/ref/hardware-map.en.svg" alt="Hardware map from the front end, back end and store buffer through L1, L2, L3, the memory controller and DIMMs, with a latency table and the fields of one address" loading="lazy" decoding="async"></a>
+<a href="/maps/hardware-map.en.html" target="_blank" rel="noopener"><img src="/images/ref/hardware-map.en.svg" alt="Hardware map from the front end, back end and store buffer through L1, L2, L3, the memory controller and DIMMs, with a latency table and the fields of one address" loading="lazy" decoding="async"></a>
 
-Blue text says where something is covered: #N is Trading System Notes #N, MESI is the topic post, and "Ref N.N" is a section of this page. Click the image for the full-size version.
+Blue text says where something is covered: #N is Trading System Notes #N, MESI is the topic post, and "Ref N.N" is a section of this page. Click the image for the interactive version: click a box to see what it is and where it is covered, step through a path (a load, a store, a branch mispredict), and follow the blue labels to the posts.
 
 ### 1.1 Loads: Address Translation, Cache Lookup, Line Fill {#load}
 

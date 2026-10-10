@@ -19,9 +19,9 @@ math: true
 
 ## 1. 存储层次（memory hierarchy）：一次访存经过哪些框 {#map}
 
-<a href="/images/ref/hardware-map.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/hardware-map.zh.svg" alt="硬件地图：从前端、后端和 store buffer，经 L1、L2、L3、内存控制器到内存条，附访问延迟量级表和一个地址的各段" loading="lazy" decoding="async"></a>
+<a href="/maps/hardware-map.zh.html" target="_blank" rel="noopener"><img src="/images/ref/hardware-map.zh.svg" alt="硬件地图：从前端、后端和 store buffer，经 L1、L2、L3、内存控制器到内存条，附访问延迟量级表和一个地址的各段" loading="lazy" decoding="async"></a>
 
-图里的蓝字是“在哪里讲过”：#N 是交易系统笔记 #N，MESI 是专题，“速查 N.N”是本页的小节。点图看原图。
+图里的蓝字是“在哪里讲过”：#N 是交易系统笔记 #N，MESI 是专题，“速查 N.N”是本页的小节。点图打开可交互的版本：点一个框看它是什么、在哪篇讲过，选一条路径（load、store、分支猜错）一步一步看怎么走，蓝字直接链到文章。
 
 ### 1.1 读（load）：地址翻译、查缓存、行填充 {#load}
 

@@ -1,265 +1,324 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1768" width="1200" height="1768" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1950" width="1600" height="1950" font-family="Helvetica, Arial, sans-serif">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
     </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/>
+    </marker>
     <style>
-      .t  { font-size: 14px; font-weight: 600; fill: #1f2328; }
-      .s  { font-size: 11px; fill: #57606a; }
-      .h  { font-size: 16px; font-weight: 700; fill: #1f2328; }
-      .tag{ font-size: 11px; fill: #0969da; }
-      .box   { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; rx: 6; }
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .box   { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
       .core  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.5; }
       .sock  { fill: #fbfbfc; stroke: #1f2328; stroke-width: 2; }
       .cache { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
       .buf   { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
       .mem   { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.2; }
       .line  { stroke: #555; stroke-width: 1.5; fill: none; }
+      .flush { stroke: #cf222e; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; }
+      .coh   { stroke: #6e7781; stroke-width: 1.5; fill: none; stroke-dasharray: 5 3; }
     </style>
   </defs>
-
-  <rect x="0" y="0" width="1200" height="1768" fill="#ffffff"/>
-  <text x="20" y="38" class="h" style="font-size:22px">Hardware map: the layers one memory access passes through</text>
+  <rect x="0" y="0" width="1600" height="1950" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">Hardware map: the layers one memory access passes through</text>
   <text x="20" y="60" class="s">Blue = where it is covered (#N = Trading System Notes #N; MESI = the MESI topic post; Ref N.N = a section of the Reference page). Numbers are rough magnitudes.</text>
-
-  <!-- ===== Socket 0 ===== -->
-  <rect x="20" y="75" width="840" height="700" rx="10" class="sock"/>
-  <text x="36" y="98" class="h">CPU socket 0 = one NUMA node</text>
-  <text x="300" y="98" class="tag">#1 pinning / isolation · NUMA</text>
-
-  <!-- Core 0 -->
-  <rect x="40" y="110" width="390" height="460" rx="8" class="core"/>
-  <text x="56" y="132" class="t">Core 0</text>
-  <text x="110" y="132" class="tag">2 hardware threads share this core (SMT, #1)</text>
-
-  <rect x="60" y="145" width="165" height="62" class="box"/>
-  <text x="72" y="165" class="t">Front end</text>
-  <text x="72" y="181" class="s">fetch → decode</text>
-  <text x="72" y="196" class="tag">#7 branch prediction · BTB</text>
-
-  <rect x="245" y="145" width="165" height="62" class="box"/>
-  <text x="257" y="163" class="t">Back end</text>
-  <text x="257" y="178" class="s">OoO execute → retire</text>
-  <text x="257" y="192" class="tag">#2 dependency chains</text>
-  <text x="257" y="204" class="tag">Ref 2.3 ROB (reorder buffer)</text>
-
-  <rect x="60" y="220" width="165" height="62" class="box"/>
-  <text x="72" y="243" class="t">Registers</text>
-  <text x="72" y="261" class="tag">#2 register spills</text>
-  <text x="72" y="275" class="tag">#6 storage classes</text>
-
-  <rect x="245" y="220" width="165" height="62" class="buf"/>
-  <text x="257" y="243" class="t">Store buffer</text>
-  <text x="257" y="261" class="tag">#2 store buffer</text>
-  <text x="257" y="275" class="tag">#2 store-to-load forwarding</text>
-
-  <rect x="60" y="295" width="165" height="62" class="buf"/>
-  <text x="72" y="318" class="t">TLB (translation)</text>
-  <text x="72" y="336" class="tag">#6 2 MiB alignment</text>
-  <text x="72" y="350" class="tag">#3 TLB shootdown</text>
-
-  <rect x="245" y="295" width="165" height="62" class="buf"/>
-  <text x="257" y="318" class="t">Invalidate queue</text>
-  <text x="257" y="336" class="tag">#2 invalidate queue</text>
-  <text x="257" y="350" class="tag">#2 acquire</text>
-
-  <rect x="60" y="370" width="165" height="70" class="cache"/>
-  <text x="72" y="393" class="t">L1I 32 KiB</text>
-  <text x="72" y="411" class="s">instruction cache</text>
-  <text x="72" y="428" class="tag">#6 function grouping</text>
-
-  <rect x="245" y="370" width="165" height="70" class="cache"/>
-  <text x="257" y="393" class="t">L1D 32 KiB · 8-way</text>
-  <text x="257" y="411" class="tag">#6 alignment · sets</text>
-  <text x="257" y="428" class="tag">Ref 2.3 LFB (line fill buffer)</text>
-
-  <rect x="60" y="455" width="350" height="62" class="cache"/>
-  <text x="72" y="478" class="t">L2 512 KiB · 8-way (private to the core)</text>
-  <text x="72" y="497" class="tag">#6 critical stride 64 KiB · #2 private L1/L2</text>
-
-  <text x="56" y="545" class="s">Caches and memory move data in whole 64 B cache lines</text>
-  <text x="56" y="561" class="tag">#2 · #6 how many lines one access touches</text>
-
-  <!-- Core 1..5 -->
-  <rect x="450" y="110" width="390" height="460" rx="8" class="core"/>
-  <text x="466" y="132" class="t">Core 1 … Core 5 (same structure)</text>
-  <text x="466" y="175" class="s">One cache line can have a copy in several cores' L1/L2.</text>
-  <text x="466" y="193" class="s">To write it, a core must first invalidate the others:</text>
-  <text x="466" y="219" class="t">MESI: one writer or many readers</text>
-  <text x="466" y="239" class="tag">MESI topic post</text>
-  <text x="466" y="257" class="tag">#2 false sharing (two cores fight over a line)</text>
-  <text x="466" y="275" class="tag">#4 cached cursor · #5 more readers, costlier writes</text>
-  <text x="466" y="293" class="tag">#6 alignas(64) gives an object its own line</text>
-
-  <rect x="660" y="370" width="165" height="70" class="cache"/>
-  <text x="672" y="393" class="t">L1D</text>
-  <text x="672" y="411" class="s">(L1I, TLB and store</text>
-  <text x="672" y="427" class="s">buffer are per core too)</text>
-
-  <rect x="470" y="455" width="350" height="62" class="cache"/>
-  <text x="482" y="478" class="t">L2 (private)</text>
-  <text x="482" y="497" class="s">one per core</text>
-
-  <!-- coherence arrow -->
-  <line x1="412" y1="486" x2="468" y2="486" class="line" marker-start="url(#arr)" marker-end="url(#arr)" stroke-dasharray="5 3"/>
-  <text x="413" y="476" class="tag" style="font-size:9px">coherence</text>
-
-  <!-- L3 -->
-  <rect x="40" y="590" width="800" height="62" class="cache"/>
-  <text x="56" y="614" class="t">L3 16 MiB · 16-way (shared by all cores)</text>
-  <text x="56" y="634" class="tag">#2 shared L3 · #6 hashed set selection</text>
-  <line x1="380" y1="517" x2="380" y2="588" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="645" y1="517" x2="645" y2="588" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-
-  <!-- Memory controller -->
-  <rect x="40" y="680" width="800" height="62" class="mem"/>
-  <text x="56" y="704" class="t">Memory controller: spreads consecutive addresses across channels (interleaving)</text>
-  <text x="56" y="724" class="tag">#6 channel balance (line count coprime with channel count)</text>
-  <line x1="440" y1="652" x2="440" y2="678" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-
-  <!-- ===== Right column ===== -->
-  <rect x="880" y="75" width="300" height="160" rx="10" class="sock"/>
-  <text x="896" y="100" class="h">CPU socket 1</text>
-  <text x="896" y="125" class="s">its own cores, L3, controller and memory</text>
-  <text x="896" y="145" class="s">remote memory goes over the interconnect</text>
-  <text x="896" y="170" class="tag">#1 NUMA: thread and memory on the same node</text>
-  <line x1="862" y1="160" x2="878" y2="160" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-
-  <rect x="880" y="255" width="300" height="100" rx="8" class="box"/>
-  <text x="896" y="280" class="t">NIC → interrupt → some core</text>
-  <text x="896" y="302" class="tag">#1 steer IRQs away from hot cores</text>
-  
-  <text x="896" y="342" class="s">(an OS layer, not a cache layer)</text>
-
-  <!-- ===== DRAM ===== -->
-  <text x="20" y="805" class="h">DIMMs (DRAM)</text>
-  <text x="160" y="805" class="tag">#6</text>
-  <line x1="250" y1="742" x2="250" y2="818" class="line" marker-end="url(#arr)"/>
-  <line x1="440" y1="742" x2="440" y2="818" class="line" marker-end="url(#arr)"/>
-  <line x1="710" y1="742" x2="710" y2="818" class="line" marker-end="url(#arr)"/>
-
-  <rect x="40" y="820" width="260" height="230" rx="8" class="mem"/>
-  <text x="56" y="844" class="t">Channel 0</text>
-  <text x="56" y="866" class="s">DIMM → rank → many banks</text>
-  <rect x="56" y="880" width="228" height="155" class="box"/>
-  <text x="68" y="902" class="t">a bank = rows × columns</text>
-  <rect x="68" y="914" width="204" height="30" class="buf"/>
-  <text x="78" y="934" class="s">row buffer: the row currently open</text>
-  <text x="68" y="964" class="s">hit in the open row ~15 ns</text>
-  <text x="68" y="983" class="s">switch rows (conflict) ~40 ns</text>
-  <text x="68" y="1006" class="s">refresh every ~7.8 µs stalls</text>
-  <text x="68" y="1024" class="s">300–500 ns → P99 spikes</text>
-
-  <rect x="320" y="820" width="240" height="230" rx="8" class="mem"/>
-  <text x="336" y="844" class="t">Channel 1</text>
-  <text x="336" y="866" class="s">same as channel 0</text>
-  <text x="336" y="900" class="s">Channels work in parallel:</text>
-  <text x="336" y="920" class="s">bandwidth ≈ channels × one channel</text>
-
-  <rect x="580" y="820" width="260" height="230" rx="8" class="mem"/>
-  <text x="596" y="844" class="t">Channel 2 …</text>
-  <text x="596" y="866" class="s">same as channel 0</text>
-
-  <!-- ===== Address bits ===== -->
-  <text x="20" y="1095" class="h">The fields of one address (4 KiB pages, L1D 32 KiB 8-way, 64 B lines)</text>
-  <rect x="40"  y="1110" width="560" height="44" fill="#fff8c5" stroke="#d4a72c"/>
-  <rect x="600" y="1110" width="300" height="44" fill="#ddf4ff" stroke="#54aeff"/>
-  <rect x="900" y="1110" width="280" height="44" fill="#ffffff" stroke="#8c959f"/>
-  <text x="56"  y="1137" class="t">virtual page number (bit 12+) → TLB</text>
-  <text x="616" y="1137" class="t">set index bits 6–11</text>
-  <text x="916" y="1137" class="t">offset in line bits 0–5</text>
-  <text x="56"  y="1174" class="tag">huge pages: fewer pages, the TLB covers more</text>
-  <text x="616" y="1174" class="tag">#6 4 KiB apart → same set</text>
-  <text x="916" y="1174" class="tag">#6 aligned = these bits are 0</text>
-  <path d="M600,1188 L600,1198 L1180,1198 L1180,1188" class="line"/>
-  <text x="620" y="1220" class="s">Page offset bits 0–11 survive translation, so L1 picks the set while the TLB translates (VIPT)</text>
-  <text x="620" y="1238" class="s">→ L1's sets × line size is capped at 4 KiB; it grows only by adding ways</text>
-
-  <!-- ===== Latency ladder ===== -->
-  <text x="20" y="1270" class="h">Latency magnitudes</text>
-  <text x="20" y="1290" class="s">Cycles at about 4 GHz; each level down is roughly 3–10× slower.</text>
-  <rect x="340" y="1304" width="840" height="42" fill="#7f9db9"/>
-  <text x="480" y="1331" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">Access time</text>
-  <text x="750" y="1331" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">Capacity</text>
-  <text x="1030" y="1331" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">Managed by</text>
-  <line x1="620" y1="1304" x2="620" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1304" x2="880" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1346" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1346" x2="1180" y2="1346" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1375" text-anchor="middle" style="font-size:15px;fill:#1f2328">~1 cycle (&lt; 1 ns)</text>
-  <text x="750" y="1375" text-anchor="middle" style="font-size:15px;fill:#1f2328">~1 KB</text>
-  <text x="1030" y="1375" text-anchor="middle" style="font-size:15px;fill:#1f2328">Compiler</text>
-  <rect x="170" y="1352" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1374" text-anchor="middle" style="font-size:13px;fill:#ffffff">Registers</text>
-  <line x1="620" y1="1346" x2="620" y2="1392" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1346" x2="880" y2="1392" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1392" width="840" height="46" fill="#f1f5f9"/>
-  <line x1="340" y1="1392" x2="1180" y2="1392" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">4–5 cycles (~1 ns)</text>
-  <text x="750" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">32–48 KiB / core</text>
-  <text x="1030" y="1421" text-anchor="middle" style="font-size:15px;fill:#1f2328">Hardware</text>
-  <rect x="170" y="1398" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1420" text-anchor="middle" style="font-size:13px;fill:#ffffff">L1D cache</text>
-  <line x1="620" y1="1392" x2="620" y2="1438" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1392" x2="880" y2="1438" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1438" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1438" x2="1180" y2="1438" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">~12–20 cycles (~3–5 ns)</text>
-  <text x="750" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">0.5–2 MiB / core</text>
-  <text x="1030" y="1467" text-anchor="middle" style="font-size:15px;fill:#1f2328">Hardware</text>
-  <rect x="170" y="1444" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1466" text-anchor="middle" style="font-size:13px;fill:#ffffff">L2 cache</text>
-  <line x1="620" y1="1438" x2="620" y2="1484" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1438" x2="880" y2="1484" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1484" width="840" height="46" fill="#f1f5f9"/>
-  <line x1="340" y1="1484" x2="1180" y2="1484" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">~40–120 cycles (~10–30 ns)</text>
-  <text x="750" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">~10–500 MiB, shared</text>
-  <text x="1030" y="1513" text-anchor="middle" style="font-size:15px;fill:#1f2328">Hardware</text>
-  <rect x="170" y="1490" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1512" text-anchor="middle" style="font-size:13px;fill:#ffffff">L3 cache</text>
-  <line x1="620" y1="1484" x2="620" y2="1530" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1484" x2="880" y2="1530" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1530" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1530" x2="1180" y2="1530" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">~300–500 cycles (~70–120 ns)</text>
-  <text x="750" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">~16 GB to 4 TB</text>
-  <text x="1030" y="1559" text-anchor="middle" style="font-size:15px;fill:#1f2328">OS (page tables)</text>
-  <rect x="170" y="1536" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1558" text-anchor="middle" style="font-size:13px;fill:#ffffff">Local DRAM</text>
-  <line x1="620" y1="1530" x2="620" y2="1576" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1530" x2="880" y2="1576" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1576" width="840" height="46" fill="#f1f5f9"/>
-  <line x1="340" y1="1576" x2="1180" y2="1576" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">~500–800 cycles (~120–200 ns)</text>
-  <text x="750" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">the other socket's DRAM</text>
-  <text x="1030" y="1605" text-anchor="middle" style="font-size:15px;fill:#1f2328">OS + your pinning</text>
-  <rect x="170" y="1582" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1604" text-anchor="middle" style="font-size:13px;fill:#ffffff">Remote NUMA</text>
-  <line x1="620" y1="1576" x2="620" y2="1622" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1576" x2="880" y2="1622" stroke="#ffffff" stroke-width="3"/>
-  <rect x="340" y="1622" width="840" height="46" fill="#e3ebf3"/>
-  <line x1="340" y1="1622" x2="1180" y2="1622" stroke="#ffffff" stroke-width="3"/>
-  <text x="480" y="1651" text-anchor="middle" style="font-size:15px;fill:#1f2328">10–100 µs</text>
-  <text x="750" y="1651" text-anchor="middle" style="font-size:15px;fill:#1f2328">TBs</text>
-  <text x="1030" y="1651" text-anchor="middle" style="font-size:15px;fill:#1f2328">OS (file system)</text>
-  <rect x="170" y="1628" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
-  <text x="245" y="1650" text-anchor="middle" style="font-size:13px;fill:#ffffff">NVMe SSD</text>
-  <line x1="620" y1="1622" x2="620" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <line x1="880" y1="1622" x2="880" y2="1668" stroke="#ffffff" stroke-width="3"/>
-  <line x1="245" y1="1386" x2="245" y2="1398" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1432" x2="245" y2="1444" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1478" x2="245" y2="1490" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1524" x2="245" y2="1536" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1570" x2="245" y2="1582" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <line x1="245" y1="1616" x2="245" y2="1628" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
-  <text x="95" y="1374" text-anchor="middle" style="font-size:14px;fill:#1f2328">On the core</text>
-  <line x1="30" y1="1392" x2="330" y2="1392" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
-  <text x="95" y="1466" text-anchor="middle" style="font-size:14px;fill:#1f2328">On chip</text>
-  <line x1="30" y1="1530" x2="330" y2="1530" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
-  <text x="95" y="1581" text-anchor="middle" style="font-size:14px;fill:#1f2328">Off chip</text>
-  <line x1="30" y1="1622" x2="330" y2="1622" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
-  <text x="95" y="1650" text-anchor="middle" style="font-size:14px;fill:#1f2328">Devices</text>
-  <text x="340" y="1694" class="tag">Numbers are rough magnitudes for intuition, not any particular machine.</text>
-  <text x="20" y="1748" class="s">Updated as the series goes on: new hardware layers get labels when a post covers them.</text>
+  <text x="20" y="78" class="s">Solid arrows = how instructions and data flow; red dashed = flush and refetch after a branch mispredict; grey dashed = coherence messages between cores.</text>
+  <rect x="20" y="92" width="1560" height="853" rx="10" class="sock"/>
+  <text x="36" y="116" class="h">CPU socket 0 = one NUMA node</text>
+  <text x="306" y="116" class="tag">#1 pinning / isolation · NUMA</text>
+  <rect x="40" y="128" width="1000" height="617" rx="8" class="core"/>
+  <text x="56" y="152" class="t">Core 0</text>
+  <text x="116" y="152" class="tag">2 hardware threads share this core (SMT, #1)</text>
+  <rect x="52" y="162" width="296" height="418" rx="8" fill="#f7f2ff" stroke="#c8a8ff" stroke-dasharray="6 4"/>
+  <text x="60" y="182" class="lane-h" style="fill:#8250df">Front end: fetch instructions</text>
+  <rect x="392" y="162" width="296" height="418" rx="8" fill="#eefbf1" stroke="#8ddb9c" stroke-dasharray="6 4"/>
+  <text x="400" y="182" class="lane-h" style="fill:#1a7f37">Back end: out-of-order execution</text>
+  <rect x="722" y="162" width="306" height="418" rx="8" fill="#eef6ff" stroke="#8cc4ff" stroke-dasharray="6 4"/>
+  <text x="730" y="182" class="lane-h" style="fill:#0969da">Memory: loads and stores</text>
+  <rect x="60" y="190" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="213" class="t">Branch predictor (BPU)</text>
+  <text x="72" y="231" class="s">BTB · RAS · direction predictor</text>
+  <text x="72" y="249" class="s">guesses where the next instruction is</text>
+  <text x="72" y="266" class="tag">#7 branch prediction</text>
+  <rect x="60" y="290" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="313" class="t">Fetch</text>
+  <text x="72" y="331" class="s">reads code from L1I at the predicted</text>
+  <text x="72" y="349" class="s">address; a wrong path is thrown away</text>
+  <text x="72" y="366" class="tag">#7 speculative execution</text>
+  <rect x="60" y="390" width="280" height="80" rx="6" class="box"/>
+  <text x="72" y="413" class="t">Decode</text>
+  <text x="72" y="431" class="s">instructions → micro-ops (µops)</text>
+  <rect x="60" y="490" width="280" height="80" rx="6" class="cache"/>
+  <text x="72" y="513" class="t">L1I 32 KiB (instruction cache)</text>
+  <text x="72" y="531" class="s">holds code, not data</text>
+  <text x="72" y="548" class="tag">#6 function grouping</text>
+  <rect x="400" y="190" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="213" class="t">Rename + ROB</text>
+  <text x="412" y="231" class="s">ROB = reorder buffer:</text>
+  <text x="412" y="249" class="s">instructions not yet retired</text>
+  <text x="412" y="266" class="tag">Ref 2.3 ROB and MLP</text>
+  <rect x="400" y="290" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="313" class="t">Schedule → execution units</text>
+  <text x="412" y="331" class="s">ALU math · AGU addresses</text>
+  <text x="412" y="349" class="s">branches are resolved here</text>
+  <text x="412" y="366" class="tag">#2 dependency chains</text>
+  <rect x="400" y="390" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="413" class="t">Retire</text>
+  <text x="412" y="431" class="s">commits results in program order</text>
+  <rect x="400" y="490" width="280" height="80" rx="6" class="box"/>
+  <text x="412" y="513" class="t">Register file</text>
+  <text x="412" y="530" class="tag">#2 register spills</text>
+  <text x="412" y="547" class="tag">#6 storage classes</text>
+  <rect x="730" y="190" width="290" height="80" rx="6" class="buf"/>
+  <text x="742" y="213" class="t">dTLB (data TLB, translation)</text>
+  <text x="742" y="231" class="s">virtual address → physical address</text>
+  <text x="742" y="248" class="tag">#6 2 MiB pages · #3 TLB shootdown</text>
+  <text x="742" y="265" class="tag">Ref 2.1 TLB reach</text>
+  <rect x="730" y="290" width="138" height="180" rx="6" class="buf"/>
+  <text x="742" y="313" class="t">Store buffer</text>
+  <text x="742" y="331" class="s">stores queue here,</text>
+  <text x="742" y="349" class="s">then drain to L1D</text>
+  <text x="742" y="367" class="s">in order</text>
+  <text x="742" y="384" class="tag">#2 store buffer</text>
+  <text x="742" y="401" class="tag">#2 store-to-load</text>
+  <text x="742" y="418" class="tag">forwarding</text>
+  <rect x="882" y="290" width="138" height="180" rx="6" class="buf"/>
+  <text x="894" y="313" class="t">Invalidate queue</text>
+  <text x="894" y="331" class="s">invalidations from</text>
+  <text x="894" y="349" class="s">other cores wait</text>
+  <text x="894" y="367" class="s">here</text>
+  <text x="894" y="384" class="tag">#2 invalidate queue</text>
+  <text x="894" y="401" class="tag">#2 acquire</text>
+  <rect x="730" y="490" width="290" height="80" rx="6" class="cache"/>
+  <text x="742" y="513" class="t">L1D 32 KiB · 8-way (data cache)</text>
+  <text x="742" y="531" class="s">LFB (line fill buffer)</text>
+  <text x="742" y="548" class="tag">#6 alignment · sets</text>
+  <text x="742" y="565" class="tag">Ref 2.3 LFB</text>
+  <rect x="60" y="605" width="960" height="64" rx="6" class="cache"/>
+  <text x="72" y="630" class="t">L2 512 KiB · 8-way (private to the core, code and data)</text>
+  <text x="72" y="652" class="tag">#6 critical stride 64 KiB · #2 private L1/L2</text>
+  <text x="56" y="702" class="s">Caches and memory move data in whole 64 B cache lines</text>
+  <text x="56" y="720" class="tag">#2 · #6 how many lines one access touches</text>
+  <path d="M200,270 L200,288" class="line" marker-end="url(#arr)"/>
+  <path d="M200,370 L200,388" class="line" marker-end="url(#arr)"/>
+  <path d="M60,530 L56,530 L56,340 L58,340" class="line" marker-end="url(#arr)"/>
+  <path d="M340,430 L370,430 L370,230 L398,230" class="line" marker-end="url(#arr)"/>
+  <text x="374" y="290" class="lab">µops</text>
+  <path d="M540,270 L540,288" class="line" marker-end="url(#arr)"/>
+  <path d="M540,370 L540,388" class="line" marker-end="url(#arr)"/>
+  <path d="M540,470 L540,488" class="line" marker-end="url(#arr)"/>
+  <text x="548" y="484" class="lab">commit</text>
+  <path d="M400,348 L342,348" class="flush" marker-end="url(#arrR)"/>
+  <path d="M680,312 L705,312 L705,230 L728,230" class="line" marker-end="url(#arr)"/>
+  <path d="M680,348 L728,348" class="line" marker-end="url(#arr)"/>
+  <text x="686" y="342" class="lab">store</text>
+  <path d="M875,270 L875,488" class="line" marker-end="url(#arr)"/>
+  <path d="M799,470 L799,488" class="line" marker-end="url(#arr)"/>
+  <path d="M951,470 L951,488" class="line" marker-end="url(#arr)"/>
+  <path d="M200,570 L200,603" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <path d="M875,570 L875,603" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="1060" y="128" width="500" height="617" rx="8" class="core"/>
+  <text x="1076" y="152" class="t">Core 1 … Core 5 (same structure as core 0)</text>
+  <rect x="1080" y="168" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="192" class="t" style="font-size:13px">Core 1</text>
+  <rect x="1160" y="175" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="191" class="s" text-anchor="middle">Front</text>
+  <rect x="1240" y="175" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="191" class="s" text-anchor="middle">Back</text>
+  <rect x="1320" y="175" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="191" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="175" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="191" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="214" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="238" class="t" style="font-size:13px">Core 2</text>
+  <rect x="1160" y="221" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="237" class="s" text-anchor="middle">Front</text>
+  <rect x="1240" y="221" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="237" class="s" text-anchor="middle">Back</text>
+  <rect x="1320" y="221" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="237" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="221" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="237" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="260" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="284" class="t" style="font-size:13px">Core 3</text>
+  <rect x="1160" y="267" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="283" class="s" text-anchor="middle">Front</text>
+  <rect x="1240" y="267" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="283" class="s" text-anchor="middle">Back</text>
+  <rect x="1320" y="267" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="283" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="267" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="283" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="306" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="330" class="t" style="font-size:13px">Core 4</text>
+  <rect x="1160" y="313" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="329" class="s" text-anchor="middle">Front</text>
+  <rect x="1240" y="313" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="329" class="s" text-anchor="middle">Back</text>
+  <rect x="1320" y="313" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="329" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="313" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="329" class="s" text-anchor="middle">L2</text>
+  <rect x="1080" y="352" width="460" height="38" rx="5" class="box"/>
+  <text x="1094" y="376" class="t" style="font-size:13px">Core 5</text>
+  <rect x="1160" y="359" width="70" height="24" rx="4" fill="#f7f2ff" stroke="#c8a8ff"/>
+  <text x="1195.0" y="375" class="s" text-anchor="middle">Front</text>
+  <rect x="1240" y="359" width="70" height="24" rx="4" fill="#eefbf1" stroke="#8ddb9c"/>
+  <text x="1275.0" y="375" class="s" text-anchor="middle">Back</text>
+  <rect x="1320" y="359" width="110" height="24" rx="4" class="cache"/>
+  <text x="1375.0" y="375" class="s" text-anchor="middle">L1I · L1D</text>
+  <rect x="1440" y="359" width="80" height="24" rx="4" class="cache"/>
+  <text x="1480.0" y="375" class="s" text-anchor="middle">L2</text>
+  <text x="1080" y="448" class="t">MESI: one writer or many readers</text>
+  <text x="1080" y="472" class="s">One cache line can have a copy in several cores' L1/L2.</text>
+  <text x="1080" y="490" class="s">To write it, a core must first invalidate the others.</text>
+  <text x="1080" y="520" class="tag">MESI topic post</text>
+  <text x="1080" y="538" class="tag">#2 false sharing (two cores fight over a line)</text>
+  <text x="1080" y="556" class="tag">#4 cached cursor · #5 more readers, costlier writes</text>
+  <text x="1080" y="574" class="tag">#6 alignas(64) gives an object its own line</text>
+  <rect x="1080" y="605" width="460" height="64" rx="6" class="cache"/>
+  <text x="1094" y="630" class="t">Every core has its own L1 and L2</text>
+  <text x="1094" y="652" class="s">(and its own TLB and store buffer)</text>
+  <path d="M1540,412 L1022,412" class="coh" marker-end="url(#arrG)"/>
+  <text x="1080" y="406" class="lab">another core wants to write a line: invalidations land in core 0's invalidate queue</text>
+  <path d="M1022,637 L1078,637" class="coh" marker-start="url(#arrG)" marker-end="url(#arrG)"/>
+  <text x="1050.0" y="628" class="lab" text-anchor="middle" style="font-size:10.5px">MESI</text>
+  <rect x="40" y="770" width="1520" height="64" rx="6" class="cache"/>
+  <text x="56" y="795" class="t">L3 16 MiB · 16-way (shared by all cores)</text>
+  <text x="56" y="817" class="tag">#2 shared L3 · #6 hashed set selection</text>
+  <path d="M930,669 L930,768" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <path d="M1310,669 L1310,768" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="40" y="860" width="1520" height="64" rx="6" class="mem"/>
+  <text x="56" y="885" class="t">Memory controller: spreads consecutive addresses across channels (interleaving)</text>
+  <text x="56" y="907" class="tag">#6 channel balance (line count coprime with channel count)</text>
+  <path d="M800,834 L800,858" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="20" y="985" class="h">DIMMs (DRAM)</text>
+  <text x="155" y="985" class="tag">#6</text>
+  <path d="M210,924 L210,998" class="line" marker-end="url(#arr)"/>
+  <path d="M560,924 L560,998" class="line" marker-end="url(#arr)"/>
+  <path d="M900,924 L900,998" class="line" marker-end="url(#arr)"/>
+  <rect x="40" y="1000" width="340" height="240" rx="8" class="mem"/>
+  <text x="56" y="1024" class="t">Channel 0</text>
+  <text x="56" y="1046" class="s">DIMM → rank → many banks</text>
+  <rect x="56" y="1060" width="308" height="165" rx="6" class="box"/>
+  <text x="68" y="1082" class="t">A bank = a table of rows × columns</text>
+  <rect x="68" y="1094" width="284" height="30" rx="6" class="buf"/>
+  <text x="78" y="1114" class="s">Row buffer: the row now open</text>
+  <text x="68" y="1146" class="s">hit the open row ~15 ns</text>
+  <text x="68" y="1165" class="s">switch rows (conflict) ~40 ns</text>
+  <text x="68" y="1184" class="s">refresh every ~7.8 µs</text>
+  <text x="68" y="1203" class="s">stalls 300–500 ns → P99 spikes</text>
+  <rect x="400" y="1000" width="320" height="240" rx="8" class="mem"/>
+  <text x="416" y="1024" class="t">Channel 1</text>
+  <text x="416" y="1046" class="s">same as channel 0</text>
+  <text x="416" y="1080" class="s">channels work in parallel:</text>
+  <text x="416" y="1100" class="s">bandwidth ≈ channels × one channel</text>
+  <rect x="740" y="1000" width="320" height="240" rx="8" class="mem"/>
+  <text x="756" y="1024" class="t">Channel 2 …</text>
+  <text x="756" y="1046" class="s">same as channel 0</text>
+  <rect x="1090" y="1000" width="490" height="140" rx="10" class="sock"/>
+  <text x="1106" y="1026" class="h">CPU socket 1</text>
+  <text x="1106" y="1050" class="s">its own cores, L3, controller and memory</text>
+  <text x="1106" y="1069" class="s">remote memory goes over the interconnect</text>
+  <text x="1106" y="1096" class="tag">#1 NUMA: thread and memory on the same node</text>
+  <text x="1106" y="1115" class="tag">Ref 2.1 first-touch placement</text>
+  <path d="M1470,947 L1470,998" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="1480" y="978" class="lab">socket interconnect</text>
+  <rect x="1090" y="1160" width="490" height="80" rx="8" class="box"/>
+  <text x="1106" y="1185" class="t">NIC → interrupt → some core</text>
+  <text x="1106" y="1206" class="tag">#1 steer IRQs away from hot cores</text>
+  <text x="1106" y="1226" class="s">(an OS layer, not a cache layer)</text>
+  <text x="20" y="1290" class="h">The fields of one address (4 KiB pages, L1D 32 KiB 8-way, 64 B lines)</text>
+  <rect x="40" y="1305" width="700" height="44" fill="#fff8c5" stroke="#d4a72c"/>
+  <text x="56" y="1332" class="t">Virtual page number (bits 12+) → TLB</text>
+  <text x="56" y="1370" class="tag">Huge pages: fewer page numbers, fit in the TLB</text>
+  <rect x="740" y="1305" width="400" height="44" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="756" y="1332" class="t">Set index bits 6–11</text>
+  <text x="756" y="1370" class="tag">#6 4 KiB multiples apart → same set</text>
+  <rect x="1140" y="1305" width="420" height="44" fill="#ffffff" stroke="#8c959f"/>
+  <text x="1156" y="1332" class="t">Line offset bits 0–5</text>
+  <text x="1156" y="1370" class="tag">#6 aligned = these bits are 0</text>
+  <path d="M740,1384 L740,1394 L1560,1394 L1560,1384" class="line"/>
+  <text x="760" y="1416" class="s">Page offset bits 0–11 don't change in translation, so L1 picks the set while the TLB translates (VIPT)</text>
+  <text x="760" y="1434" class="s">→ L1's sets × line size is capped at 4 KiB; it can only grow by adding ways</text>
+  <text x="20" y="1470" class="h">Access latency magnitudes</text>
+  <text x="20" y="1490" class="s">Cycles assume about 4 GHz. Each level down is roughly 3–10× slower.</text>
+  <rect x="340" y="1504" width="1220" height="42" fill="#7f9db9"/>
+  <text x="560.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">Access time</text>
+  <text x="970.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">Capacity</text>
+  <text x="1360.0" y="1531" class="t" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#ffffff">Managed by</text>
+  <rect x="340" y="1546" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1546" x2="1560" y2="1546" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~1 cycle (&lt; 1 ns)</text>
+  <text x="970.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">about 1 KB</text>
+  <text x="1360.0" y="1575" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">compiler</text>
+  <rect x="170" y="1552" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1574" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">Registers</text>
+  <rect x="340" y="1592" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1592" x2="1560" y2="1592" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">4–5 cycles (~1 ns)</text>
+  <text x="970.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">32–48 KiB / core</text>
+  <text x="1360.0" y="1621" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">hardware</text>
+  <rect x="170" y="1598" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1620" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L1D cache</text>
+  <path d="M245,1586 L245,1598" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1638" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1638" x2="1560" y2="1638" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~12–20 cycles (~3–5 ns)</text>
+  <text x="970.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">0.5–2 MiB / core</text>
+  <text x="1360.0" y="1667" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">hardware</text>
+  <rect x="170" y="1644" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1666" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L2 cache</text>
+  <path d="M245,1632 L245,1644" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1684" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1684" x2="1560" y2="1684" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~40–120 cycles (~10–30 ns)</text>
+  <text x="970.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">about 10–500 MiB, shared</text>
+  <text x="1360.0" y="1713" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">hardware</text>
+  <rect x="170" y="1690" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1712" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">L3 cache</text>
+  <path d="M245,1678 L245,1690" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1730" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1730" x2="1560" y2="1730" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~300–500 cycles (~70–120 ns)</text>
+  <text x="970.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">about 16 GB to 4 TB</text>
+  <text x="1360.0" y="1759" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">OS (page tables)</text>
+  <rect x="170" y="1736" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1758" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">Local DRAM</text>
+  <path d="M245,1724 L245,1736" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1776" width="1220" height="46" fill="#f1f5f9"/>
+  <line x1="340" y1="1776" x2="1560" y2="1776" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">~500–800 cycles (~120–200 ns)</text>
+  <text x="970.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">another socket's memory</text>
+  <text x="1360.0" y="1805" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">OS + where you pin</text>
+  <rect x="170" y="1782" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1804" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">Remote NUMA</text>
+  <path d="M245,1770 L245,1782" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <rect x="340" y="1822" width="1220" height="46" fill="#e3ebf3"/>
+  <line x1="340" y1="1822" x2="1560" y2="1822" stroke="#ffffff" stroke-width="3"/>
+  <text x="560.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">10–100 µs</text>
+  <text x="970.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">TB scale</text>
+  <text x="1360.0" y="1851" class="t" text-anchor="middle" style="font-size:15px;font-weight:400">OS (file system)</text>
+  <rect x="170" y="1828" width="150" height="34" rx="3" fill="#7f9db9" stroke="#5d7d9c"/>
+  <text x="245" y="1850" class="t" text-anchor="middle" style="font-size:13px;font-weight:400;fill:#ffffff">NVMe SSD</text>
+  <path d="M245,1816 L245,1828" class="line" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <line x1="780" y1="1504" x2="780" y2="1868" stroke="#ffffff" stroke-width="3"/>
+  <line x1="1160" y1="1504" x2="1160" y2="1868" stroke="#ffffff" stroke-width="3"/>
+  <text x="95" y="1574" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">in core</text>
+  <text x="95" y="1666.0" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">on chip</text>
+  <text x="95" y="1781.0" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">off chip</text>
+  <text x="95" y="1850" class="t" text-anchor="middle" style="font-size:14px;font-weight:400">devices</text>
+  <line x1="30" y1="1592" x2="330" y2="1592" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <line x1="30" y1="1730" x2="330" y2="1730" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <line x1="30" y1="1822" x2="330" y2="1822" stroke="#54aeff" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="340" y="1894" class="tag">Numbers are magnitudes for intuition, not any specific machine.</text>
+  <text x="20" y="1930" class="s">The map grows with the series: new hardware layers get labels as later posts cover them.</text>
 </svg>

@@ -20,7 +20,7 @@ Then compile both with `g++ -O2`, and they run at the same speed again. Both fac
 
 ### 1.1 Where It Sits: The Front End
 
-Most of the [quick reference's hardware map](/ref/cpu-memory/#map) is the data side: loads and stores, caches, memory. Branch prediction lives on the other side, the **front end**, which fetches and decodes instructions and feeds them to the back end. In order:
+Most of the quick reference's <a href="/maps/hardware-map.en.html" target="_blank" rel="noopener">hardware map</a> is the data side: loads and stores, caches, memory. Branch prediction lives on the other side, the **front end**, which fetches and decodes instructions and feeds them to the back end. In order:
 
 1. **Fetch**: read a chunk of bytes from L1I (the instruction cache) at "the address of the next instruction".
 2. **Decode**: split them into micro-ops (µops).
