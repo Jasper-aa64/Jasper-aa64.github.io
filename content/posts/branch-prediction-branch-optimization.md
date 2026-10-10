@@ -659,9 +659,51 @@ if (use_strategy_a) {
 
 The test goes from once per item to once per run of the loop. When the switch is something like a function parameter that can't change inside the loop, GCC 13 `-O2` makes this split by itself. When it's a global and the loop calls other functions, the compiler can't be sure nobody changes it, so it re-reads and re-tests it every time; only then do you split by hand, or generate both versions with a template and pick one outside. Semi-static branches are for the case where the switch may change in the middle of a running loop and the hot path runs only once in a long while.
 
-### 3.6 Compile-Time Decision Trees: A Strategy Tree Built from Types
+### 3.6 Compile-Time Decision Trees: Composable Like Building Blocks, as Fast as Hand-Written ifs
 
-Each node is a type, the conditions are template parameters, and the whole tree is assembled at compile time:
+The bottom line first: this **isn't a branch optimization**. It compiles to the same thing as hand-written nested `if`s, with every test still there. It solves a different problem: strategies you want to assemble like building blocks and re-parameterize, without paying for that flexibility at run time. To see that, compare three ways of writing the same strategy.
+
+#### 3.6.1 One Strategy, Three Ways to Write It
+
+The strategy itself is simple:
+
+- Position above 100: close out (CLOSE).
+- Otherwise, volatility above 0.5: do nothing (NONE).
+- Otherwise look at order-book imbalance (OBI): above 0.2 buy (BUY), above -0.2 do nothing, else sell (SELL).
+
+**Version 1: hand-written nested `if`s**. The most direct, and the fastest:
+
+```cpp
+ActionType decide_hand(const MarketContext& c) {
+    if (std::abs(c.position) >= 100) return ActionType::CLOSE;
+    if (c.volatility > 0.5) return ActionType::NONE;
+    if (c.obi > 0.2) return ActionType::BUY;
+    if (c.obi > -0.2) return ActionType::NONE;
+    return ActionType::SELL;
+}
+```
+
+The trouble is maintenance: with a dozen instruments each using its own thresholds, or with the "momentum" part reused across several strategies, these `if`s get copied many times, each copy with its own numbers.
+
+**Version 2: a tree assembled at run time from virtual functions**. To make strategies composable and reusable, a common approach is to make every node an object:
+
+```cpp
+struct Node {
+    virtual ~Node() = default;
+    virtual ActionType evaluate(const MarketContext& ctx) const = 0;
+};
+struct Decision : Node {
+    bool (*check)(const MarketContext&);   // this node's condition
+    std::unique_ptr<Node> left, right;     // left if the condition holds, right otherwise
+    ActionType evaluate(const MarketContext& ctx) const override {
+        return check(ctx) ? left->evaluate(ctx) : right->evaluate(ctx);
+    }
+};
+```
+
+(A `Leaf` node that just returns an action is omitted.) The tree can be read from a config file and assembled, even swapped during the trading day. The cost is at every level: calling `check` is an indirect call through a function pointer, calling the child is a virtual call, another indirect call, and the child pointer has to be loaded first, from nodes scattered on the heap that may miss in cache. The compiler can't see through these pointers, so it can't inline anything or merge the compares.
+
+**Version 3: a compile-time decision tree**. Replace version 2's node objects with **types**, and the tree is assembled at compile time:
 
 ```cpp
 template<typename Cond, typename Left, typename Right>
@@ -683,13 +725,39 @@ using ExampleStrategy = DecisionNode<
 >;
 ```
 
-`ActionNode<A>` is a leaf that returns an action; conditions like `IsHighVol` each have a `static bool check(ctx)`; `HFT_LIKELY` is `__builtin_expect(!!(x), 1)` and `HFT_FORCE_INLINE` forces inlining.
+`ActionNode<A>` is a leaf that returns an action; conditions like `IsHighVol<500>` are types with a threshold parameter and a `static bool check(ctx)`; `MomentumBlock<200>` is a small pre-assembled subtree whose threshold is a parameter; `HFT_LIKELY` is `__builtin_expect(!!(x), 1)` and `HFT_FORCE_INLINE` forces inlining. It's assembled from blocks just like version 2, but every node knows its children at compile time and every `evaluate` is a static function, so everything inlines all the way down.
 
-**What it compiles to**: the whole tree inlines into one function with **3 conditional jumps and 1 `setbe`**. The compiler turns `std::abs(position) < 100` into a single unsigned compare (`position + 99 <= 198`), and the last node becomes a branchless `setbe`.
+#### 3.6.2 What the Three Versions Compile To
 
-**What's left at run time**: all the tests are still there, because they look at market data (volatility, OBI, position) that's only known at run time. It compiles to the same thing as hand-written nested `if`s, and whether each branch is predictable still depends on whether the market data has a pattern (1.5). What it saves is the cost of a **tree configurable at run time**: if the nodes were objects with virtual functions assembled at run time, every level would be an indirect call (2.4).
+GCC 13.3 `-O2`:
 
-**Watch out**:
+| | Cost per decision | Composable, reusable? | Changing the strategy |
+|---|---|---|---|
+| Hand-written `if` | 3 conditional jumps + 1 `setbe` | No; variants are copied and edited | Recompile |
+| Run-time virtual tree | 2 indirect calls + a child-pointer load per level | Yes | Change the config, even at run time |
+| Compile-time tree | 3 conditional jumps + 1 `setbe`, same as hand-written | Yes | Recompile |
+
+The compile-time tree and the hand-written `if`s compile to nearly identical instructions (only the order differs, because every level of the tree carries `HFT_LIKELY`): `std::abs(position) < 100` becomes one unsigned compare, and the last node becomes a branchless `setbe`. The tests remain, because they look at market data that's only known at run time; whether each branch is predictable still depends on whether the data has a pattern (1.5).
+
+So its relation to virtual functions is this: **it replaces version 2**. It's no faster than hand-written `if`s; it's faster than the run-time tree while keeping the run-time tree's composability.
+
+#### 3.6.3 When to Use It, and When Not
+
+**Useful**: when a strategy has many variants sharing the same blocks, and the structure and thresholds are fixed before deployment (parameters tuned offline, then compiled and shipped). For example, a dozen instruments running the same logic with different thresholds:
+
+```cpp
+using BtcStrategy = DecisionNode<IsPositionSafe<100>, MomentumBlock<200>, ActionNode<ActionType::CLOSE>>;
+using EthStrategy = DecisionNode<IsPositionSafe<50>,  MomentumBlock<350>, ActionNode<ActionType::CLOSE>>;
+```
+
+Each is one type definition, and each compiles as fast as hand-written code. By hand, it would be a dozen nearly identical copies of the `if`s.
+
+**Not useful**:
+
+- Only one strategy: write the `if`s by hand; it reads better.
+- The strategy's structure must change during the trading day: only a run-time tree can do that. If only the thresholds change and the structure stays, make the thresholds ordinary member variables and keep the structure as a compile-time tree; each test then costs one extra memory read.
+
+#### 3.6.4 Watch Out
 
 - Every node uses `HFT_LIKELY`, which assumes every condition is usually true and the left side is common. That's fine for `IsPositionSafe`; but if `IsHighVol` is usually false, the hint here is backwards (the cost in 3.1). Write hints per node from the real probabilities, or leave it to PGO.
-- Changing the strategy means recompiling; a deep tree costs compile time and code size.
+- Changing the strategy means recompiling; a deep tree costs compile time and code size, and template errors are hard to read.
