@@ -701,7 +701,7 @@ struct Decision : Node {
 };
 ```
 
-(A `Leaf` node that just returns an action is omitted.) The tree can be read from a config file and assembled, even swapped during the trading day. The cost is at every level: calling `check` is an indirect call through a function pointer, calling the child is a virtual call, another indirect call, and the child pointer has to be loaded first, from nodes scattered on the heap that may miss in cache. The compiler can't see through these pointers, so it can't inline anything or merge the compares.
+(A `Leaf` node that just returns an action is omitted.) The tree can be read from a config file and assembled, even swapped during the trading day. The cost is at every level: calling `check` is an indirect call through a function pointer, calling the child is a virtual call, another indirect call, and the child pointer has to be loaded first, from nodes scattered on the heap that may miss in cache. The compiler can't see through these pointers, so it can't inline anything or merge the compares. How virtual functions are implemented and what they cost: [C++ Syntax: Virtual Functions](/ref/cpp-syntax/#virtual) in the Reference.
 
 **Version 3: a compile-time decision tree**. Replace version 2's node objects with **types**, and the tree is assembled at compile time:
 
