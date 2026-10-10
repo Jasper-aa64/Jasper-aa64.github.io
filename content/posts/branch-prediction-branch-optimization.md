@@ -342,7 +342,53 @@ $$
 
 One mispredict costs about 4.9 ns, so for this loop the break-even miss rate is about $0.19 / 4.9 \approx 4\%$: below about 4% keep the branch, above about 4% switch to `cmov`. In the measurements, at p = 95% (about 5% misses) the branchy build is already at about 0.51 ns, slower than `cmov`; at p = 100% it's about 0.25 ns, faster. That 4% belongs to this loop only: what `cmov` adds depends on what it puts on the chain, so another loop needs its own arithmetic.
 
-**`cmov` can put memory accesses on the chain too**: a binary search that picks the next bounds with `cmov` never mispredicts, but the next load's address isn't known until this `cmov` finishes. With a small array in cache that's a clear win. With an array too large for the caches, every level waits a full memory latency (about 80–120 ns). The branchy version mispredicts half the time, but on the half it guesses right it has already issued the next level's load: speculation doubles as prefetching. So on large arrays, measure instead of assuming.
+**Example: binary search over a large array, where `cmov` can be slower**. Each level of a binary search reads one middle element and compares it to decide left or right:
+
+```cpp
+const int* lower_bound_cmov(const int* base, std::size_t n, int key) {
+    while (n > 1) {
+        std::size_t half = n / 2;
+        base = (base[half] < key) ? base + half : base;   // cmov: the next address waits for base[half] to arrive
+        n -= half;
+    }
+    return base + (*base < key);
+}
+```
+
+GCC `-O2` compiles the middle line to `cmpl (%rcx), %edx` + `cmovg`; an `if` compiles the same way, and keeping the branch takes `-fno-if-conversion`. The keys are random, so each level goes left or right half the time, and the branchy version mispredicts about 50% per level.
+
+By the arithmetic above, 50% is far above 4%, so switch to `cmov`. For a small array that's right; for a large one it can flip. The difference is **which address the next level reads, and when that becomes known**:
+
+- **The `cmov` version**: the next `base` is the result of `cmovg`, and `cmovg` waits for `base[half]` to arrive. So the next level's read can't be issued until this level's read comes back. The levels queue up one after another, each paying a full read latency.
+- **The branchy version**: the CPU doesn't wait for `base[half]`. It guesses a side, computes the next level's address, and issues that read right away, so two reads are in flight together (<a href="/posts/low-latency-memory-latency-bandwidth/" target="_blank" rel="noopener">memory-level parallelism</a>). Guess right and the next level's data arrives about when this level's does, saving a whole read latency. Guess wrong and the early read is wasted; the pipeline flush costs about 5 ns and the correct address is read again: as slow as `cmov`, plus those 5 ns.
+
+So which wins depends on how long one read takes:
+
+- **Array in L1 or L2**: a read takes about 1–5 ns. That's all a right guess saves, while a wrong guess costs about 5 ns each time, and half the guesses are wrong. `cmov` wins.
+- **The last levels read memory**: a read takes about 80–120 ns. A wrong guess adds only about 5 ns; a right one saves about 100 ns. The branchy version wins.
+
+The figure shows how the three versions schedule their reads when the last 6 levels all go to memory:
+
+<a href="/images/branch-prediction/bsearch-timeline.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/bsearch-timeline.en.svg" alt="Reads in the last 6 levels of a binary search over a large array, one column per memory latency. cmov: L1 to L6 one after another, 6 columns. Branch kept: each column reads this level and, on the guessed side, the next one; right twice, wrong once, 4 columns. cmov + prefetch: two levels per column, both candidates of each level read, 3 columns." loading="lazy" decoding="async"></a>
+
+In the figure's model (guess one level ahead, right half the time), `cmov` waits one memory latency per level; the branchy version resolves 1.5 levels per round trip on average, about 2/3 of a latency per level. For a 1 GiB `int` array: $2^{28}$ elements, 28 levels. Over repeated searches the top levels keep reading the same few elements, which stay in cache: a 16 MiB L3 holds about 260K cache lines, so roughly the first 18 levels ($2^{18} \approx$ 260K elements) stay cached and the last ~10 read memory. `cmov` takes about $10 \times 100 = 1000$ ns per search; the branchy version about $10 \times 67 + 28 \times 50\% \times 5 \approx 740$ ns. That's a model estimate, not a measurement; a real CPU guesses more than one level ahead and can overlap even more.
+
+**Getting both: `cmov` + prefetch**. Don't guess; read both candidates of the next level early:
+
+```cpp
+const int* lower_bound_prefetch(const int* base, std::size_t n, int key) {
+    while (n > 1) {
+        std::size_t half = n / 2;
+        n -= half;
+        __builtin_prefetch(base + n / 2);          // read if the next level goes left
+        __builtin_prefetch(base + half + n / 2);   // read if the next level goes right
+        base = (base[half] < key) ? base + half : base;
+    }
+    return base + (*base < key);
+}
+```
+
+`__builtin_prefetch` only tells the hardware "this address is needed soon, pull it into cache"; it doesn't wait for the result and doesn't fault on a bad address. The next level is always one of the two, so nothing is mispredicted, and each memory latency resolves 2 levels (the figure's third row). The cost is that half the prefetches are wasted, doubling the bandwidth used.
 
 **How to decide**:
 
