@@ -12,7 +12,7 @@ math: true
 homepage: false
 ---
 
-Add up the even numbers among 16384 random integers in 0–199, and repeat that 10000 times. Run the same code again after sorting the array first, and it is several times faster. Not one value changed and the sum is identical; the only difference is whether "is the next number even?" follows a pattern.
+Add up the even numbers among a million random integers in 0–199, and repeat that 64 times. Run the same code again after sorting the array first, and it is about 7 times faster. Not one value changed and the sum is identical; the only difference is whether "is the next number even?" follows a pattern.
 
 Then compile both with `g++ -O2`, and they run at the same speed again. Both facts start from the branch predictor in the CPU's front end: why it has to guess, how it guesses, what a wrong guess costs, and how the compiler can remove the branch altogether.
 
@@ -89,9 +89,20 @@ Run the same loop with `data` unsorted and sorted; the sorted version adds a sin
 
 <a href="/images/branch-prediction/sorted-strip.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/sorted-strip.en.svg" alt="Two strips: unsorted, 20 random numbers flip between even and odd and the 2-bit counter mispredicts 10; sorted, a run of 36s then a run of 37s, mispredicted only twice at the boundary." loading="lazy" decoding="async"></a>
 
-So the sorted run is several times faster (estimated from the numbers above). The lesson: **the same branch in the same code is predictable or not depending on the data.**
+So the sorted run is several times faster (measured later in this section). The lesson: **the same branch in the same code is predictable or not depending on the data.**
 
 **There is a compiler trap here**: GCC 13.3 on x86-64 turns this `if` branch-free from `-O1` up. The inner loop has only an `and` (take the low bit) and a `cmove` (move the new sum into `evenSum` only if the condition holds), no conditional jump; `-O3` vectorizes it as well. Then sorted and unsorted run at the same speed and the experiment shows nothing. To see the cost of mispredictions you have to add `-fno-if-conversion -fno-if-conversion2 -fno-tree-vectorize`, which leaves a `je` in the inner loop. So before arguing about whether there's a branch, read the assembly. (Why `cmov` removes a branch and when the compiler won't use it is in Part 2.)
+
+<a href="/images/branch-prediction/branch-predictability.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/branch-predictability.en.svg" alt="Two branch-kept curves and a flat cmov line; x is the share of even numbers p, y is ns per element. With a million numbers the branch-kept curve is a tent, peaking near 2.9 ns at p = 50% and about 0.25–0.44 ns at the edges; with 16384 numbers it hugs the bottom, peaking near 0.77 ns; cmov stays at about 0.44 ns; sorted at p = 50% is about 0.40 ns." loading="lazy" decoding="async"></a>
+
+<a href="/images/branch-prediction/predictor-memorize.en.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/predictor-memorize.en.svg" alt="A random p = 50% array; x is the array length from 1K to 4M (log), y is ns per element. Up to 16K it is about 0.6–0.7 ns, at 32K it jumps to about 2.1 ns, from 256K on about 2.85 ns; sorted stays near 0.4 ns." loading="lazy" decoding="async"></a>
+
+> Measured (AMD Ryzen 5 5600GT, one core, GCC 16.2.0, `-O2`; the branch-kept build adds `-fno-if-conversion -fno-if-conversion2 -fno-tree-vectorize`. The share of even numbers p sweeps 0% to 100%, the same numbers are re-run for about 67 million elements, best of 5 per point):
+>
+> - **Branch kept, a million numbers: a tent**. At p = 50% it takes about 2.87 ns per element; sorted, about 0.40 ns, about 7 times faster. The curve climbs and falls almost in straight lines: when the direction is random, the best guess is always the majority side, so the misprediction rate is $\min(p, 1-p)$. The extra time per element is about $\min(p, 1-p) \times 4.9\ \text{ns}$: 2.43 ns extra at p = 50%, so about 4.9 ns per mispredict; use it for p = 25% and 0.25 × 4.9 ≈ 1.2 ns, against 1.21 ns measured.
+> - **The `cmov` build: a flat line** at about 0.44 ns per element, regardless of p or sorting. Each element waits for the previous sum (`add` then `cmove`, about 2 cycles), and that dependency chain sets its speed.
+> - **At the edges, keeping the branch is faster**. At p = 100% every guess is right, about 0.25 ns, faster than `cmov`; at p = 0% it is about 0.44 ns, because each element jumps twice (over the add, and the loop back edge) and hits the limit of roughly one taken jump per cycle. When to switch to `cmov` is Part 2.
+> - **With only 16384 numbers, the cost almost disappears**. Equally random, p = 50% takes only about 0.66 ns, sorted about 0.44 ns, just 1.5 times apart. The same string of 16384 directions is replayed over 4000 times and the predictor memorizes it with its long history. The second chart sweeps the array length at p = 50%: up to 16384 numbers it stays around 0.6–0.7 ns, at 32768 it jumps to about 2.1 ns, and from 260 thousand on it settles at about 2.85 ns. So don't measure branch costs by replaying a short input over and over: real market data doesn't repeat, and a replay looks too optimistic.
 
 **How to measure**: on Linux, `perf stat -e branches,branch-misses ./prog` gives the number of branches and how many were mispredicted; the ratio is the misprediction rate. Windows has no `perf`; use AMD uProf on AMD and VTune on Intel. Only a hot-path misprediction rate of several percent or more is worth acting on.
 

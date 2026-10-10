@@ -12,7 +12,7 @@ math: true
 homepage: false
 ---
 
-把 16384 个 0–199 的随机整数加起来，只加偶数，重复 10000 遍。同一段代码，先把数组排个序再跑，快好几倍。数据一个没变，加起来的结果也一样，差的只是“下一个数是奇是偶”有没有规律。
+把 100 万个 0–199 的随机整数加起来，只加偶数，重复 64 遍。同一段代码，先把数组排个序再跑，快约 7 倍。数据一个没变，加起来的结果也一样，差的只是“下一个数是奇是偶”有没有规律。
 
 可是用 `g++ -O2` 编译，两个版本又一样快了。这两件事都要从 CPU 前端的分支预测器讲起：它为什么必须猜，怎么猜，猜错了要付多少，编译器又是怎么把分支整个拿掉的。
 
@@ -89,10 +89,21 @@ for (unsigned i = 0; i < 10000; ++i) {
 
 <a href="/images/branch-prediction/sorted-strip.zh.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/sorted-strip.zh.svg" alt="两条格子：不排序时 20 个随机数奇偶乱跳，2 位计数器猜错 10 个；排序后是一段 36 接一段 37，只在交界处猜错 2 个。" loading="lazy" decoding="async"></a>
 
-所以排序后快好几倍（按上面的数推算）。这个例子说明：**同一条分支、同一段代码，可预测性来自数据**。
+所以排序后快好几倍（实测见本节后面）。这个例子说明：**同一条分支、同一段代码，可预测性来自数据**。
 
 **这里有一个编译器的坑**：GCC 13.3 在 x86-64 上从 `-O1` 起就把这个 `if` 变成了无分支的写法，内层循环里只剩 `and`（取最低位）加 `cmove`（条件成立才把加完的值搬回 `evenSum`），没有条件跳转；`-O3` 还会向量化。这时排不排序一样快，实验看不到差别。想看到分支预测失败的代价，要加 `-fno-if-conversion -fno-if-conversion2 -fno-tree-vectorize`，内层才会留下 `je`。所以讨论“这里有没有分支”之前，先看汇编。（`cmov` 为什么能消掉分支、什么时候编译器不敢用，放在第 2 部分讲。）
 
+
+<a href="/images/branch-prediction/branch-predictability.zh.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/branch-predictability.zh.svg" alt="两条保留分支的曲线和一条 cmov 的平线，横轴是偶数比例 p，纵轴是每个元素的 ns。100 万个数时，保留分支的曲线是一顶帐篷，p = 50% 最高约 2.9 ns，两头约 0.25–0.44 ns；16384 个数时几乎贴着底，最高约 0.77 ns；cmov 全程约 0.44 ns；p = 50% 排序后约 0.40 ns。" loading="lazy" decoding="async"></a>
+
+<a href="/images/branch-prediction/predictor-memorize.zh.svg" target="_blank" rel="noopener"><img src="/images/branch-prediction/predictor-memorize.zh.svg" alt="p = 50% 的随机数组，横轴是数组长度 1K 到 4M（对数），纵轴是每个元素的 ns。16K 以内约 0.6–0.7 ns，32K 跳到约 2.1 ns，256K 以上约 2.85 ns；排序后一直约 0.4 ns。" loading="lazy" decoding="async"></a>
+
+> 实测（AMD Ryzen 5 5600GT，一个核，GCC 16.2.0，`-O2`；保留分支的版本加 `-fno-if-conversion -fno-if-conversion2 -fno-tree-vectorize`。数组里偶数的比例 p 从 0% 扫到 100%，同一组数反复跑约 6700 万个元素，每个点测 5 次取最快）：
+>
+> - **保留分支、100 万个数：一顶帐篷**。p = 50% 时约 2.87 ns/个，排序后约 0.40 ns，快约 7 倍。曲线几乎是直线爬上去、再直线降下来：方向随机时，最好的猜法是一直猜多的那一边，猜错率就是 $\min(p, 1-p)$。每个元素多出来的时间约为 $\min(p, 1-p) \times 4.9\ \text{ns}$：p = 50% 时多 2.43 ns，也就是每次猜错约 4.9 ns；拿它去算 p = 25%，0.25 × 4.9 ≈ 1.2 ns，实测多 1.21 ns。
+> - **`cmov` 版：一条平线**，约 0.44 ns/个，和 p、排不排序都没关系。每个元素都要等上一次的和算完（`add` 再 `cmove`，约 2 个周期），这条依赖链就是它的速度。
+> - **两头，留着分支反而更快**。p = 100% 时全猜对，约 0.25 ns，比 `cmov` 快；p = 0% 时约 0.44 ns，因为每个元素要跳两次（跳过加法、循环回跳），被“每个周期大约只能执行一次跳转”卡住。什么时候该换成 `cmov`，第 2 部分讲。
+> - **只有 16384 个数时，几乎看不出代价**。同样随机，p = 50% 只要约 0.66 ns，排序后约 0.44 ns，只差 1.5 倍。同一串 16384 个方向被反复跑了 4000 多遍，预测器用长历史把它背了下来。第二张图在 p = 50% 上扫数组长度：16384 个以内都是约 0.6–0.7 ns，32768 个就跳到约 2.1 ns，26 万个以上稳定在约 2.85 ns。所以测分支的代价，不能拿一小段数据反复回放：真实的行情不会重复，回放测出来的会偏乐观。
 
 **怎么测**：Linux 上 `perf stat -e branches,branch-misses ./prog`，直接给出分支总数和猜错的次数，比值就是预测失败率。Windows 上没有 `perf`，AMD 的机器用 AMD uProf，Intel 用 VTune。热路径上看到预测失败率在几个百分点以上，才值得动手。
 
