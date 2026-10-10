@@ -44,7 +44,15 @@ If fetch stopped at every branch and waited for it to execute, each branch would
 Here "branch" means any instruction that changes where the next instruction is fetched from: the conditional jumps an `if` compiles to, `call`, `ret`, and indirect jumps such as virtual calls. The predictor always guesses **the address of the next instruction**, never a data value (a function's return value is data in a register and needs no guessing). A branch needs two guesses: **taken or not** (direction) and **where to** (target). What is hard differs by kind:
 
 - **Target**: the **BTB** (branch target buffer) records, by the branch instruction's address, where it went last time; about 4000–12000 entries. One lookup at fetch tells whether this chunk holds a known branch and where it goes.
-- **Function returns**: a `ret` always jumps; the hard part is where to. Called from `a()` it goes back to the line after the call in `a`, called from `b()` back into `b`, so the same `ret` can have a different target every time. It relies on the **RAS** (return address stack): `call` pushes the return address and `ret` pops it, 16–32 entries. Recursion or call depth beyond that mispredicts.
+- **Function returns**: a `ret` always jumps; the hard part is where to. Say two functions both call the same `log_it()`:
+
+  ```cpp
+  void log_it() { /* … */ }                // ends in a single ret
+  void on_trade() { log_it(); update(); }  // this time the ret returns here and runs update()
+  void on_quote() { log_it(); quote(); }   // next time the same ret returns here and runs quote()
+  ```
+
+  `log_it` ends in a single `ret`; called from `on_trade` it must jump back into `on_trade`, called from `on_quote` back into `on_quote`, so the same `ret` can have a different target every time. It relies on the **RAS** (return address stack): `call` pushes the return address and `ret` pops it, 16–32 entries. Recursion or call depth beyond that mispredicts.
 - **Indirect branches** (virtual functions, function pointers, `switch` jump tables): one instruction can go to many targets; the **indirect target predictor** records the target by "this instruction + recent history".
 - **Direction**: the simplest scheme gives each branch a **2-bit saturating counter**: +1 when taken, −1 when not, clamped to 0–3, and predict "taken" at ≥ 2. It predicts loops well (taken 99 times, not taken once at the end, only the last one is wrong), and one odd outcome doesn't flip its mind at once.
 
