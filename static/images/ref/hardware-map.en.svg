@@ -32,11 +32,16 @@
   <text x="56" y="132" class="t">Core 0</text>
   <text x="110" y="132" class="tag">2 hardware threads share this core (SMT, #1)</text>
 
-  <rect x="60" y="145" width="350" height="62" class="box"/>
-  <text x="72" y="168" class="t">Pipeline: fetch → decode → execute → retire</text>
-  <text x="72" y="186" class="tag">#2 dependency chains · multiple accumulators</text>
-  <text x="72" y="200" class="tag">Ref 2.3 ROB (reorder buffer)</text>
-  
+  <rect x="60" y="145" width="165" height="62" class="box"/>
+  <text x="72" y="165" class="t">Front end</text>
+  <text x="72" y="181" class="s">fetch → decode</text>
+  <text x="72" y="196" class="tag">#7 branch prediction · BTB</text>
+
+  <rect x="245" y="145" width="165" height="62" class="box"/>
+  <text x="257" y="163" class="t">Back end</text>
+  <text x="257" y="178" class="s">OoO execute → retire</text>
+  <text x="257" y="192" class="tag">#2 dependency chains</text>
+  <text x="257" y="204" class="tag">Ref 2.3 ROB (reorder buffer)</text>
 
   <rect x="60" y="220" width="165" height="62" class="box"/>
   <text x="72" y="243" class="t">Registers</text>
@@ -66,7 +71,7 @@
   <rect x="245" y="370" width="165" height="70" class="cache"/>
   <text x="257" y="393" class="t">L1D 32 KiB · 8-way</text>
   <text x="257" y="411" class="tag">#6 alignment · sets</text>
-  <text x="257" y="428" class="tag">Ref 2.3 LFB (fill buffer)</text>
+  <text x="257" y="428" class="tag">Ref 2.3 LFB (line fill buffer)</text>
 
   <rect x="60" y="455" width="350" height="62" class="cache"/>
   <text x="72" y="478" class="t">L2 512 KiB · 8-way (private to the core)</text>
