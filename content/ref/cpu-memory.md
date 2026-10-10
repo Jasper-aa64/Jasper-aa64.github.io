@@ -61,6 +61,7 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | L2 hit | ~3–5 ns |
 | L3 hit | ~10–30 ns |
 | Uncontended atomic read-modify-write (`lock add`, CAS, line in your own L1) | ~3–5 ns (10–20 cycles) |
+| One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
 | Line sitting in another core's cache | ~20–100 ns |
 | Memory, translation hits in the TLB | ~70–90 ns |
 | Memory, translation misses the TLB too | ~85–120 ns |
@@ -74,6 +75,8 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 The two memory rows differ in the first step, the address translation in [1.1](#load)'s figure: when the TLB has no entry for the page, the hardware walks the page tables level by level (a page walk) to find the physical address before it can issue the real read. The page-table entries are usually in cache, so this adds only ~15–30 ns. Random reads over a large region pay it almost every time. With 2 MiB huge pages one TLB entry covers 512 times as much memory, and this part mostly disappears.
 
 How much a TLB covers is $\text{TLB entries} \times \text{page size}$: 64–96 entries in the L1 dTLB and 1500–3000 in the STLB cover only ~6–12 MiB with 4 KiB pages, several GiB with 2 MiB pages. For the other-socket row: which node a physical page lands on is decided at **first touch**, by whoever writes it first, and it doesn't follow the thread afterwards. Pinning a thread to the other node leaves its memory where it was.
+
+A mispredict costs about as much as an L2 hit, but it can't be hidden: on an L2 miss, out-of-order execution keeps working on later independent instructions; on a mispredict, everything fetched after the branch is thrown away and fetch starts over, so for those dozen-plus cycles the back end has no correct work to do.
 
 From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as 1,000–2,000 L1 hits.
 
