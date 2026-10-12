@@ -8,6 +8,7 @@ chapter: 1
 categories: [Systems]
 tags: [cpp, loop-optimization, vectorization, simd, compiler-optimization, hft, low-latency]
 toc: true
+math: true
 light: true
 ---
 
@@ -65,13 +66,39 @@ float dot(const float* v1, const float* v2, int n) {
 
 ### 2.2 强度削弱（strength reduction）：乘法换成累加
 
-`a[i] = 10 * i` 改成每轮 `x += 10`。看上去这让每一轮都依赖上一轮的 `x`，好像没法并行了，其实不会：`x` 是**归纳变量**（每轮按固定步长变化的变量），编译器认得它。实测下面这个循环在 `-O3` 下照样向量化：一个寄存器里放 `{0, 10, 20, 30}`，每轮整体加 40（`paddd`），一次写 4 个。
+把 `a[i] = 10 * i` 里的乘法换成每轮加 10，手写出来是这样：
 
 ```cpp
-void fill_10i(int* a, int n) {
+void fill_10i(int* a, int n) {          // 原写法
     for (int i = 0; i < n; i++) a[i] = 10 * i;
 }
+
+void fill_10i_sr(int* a, int n) {       // 强度削弱后
+    int x = 0;
+    for (int i = 0; i < n; i++) {
+        a[i] = x;                       // x 始终等于 10 * i
+        x += 10;
+    }
+}
 ```
+
+这一步编译器自己会做。实测 `-O2` 下两个函数编出来的循环一模一样，都没有乘法：
+
+```text
+.L3:
+    movl  %eax, (%rdi)      # a[i] = x
+    addl  $10, %eax         # x += 10
+    addq  $4, %rdi
+    cmpl  %edx, %eax
+    jne   .L3
+```
+
+看上去 `x += 10` 让每一轮都依赖上一轮的 `x`，好像没法并行了，其实不会：`x` 是**归纳变量**（每轮按固定步长变化的变量），编译器认得它，知道第 i 轮的值就是 $10i$。`-O3` 下两种写法都向量化了，一次写 4 个：
+
+- `fill_10i_sr`：一个寄存器里放 `{0, 10, 20, 30}`，每轮整体加 40（`paddd`）。
+- `fill_10i`：寄存器里放 `{0, 1, 2, 3}`，每轮整体加 4，再用移位和加法算出 ×10：`pslld $2`（×4）、`paddd`（加上自己，得 ×5）、`pslld $1`（×2）。
+
+所以这一条不用手写，直接写 `10 * i` 就行。
 
 ### 2.3 循环旋转（loop rotation）：`for` 变成 `do-while` 加一个前置判断
 

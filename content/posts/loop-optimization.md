@@ -8,6 +8,7 @@ chapter: 1
 categories: [Systems]
 tags: [cpp, loop-optimization, vectorization, simd, compiler-optimization, hft, low-latency]
 toc: true
+math: true
 light: true
 ---
 
@@ -65,13 +66,39 @@ Two things block it:
 
 ### 2.2 Strength Reduction: Replace a Multiply With a Running Sum
 
-`a[i] = 10 * i` becomes `x += 10` each iteration. That looks like it makes each iteration depend on the previous one's `x`, so it couldn't be parallelized. It doesn't: `x` is an **induction variable** (one that changes by a fixed step every iteration), and the compiler recognizes it. This loop still vectorizes at `-O3`: one register holds `{0, 10, 20, 30}`, and each iteration adds 40 to all of it (`paddd`), writing 4 at a time.
+Replacing the multiply in `a[i] = 10 * i` with an add of 10 per iteration looks like this when written by hand:
 
 ```cpp
-void fill_10i(int* a, int n) {
+void fill_10i(int* a, int n) {          // original
     for (int i = 0; i < n; i++) a[i] = 10 * i;
 }
+
+void fill_10i_sr(int* a, int n) {       // after strength reduction
+    int x = 0;
+    for (int i = 0; i < n; i++) {
+        a[i] = x;                       // x is always 10 * i
+        x += 10;
+    }
+}
 ```
+
+The compiler does this step by itself. At `-O2` both functions compile to exactly the same loop, with no multiply:
+
+```text
+.L3:
+    movl  %eax, (%rdi)      # a[i] = x
+    addl  $10, %eax         # x += 10
+    addq  $4, %rdi
+    cmpl  %edx, %eax
+    jne   .L3
+```
+
+`x += 10` looks like it makes each iteration depend on the previous one's `x`, so it couldn't be parallelized. It doesn't: `x` is an **induction variable** (one that changes by a fixed step every iteration), and the compiler recognizes it and knows its value in iteration i is $10i$. At `-O3` both versions vectorize, writing 4 at a time:
+
+- `fill_10i_sr`: one register holds `{0, 10, 20, 30}`, and each iteration adds 40 to all of it (`paddd`).
+- `fill_10i`: the register holds `{0, 1, 2, 3}`, each iteration adds 4, and ×10 is computed with shifts and adds: `pslld $2` (×4), `paddd` (add itself, ×5), `pslld $1` (×2).
+
+So there's no need to write this by hand; just write `10 * i`.
 
 ### 2.3 Loop Rotation: `for` Becomes `do-while` Plus a Test in Front
 
