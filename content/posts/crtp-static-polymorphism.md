@@ -13,7 +13,12 @@ homepage: false
 
 A market-data gateway connects to several exchanges. The processing flow is mostly the same for each: receive the packet, check the sequence number, update the order book. Only "parse one message" differs. The natural design is a base class that owns the flow and subclasses that fill in parsing, with a virtual function: the base calls `virtual on_tick()`, picked at run time by the object's type.
 
-The problem is that this step runs millions of times a second. Written with a virtual function, `on_tick` compiles under GCC `-O2` to `movq (%rdi), %rax` + `jmp *16(%rax)`: one indirect jump, and the body can't be inlined. Written another way, all that's left is `movl (%rdi), %eax` + `imull %esi, %eax`. That other way is CRTP.
+The problem is that this step runs millions of times a second, and every virtual call costs two things an ordinary call doesn't:
+
+- **Look up a table, then jump**: at compile time the subclass isn't known, so the compiler can only emit code that loads the vtable address from the object, loads the address of `on_tick` from the vtable, and jumps there. Where it jumps is known only once that address has been loaded; this is an **indirect jump**. The CPU doesn't wait: it guesses a target and keeps executing, and a wrong guess throws away everything done on that guess, about 15–20 cycles each time.
+- **No inlining**: **inlining** means the compiler copies the called function's body straight into the call site, which removes the call itself and lets that code be optimized together with what surrounds it. Not knowing which subclass's `on_tick` will run, the compiler doesn't know which body to copy, so a real function call has to stay.
+
+CRTP lets the compiler know the subclass at compile time, which removes both costs. The same `on_tick` written with CRTP ends up as two instructions (section 1.2 has the full assembly for both versions).
 
 ## 1. CRTP: Let the Base Class Know Its Subclass at Compile Time
 
