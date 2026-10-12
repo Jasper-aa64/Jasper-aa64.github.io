@@ -1,0 +1,186 @@
+---
+title: "交易系统笔记 #10：指针访存优化"
+date: 2026-10-12
+slug: "pointer-memory-access"
+description: "三件事：用 __restrict 告诉编译器两个指针不重叠（-O2 少读内存，-O3 省掉运行时检查）；链式结构里“下一个”存成下标、指针还是 3 字节紧凑下标（寻址方式差 1 个周期，大小差 1 倍，链大了只看字节数）；指针压缩存偏移不存地址（空指针和第一个对象撞成 0 的坑），以及流式写和写 PCIe / MMIO 的规矩。汇编都是 GCC 13 的真实输出。"
+summary: "a[i] = *b 这种循环，编译器每轮都要重读 *b，因为写 a[i] 可能改掉它。指针优化做的事，就是让编译器敢少读，让链表装进更近的缓存。"
+chapter: 1
+categories: [Systems]
+tags: [cpp, pointers, aliasing, restrict, pointer-chasing, pointer-compression, hft, low-latency]
+toc: true
+light: true
+---
+
+下面这个循环，把 `*b` 的值填满数组 `a`：
+
+```cpp
+void func(int *a, int *b, int n) {
+    for (int i = 0; i < n; ++i) {
+        a[i] = *b;
+    }
+}
+```
+
+`*b` 在循环里从来没被赋值过，按理读一次就够。GCC 13 `-O2` 编出来却是每轮都读：
+
+```text
+.L3:
+    movl  (%rsi), %eax      # 每轮读一次 *b
+    addq  $4, %rdi
+    movl  %eax, -4(%rdi)    # 写 a[i]
+    cmpq  %rdx, %rdi
+    jne   .L3
+```
+
+原因是 `b` 可能就指向 `a` 里的某一格，写 `a[i]` 可能把 `*b` 改掉，编译器不能假设它没变。这篇讲的三件事都和指针有关：怎么让编译器敢少读内存；链式结构里“下一个在哪”用多少字节存；大块写和写设备时用什么指令。汇编是 GCC 13.3、x86-64 的真实输出，周期数是帮助理解的范围，没有计时。
+
+## 1. `__restrict`：向编译器保证两个指针不重叠
+
+### 1.1 别名（aliasing）：两个指针可能指向同一块内存
+
+两个指针指向同一块内存，叫它们互为**别名**。上面的循环就是别名挡住了优化。给参数加上 `__restrict`：
+
+```cpp
+void func_restrict(int *__restrict a, int *__restrict b, int n) {
+    for (int i = 0; i < n; ++i) {
+        a[i] = *b;
+    }
+}
+```
+
+意思是“在这个函数里，通过这个指针访问的内存，不会通过别的指针访问”。编译器就把 `movl (%rsi), %eax` 提到循环外只读一次，循环里只剩写，还顺手展开成每轮写 2 个。
+
+### 1.2 `-O3`：编译器自己在运行时检查一遍
+
+`-O3` 下，不带 `__restrict` 的 `func` 也向量化了。编译器生成了两个版本的循环，开头先比地址：`b` 不落在 `a[0..n)` 里，就走一次写 16 B 的向量版；落在里面，就走每轮重读 `*b` 的逐个版。这叫**循环多版本**（loop versioning）。所以 `-O3` 下 `__restrict` 省的是开头这几条比较和那份备用代码；`-O2` 下，或者别名关系复杂到编译器不愿生成检查时，差别才大。
+
+### 1.3 代价：这是你的承诺，编译器不检查
+
+- **违反了就是未定义行为。** 写了 `__restrict`，调用时又传了重叠的指针，编译器照样按“不重叠”优化，结果静默算错，没有任何报错。
+- **它只影响编译器，CPU 看不见。** 机器码里没有“restrict”，它的效果全在“编译器生成了哪些指令”。CPU 照样检查每个读和前面的写是否同址。
+- **不是标准 C++。** C99 有 `restrict`，C++ 没有；GCC、Clang、MSVC 都支持 `__restrict` 扩展。
+- **类型不同时本来就不用写。** `int*` 和 `float*` 按严格别名规则（strict aliasing）默认不重叠；`__restrict` 管的是同一种类型的两个指针。参数写成 `const T*` 也代替不了它：`const` 只说你不通过它改，别的指针照样能改（[速查：`const`](/zh/ref/cpp-syntax/#const)）。
+
+## 2. 链式结构里“下一个”存多宽
+
+### 2.1 前提：pointer chasing 每一步都要等上一步
+
+链表、订单簿的价位链、对象池的空闲链，都是“读出下一个在哪，再去读它”。这种 **pointer chasing** 没法提前发读（[内存延迟与带宽](/zh/posts/low-latency-memory-latency-bandwidth/)），每一步付满一次访存延迟：L1 约 1 ns（4–5 个周期），L2 约 3–5 ns，L3 约 10–30 ns，内存约 70–120 ns。所以链快不快只看两件事：**每一步的指令要多久**，决定 L1 命中时的速度；**整条链有多大**，决定落在哪一层。
+
+### 2.2 下标还是指针：寻址方式差 1 个周期，大小差 1 倍
+
+“下一个”可以存成 4 字节下标（`k = q[k]`），也可以存成 8 字节指针（`k = k->ptr`）。编出来每步各是一条指令：
+
+```text
+chase_int:   movslq (%rcx,%rax,4), %rax     # 基址 + 下标 × 4，读 4 字节并扩成 64 位
+chase_ptr:   movq   (%rax), %rax            # 直接按指针读 8 字节
+```
+
+下标版并没有多一条乘法：`× 4` 是 x86 寻址方式的一部分（scale）。两者的差别在寻址方式本身：很多 x86 核上，只有“一个寄存器（加一个小偏移）”的简单寻址，L1 命中时约 4 个周期出结果；带下标的寻址约 5 个周期。所以全在 L1 时，指针链每步快约 1 个周期。
+
+反过来，指针是 8 字节，下标是 4 字节，同样多的节点，指针链大一倍。1024 个节点是 8 KiB 对 4 KiB，都在 L1 里，指针快；100 万个节点是 8 MiB 对 4 MiB，下标版可能还在 L3、指针版已经要读内存，那一步差的就是 10–30 ns 对 70–120 ns，1 个周期的寻址优势完全不算数。**链小时看指令，链大时看字节数。**
+
+### 2.3 “32 位指针”：64 位程序里就是 32 位下标
+
+64 位程序里没法把地址塞进 `uint32_t`：`(uint32_t)&q[i]` 编译直接报错（`cast ... loses precision`），硬转也会截掉高位。64 位程序里能用的“32 位指针”，就是**相对一个基址的 32 位偏移或下标**，也就是 2.2 的下标版。真要 32 位指针，只能编成 x32 ABI（`-mx32`，64 位寄存器、32 位指针），很少有人用。
+
+### 2.4 24 位紧凑下标：省 25% 空间，每步多几条指令
+
+每个元素只占 3 字节，比 4 字节下标省 25%。代价是每走一步要读 3 个字节再拼起来：
+
+```cpp
+int chase_24(const uint8_t* q, int k, int steps) {   // k 是字节偏移 = 下标 × 3
+    for (int i = 0; i < steps; i++) {
+        int next_val = q[k] | (q[k + 1] << 8) | (q[k + 2] << 16);
+        k = next_val & ((1 << 24) - 1);
+    }
+    return k;
+}
+```
+
+编出来每步是 3 次读、2 次移位、2 次或，还有几条算地址、扩展符号的指令，而它们都在依赖链上。全在 L1 时它比 4 字节下标慢；只有省下的 25% 正好让整条链从下一层缓存“掉回”上一层，才划算。
+
+容量也要算对：这里存的是**字节偏移**（下标 × 3），24 位最大 $2^{24} - 1$，所以最多约 $2^{24} / 3 \approx 559$ 万个元素，不是 $2^{24}$ 个。想要约 1600 万个，就存下标本身，每步再乘 3（一条 `lea`）。
+
+### 2.5 复合索引：几个 ID 拼成一个 64 位整数
+
+把客户 ID（32 位）、会员 ID（12 位）、合约 ID（20 位）拼成一个 `uint64_t`，就能当一个整数做哈希表的键、排序、一条指令比较：
+
+```cpp
+struct CompositeIndex {
+    uint64_t client : 32;
+    uint64_t member : 12;
+    uint64_t contract : 20;
+};
+uint64_t encode(CompositeIndex idx) {
+    return uint64_t(idx.client) | (uint64_t(idx.member) << 32) | (uint64_t(idx.contract) << 44);
+}
+CompositeIndex decode(uint64_t val) {
+    return {
+        .client = val & 0xFFFFFFFF,
+        .member = (val >> 32) & 0xFFF,
+        .contract = (val >> 44) & 0xFFFFF
+    };
+}
+```
+
+`encode` 里的 `uint64_t(...)` 不能省。12 位、20 位的位域在运算前会先**提升成 `int`**（`int` 装得下它的所有值），直接写 `idx.member << 32`，就是对 32 位的 `int` 左移 32 位，未定义行为。实测 GCC 13 只给一个 `-Wshift-count-overflow` 警告，结果里 `member`、`contract` 全丢了；Clang 18 干脆返回 0。另外，位域在内存里怎么排是实现定义的，要稳定的编码就像 `encode` 这样显式移位，不要直接把结构体的字节当整数用。
+
+## 3. 指针压缩：存偏移，不存地址
+
+所有对象都放在一块连续的池子里时，指针可以不存完整的 64 位地址，只存“离池子开头多远”。对象按 $2^s$ 字节对齐时，偏移的低 $s$ 位一定是 0，也可以不存：
+
+$$
+\text{编码} = \frac{\text{地址} - \text{基址}}{2^{s}}, \qquad \text{地址} = \text{基址} + \text{编码} \times 2^{s}
+$$
+
+32 位编码、按 16 字节对齐（$s = 4$），能表示 $2^{32} \times 16$ B = 64 GiB 的范围。解码只要一次移位加一次加法（常常合成一条 `lea`），换来的是节点里每个指针从 8 字节变 4 字节，甚至 2 字节。订单簿、侵入式链表这种节点里有好几个指针的结构，节点能小一截，一条缓存行装得更多。JVM 的 compressed oops 是同样的做法（32 位、移 3 位、32 GB 堆）。
+
+一个容易写错的地方：空指针通常编成 0，而池子里**第一个对象**的偏移也是 0。按“偏移就是编码”写，压缩 `&pool[0]` 再解压，得到的是 `nullptr`。把 0 留给空指针，其余编码用偏移 + 1：
+
+```cpp
+template <typename T>
+struct Compressed32 {
+    T* base;
+    uint32_t shift;                                         // log2(alignof(T))
+    uint32_t pack(const T* p) const {
+        if (!p) return 0;
+        return uint32_t(((reinterpret_cast<uintptr_t>(p) - reinterpret_cast<uintptr_t>(base)) >> shift) + 1);
+    }
+    T* unpack(uint32_t c) const {
+        if (c == 0) return nullptr;
+        return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(base) + (uintptr_t(c - 1) << shift));
+    }
+};
+```
+
+也可以另找一个值（比如 `UINT32_MAX`）表示空。另外两条要守住：池子不能超过编码能表示的范围；对象地址必须真的按 $2^s$ 对齐，否则移掉的低位就丢了。
+
+## 4. 大块写和写设备
+
+### 4.1 Non-temporal store：不读回、不进缓存
+
+普通写碰到不在缓存里的行，先整条读回（RFO），之后再写回，一条行在总线上走两趟。**流式写**（non-temporal store，`_mm256_stream_si256` 这类）在 WC 缓冲（写合并缓冲）里凑满 64 B 直接写内存，只走一趟，带宽上限最多翻倍（机制见[内存延迟与带宽](/zh/posts/low-latency-memory-latency-bandwidth/)的流式写一节）。用的时候要守几条规矩：
+
+- **只用在大块、近期不再读的数据上。** 写完数据不在缓存里，马上要读就得从内存读回来。块比缓存小时，普通写反而更快。
+- **地址要对齐。** `_mm256_stream_si256` 要求 32 字节对齐，不对齐直接崩溃。
+- **它是弱序的。** 流式写不遵守普通写之间的先后顺序：写完数据再写“就绪”标志，别的核可能先看到标志、后看到数据。发布之前要先 `_mm_sfence()`。
+- **`memset` / `memcpy` 已经会用。** glibc 在块大到和共享缓存（L3）同一个量级时，自己就切换成流式写。手写的价值在于明确控制阈值，或者在 glibc 不会用的场景里用。
+
+### 4.2 写 PCIe / MMIO：用 8 字节整块写，别用通用 `memcpy`
+
+网卡、FPGA 的寄存器和描述符区被映射进进程地址空间（MMIO），常设成 WC（写合并）类型。对它的每一次写，最终都变成 PCIe 总线上的写事务。通用 `memcpy` 为了处理各种长度和对齐，可能拆成 1 字节、2 字节的碎写，每一笔都可能变成一个单独的事务。用对齐的 8 字节整块写，相邻的写更容易在 WC 缓冲里合并成更少的事务：
+
+```cpp
+inline void copy_u64_blocks(volatile void* dst, const void* src, size_t nbytes) {
+    // nbytes 须为 8 的倍数；dst/src 建议 8 字节对齐
+    auto* d = static_cast<volatile uint64_t*>(dst);
+    const auto* s = static_cast<const uint64_t*>(src);
+    const size_t n = nbytes / sizeof(uint64_t);
+    for (size_t i = 0; i < n; ++i) {
+        d[i] = s[i];
+    }
+}
+```
+
+目标用 `volatile` 指针，是为了不让编译器把这些写合并、重排或删掉；写完要求设备一定看到时，再补一条 `sfence`。这一条只针对设备内存，普通内存上的 `memcpy` 已经高度优化，不要替换。
