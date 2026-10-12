@@ -140,9 +140,36 @@ public:
 
 ### 2.2 Mixin：用模板继承链在编译期叠功能 {#mixin}
 
-**问题**：一个迭代器要叠几层功能（遍历矩阵 → 只保留奇数 → 值翻倍），还想随意组合。运行期的装饰器模式是每层一个对象、持有指向下一层的 `Iterator*`、接口是虚函数：每层多一次堆分配和一次虚调用（[第 1 条](#virtual-cost)的代价）。
+先说清两个名词，再看代码。
 
-**Mixin**：每层是一个模板，把下一层当模板参数并继承它。
+**装饰器模式（decorator pattern）**：一种常见的设计模式，用来**不改原来的类，给它一层层加功能**。做法是写一个“包装层”，它和被包的对象长得一样（实现同一个接口），自己持有被包的对象。别人调包装层，包装层先转给里面那个，再在前后加上自己的那点功能。包装层还能再被包，所以功能可以一层叠一层，叠几层、按什么顺序叠，运行时拼对象的时候决定。
+
+**Mixin**：字面意思是“混进去的东西”，指一个**只提供一项功能、自己不能单独用的小类**，要“混进”别的类里才有用。C++ 里通常写成 `template <class Base> class X : public Base`：`X` 不知道自己会叠在谁上面，基类由模板参数在编译期指定。
+
+**两者的关系**：目标一样，都是一层层叠功能；差别在层与层怎么连。装饰器是运行时用指针连（动态多态），Mixin 是编译期用继承连（静态多态）。所以说 Mixin 是装饰器模式的静态多态版本。
+
+**例子**：一个迭代器要叠几层功能（遍历矩阵 → 只保留奇数 → 值翻倍），还想随意组合。先看装饰器的写法，每层是一个对象，持有下一层的指针：
+
+```cpp
+struct Iterator {                      // 统一接口：每层都长这样
+    virtual ~Iterator() = default;
+    virtual bool valid() const = 0;
+    virtual Cell cell() const = 0;
+    virtual void next() = 0;
+};
+
+struct DoubleValueDeco : Iterator {    // 一层装饰：包住下一层，只改 cell()
+    std::unique_ptr<Iterator> inner;
+    explicit DoubleValueDeco(std::unique_ptr<Iterator> i) : inner(std::move(i)) {}
+    bool valid() const override { return inner->valid(); }
+    Cell cell() const override { Cell x = inner->cell(); x.value *= 2; return x; }
+    void next() override { inner->next(); }
+};
+```
+
+每叠一层，就多一次堆分配（`unique_ptr`），每次调用往下多一次虚调用（[第 1 条](#virtual-cost)的代价）。
+
+**Mixin 的写法**：每层是一个模板，把下一层当模板参数并继承它。
 
 ```cpp
 template <class Base>

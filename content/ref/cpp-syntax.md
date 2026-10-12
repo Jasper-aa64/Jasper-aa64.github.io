@@ -140,9 +140,36 @@ The rule: if you want "its implementation," make it a member (has-a); public inh
 
 ### 2.2 Mixins: Stack Features at Compile Time with a Template Inheritance Chain {#mixin}
 
-**The problem**: an iterator needs several stacked features (walk a matrix → keep only odd values → double the value), in any combination. The run-time decorator pattern makes each layer an object holding an `Iterator*` to the next, with a virtual interface: every layer adds a heap allocation and a virtual call (the costs in [entry 1](#virtual-cost)).
+Two terms first, then the code.
 
-**A mixin**: each layer is a template that takes the next layer as its template parameter and inherits from it.
+**Decorator pattern**: a common design pattern for **adding features to a class layer by layer without changing it**. You write a wrapper that looks the same as the wrapped object (implements the same interface) and holds that object. A call to the wrapper is forwarded to the inner object, with the wrapper's own bit of behavior added before or after. A wrapper can itself be wrapped, so features stack, and how many layers and in what order is decided at run time when the objects are assembled.
+
+**Mixin**: literally "something mixed in": **a small class that provides one feature and can't be used on its own**; it only makes sense mixed into another class. In C++ it's usually written `template <class Base> class X : public Base`: `X` doesn't know what it will sit on top of; the base class is supplied as a template parameter at compile time.
+
+**How they relate**: same goal, stacking features layer by layer; the difference is how the layers are connected. A decorator connects them with pointers at run time (dynamic polymorphism); a mixin connects them with inheritance at compile time (static polymorphism). That's why a mixin is the static-polymorphism version of the decorator pattern.
+
+**Example**: an iterator needs several stacked features (walk a matrix → keep only odd values → double the value), in any combination. The decorator version first: each layer is an object holding a pointer to the next:
+
+```cpp
+struct Iterator {                      // common interface: every layer looks like this
+    virtual ~Iterator() = default;
+    virtual bool valid() const = 0;
+    virtual Cell cell() const = 0;
+    virtual void next() = 0;
+};
+
+struct DoubleValueDeco : Iterator {    // one decorator layer: wraps the next, changes only cell()
+    std::unique_ptr<Iterator> inner;
+    explicit DoubleValueDeco(std::unique_ptr<Iterator> i) : inner(std::move(i)) {}
+    bool valid() const override { return inner->valid(); }
+    Cell cell() const override { Cell x = inner->cell(); x.value *= 2; return x; }
+    void next() override { inner->next(); }
+};
+```
+
+Every extra layer is one more heap allocation (`unique_ptr`), and every call costs one more virtual call on the way down (the costs in [entry 1](#virtual-cost)).
+
+**The mixin version**: each layer is a template that takes the next layer as its template parameter and inherits from it.
 
 ```cpp
 template <class Base>
