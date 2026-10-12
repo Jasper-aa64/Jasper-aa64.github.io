@@ -8,6 +8,7 @@ chapter: 1
 categories: [Systems]
 tags: [cpp, pointers, aliasing, restrict, pointer-chasing, pointer-compression, hft, low-latency]
 toc: true
+math: true
 light: true
 ---
 
