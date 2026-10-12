@@ -1,6 +1,6 @@
 ---
 title: "C++ 语法：机器码里是什么"
-description: "常用的 C++ 语法编译出来是什么指令、要付什么代价、有什么替代。目前四条：虚函数；组合与 Mixin；静态多态与动态多态；const / constexpr / consteval / constinit。"
+description: "常用的 C++ 语法编译出来是什么指令、要付什么代价、有什么替代。目前五条：虚函数；组合与 Mixin；静态多态与动态多态；const / constexpr / consteval / constinit；shared_ptr 与 enable_shared_from_this。"
 date: 2026-10-10
 lastmod: 2026-10-12
 slug: "cpp-syntax"
@@ -417,3 +417,98 @@ uint64_t pow10(unsigned e) { return kPow10[e]; }
 - 一份实现编译期、运行时都要用 → `constexpr` 函数，需要时加 `if consteval`。
 - 全局 / `static` 变量要能改，但不要运行时初始化 → `constinit`。
 - 只是不想被改 → `const`。
+
+## 5. `shared_ptr` 与 `enable_shared_from_this`：成员函数里怎么拿到自己的 `shared_ptr` {#shared-from-this}
+
+### 5.1 `shared_ptr` 是什么：对象 + 一块存计数的控制块 {#shared-ptr}
+
+`std::shared_ptr<T>` 让好几个地方共同拥有一个对象：谁都可以持有一份，最后一份没了，对象才析构。它靠一个引用计数做到这一点。计数不在对象里，而在一块单独的内存里，叫**控制块**（control block）。
+
+- `std::make_shared<T>()` 只分配一次，对象和控制块挨在一起。
+- 每复制一个 `shared_ptr`，计数 +1；每销毁一个，计数 -1；减到 0 就析构对象。
+- 一个 `shared_ptr` 本身是两个指针：一个指向对象，一个指向控制块，`sizeof` 是 16 B。
+
+### 5.2 编译出来是什么：复制 = 拷两个指针 + 计数加 1 {#shared-ptr-asm}
+
+```cpp
+std::shared_ptr<S> copy_sp(const std::shared_ptr<S>& p) { return p; }
+```
+
+```text
+movdqu  (%rsi), %xmm0                    # 一次读 16 B：对象指针 + 控制块指针
+movups  %xmm0, (%rdi)                    # 写进新的 shared_ptr
+movq    8(%rdi), %rdx                    # 控制块地址
+testq   %rdx, %rdx
+je      .L12                             # 空指针就不用加计数
+cmpb    $0, __libc_single_threaded(%rip) # 进程是不是单线程
+je      .L14
+addl    $1, 8(%rdx)                      # 单线程：普通加 1
+ret
+.L14:
+lock addl $1, 8(%rdx)                    # 多线程：原子加 1
+```
+
+`__libc_single_threaded` 是 glibc 维护的标志，进程还没起第二个线程时为真。一旦有了多个线程，每次复制（以及每次销毁时的减 1）都是一次 `lock` 原子操作：没有别的核在抢时约 5–10 ns；几个核同时复制同一个对象的 `shared_ptr` 时，计数所在的缓存行在核之间来回搬（缓存行乒乓），一次要几十到上百 ns。所以热路径上不要按值传 `shared_ptr`：只是用一下、不需要“拥有”，就传 `const std::shared_ptr<T>&`，或者直接传 `T&` / `T*`。
+
+### 5.3 场景：对象要活到回调执行完 {#shared-from-this-why}
+
+一个 `Session` 对象代表和交易所的一条连接，由 `shared_ptr` 管理。`Session::send_order()` 把下单请求发出去，交易所要过一会儿（比如几十 µs）才回包。程序不会停下来等，而是先登记一个函数，意思是“回包到了就调用它”。这种先登记、以后由别人来调用的函数叫**回调**。登记完，`send_order()` 立刻返回，程序接着干别的。负责“看到回包到了，就调用登记过的回调”的，通常是一个一直在转的循环，叫**事件循环**。
+
+问题出在等待的这段时间里。回包到之前，程序别处可能已经不用这条连接了（比如风控把它断开），丢掉了手里的 `shared_ptr`。如果回调里没有持有一份 `shared_ptr<Session>`，计数就到 0，`Session` 被析构；回包一到，回调去用的是一个已经析构的对象。回调自己持有一份，计数就不会在它执行之前归零：
+
+| 时刻 | 发生了什么 | 回调不持有时的计数 | 回调持有一份时的计数 |
+|---|---|---|---|
+| 1 | `make_shared<Session>()`，外面持有一份 | 1 | 1 |
+| 2 | `send_order()` 登记回调 | 1 | 2 |
+| 3 | 外面丢掉自己那份 | 0，`Session` 被析构 | 1，`Session` 还活着 |
+| 4 | 回包到了，事件循环调用回调 | 用到已析构的对象，未定义行为 | 正常处理回包 |
+| 5 | 回调执行完、被删掉 | — | 0，这时才析构 |
+
+难点在于：回调是在 `send_order()` 这个成员函数里登记的，函数里手上只有 `this`，一个裸指针（`Session*`），不是 `shared_ptr`。怎么从 `this` 得到一份和外面**共用同一个计数**的 `shared_ptr`？
+
+### 5.4 错误写法：`shared_ptr<Session>(this)` 另起一个控制块 {#shared-this-wrong}
+
+```cpp
+void send_order() {
+    std::shared_ptr<Session> self(this);   // 错：又分配了一个新的控制块
+    g_loop.push_back([self] { self->on_reply(); });
+}
+```
+
+用裸指针构造 `shared_ptr` 时，它不知道这个对象已经有人管了，就新建一个控制块，计数从 1 开始。于是两个计数各数各的：时刻 3 外面那份数到 0，对象析构；回调这份还是 1，指着已经析构的对象；时刻 5 它也数到 0，再 delete 一次。GCC 13 实测程序直接 abort（`munmap_chunk(): invalid pointer`），ASan 报 bad-free。
+
+### 5.5 正确写法：继承 `enable_shared_from_this`，调 `shared_from_this()` {#shared-from-this-right}
+
+```cpp
+std::vector<std::function<void()>> g_loop;     // 假装是事件循环：登记的回调先存起来，回包到了再调用
+
+struct Session : std::enable_shared_from_this<Session> {
+    int id = 7;
+    void on_reply() { std::printf("reply on session %d\n", id); }
+    void send_order() {
+        // ……把下单请求发出去……
+        auto self = shared_from_this();        // 计数 +1，和外面那份共用控制块
+        g_loop.push_back([self] { self->on_reply(); });
+    }
+};
+
+void demo() {
+    auto s = std::make_shared<Session>();      // 时刻 1：计数 1
+    s->send_order();                           // 时刻 2：计数 2
+    s.reset();                                 // 时刻 3：外面丢掉自己那份，计数 1，Session 还活着
+    for (auto& cb : g_loop) cb();              // 时刻 4：回包到了，打印 reply on session 7
+    g_loop.clear();                            // 时刻 5：回调删掉，计数 0，这时才析构
+}
+```
+
+**它怎么做到的。** `enable_shared_from_this<Session>` 里藏了一个 `std::weak_ptr<Session>` 成员。`weak_ptr` 也指向控制块，但不让计数 +1，所以不会让对象一直活着。`make_shared` 建对象时，发现它继承了 `enable_shared_from_this`，就把这个 `weak_ptr` 指向刚建好的控制块。`shared_from_this()` 只是把它升级成 `shared_ptr`：同一个控制块，计数 +1。
+
+**这是 CRTP。** `enable_shared_from_this` 是一个往子类里注入功能的 CRTP 基类（见 [#8 的 1.3.2 节](/zh/posts/crtp-static-polymorphism/)）：子类什么都不写，就多了 `shared_from_this()`。基类里的 `weak_ptr` 成员和 `shared_from_this()` 的返回值都要写成 `Session`，所以模板参数传的是子类自己。基类如果不是模板，只能存、只能返回 `shared_ptr<基类>`，每次用都要先 `static_pointer_cast` 转回 `shared_ptr<Session>`，转错了就是未定义行为。
+
+### 5.6 三个坑 {#shared-from-this-pitfalls}
+
+都在 GCC 13 上实测过：
+
+- **对象必须已经归 `shared_ptr` 管。** 对栈上的对象调用，或者在构造函数里调用（这时 `make_shared` 还没填 `weak_ptr`），C++17 起抛 `std::bad_weak_ptr`，更早的标准是未定义行为。
+- **必须 `public` 继承。** 私有继承时 `shared_ptr` 看不见这个基类，`weak_ptr` 没人填，同样抛 `bad_weak_ptr`。
+- **对象变大，调用不免费。** 对象多一个 `weak_ptr`（两个指针，16 B；实测 `sizeof(Session)` 是 24，含对齐填充）；每次 `shared_from_this()` 都是 5.2 节那次原子加。所以它用在连接管理这种冷路径上（Asio 风格的异步服务器里，回调常写成 `[self = shared_from_this()]`），每秒几百万次的行情处理里不这么做。
