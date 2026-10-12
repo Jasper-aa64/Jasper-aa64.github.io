@@ -87,7 +87,7 @@ struct Limit2 : OrderBase<Limit2> {
 template <typename T> int run_crtp(const OrderBase<T>& o) { return o.handle(); }
 ```
 
-`run_crtp(l2)` 编出来是 `movl (%rdi), %eax` + `addl %eax, %eax`，没有 vptr，`sizeof(Limit2)` 是 4。代价：不同子类是不同的类型，不能放进同一个容器里统一处理。适合“每处代码只处理一种类型，但这种类型在编译期才选”的场景。
+`run_crtp(l2)` 编出来是 `movl (%rdi), %eax` + `addl %eax, %eax`，没有 vptr，`sizeof(Limit2)` 是 4。代价：不同子类是不同的类型，不能放进同一个容器里统一处理。适合“每处代码只处理一种类型，但这种类型在编译期才选”的场景。完整讲解（用途、四个坑、C++23 deducing this）见 [#8 CRTP 与静态多态](/zh/posts/crtp-static-polymorphism/)。
 
 **`std::variant` + `std::visit`**：类型的集合固定、事先都知道时，用一个 `variant` 装其中之一，按里面存的类型编号分派。
 
