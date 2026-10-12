@@ -89,6 +89,8 @@ template <typename T> int run_crtp(const OrderBase<T>& o) { return o.handle(); }
 
 `run_crtp(l2)` compiles to `movl (%rdi), %eax` + `addl %eax, %eax`, with no vptr; `sizeof(Limit2)` is 4. The cost: different subclasses are different types and can't share one container. It fits code where each place handles one type, chosen at compile time.
 
+The full treatment (uses, four pitfalls, C++23 deducing this) is in [#8 CRTP and Static Polymorphism](/posts/crtp-static-polymorphism/).
+
 **`std::variant` + `std::visit`**: when the set of types is fixed and known up front, a `variant` holds one of them and dispatches on the stored type index.
 
 ```cpp
