@@ -1,6 +1,6 @@
 ---
 title: "C++ Syntax: What It Compiles To"
-description: "What common C++ features compile to, what they cost, and the alternatives. So far: virtual functions; composition and mixins; static vs. dynamic polymorphism; const / constexpr / consteval / constinit."
+description: "What common C++ features compile to, what they cost, and the alternatives. So far: virtual functions; composition and mixins; static vs. dynamic polymorphism; const / constexpr / consteval / constinit; shared_ptr and enable_shared_from_this."
 date: 2026-10-10
 lastmod: 2026-10-12
 slug: "cpp-syntax"
@@ -419,3 +419,98 @@ uint64_t pow10(unsigned e) { return kPow10[e]; }
 - One implementation used both at compile time and at run time → a `constexpr` function, with `if consteval` if needed.
 - A global or `static` variable that must be mutable but shouldn't be initialized at run time → `constinit`.
 - You just don't want it modified → `const`.
+
+## 5. `shared_ptr` and `enable_shared_from_this`: Getting Your Own `shared_ptr` Inside a Member Function {#shared-from-this}
+
+### 5.1 What `shared_ptr` Is: the Object Plus a Control Block Holding the Count {#shared-ptr}
+
+`std::shared_ptr<T>` lets several places own one object together: anyone can hold a copy, and the object is destroyed when the last copy goes away. It does this with a reference count. The count isn't stored in the object but in a separate piece of memory called the **control block**.
+
+- `std::make_shared<T>()` allocates once, with the object and the control block side by side.
+- Every copy of a `shared_ptr` adds 1 to the count, every destroyed one subtracts 1, and at 0 the object is destroyed.
+- A `shared_ptr` itself is two pointers, one to the object and one to the control block: `sizeof` is 16 B.
+
+### 5.2 What It Compiles To: a Copy = Copy Two Pointers + Add 1 to the Count {#shared-ptr-asm}
+
+```cpp
+std::shared_ptr<S> copy_sp(const std::shared_ptr<S>& p) { return p; }
+```
+
+```text
+movdqu  (%rsi), %xmm0                    # read 16 B at once: object pointer + control-block pointer
+movups  %xmm0, (%rdi)                    # write them into the new shared_ptr
+movq    8(%rdi), %rdx                    # control-block address
+testq   %rdx, %rdx
+je      .L12                             # null: no count to bump
+cmpb    $0, __libc_single_threaded(%rip) # is the process single-threaded?
+je      .L14
+addl    $1, 8(%rdx)                      # single-threaded: plain add
+ret
+.L14:
+lock addl $1, 8(%rdx)                    # multi-threaded: atomic add
+```
+
+`__libc_single_threaded` is a flag maintained by glibc; it is true until the process starts a second thread. Once there are several threads, every copy (and every decrement on destruction) is a `lock` atomic operation: about 5–10 ns when no other core is competing; when several cores copy `shared_ptr`s to the same object at once, the cache line holding the count bounces between cores (cache-line ping-pong), and one operation takes tens to hundreds of ns. So don't pass `shared_ptr` by value on a hot path: if you only use the object and don't need to own it, pass `const std::shared_ptr<T>&`, or just `T&` / `T*`.
+
+### 5.3 The Scenario: the Object Must Outlive the Callback {#shared-from-this-why}
+
+A `Session` object represents one connection to an exchange and is managed by a `shared_ptr`. `Session::send_order()` sends an order request, and the exchange replies a little later (say tens of µs). The program doesn't stop and wait; it first registers a function meaning "call this when the reply arrives". A function registered now and called later by someone else is a **callback**. After registering, `send_order()` returns immediately and the program moves on. What notices the reply and calls the registered callback is usually a loop that keeps spinning, called the **event loop**.
+
+The problem is the waiting period. Before the reply arrives, some other part of the program may stop using this connection (risk control disconnects it, say) and drop its `shared_ptr`. If the callback doesn't hold its own `shared_ptr<Session>`, the count drops to 0 and the `Session` is destroyed; when the reply arrives, the callback uses a destroyed object. If the callback holds a copy, the count can't reach 0 before it runs:
+
+| Step | What happens | Count if the callback holds nothing | Count if the callback holds a copy |
+|---|---|---|---|
+| 1 | `make_shared<Session>()`; the outside holds one | 1 | 1 |
+| 2 | `send_order()` registers the callback | 1 | 2 |
+| 3 | The outside drops its copy | 0, `Session` destroyed | 1, `Session` still alive |
+| 4 | The reply arrives; the event loop calls the callback | uses a destroyed object: undefined behavior | handles the reply normally |
+| 5 | The callback finishes and is removed | — | 0, destroyed only now |
+
+The catch: the callback is registered inside the member function `send_order()`, where all you have is `this`, a raw pointer (`Session*`), not a `shared_ptr`. How do you get from `this` a `shared_ptr` that **shares the same count** as the outside one?
+
+### 5.4 The Wrong Way: `shared_ptr<Session>(this)` Starts a Second Control Block {#shared-this-wrong}
+
+```cpp
+void send_order() {
+    std::shared_ptr<Session> self(this);   // wrong: allocates a new control block
+    g_loop.push_back([self] { self->on_reply(); });
+}
+```
+
+A `shared_ptr` built from a raw pointer doesn't know the object is already owned, so it creates a new control block with the count starting at 1. Now two counts run independently: at step 3 the outside one reaches 0 and destroys the object; the callback's copy is still 1 and points at a destroyed object; at step 5 it reaches 0 too and deletes again. Measured on GCC 13, the program aborts (`munmap_chunk(): invalid pointer`), and ASan reports a bad-free.
+
+### 5.5 The Right Way: Inherit `enable_shared_from_this` and Call `shared_from_this()` {#shared-from-this-right}
+
+```cpp
+std::vector<std::function<void()>> g_loop;     // a stand-in event loop: registered callbacks wait here until the reply arrives
+
+struct Session : std::enable_shared_from_this<Session> {
+    int id = 7;
+    void on_reply() { std::printf("reply on session %d\n", id); }
+    void send_order() {
+        // ...send the order request...
+        auto self = shared_from_this();        // count +1, sharing the outside copy's control block
+        g_loop.push_back([self] { self->on_reply(); });
+    }
+};
+
+void demo() {
+    auto s = std::make_shared<Session>();      // step 1: count 1
+    s->send_order();                           // step 2: count 2
+    s.reset();                                 // step 3: the outside drops its copy; count 1, Session alive
+    for (auto& cb : g_loop) cb();              // step 4: the reply arrives; prints reply on session 7
+    g_loop.clear();                            // step 5: callback removed; count 0, destroyed only now
+}
+```
+
+**How it works.** `enable_shared_from_this<Session>` holds a hidden `std::weak_ptr<Session>` member. A `weak_ptr` also points at the control block but doesn't add to the count, so it doesn't keep the object alive. When `make_shared` builds an object and sees that it inherits `enable_shared_from_this`, it points that `weak_ptr` at the new control block. `shared_from_this()` just upgrades it to a `shared_ptr`: same control block, count +1.
+
+**This is CRTP.** `enable_shared_from_this` is a CRTP base that injects a feature into the subclass (see [section 1.3.2 of #8](/posts/crtp-static-polymorphism/)): the subclass writes nothing and gains `shared_from_this()`. Both the base's `weak_ptr` member and `shared_from_this()`'s return type must say `Session`, so the template argument is the subclass itself. A non-template base could only store and return `shared_ptr<Base>`, and every use would need a `static_pointer_cast` back to `shared_ptr<Session>`; a wrong cast is undefined behavior.
+
+### 5.6 Three Pitfalls {#shared-from-this-pitfalls}
+
+All measured on GCC 13:
+
+- **The object must already be owned by a `shared_ptr`.** On a stack object, or inside the constructor (before `make_shared` has filled the `weak_ptr`), it throws `std::bad_weak_ptr` since C++17; in older standards it is undefined behavior.
+- **The inheritance must be `public`.** With private inheritance `shared_ptr` can't see the base, nobody fills the `weak_ptr`, and it throws `bad_weak_ptr` as well.
+- **The object grows and the call isn't free.** The object gains a `weak_ptr` (two pointers, 16 B; measured `sizeof(Session)` is 24 including padding), and every `shared_from_this()` is the atomic add from 5.2. So it belongs on cold paths such as connection management (in Asio-style async servers the callback is typically written `[self = shared_from_this()]`), not in market-data handling that runs millions of times a second.

@@ -172,44 +172,7 @@ struct Price : EqualityOps<Price> {
 };
 ```
 
-The `!=` example is unnecessary in C++20: once `==` exists, the compiler supports `!=` automatically. A CRTP base still in everyday use is `std::enable_shared_from_this<T>`, which solves one problem: getting your own `shared_ptr` from inside a member function.
-
-**The scenario.** A `Session` represents one TCP connection and is managed by `std::shared_ptr`. A `shared_ptr` is a reference-counted smart pointer: the count lives in a separate **control block**, allocated when the object is first handed to a `shared_ptr` (e.g. by `std::make_shared`). Every copy of the `shared_ptr` adds 1, every destroyed one subtracts 1, and the object is destroyed when the count reaches 0. `Session::start()` issues an async read and hands a callback to the event loop; the callback runs later. By then the outside `shared_ptr` may be gone, so the callback must hold its own `shared_ptr<Session>` to keep the object alive. But inside a member function, all you have is `this`, a raw pointer.
-
-**The wrong way: `std::shared_ptr<Session>(this)`.** This allocates a second control block. Now there are two counts, each counting on its own: when the outside one reaches 0 it destroys the object, while the callback's copy still points at it (dangling); when that one reaches 0 too, it deletes again. Measured on GCC 13, the program aborts (`munmap_chunk(): invalid pointer`), and ASan reports a bad-free.
-
-**The right way: inherit it publicly and call `shared_from_this()`.**
-
-```cpp
-std::vector<std::function<void()>> g_loop;     // a stand-in event loop: store callbacks, run them later
-
-struct Session : std::enable_shared_from_this<Session> {
-    int id = 7;
-    void start() {
-        auto self = shared_from_this();        // count +1, sharing the outside shared_ptr's control block
-        g_loop.push_back([self] { std::printf("cb %d\n", self->id); });
-    }
-};
-
-void demo() {
-    {
-        auto s = std::make_shared<Session>();
-        s->start();                            // count is now 2: one outside, one in the callback
-    }                                          // the outside one is gone; Session is still alive
-    for (auto& cb : g_loop) cb();              // prints cb 7
-    g_loop.clear();                            // the last shared_ptr is gone; destroyed only now
-}
-```
-
-**How it works.** `enable_shared_from_this<Session>` holds a hidden `std::weak_ptr<Session>` member. A `weak_ptr` points at the control block but does not add to the count, so it doesn't keep the object alive. When `make_shared` builds an object and sees that it inherits `enable_shared_from_this`, it points that `weak_ptr` at the new control block. `shared_from_this()` just upgrades it to a `shared_ptr`: same control block, count +1.
-
-**Why it has to be CRTP.** Both the `weak_ptr` member's type and `shared_from_this()`'s return type must say `Session`, and the base can only write that if it is given `T`. A non-template base could only store and return `shared_ptr<Base>`, and every use in the callback would need a `static_pointer_cast` back to `shared_ptr<Session>`; a wrong cast is undefined behavior.
-
-**Three pitfalls** (measured on GCC 13):
-
-- The object must already be owned by a `shared_ptr`. On a stack object, or inside the constructor (before `make_shared` has filled the `weak_ptr`), it throws `std::bad_weak_ptr` since C++17; in older standards it is undefined behavior.
-- The inheritance must be `public`. With private inheritance `shared_ptr` can't see the base, nobody fills the `weak_ptr`, and it throws `bad_weak_ptr` as well.
-- It has a cost: the object gains a `weak_ptr` (two pointers, 16 B; measured `sizeof(Session)` is 24 including padding), and every `shared_from_this()` and every `shared_ptr` copy is an atomic add, on a cache line that several cores may keep pulling from each other (cache-line ping-pong). So it belongs on cold paths such as connection management (in Asio-style async servers the callback is typically written `[self = shared_from_this()]`); on hot paths, don't keep copying `shared_ptr`s.
+The `!=` example is unnecessary in C++20: once `==` exists, the compiler supports `!=` automatically. A standard-library example of the same use, still common today, is `std::enable_shared_from_this<T>`: with `class Session : public std::enable_shared_from_this<Session>`, the subclass writes nothing and gains a member function `shared_from_this()`, which, inside a member function, returns a `std::shared_ptr<Session>` to itself that shares the reference count with the outside owners. To write the return type as `shared_ptr<Session>`, the base must know the subclass, hence CRTP. What problem it solves and what the wrong way does: see [Reference: shared_ptr and enable_shared_from_this](/ref/cpp-syntax/#shared-from-this).
 
 #### 1.3.3 A Separate Static Member per Subclass
 
