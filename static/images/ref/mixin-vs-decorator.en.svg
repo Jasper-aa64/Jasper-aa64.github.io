@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 694" width="1240" height="694" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#eaeef2"/><line x1="0" y1="0" x2="0" y2="8" stroke="#afb8c1" stroke-width="3"/></pattern><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:14px;font-weight:600;fill:#1f2328}.s{font-size:13px;fill:#57606a}.c{font-size:13px;font-weight:600;fill:#1f2328}.red{fill:#cf222e}.k{font-size:12px;fill:#57606a}</style></defs>
+<rect x="0" y="0" width="1240" height="694" fill="#ffffff"/>
+<text x="20" y="34" class="h">Two ways to stack the same iterator: DoubleValue → OddOnly → MatrixWalk</text>
+<text x="20" y="74" class="t">Decorator: 3 objects, each new'd on the heap, linked by inner pointers</text>
+<rect x="40" y="92" width="300" height="120" rx="8" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.5"/>
+<text x="54" y="116" class="c">DoubleValueDeco</text>
+<text x="326" y="116" class="k" text-anchor="end">16 B</text>
+<rect x="54" y="130" width="272" height="28" rx="4" fill="#fff1c2" stroke="#afb8c1"/>
+<text x="66" y="149" class="s">vptr</text>
+<rect x="54" y="166" width="272" height="28" rx="4" fill="#ffffff" stroke="#afb8c1"/>
+<text x="66" y="185" class="s">inner</text>
+<text x="190.0" y="232" class="k" text-anchor="middle">one heap allocation</text>
+<line x1="320" y1="180" x2="446" y2="180" stroke="#57606a" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="450" y="92" width="300" height="120" rx="8" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.5"/>
+<text x="464" y="116" class="c">OddOnlyDeco</text>
+<text x="736" y="116" class="k" text-anchor="end">16 B</text>
+<rect x="464" y="130" width="272" height="28" rx="4" fill="#fff1c2" stroke="#afb8c1"/>
+<text x="476" y="149" class="s">vptr</text>
+<rect x="464" y="166" width="272" height="28" rx="4" fill="#ffffff" stroke="#afb8c1"/>
+<text x="476" y="185" class="s">inner</text>
+<text x="600.0" y="232" class="k" text-anchor="middle">one heap allocation</text>
+<line x1="730" y1="180" x2="856" y2="180" stroke="#57606a" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="860" y="92" width="300" height="120" rx="8" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.5"/>
+<text x="874" y="116" class="c">MatrixWalkDeco</text>
+<text x="1146" y="116" class="k" text-anchor="end">40 B</text>
+<rect x="874" y="130" width="272" height="28" rx="4" fill="#fff1c2" stroke="#afb8c1"/>
+<text x="886" y="149" class="s">vptr</text>
+<rect x="874" y="166" width="272" height="28" rx="4" fill="#ffffff" stroke="#afb8c1"/>
+<text x="886" y="185" class="s">rows_ / r_ / c_</text>
+<text x="1010.0" y="232" class="k" text-anchor="middle">one heap allocation</text>
+<text x="20" y="270" class="t">one call to it-&gt;cell()</text>
+<rect x="40" y="282" width="300" height="34" rx="6" fill="#ffebe9" stroke="#ff8182"/>
+<text x="190.0" y="304" class="s" text-anchor="middle">load vptr → load vtable → indirect call</text>
+<line x1="346" y1="299" x2="444" y2="299" stroke="#cf222e" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="450" y="282" width="300" height="34" rx="6" fill="#ffebe9" stroke="#ff8182"/>
+<text x="600.0" y="304" class="s" text-anchor="middle">load inner → load vptr → indirect call</text>
+<line x1="756" y1="299" x2="854" y2="299" stroke="#cf222e" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="860" y="282" width="300" height="34" rx="6" fill="#ffebe9" stroke="#ff8182"/>
+<text x="1010.0" y="304" class="s" text-anchor="middle">load inner → load vptr → indirect call</text>
+<text x="20" y="346" class="s">Each layer down: two or three more memory loads plus an indirect call. The target at a given call site is fixed, so it's usually predicted right and costs</text>
+<text x="20" y="366" class="s">a few cycles; a mispredict is about 15–20 cycles (about 4–5 ns).</text>
+<text x="20" y="390" class="s">The bigger cost: the compiler doesn't know what inner points to, so it can't inline the next layer; every layer is a real function call.</text>
+<line x1="20" y1="418" x2="1220" y2="418" stroke="#d0d7de"/>
+<text x="20" y="440" class="t">Mixin: DoubleValue&lt;OddOnly&lt;MatrixWalk&gt;&gt; is 1 object; each layer is one of its base classes</text>
+<rect x="40" y="458" width="760" height="196" rx="8" fill="#dafbe1" stroke="#4ac26b" stroke-width="1.5"/>
+<text x="54" y="484" class="c">DoubleValue (no members, changes cell() only)</text>
+<rect x="62" y="504" width="716" height="138" rx="8" fill="#eefcf1" stroke="#4ac26b" stroke-width="1.5"/>
+<text x="76" y="530" class="c">OddOnly (no members, changes next() only)</text>
+<rect x="84" y="550" width="672" height="80" rx="8" fill="#ffffff" stroke="#4ac26b" stroke-width="1.5"/>
+<text x="98" y="576" class="c">MatrixWalk</text>
+<rect x="98" y="590" width="136" height="28" rx="4" fill="#ffffff" stroke="#afb8c1"/>
+<text x="110" y="609" class="s">rows_</text>
+<rect x="248" y="590" width="136" height="28" rx="4" fill="#ffffff" stroke="#afb8c1"/>
+<text x="260" y="609" class="s">r_</text>
+<rect x="398" y="590" width="136" height="28" rx="4" fill="#ffffff" stroke="#afb8c1"/>
+<text x="410" y="609" class="s">c_</text>
+<text x="800" y="674" class="k" text-anchor="end">sizeof = 32 bytes, lives on the stack</text>
+<text x="830" y="466" class="s">No vptr, no inner pointer, no indirect call: Base::cell()</text>
+<text x="830" y="486" class="s">and Base::next() are direct calls fixed at compile</text>
+<text x="830" y="506" class="s">time and inline all the way into the caller.</text>
+<text x="830" y="534" class="s">After inlining, cell() is a few instructions (load</text>
+<text x="830" y="554" class="s">the current element, multiply by 2); next() is</text>
+<text x="830" y="574" class="s">a loop, and the conditional jump of the odd filter</text>
+<text x="830" y="594" class="s">is still there (static polymorphism removes the</text>
+<text x="830" y="614" class="s">jump that picks the function, not the decisions</text>
+<text x="830" y="634" class="s">on the data).</text>
+</svg>
