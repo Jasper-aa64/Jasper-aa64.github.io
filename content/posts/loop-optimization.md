@@ -301,7 +301,79 @@ The compiler won't do this for you by default, because multiplying by the recipr
 
 ### 4.4 Loop Collapsing: Merge Two Loops Into One
 
-`for i for j` over `m[i][j]`, when rows are stored contiguously, can be merged into one `for k < rows * cols` over `m_flat[k]`. The gain is a longer inner loop: when the inner loop is short (say 3 elements per row), every row pays for entering and leaving the loop and for remainder handling, while the merged loop vectorizes in one go.
+#### 4.4.1 The Setup: Only 3 Numbers per Row
+
+`rows` instruments, each storing `cols` price levels, one row right after another in a single contiguous block. Every price has to be multiplied by a conversion factor `s`. The number of levels is configured at run time, say 3:
+
+```cpp
+void scale_nested(float* m, int rows, int cols, float s) {
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            m[i * cols + j] *= s;
+}
+```
+
+`-O3` does vectorize this, but it vectorizes the **inner** loop: one `mulps` multiplies 4 `float`s, so the inner loop needs at least 4 iterations to use it. Whatever is left over (fewer than 4) is handled first 2 at a time with `movq` / `mulps` / `movlps`, then 1 at a time with `movss` / `mulss` / `movss`: the **remainder handling**. With `cols = 3`, each row takes this path (GCC 13 `-O3`, measured assembly, excerpted in execution order):
+
+```text
+.L3:                               # a new row
+    cmpl    $2, %r12d              # cols - 1 <= 2? i.e. fewer than 4
+    jbe     .L24                   # yes: the 4-wide main loop never runs
+.L8:
+    movl    %edi, %r15d            # how many are left: 3
+    subl    %r14d, %r15d
+    cmpl    $1, %r15d
+    je      .L6
+    ...
+    movq    (%r14), %xmm1          # do 2 first
+    mulps   %xmm3, %xmm1
+    movlps  %xmm1, (%r14)
+    testb   $1, %r15b              # 1 more left?
+    je      .L5
+    ...
+.L6:
+    movss   (%rax), %xmm1          # then do 1
+    mulss   %xmm0, %xmm1
+    movss   %xmm1, (%rax)
+.L5:                               # row done: update row index and row start
+    addl    $1, %r9d
+    addq    %r13, %rsi
+    ...
+    cmpl    %r9d, %r11d
+    jne     .L3
+```
+
+Three numbers per row cost about 30 instructions and 4 conditional jumps, and only 2 multiplies do real work (one on 2 floats, one on 1). The 4-wide `mulps` main loop is never used. The problem isn't that vectorization failed, it's that **every row re-enters the inner loop**: work out how many are left, take the remainder branches, update the row index and row start. The shorter the row, the larger this fixed cost's share.
+
+#### 4.4.2 Merged: Ignore Where Rows Break
+
+There are no gaps between rows: row `i`, element `j` is element `i * cols + j`. The multiply is the same for every number and doesn't care which row it belongs to. So the whole block can be treated as a one-dimensional array of length `rows * cols`:
+
+```cpp
+void scale_flat(float* m, int rows, int cols, float s) {
+    int total = rows * cols;
+    for (int k = 0; k < total; k++)
+        m[k] *= s;
+}
+```
+
+```text
+.L28:
+    movups  (%rax), %xmm1          # load 4
+    addq    $16, %rax
+    mulps   %xmm2, %xmm1           # multiply 4
+    movups  %xmm1, -16(%rax)
+    cmpq    %rax, %rdx
+    jne     .L28
+```
+
+Six instructions and one jump per 4 numbers. A group of 4 may span two rows (row 0's 3 plus row 1's first), which is fine since every number gets the same treatment. Remainder handling happens once at the end of the whole array instead of once per row. Counting instructions, that's about 10 per number down to about 1.5; this is an estimate, not a timing.
+
+#### 4.4.3 When You Needn't, and When You Can't
+
+- **When the column count is a compile-time constant, the compiler does it itself.** Hard-code `cols` as 3 and GCC fully unrolls the 3-iteration inner loop, then vectorizes the outer one: 4 rows, 12 numbers per iteration, `movups` loading 48 B, 3 `mulps`. Same effect as collapsing; `-fopt-info` reports "loop with 3 iterations completely unrolled" and "loop vectorized" for the outer loop. Collapsing by hand is for the case where the column count is only known at run time.
+- **Gaps between rows rule it out.** For example, rows padded to 64 B for alignment, or `std::vector<std::vector<float>>` (each row allocated separately, not adjacent in memory). A merged loop would touch the padding or run out of bounds.
+- **Work that depends on the row index rules out a direct merge.** For example, each row multiplied by its own factor `s[i]`. Either recover the row with `k / cols` (an extra division, not worth it) or keep two loops.
 
 ## 5. Edges: Peeling, Remainders, Sentinels
 
