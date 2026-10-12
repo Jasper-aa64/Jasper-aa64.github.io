@@ -1,8 +1,8 @@
 ---
 title: "C++ Syntax: What It Compiles To"
-description: "What common C++ features compile to, what they cost, and the alternatives. So far: virtual functions; composition and mixins."
+description: "What common C++ features compile to, what they cost, and the alternatives. So far: virtual functions; composition and mixins; static vs. dynamic polymorphism."
 date: 2026-10-10
-lastmod: 2026-10-10
+lastmod: 2026-10-12
 slug: "cpp-syntax"
 weight: 20
 toc: true
@@ -193,3 +193,78 @@ A decorator can be stacked at run time from config; a mixin's order is written i
 - **Hard-to-read errors**: a few levels of nested templates make long error messages.
 - **Constructors must forward**: each layer passes its arguments to `Base` (the variadic constructor above, or `using Base::Base;`).
 - **Hiding, not overriding**: `OddOnly::next()` only hides `Base::next()`; it isn't a virtual override. Call `next()` through a `MatrixWalk&` and you get `MatrixWalk::next()`. Mixins only work when you keep using the full type.
+
+## 3. Static vs. Dynamic Polymorphism: When the Decision Is Made {#polymorphism}
+
+In one line: **the difference is when "which function to call" gets decided.** Static polymorphism (templates, CRTP, mixins, compile-time decision trees) decides at compile time; dynamic polymorphism (virtual functions) decides at run time from the object's type. Speed, flexibility, and engineering cost all follow from that.
+
+### 3.1 Where the Speed Comes From: Inlining, Not Just One Jump Saved {#poly-speed}
+
+The run-time cost of dynamic polymorphism is in [1.3](#virtual-cost): one indirect jump to predict, two extra memory reads, 8 bytes per object, and no inlining. The most expensive item is usually **no inlining**.
+
+- The indirect jump itself: when the types at one call site follow a pattern it is almost never mispredicted and costs only a few cycles; with randomly mixed types each mispredict costs about 15–20 cycles.
+- Inlining: once the body is expanded into the caller, the compiler can propagate constants, merge computation, and vectorize. The smaller the body, the bigger this gap.
+
+So "static is faster than dynamic" needs two conditions: the call is on a hot path, and the body is small. If the body itself runs for hundreds of ns, the few ns saved don't show. Also, static polymorphism doesn't mean "no branches": conditions that depend on data still compile to conditional jumps in a compile-time decision tree (the tree in [#7 section 3.6](/posts/branch-prediction-branch-optimization/) is 3 conditional jumps). What disappears is the indirect jump that picks the function.
+
+### 3.2 What Static Polymorphism Costs {#poly-cost}
+
+- **Code bloat**: a template is instantiated once per set of arguments. A bigger binary usually doesn't matter; what matters is whether the copies active on the hot path at the same time fit in the instruction cache (L1I, about 32 KiB). One copy for each of 10 symbols, with only one or two running at a time, generally doesn't slow anything down.
+- **Compile time**: instantiation and inlining happen at compile time, so template-heavy projects build noticeably slower.
+- **Hard-to-read errors**: a few levels of nested templates can turn one wrong type into a very long error. C++20 concepts move some of these up to a single "constraint not satisfied" line.
+- **The set of types is fixed at compile time**: covered on its own in the next section.
+
+### 3.3 What "Run-Time Flexibility" Actually Means {#poly-flexibility}
+
+Separate two things first: **picking one of several already-compiled types at run time is something static polymorphism can do; adding a new type the compiler never saw is something it can't.**
+
+**What it can do: dispatch once, outside the loop.** Whether the config file says `"fast"` or `"safe"` is only known at run time; both algorithm types are written ahead of time, and one `if` picks an already-instantiated copy:
+
+```cpp
+struct Fast { int apply(int x) const { return x * 2; } };
+struct Safe { int apply(int x) const { return x * 4; } };
+
+template <typename Algo>
+long long run_loop(const int* xs, int n) {
+    Algo a;
+    long long s = 0;
+    for (int i = 0; i < n; ++i) s += a.apply(xs[i]);   // apply is known at compile time, inlined
+    return s;
+}
+
+long long run(const std::string& cfg, const int* xs, int n) {
+    if (cfg == "fast") return run_loop<Fast>(xs, n);     // the only check, done once
+    if (cfg == "safe") return run_loop<Safe>(xs, n);
+    return 0;
+}
+```
+
+In the compiled `run_loop<Fast>`, `apply` inside the loop is a single `addl %eax, %eax`, with no `call`. The check runs once before the loop, the same idea as "hoist the if out of the loop" in [#7 section 3.5](/posts/branch-prediction-branch-optimization/). This is how it's almost always used on hot paths: read the config at startup, pick the types, and the loops after that have no dispatch.
+
+**Several dimensions at once: easy to write, costly in instantiations.** 3 algorithms × 3 memory policies doesn't need 9 hand-written branches: `std::visit` takes several `variant`s and generates every combination:
+
+```cpp
+using AlgoV = std::variant<A1, A2, A3>;
+using MemV  = std::variant<B1, B2, B3>;
+
+void dispatch(const AlgoV& a, const MemV& m) {
+    std::visit([](auto x, auto y) { run_combo<decltype(x), decltype(y)>(); }, a, m);
+}
+```
+
+Here `run_combo` is instantiated 3 × 3 = 9 times. Five dimensions with 3 options each is 3<sup>5</sup> = 243 copies: no hand-written code, but compile time and binary size grow multiplicatively. The usual approach is to make types out of only the one or two dimensions that really affect hot-path performance, and leave things like log level or validation switches, which aren't in the hot loop, as ordinary run-time variables.
+
+**What it can't do: an open set of types.**
+
+- **Plugins**: after the program starts, `dlopen` (`LoadLibrary` on Windows) loads a `.so` / `.dll` whose classes the main program never saw at compile time. No template can be instantiated for them; the only option is an agreed virtual interface that the main program calls through the vtable. The plugin can still use templates internally; only the boundary between plugin and main program has to be dynamic.
+- **Containers of unknown types**: `std::vector<std::unique_ptr<Strategy>>` holds any subclass of `Strategy`, including ones written later. `std::variant<L, M, S>` also puts several types in one `vector`, stored by value and contiguous, but only those types; adding one means changing the definition and recompiling.
+- **Changing structure at run time**: for example, pushing a new risk tree to the system mid-session, where how the nodes connect isn't known in advance. That can only be assembled at run time from objects and pointers (the run-time virtual tree in [#7 section 3.6](/posts/branch-prediction-branch-optimization/)).
+
+### 3.4 How to Choose {#poly-choose}
+
+Two questions:
+
+1. **Can the set of types be fixed at compile time?** If not (plugins, structure pushed at run time), use virtual functions. If so, go on.
+2. **Is this call on a hot path?** If not (startup, config loading, management logic that runs a few times a second), use virtual functions; they're easier to read and change. If so, use templates, CRTP, or `std::variant` (when the set is fixed and the objects should be stored together), and make the run-time choice once, outside the loop.
+
+The two are often mixed: an outer virtual call or `variant` picks once, and the chosen code is static all the way down.

@@ -1,8 +1,8 @@
 ---
 title: "C++ 语法：机器码里是什么"
-description: "常用的 C++ 语法编译出来是什么指令、要付什么代价、有什么替代。目前两条：虚函数；组合与 Mixin。"
+description: "常用的 C++ 语法编译出来是什么指令、要付什么代价、有什么替代。目前三条：虚函数；组合与 Mixin；静态多态与动态多态。"
 date: 2026-10-10
-lastmod: 2026-10-10
+lastmod: 2026-10-12
 slug: "cpp-syntax"
 weight: 20
 toc: true
@@ -193,3 +193,78 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // 模板实参的顺序就是�
 - **报错难读**：模板嵌套几层后错误信息很长。
 - **构造要转发**：每层把参数转给 `Base`（上面的可变参数模板构造函数，或者 `using Base::Base;`）。
 - **遮蔽不是重写**：`OddOnly::next()` 只是遮住了 `Base::next()`，不是虚函数重写。拿着 `MatrixWalk&` 调 `next()`，调到的还是 `MatrixWalk::next()`。Mixin 只在一直用完整类型时成立。
+
+## 3. 静态多态与动态多态：差别在什么时候做决定 {#polymorphism}
+
+一句话：**两者的差别是“调哪个函数”在什么时候定下来。** 静态多态（模板、CRTP、Mixin、编译期决策树）在编译时定，动态多态（虚函数）在运行时按对象的类型定。速度、灵活性、工程代价，都是从这一点推出来的。
+
+### 3.1 快在哪：内联，不只是省一次跳转 {#poly-speed}
+
+动态多态的运行时代价见 [1.3](#virtual-cost)：一次要猜的间接跳转、两次读内存、每个对象 8 字节、挡住内联。其中最贵的通常是**挡住内联**。
+
+- 间接跳转本身：同一处调用的类型有规律时几乎不会猜错，只是多几个周期；类型随机混在一起时，每次猜错约 15–20 个周期。
+- 内联：函数体被展开进调用方以后，编译器能做常量传播、合并计算、向量化。函数体越小，这一条差得越多。
+
+所以“静态比动态快”要加两个条件：调用在热路径上，而且函数体小。函数体本身要跑几百 ns 的话，省下的几 ns 不显眼。另外，静态多态也不等于“没有分支”：编译期决策树里由数据决定的条件，编出来照样是条件跳转（[#7 第 3.6 节](/zh/posts/branch-prediction-branch-optimization/)那棵树是 3 条条件跳转）。省掉的是“选哪个函数”的那次间接跳转。
+
+### 3.2 静态多态的代价 {#poly-cost}
+
+- **代码膨胀**：模板每种实参实例化一份代码。二进制变大通常不要紧，要紧的是热路径上同时活跃的那几份能不能都放进指令缓存（L1I，约 32 KiB）。10 个品种各一份，但同一段时间只跑其中一两份，一般不会因此变慢。
+- **编译时间**：实例化、内联展开都在编译期做，模板用得多的项目编译明显变慢。
+- **报错难读**：嵌套几层模板以后，一个类型写错能刷出很长的错误信息。C++20 的 concepts 能把一部分错误提前到“约束不满足”这一行。
+- **类型集合在编译时定死**：这一条单独讲，见下一节。
+
+### 3.3 “运行时灵活性”具体丢了什么 {#poly-flexibility}
+
+先分清两件事：**运行时从几个已经编译好的类型里挑一个，静态多态做得到；运行时加一个编译时没见过的新类型，做不到。**
+
+**能做到的：在循环外分派一次。** 配置文件里写 `"fast"` 还是 `"safe"`，运行时才知道；两个算法类型都提前写好，用一个 `if` 选一份已经实例化好的代码：
+
+```cpp
+struct Fast { int apply(int x) const { return x * 2; } };
+struct Safe { int apply(int x) const { return x * 4; } };
+
+template <typename Algo>
+long long run_loop(const int* xs, int n) {
+    Algo a;
+    long long s = 0;
+    for (int i = 0; i < n; ++i) s += a.apply(xs[i]);   // 编译期已知是哪个 apply，直接内联
+    return s;
+}
+
+long long run(const std::string& cfg, const int* xs, int n) {
+    if (cfg == "fast") return run_loop<Fast>(xs, n);     // 只在这里判断一次
+    if (cfg == "safe") return run_loop<Safe>(xs, n);
+    return 0;
+}
+```
+
+`run_loop<Fast>` 编出来，循环里 `apply` 就是一条 `addl %eax, %eax`，没有 `call`。判断只在进循环前做一次，和 [#7 第 3.5 节](/zh/posts/branch-prediction-branch-optimization/)的“把 if 提到循环外”是同一个思路。热路径上几乎都是这样用的：启动时读配置、选好类型，之后的循环里没有分派。
+
+**几个维度一起分派：写起来不难，实例化份数难。** 算法 3 种 × 内存策略 3 种，不用手写 9 个分支，`std::visit` 接受多个 `variant`，自动生成全部组合：
+
+```cpp
+using AlgoV = std::variant<A1, A2, A3>;
+using MemV  = std::variant<B1, B2, B3>;
+
+void dispatch(const AlgoV& a, const MemV& m) {
+    std::visit([](auto x, auto y) { run_combo<decltype(x), decltype(y)>(); }, a, m);
+}
+```
+
+这里 `run_combo` 实例化了 3 × 3 = 9 份。5 个维度各 3 种就是 3<sup>5</sup> = 243 份，代码不用手写，但编译时间和体积按乘法涨。常见做法是只把热路径上真正影响性能的一两个维度做成类型，日志级别、校验开关这类不在热循环里的，留成普通的运行时变量。
+
+**做不到的：开放的类型集合。**
+
+- **插件**：程序跑起来以后用 `dlopen`（Windows 上是 `LoadLibrary`）加载一个 `.so` / `.dll`，里面的类是主程序编译时没见过的。模板没法给它实例化，只能约定一个虚函数接口，主程序通过 vtable 调进去。插件内部照样可以用模板，只是插件和主程序之间这一层得是动态的。
+- **类型不固定的容器**：`std::vector<std::unique_ptr<Strategy>>` 能放任何 `Strategy` 的子类，包括以后才写的。`std::variant<L, M, S>` 也能把几种类型放进同一个 `vector`，而且按值连续存，但只能放这几种，加一种要改定义、重新编译。
+- **运行时改结构**：比如盘中从后台下发一棵新的风控树，节点怎么连事先不知道，只能在运行时用对象和指针拼（[#7 第 3.6 节](/zh/posts/branch-prediction-branch-optimization/)的运行时虚函数树）。
+
+### 3.4 怎么选 {#poly-choose}
+
+按两个问题判断：
+
+1. **类型集合在编译时能不能定下来？** 定不下来（插件、运行时下发的结构），用虚函数。能定下来，往下看。
+2. **这次调用在不在热路径上？** 不在（启动、配置加载、每秒几次的管理逻辑），用虚函数，好读、好改。在热路径上，用模板、CRTP，或者 `std::variant`（集合固定、对象要放在一起时），并且把运行时的选择放到循环外面做一次。
+
+两者常常混用：外层用虚函数或 `variant` 选一次，选中的那份代码内部全是静态的。
