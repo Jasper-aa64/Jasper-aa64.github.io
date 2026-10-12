@@ -22,3 +22,4 @@ linux: Linux
 c-states: C-states
 nohz-full: nohz_full
 crtp: CRTP
+simd: SIMD

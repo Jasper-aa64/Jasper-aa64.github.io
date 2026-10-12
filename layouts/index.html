@@ -89,7 +89,9 @@
     <a class="home-sec__more" href="{{ "archives/" | relLangURL }}">{{ i18n "viewArchive" }} <span aria-hidden="true">→</span></a>
   </header>
   <div class="card-list">
-    {{ range first 8 $recent }}{{ partial "post-card.html" . }}{{ end }}
+    {{/* Light-pass posts (front matter `light: true`) keep their number but stay off this list. */}}
+    {{ $cards := slice }}{{ range $recent }}{{ if not .Params.light }}{{ $cards = $cards | append . }}{{ end }}{{ end }}
+    {{ range first 8 $cards }}{{ partial "post-card.html" . }}{{ end }}
   </div>
 </section>
 
