@@ -273,6 +273,12 @@ void transpose_tiled(const float* a, float* b) {
 }
 ```
 
+The `tj` loop inside a tile still writes `b` with a stride. Is that cache thrashing? No. A transpose touches each element once too; **what gets reused is the cache line, not the element**: one line of `b` holds 16 `float`s and is filled by 16 separate writes.
+- **Untiled**: the inner loop over `j` writes `b[j*N+i]`, a new line every step. The second write to a given line comes only after writing a whole column of N other lines. For large N those N lines don't fit in L1; here N = 256 is only 16 KiB, but the lines are 1 KiB apart, so by set index $(\text{address} / 64) \bmod 64$ they land in just 4 sets, and an 8-way L1 keeps at most 32 of them. Each line is evicted long before its next write and gets brought in 16 times.
+- **Tiled**: a tile touches only 16 lines of `b` (1 KiB). The `ti` loop runs 16 times, each pass writing one `float` into each of those lines; after 16 passes they are full and leave. The 16 lines sit in 4 sets, 4 per set, which an 8-way L1 holds. Strided writes that hit lines already in L1 are as cheap as sequential ones; each line comes in from the next level once.
+
+A common "further optimization" copies the tile of `a` into a stack buffer `tile[T][T]` first and then writes `b` row by row from it. On a CPU that isn't faster (an analysis of memory traffic, not a timing): every line of `a` and `b` still moves once, plus an extra 1 KiB copy, and the stride hasn't gone away, it just moved from writing `b` to reading `tile`. The pattern comes from GPUs, where strided global-memory writes can't be coalesced into one access, so you stage through shared memory; on a CPU the L1 already does that for you. The real next step on a CPU is **transposing in registers**: load 4 rows of 4 `float`s into 4 `xmm` registers, swap them into 4 columns with `unpcklps` / `shufps` (`_MM_TRANSPOSE4_PS`), and store whole rows, so reads and writes go from one `float` at a time to 16 B at a time.
+
 Conversely, a loop that touches each element once gains nothing from tiling. Take "clear a matrix": writing straight down the rows is already the best order. GCC `-O2` compiles the untiled version into a single `memset`; forcing 16×16 tiles instead leaves it writing 64 B per row and then jumping 2 KiB to the next row.
 
 ### 4.3 Fusion and Fission: One Pass or Several
