@@ -99,6 +99,58 @@ run_crtp<BinanceFeed>:           run_virtual (OkxFeed is the only implementation
 
 What's saved is the list in [reference: the cost of virtual functions](/ref/cpp-syntax/#virtual-cost): an indirect jump to predict, two memory loads, 8 bytes of vptr, and, most valuable, inlining.
 
+**Why inlining is the most valuable part**: first, is the jump itself expensive? If a call site always goes to the same target (as when one feed object receives a whole stream of ticks), the indirect target predictor gets it right almost every time, and the jump plus `call` / `ret` costs a few cycles, under 1–2 ns. The 4–5 ns (15–20 cycles) figure is the cost of **one misprediction**, not something paid on every call. Looked at as a single call, the virtual version isn't much slower.
+
+The gap opens once the call sits in a loop. Same two classes, summing `on_tick` over n prices:
+
+```cpp
+long sum_crtp(BinanceFeed& f, const int* px, int n) {
+    long s = 0;
+    for (int i = 0; i < n; ++i) s += f.on_tick(px[i]);
+    return s;
+}
+long sum_virtual(IFeed& f, const int* px, int n) {
+    long s = 0;
+    for (int i = 0; i < n; ++i) s += f.on_tick(px[i]);
+    return s;
+}
+```
+
+The loop bodies GCC 13 `-O2` produces:
+
+```text
+sum_crtp:
+    movl  (%rdi), %edi        # before the loop: load mult once
+.L3:
+    movl  (%rsi), %eax        # load one price
+    addq  $4, %rsi
+    imull %edi, %eax          # multiply by mult
+    cltq
+    addq  %rax, %rdx          # add to s
+    cmpq  %rsi, %rcx
+    jne   .L3
+```
+
+```text
+sum_virtual:
+    pushq %r13 / %r12 / %rbp / %rbx    # save 4 registers on entry
+.L9:
+    movq  0(%rbp), %rax       # load vptr every iteration
+    movl  (%rbx), %esi        # load one price
+    movq  %rbp, %rdi
+    addq  $4, %rbx
+    call  *16(%rax)           # one indirect call per iteration (on_tick loads mult again inside)
+    cltq
+    addq  %rax, %r12
+    cmpq  %r13, %rbx
+    jne   .L9
+```
+
+- **CRTP**: the body is copied into the loop, so the compiler can see that `on_tick` just loads `mult` and multiplies. It hoists the load of `mult` out of the loop to run once (loop-invariant code motion), leaving a few instructions per price: load, multiply, add. At `-O3` the loop is also vectorized (`pmuludq` multiplies 4 prices per instruction).
+- **Virtual**: every iteration loads the vptr and makes an indirect call, and the called `on_tick` loads `mult` again, because the compiler can't see the body and can't assume `mult` is unchanged between calls. To keep loop variables alive across the `call`, the function saves 4 registers to the stack on entry. Vectorization is out of the question: every price is a separate function call.
+
+So what inlining saves isn't the few cycles of one jump; it lets the compiler optimize the call together with the code around it: hoisting, merging, vectorizing. The smaller the body and the denser the calls, the more this is worth.
+
 ### 1.3 Three Uses
 
 #### 1.3.1 A Static Interface: Replacing Virtual Functions on Hot Paths

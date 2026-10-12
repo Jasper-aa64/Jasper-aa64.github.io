@@ -99,6 +99,58 @@ run_crtp<BinanceFeed>:           run_virtual（程序里只有 OkxFeed 一个实
 
 省下来的东西，就是[速查：虚函数的代价](/zh/ref/cpp-syntax/#virtual-cost)列的那几条：要猜的间接跳转、两次读内存、vptr 的 8 字节，以及最值钱的内联。
 
+**为什么说内联最值钱**：先看跳转本身贵不贵。同一处调用的目标如果总是同一个（一个 feed 对象收一整串行情，就是这样），间接目标预测器几乎每次都猜对，跳转加上 `call` / `ret` 只多几个周期，不到 1–2 ns。约 4–5 ns（15–20 个周期）是**猜错一次**的代价，不是每次都要付的。所以单看一次调用，虚函数没慢多少。
+
+差距在调用放进循环以后拉开。还是上面两个类，在一个循环里对 n 个价格调 `on_tick` 求和：
+
+```cpp
+long sum_crtp(BinanceFeed& f, const int* px, int n) {
+    long s = 0;
+    for (int i = 0; i < n; ++i) s += f.on_tick(px[i]);
+    return s;
+}
+long sum_virtual(IFeed& f, const int* px, int n) {
+    long s = 0;
+    for (int i = 0; i < n; ++i) s += f.on_tick(px[i]);
+    return s;
+}
+```
+
+GCC 13 `-O2` 编出来的循环体：
+
+```text
+sum_crtp：
+    movl  (%rdi), %edi        # 循环外：只读一次 mult
+.L3:
+    movl  (%rsi), %eax        # 读一个价格
+    addq  $4, %rsi
+    imull %edi, %eax          # 乘 mult
+    cltq
+    addq  %rax, %rdx          # 加进 s
+    cmpq  %rsi, %rcx
+    jne   .L3
+```
+
+```text
+sum_virtual：
+    pushq %r13 / %r12 / %rbp / %rbx    # 进函数先存 4 个寄存器
+.L9:
+    movq  0(%rbp), %rax       # 每轮都读 vptr
+    movl  (%rbx), %esi        # 读一个价格
+    movq  %rbp, %rdi
+    addq  $4, %rbx
+    call  *16(%rax)           # 每轮一次间接调用（on_tick 里面再读一次 mult）
+    cltq
+    addq  %rax, %r12
+    cmpq  %r13, %rbx
+    jne   .L9
+```
+
+- **CRTP**：函数体抄进了循环，编译器看得见 `on_tick` 只是读 `mult` 再乘，就把“读 `mult`”提到循环外面只做一次（循环不变量外提），每个价格只剩读、乘、加几条指令。换成 `-O3`，这个循环还被向量化了（`pmuludq` 一条指令一次乘 4 个价格）。
+- **虚函数**：每轮都要读 vptr、做一次间接调用；被调用的 `on_tick` 里面又要读一次 `mult`，因为编译器看不见函数体，不敢假设 `mult` 在两次调用之间没变。为了跨过 `call` 保住循环变量，函数一进来先把 4 个寄存器存到栈上。向量化更不可能：每个价格都是一次单独的函数调用。
+
+所以内联省下的不是“一次跳转”的几个周期，而是它让编译器能把调用和前后的代码当成一段来优化：外提、合并、向量化。函数体越小、调用越密，这一条越值钱。
+
 ### 1.3 三种用途
 
 #### 1.3.1 静态接口：替代热路径上的虚函数
