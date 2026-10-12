@@ -203,6 +203,8 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // the template-argument order 
 
 (`MatrixWalk` is the bottom layer: it walks a 2-D `vector` row by row and provides `valid()`, `cell()` and `next()`.) **What it compiles to**: `Iter` is **one object**, with no per-layer heap objects, no pointers and no virtual functions; `Base::next()` and `Base::cell()` are direct calls that inline all the way down. It's the **static polymorphism** version of the decorator pattern, the same trade as [replacing virtual functions with CRTP](#virtual-alternatives).
 
+<a href="/images/ref/mixin-vs-decorator.en.svg" target="_blank" rel="noopener"><img src="/images/ref/mixin-vs-decorator.en.svg" alt="Top: the decorator is 3 heap objects, each with a vptr, linked by inner pointers; one call to cell() loads a pointer, loads the vtable and makes an indirect call at every layer, and the compiler cannot inline. Bottom: the mixin is one 32-byte object; DoubleValue and OddOnly are base classes wrapped around MatrixWalk with no members, no vptr and no pointers, and every call inlines; the conditional jump of the odd filter remains." loading="lazy" decoding="async"></a>
+
 ### 2.3 Order Is Meaning {#mixin-order}
 
 For the same matrix `{{1, 2, 3}, {}, {4, 5, 6}}`:

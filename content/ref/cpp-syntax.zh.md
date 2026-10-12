@@ -203,6 +203,8 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // 模板实参的顺序就是�
 
 （`MatrixWalk` 是最底层，按行遍历一个二维 `vector`，提供 `valid()`、`cell()`、`next()`。）**编译出来**：`Iter` 是**一个对象**，没有每层的堆对象、没有指针、没有虚函数，`Base::next()`、`Base::cell()` 都是直接调用，可以一路内联。它是装饰器模式的**静态多态**版本，和 [CRTP 替代虚函数](#virtual-alternatives)是同一笔交易。
 
+<a href="/images/ref/mixin-vs-decorator.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/mixin-vs-decorator.zh.svg" alt="上：装饰器是 3 个堆上的对象，每个带 vptr，用 inner 指针连起来；调一次 cell() 每往下一层都要读指针、读 vtable、做一次间接调用，编译器没法内联。下：Mixin 是 1 个 32 字节的对象，DoubleValue、OddOnly 是 MatrixWalk 外面套的基类，不加成员，没有 vptr 和指针，调用全部内联；筛奇数的条件跳转还在。" loading="lazy" decoding="async"></a>
+
 ### 2.3 顺序就是语义 {#mixin-order}
 
 同一个矩阵 `{{1, 2, 3}, {}, {4, 5, 6}}`：
