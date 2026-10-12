@@ -144,7 +144,50 @@ void add_or_sub(float* a, const float* b, int n, bool do_add) {
 }
 ```
 
-Moving the test outside and splitting into two clean loops (`if (do_add) for… else for…`) is **loop unswitching**. GCC `-O3` does it by itself: `-fopt-info-loop` reports `unswitching loop 1 on 'if' with condition: do_add`, and the two resulting loops vectorize into `addps` / `subps` respectively. The branch would never have been mispredicted anyway (`do_add` doesn't change); what you save is the per-iteration test, and what you gain is vectorization.
+Moving the test out and splitting into two clean loops is **loop unswitching**. Written by hand:
+
+```cpp
+void add_or_sub_unswitched(float* a, const float* b, int n, bool do_add) {
+    if (do_add) {
+        for (int i = 0; i < n; i++) a[i] += b[i];
+    } else {
+        for (int i = 0; i < n; i++) a[i] -= b[i];
+    }
+}
+```
+
+**`-O2` doesn't do it.** The test stays in the loop, a `testb` every iteration, one element at a time:
+
+```text
+.L5:
+    movss  (%rdi,%rax), %xmm0     # load a[i]
+    movss  (%rsi,%rax), %xmm1     # load b[i]
+    testb  %cl, %cl               # test do_add every iteration
+    jne    .L10                   # true: go to the addss side
+    subss  %xmm1, %xmm0
+    movss  %xmm0, (%rdi,%rax)
+    ...
+```
+
+**`-O3` does it for you.** `-fopt-info-loop` reports `unswitching loop 1 on 'if' with condition: do_add`. The function tests once at the top, then splits into two loops, each vectorized:
+
+```text
+    testb  %cl, %cl               # the only test
+    jne    .L3                    # true: take the add copy
+    ...                           # false: take the subtract copy (same shape, subps)
+.L16:                             # main loop of the add copy, 4 at a time
+    movups (%rax,%rcx), %xmm0
+    movups (%rsi,%rcx), %xmm3
+    addps  %xmm3, %xmm0
+    movups %xmm0, (%rax,%rcx)
+    addq   $16, %rcx
+    cmpq   %rdi, %rcx
+    jne    .L16
+```
+
+Before each copy's loop, it also compares the addresses of `a` and `b`: if they overlap, it takes an element-by-element version, and only otherwise the vector one. That's the loop versioning from [section 1.2 of #10](/posts/pointer-memory-access/), a separate thing from unswitching that just happens to stack on top of it.
+
+The branch would never have been mispredicted anyway (`do_add` doesn't change during the loop), so unswitching doesn't save mispredicts. It saves the per-iteration test and, more importantly, buys vectorization: with the test inside the loop, the compiler can hardly merge 4 iterations into one instruction. The price is a second copy of the code. Writing it by hand at `-O2` (or making `do_add` a template parameter so the split happens at compile time) removes the per-iteration test, but the loops still don't vectorize; they stay element-by-element `addss` / `subss`, because `-O2` vectorizes very conservatively (part 6). To get both, use `-O3`.
 
 ## 3. Dependence Chains: Whether Iterations Can Run in Parallel
 
