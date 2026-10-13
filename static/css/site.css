@@ -163,9 +163,9 @@ img, svg, video { max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--ink); }
-/* Both dark themes: the 22% rose reads as murk on dark paper — a solid light-rose block with
-   dark text so the highlighted range is clearly visible. */
-:root[data-theme="dark"] ::selection, :root[data-theme="black"] ::selection { background: var(--accent-ink); color: #24181a; }
+/* Both dark themes: the 22% rose reads as murk on dark paper — use the blockquote bar's
+   rose (#e07882) with dark text so the highlighted range is clearly visible. */
+:root[data-theme="dark"] ::selection, :root[data-theme="black"] ::selection { background: #e07882; color: #24181a; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 /* Touch: no grey/blue square flash on tap, no outline left behind by a tap, no double-tap zoom delay. */
 html { -webkit-tap-highlight-color: transparent; }
