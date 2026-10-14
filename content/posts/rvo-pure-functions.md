@@ -35,9 +35,9 @@ make_snap(double):
     ret
 ```
 
-No copy. The caller reserves 64 bytes on its own stack and passes the address as a hidden argument in `%rdi`, and the function writes there directly. The `s` inside the function never has a copy of "its own". Structs of 16 bytes or less don't even touch memory: for `struct { int i; char c; double d; }`, the `int` and `char` are packed into `%rax` and the `double` comes back in `%xmm0`.
+No copy. The caller reserves 64 bytes on its own stack and passes the address as a hidden argument in `%rdi`, and the function writes there directly. The `s` inside the function never has a copy of "its own", so `return s` has nothing to copy. A plain struct of 16 bytes or less doesn't even need that memory: it comes back in registers.
 
-At the language level this is called **copy elision**. When it's guaranteed, when it's up to the compiler, and when it can never happen is the first part of this post; the second part covers another way of telling the compiler it may do less: pure-function attributes. All output and assembly are measured with GCC 13.3 / Clang 18, `-std=c++17 -O2`, x86-64.
+This is called **copy elision**, and there is only one way to do it: the object being returned has to live in the caller's storage from the moment it is created. Whether a copy can be avoided comes down to whether the function can arrange that. The second half of the post covers another way the compiler does less work: when two calls with the same argument can become one. All output and assembly are measured with GCC 13.3 / Clang 18, `-std=c++17 -O2`, x86-64.
 
 ## 1. Return Value Optimization: When Nothing Is Copied
 
@@ -45,7 +45,7 @@ The examples below use a class `Tracer` that prints every construction, copy and
 
 ### 1.1 RVO: Returning a Temporary, Guaranteed Since C++17
 
-`return T(...)` returns a temporary that has no name yet (a prvalue, in standard terms). Since C++17 this case is **guaranteed** not to call the copy or move constructor: the object is built in the caller's storage from the start. So even a type whose copy and move constructors are `= delete` can be returned by value:
+`return T(...)` creates its object right at the `return`, so that object can always be built directly in the caller's storage. C++17 made this a language rule: a value like `T(...)` that has no name yet (a prvalue, in the standard's terms) is no longer turned into a temporary and then copied out; it directly initializes the final object. There is no second object, so there is nothing to copy or move, and even a type whose copy and move constructors are both `= delete` can be returned by value this way:
 
 ```cpp
 class NonCopyableNonMovable {
@@ -62,9 +62,11 @@ NonCopyableNonMovable create() {
 }
 ```
 
-Being a language rule rather than an optimization, it doesn't depend on compiler options. It's often said that with `-fno-elide-constructors`, `Tracer t = Tracer("x");` gets an extra copy; under C++17 that's wrong: with or without the flag there is exactly one construction.
+Since this is a language rule rather than an optimization, no compiler flag turns it off. It's often said that with `-fno-elide-constructors` (the flag that disables copy elision), `Tracer t = Tracer("x");` makes an extra copy; under C++17 that's wrong: measured with and without the flag, there is exactly one construction.
 
 ### 1.2 NRVO: Returning a Named Local, Allowed but Not Guaranteed
+
+A named local object is different: it is created on the line that declares it, before the `return`. To build it directly in the caller's storage, the compiler has to decide at that point that "this is the one that will be returned".
 
 ```cpp
 Tracer nrvoExample(const std::string& name) {
@@ -73,46 +75,47 @@ Tracer nrvoExample(const std::string& name) {
 }
 ```
 
-`obj` has a name; the standard **allows** the compiler to build it directly in the caller's storage (NRVO, named RVO) but doesn't require it. Measured:
+Here there is only one object and every path returns it, so the decision is safe. GCC 13 and Clang 18 at `-O2` both do it, with a single construction measured; this is NRVO (named RVO). But it is only an optimization the standard allows: with `-fno-elide-constructors`, an extra move appears here, while the example in 1.1 is unaffected.
 
-- GCC 13 / Clang 18 `-O2`: a single construction; NRVO happened.
-- With `-fno-elide-constructors`: an extra move construction appears. That is the only output that changes in the whole test program, which is exactly the point: 1.1 is a guarantee, this is an optimization.
-- When one path returns a temporary and another a named object, the two compilers differ:
+With two objects alive at the same time, the decision can't be made:
 
 ```cpp
-Tracer conditionalReturn(bool flag) {
-    if (flag) {
-        return Tracer("temporary");
-    } else {
-        Tracer named("named");
-        return named;              // GCC 13: one move; Clang 18: NRVO, no move
-    }
+Tracer pick(bool flag) {
+    Tracer a("a"), b("b");
+    if (flag) return a;    // one move
+    return b;              // one move
 }
 ```
 
-When the compiler can't do NRVO, it doesn't fall back to a copy: since C++11, `return local_variable;` is first treated as an rvalue and prefers the move constructor (implicit move). So the worst case is one move. For `std::string` or `std::vector` a move copies a few pointers and is cheap; for an all-data struct like `Snapshot`, a move is the same as a copy: 64 bytes.
+The caller's storage can hold only one object. Put `a` there and it is still occupying it when the code reaches `return b`; the same goes for `b`. So both have to be built on the function's own stack and moved over at the return. Cases in between are where compilers differ. When one path returns a temporary and another returns a named object, the two paths never have objects at the same time, so it could be done: measured, Clang 18 does it and GCC 13 doesn't, adding a move. Whether the decision gets made depends on how closely the compiler analyzes the function.
+
+When the decision can't be made, the compiler doesn't fall back to a copy: since C++11, `return local_variable;` is first treated as an rvalue and prefers the move constructor (implicit move), so the worst case is one move. For `std::string` or `std::vector` a move copies a few pointers and is cheap; for an all-data struct like `Snapshot`, a move is the same as a copy: 64 bytes.
 
 ### 1.3 Cases That Can Never Be Elided
 
-- **Returning a parameter**: the parameter's storage is set up by the caller before the call and can't also be the return slot. Measured: one move.
-- **Returning a member, a global or a static**: these outlive the function, so the return value must be a new object: a copy. If the caller only needs to read it, return a reference.
-- **Returning part of an object** (such as `return p.first;` from a local `std::pair`): what's returned isn't the local object itself, so there's no elision, and no automatic move either (implicit move applies only to a plain local variable name); measured as a copy under both C++17 and C++23. To move, write `return std::move(p.first);`, which blocks no elision here.
-- **`return std::move(local);`**: this turns a named object into something else, so NRVO no longer applies, and you force a move instead. GCC `-Wall` reports `-Wpessimizing-move`: "moving a local object in a return statement prevents copy elision".
+In the following cases the returned object can never be created in the caller's storage: the function didn't create it, or it isn't a whole object, or the `return` doesn't name it directly.
+
+- **Returning a parameter**: the caller creates the parameter before the call, somewhere else, so it can't be created a second time in the return slot. A parameter counts as a local variable and is moved automatically: measured, one move.
+- **Returning a member, a global or a static**: these exist before the function runs and are still needed after it, so the return value has to be a new object: a copy. If the caller only needs to read it, return a reference.
+- **Returning part of an object** (such as `return p.first;` from a local `std::pair`): only one member of `p` is returned, and the whole of `p` doesn't fit in the return slot. It isn't moved automatically either (implicit move applies only to a plain local variable name); measured as a copy under both C++17 and C++23. To move, write `return std::move(p.first);`; there is no elision here for it to block.
+- **`return std::move(local);`**: `local` could have had NRVO, but what follows `return` is no longer its name, it's the result of a function call, so the compiler no longer recognizes it and is forced to move instead. GCC `-Wall` reports `-Wpessimizing-move`: "moving a local object in a return statement prevents copy elision".
 
 ### 1.4 Keep Logic Out of Copy Constructors
 
-Copies and moves may or may not be elided, so side effects in a copy constructor (printing, counting, registering) run an unpredictable number of times. A `Counter` that counts in its copy constructor reads 1 after `Counter c = createCounter();`: the "copy" the code seems to imply was elided.
+Whether a copy or move is elided depends on the conditions above, and sometimes on the compiler, so side effects in a copy constructor (printing, counting, registering) run an unpredictable number of times. A `Counter` that counts in its copy constructor reads 1 after `Counter c = createCounter();`: the "copy" the code seems to imply was elided.
 
-What this means on the hot path: returning a struct by value costs nothing, so there's no need to switch to out-parameters (`void make(Snapshot& out)`) to "save a copy"; just watch for the cases in 1.3.
+On the hot path this means returning a struct by value costs nothing, so there's no need to switch to out-parameters (`void make(Snapshot& out)`) to "save a copy"; just watch for the cases in 1.3.
 
 ## 2. Pure Functions: Telling the Compiler Calls Can Be Merged
 
+Call a function twice with the same argument, as in `f(x) * f(x)`: can the compiler call it once? If the body is right there, it can tell for itself. If the function is defined in another `.cpp` or a library, it can't see what the function does, so it has to assume it might change a global or write a log; the two calls might return different results or have different effects, so both calls must happen. A pure-function attribute is your promise to the compiler, on the function's behalf, that it has no such side effects and its result depends only on its inputs.
+
 ### 2.1 `const` and `pure`: One Reads No Memory, the Other Reads but Never Writes
 
-A pure function has no side effects, its result depends only on its arguments, and the same input always gives the same output. If the compiler knows a function is like that, it can call `f(x) * f(x)` once. GCC and Clang have two attributes:
+The promise comes in two strengths, one attribute each in GCC and Clang:
 
 - **`__attribute__((const))`**: the result depends only on the argument values; the function **neither reads nor writes** any memory (not even what pointer arguments point to).
-- **`__attribute__((pure))`**: writes no memory but **may read** globals or memory behind pointers. So if anything writes memory between two calls, the compiler must call again.
+- **`__attribute__((pure))`**: writes no memory but **may read** globals or memory behind pointers. If anything writes memory between two calls, what it reads may have changed, so the compiler must call again.
 
 Measured (with the callee's definition invisible to the compiler):
 
@@ -130,11 +133,11 @@ double P1(double) __attribute__((pure));
 double P2(double x) { double a = P1(x); g_state = 1; return a * P1(x); }        // 2 calls
 ```
 
-In `P2`, the global `g_state` is written between the two calls, and a `pure` function might read it, so it's called again; the same code with the `const` `Func1` (`C2`) still calls it once.
+In `P2`, the global `g_state` is written between the two calls, and the `pure` `P1` might read it, so it's called again; the same code with the `const` `Func1` (`C2`) still calls it once, because `Func1` promises not to read memory, so the write can't matter.
 
 ### 2.2 Only Needed When the Compiler Can't See the Body
 
-When the definition is in the same translation unit, GCC works out by itself whether a function is `const` / `pure` (or simply inlines it), so there's nothing to annotate. With the functions above defined in the same file, all three calls get inlined and merged; you need `__attribute__((noipa))` (no inference from the body) to see the difference at all. The attributes matter for functions defined in another `.cpp` or a library without LTO (link-time optimization), such as math-library or third-party pricing functions called on the hot path.
+When the definition is in the same translation unit, GCC works out by itself whether a function is `const` / `pure`, or simply inlines it, so there's nothing to annotate. The attributes matter for functions defined in another `.cpp` or a library without LTO (link-time optimization, which looks at the bodies from all files together only at link time), such as math-library or third-party pricing functions called on the hot path.
 
 ### 2.3 A Wrong Promise Is Undefined Behavior
 
