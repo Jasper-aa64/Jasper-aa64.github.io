@@ -111,15 +111,21 @@ Get the capacity right too: this stores a **byte offset** (index × 3), and 24 b
 
 ## 3. Pointer Compression: Store Offsets, Not Addresses
 
-When all objects live in one contiguous pool (which is what an object pool is), any pointer in a node can work like an index: it doesn't need the full 64-bit address, only "how far from the start of the pool". If objects are aligned to $2^s$ bytes, the low $s$ bits of the offset are always 0 and needn't be stored either:
+An index works only because every element in the pool has the same size: element k sits at "start + k × element size". When objects differ in size, or several types share one block of memory (order and price-level nodes in one arena, messages of different lengths in one buffer), there is no "k-th element", only a byte position: how far from the start of the pool.
+
+Storing the raw byte offset in 4 bytes covers only 4 GiB. But objects are usually aligned to $2^s$ bytes, so every object starts at a multiple of $2^s$ and the low $s$ bits of its offset are always 0; storing them is pure waste. Shift the offset right by $s$ before storing it, and back left when using it:
 
 $$
 \text{code} = \frac{\text{address} - \text{base}}{2^{s}}, \qquad \text{address} = \text{base} + \text{code} \times 2^{s}
 $$
 
-A 32-bit code with 16-byte alignment ($s = 4$) covers $2^{32} \times 16$ B = 64 GiB. Decoding is one shift and one add (often a single `lea`); in exchange, every pointer in a node shrinks from 8 bytes to 4, or even 2. Structures whose nodes carry several pointers, such as order books and intrusive lists, get noticeably smaller nodes and more of them per cache line. The JVM's compressed oops do the same thing (32 bits, shift by 3, a 32 GB heap).
+With 16-byte alignment ($s = 4$), an object `0x1230` bytes from the start of the pool has 0 in its low 4 bits, so you store just `0x123`; to use it, shift left by 4 to get `0x1230` back and add the pool's start. The same 4 bytes now cover $2^{32} \times 16$ B = 64 GiB instead of 4 GiB.
 
-An easy mistake: null is usually encoded as 0, and the **first object** in the pool also has offset 0. With "the code is the offset", compressing `&pool[0]` and decompressing gives `nullptr`. Reserve 0 for null and encode everything else as offset + 1:
+Seen this way, an index is a special case: when all objects have the same size and that size is exactly $2^s$, the offset shifted right by $s$ is the index. The two differ only in their unit: an index counts elements, a compressed pointer counts $2^s$-byte alignment slots. Because the unit is the alignment, it can point at any aligned object in the pool, whatever its type or size. It doesn't beat an index on capacity: with the same 4 bytes, an index covers $2^{32}$ elements, and the bigger the elements, the more bytes that is (256 GiB for 64-byte nodes).
+
+The cost lands on every step, just as with an index: decoding is one shift and one add. With a shift of 0–3 (×1, 2, 4 or 8), the x86 addressing mode folds this into the load as a single instruction, about 5 cycles like the index version; a shift of 4 needs a separate shift first, about one cycle more. In exchange, every pointer in a node shrinks from 8 bytes to 4. Structures whose nodes carry several pointers, such as order books and intrusive lists, save half on each, so nodes get noticeably smaller and more of them fit in a cache line. The JVM's compressed oops do exactly this: a 32-bit code, 8-byte alignment, shift by 3, covering a 32 GB heap.
+
+An easy mistake: null is usually encoded as 0, and the **first object** in the pool also has offset 0. Once pointers become small integers, "nothing" and "the first one" collide: with "the code is the offset", compressing `&pool[0]` and decompressing gives `nullptr`. So reserve 0 for null and add 1 to every other code:
 
 ```cpp
 template <typename T>
@@ -137,7 +143,7 @@ struct Compressed32 {
 };
 ```
 
-Another value (such as `UINT32_MAX`) can stand for null instead. Two more rules: the pool must not exceed what the code can represent, and object addresses must really be aligned to $2^s$, or the shifted-out low bits are lost.
+The $-1$ in decoding costs nothing if you precompute $\text{base} - 2^s$: it merges into the add. Another value (such as `UINT32_MAX`) can stand for null instead. Two more rules: the pool must not exceed what the code can represent, and object addresses must really be aligned to $2^s$, or the shifted-out low bits are lost.
 
 ## 4. Composite Indexes: Several IDs Packed Into One 64-Bit Integer
 
