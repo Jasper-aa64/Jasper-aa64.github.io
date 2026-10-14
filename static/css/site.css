@@ -166,7 +166,7 @@ button { font: inherit; color: inherit; }
 /* Both dark themes: the blockquote's own red bar (#e07882) at 60% with its
    near-white text — the quote's full-strength tint reads as murk on dark
    paper, so the highlight uses the brighter bar colour. */
-:root[data-theme="dark"] ::selection, :root[data-theme="black"] ::selection { background: rgba(224, 120, 130, .6); color: #f6ebe7; }
+:root[data-theme="dark"] ::selection, :root[data-theme="black"] ::selection { background: rgba(224, 120, 130, .5); color: #f6ebe7; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 /* Touch: no grey/blue square flash on tap, no outline left behind by a tap, no double-tap zoom delay. */
 html { -webkit-tap-highlight-color: transparent; }
