@@ -33,9 +33,11 @@ void func(int *a, int *b, int n) {
     jne   .L3
 ```
 
-The reason is that `b` might point into `a`, so writing `a[i]` might change `*b`, and the compiler can't assume it didn't. This post covers three pointer-related things: how to let the compiler read memory less; how many bytes to use for "where's the next one" in a linked structure; and which instructions to use for large writes and writes to devices. The assembly is real GCC 13.3 x86-64 output; cycle counts are ranges for intuition, not timings.
+The reason is that `b` might point into `a`, so writing `a[i]` might change `*b`, and the compiler can't assume it didn't. This post covers three pointer-related things: how to let the compiler read memory less (section 1); how many bytes to use for "where's the next one" in a linked structure (sections 2 and 3); and which instructions to use for large writes and writes to devices (section 4). The assembly is real GCC 13.3 x86-64 output; cycle counts are ranges for intuition, not timings.
 
 ## 1. `__restrict`: Promising the Compiler Two Pointers Don't Overlap
+
+The loop at the top re-reads `*b` on every iteration because the compiler fears `a` and `b` point at the same memory. There are two ways to make it read less: promise the compiler they don't overlap (1.1), or let the compiler compare the addresses at run time first (1.2). The first saves the run-time check; the price is that nobody stops you if the promise is wrong (1.3).
 
 ### 1.1 Aliasing: Two Pointers May Point at the Same Memory
 
@@ -64,13 +66,23 @@ At `-O3`, `func` without `__restrict` vectorizes too. The compiler emits two ver
 
 ## 2. How Wide to Store "Next" in a Linked Structure
 
+Every node in a linked structure stores "where the next one is". How wide that value is looks like a matter of a few bytes, but it decides two things at once: how much work each step takes, and how big the whole chain is. The two pull against each other: the narrower you store it, the smaller the chain, and the more work each step needs. The subsections follow that trade-off:
+
+- 2.1 Why a chain's speed comes down to these two things: every step waits for the previous read, so nothing can be fetched early.
+- 2.2 The usual choice of two: an 8-byte pointer saves about one cycle per step, a 4-byte index halves the chain.
+- 2.3 Can you have both? Mostly no: in a 64-bit program a "32-bit pointer" is usually just an index.
+- 2.4 One step narrower: 3 bytes per index saves another 25% and costs a few more instructions per step.
+- 2.5 A side branch: the same shifts and masks pack several IDs into one integer key, which has nothing to do with how wide "next" is.
+
+Where this ends up: when the chain fits in L1, one instruction fewer is worth more; when it doesn't, bytes are worth trading instructions for only if they move the chain into a nearer cache level.
+
 ### 2.1 The Premise: Pointer Chasing Waits on Every Step
 
 Linked lists, price-level chains in an order book, free lists in an object pool: all of them "read where the next one is, then go read it". **Pointer chasing** like this can't issue loads early ([memory latency and bandwidth](/posts/low-latency-memory-latency-bandwidth/)), so every step pays a full access latency: L1 about 1 ns (4–5 cycles), L2 about 3–5 ns, L3 about 10–30 ns, memory about 70–120 ns. So a chain's speed depends on just two things: **how long each step's instructions take**, which sets the speed when everything hits L1; and **how big the whole chain is**, which sets which level it lives in.
 
 ### 2.2 Index or Pointer: One Cycle of Addressing, Twice the Size
 
-"Next" can be stored as a 4-byte index (`k = q[k]`) or an 8-byte pointer (`k = k->ptr`). Each step compiles to one instruction:
+The two most common layouts each win one of those two things. "Next" can be stored as a 4-byte index (`k = q[k]`) or an 8-byte pointer (`k = k->ptr`). Each step compiles to one instruction:
 
 ```text
 chase_int:   movslq (%rcx,%rax,4), %rax     # base + index × 4, load 4 bytes and sign-extend to 64 bits
@@ -93,7 +105,7 @@ There are two exceptions. If the nodes already live below 4 GiB (for example, me
 
 ### 2.4 A 24-Bit Compact Index: 25% Less Space, More Instructions per Step
 
-Each element takes only 3 bytes, 25% less than a 4-byte index. The cost is reading 3 bytes and stitching them together at every step:
+Since you can't have both, the only way to make the chain smaller still is to go narrower: each element takes only 3 bytes, 25% less than a 4-byte index. The cost is reading 3 bytes and stitching them together at every step:
 
 ```cpp
 int chase_24(const uint8_t* q, int k, int steps) {   // k is a byte offset = index × 3
@@ -111,7 +123,7 @@ Get the capacity right too: this stores a **byte offset** (index × 3), and 24 b
 
 ### 2.5 Composite Indexes: Several IDs Packed Into One 64-Bit Integer
 
-Packing a client ID (32 bits), a member ID (12 bits) and a contract ID (20 bits) into one `uint64_t` lets it act as a single integer: a hash-map key, a sort key, a one-instruction compare:
+2.4 uses shifts and ORs to stitch 3 bytes back into one number. The same trick shows up elsewhere, not to shrink a chain but to merge several fields into one key. Packing a client ID (32 bits), a member ID (12 bits) and a contract ID (20 bits) into one `uint64_t` lets it act as a single integer: a hash-map key, a sort key, a one-instruction compare:
 
 ```cpp
 struct CompositeIndex {
@@ -135,7 +147,7 @@ The `uint64_t(...)` casts in `encode` are required. A 12- or 20-bit bit-field is
 
 ## 3. Pointer Compression: Store Offsets, Not Addresses
 
-When all objects live in one contiguous pool, a pointer doesn't need the full 64-bit address, only "how far from the start of the pool". If objects are aligned to $2^s$ bytes, the low $s$ bits of the offset are always 0 and needn't be stored either:
+2.3 showed that 4 bytes can't hold an address, only "how far from the start of the array". Pointer compression applies that idea to pointers in general: when all objects live in one contiguous pool, a pointer doesn't need the full 64-bit address, only "how far from the start of the pool". If objects are aligned to $2^s$ bytes, the low $s$ bits of the offset are always 0 and needn't be stored either:
 
 $$
 \text{code} = \frac{\text{address} - \text{base}}{2^{s}}, \qquad \text{address} = \text{base} + \text{code} \times 2^{s}
@@ -164,6 +176,8 @@ struct Compressed32 {
 Another value (such as `UINT32_MAX`) can stand for null instead. Two more rules: the pool must not exceed what the code can represent, and object addresses must really be aligned to $2^s$, or the shifted-out low bits are lost.
 
 ## 4. Large Writes and Writes to Devices
+
+Everything so far has been about reads. Two kinds of writes shouldn't go the ordinary way: a large block that won't be read again for a long time, which an ordinary write would first pull into the cache line by line (4.1); and writes whose target is a device rather than memory, where every write becomes a transaction on the bus, so how you split the writes decides how many transactions there are (4.2).
 
 ### 4.1 Non-Temporal Stores: No Read-Back, No Cache
 
