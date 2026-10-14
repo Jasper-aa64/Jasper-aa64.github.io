@@ -33,11 +33,9 @@ void func(int *a, int *b, int n) {
     jne   .L3
 ```
 
-The reason is that `b` might point into `a`, so writing `a[i]` might change `*b`, and the compiler can't assume it didn't. This post covers three pointer-related things: how to let the compiler read memory less (section 1); how many bytes to use for "where's the next one" in a linked structure (sections 2 and 3); and which instructions to use for large writes and writes to devices (section 4). The assembly is real GCC 13.3 x86-64 output; cycle counts are ranges for intuition, not timings.
+The reason is that `b` might point into `a`, so writing `a[i]` might change `*b`, and the compiler can't assume it didn't. This post covers three things: how to let the compiler read memory less; how to store data more compactly, from how many bytes "where's the next one" takes in a linked structure to packing pointers and several IDs into one integer; and which instructions to use for large writes and writes to devices. The assembly is real GCC 13.3 x86-64 output; cycle counts are ranges for intuition, not timings.
 
 ## 1. `__restrict`: Promising the Compiler Two Pointers Don't Overlap
-
-The loop at the top re-reads `*b` on every iteration because the compiler fears `a` and `b` point at the same memory. There are two ways to make it read less: promise the compiler they don't overlap (1.1), or let the compiler compare the addresses at run time first (1.2). The first saves the run-time check; the price is that nobody stops you if the promise is wrong (1.3).
 
 ### 1.1 Aliasing: Two Pointers May Point at the Same Memory
 
@@ -66,23 +64,13 @@ At `-O3`, `func` without `__restrict` vectorizes too. The compiler emits two ver
 
 ## 2. How Wide to Store "Next" in a Linked Structure
 
-Every node in a linked structure stores "where the next one is". How wide that value is looks like a matter of a few bytes, but it decides two things at once: how much work each step takes, and how big the whole chain is. The two pull against each other: the narrower you store it, the smaller the chain, and the more work each step needs. The subsections follow that trade-off:
-
-- 2.1 Why a chain's speed comes down to these two things: every step waits for the previous read, so nothing can be fetched early.
-- 2.2 The usual choice of two: an 8-byte pointer saves about one cycle per step, a 4-byte index halves the chain.
-- 2.3 Can you have both? Mostly no: in a 64-bit program a "32-bit pointer" is usually just an index.
-- 2.4 One step narrower: 3 bytes per index saves another 25% and costs a few more instructions per step.
-- 2.5 A side branch: the same shifts and masks pack several IDs into one integer key, which has nothing to do with how wide "next" is.
-
-Where this ends up: when the chain fits in L1, one instruction fewer is worth more; when it doesn't, bytes are worth trading instructions for only if they move the chain into a nearer cache level.
-
 ### 2.1 The Premise: Pointer Chasing Waits on Every Step
 
-Linked lists, price-level chains in an order book, free lists in an object pool: all of them "read where the next one is, then go read it". **Pointer chasing** like this can't issue loads early ([memory latency and bandwidth](/posts/low-latency-memory-latency-bandwidth/)), so every step pays a full access latency: L1 about 1 ns (4–5 cycles), L2 about 3–5 ns, L3 about 10–30 ns, memory about 70–120 ns. So a chain's speed depends on just two things: **how long each step's instructions take**, which sets the speed when everything hits L1; and **how big the whole chain is**, which sets which level it lives in.
+Linked lists, price-level chains in an order book, free lists in an object pool: all of them "read where the next one is, then go read it". The address of the next load isn't known until this load finishes, so **pointer chasing** like this can't issue loads early ([memory latency and bandwidth](/posts/low-latency-memory-latency-bandwidth/)), and every step pays a full access latency: L1 about 1 ns (4–5 cycles), L2 about 3–5 ns, L3 about 10–30 ns, memory about 70–120 ns. When the whole chain sits in L1, a step takes only a few cycles and one extra instruction shows; once the chain falls to memory, every step is a full memory latency, a few extra instructions don't matter, and what matters is whether the chain is small enough to land in a nearer level. So a chain's speed comes down to two things: **how long each step's instructions take** and **how big the whole chain is**. How wide you store "next" affects both.
 
 ### 2.2 Index or Pointer: One Cycle of Addressing, Twice the Size
 
-The two most common layouts each win one of those two things. "Next" can be stored as a 4-byte index (`k = q[k]`) or an 8-byte pointer (`k = k->ptr`). Each step compiles to one instruction:
+"Next" can be stored as a 4-byte index (`k = q[k]`) or an 8-byte pointer (`k = k->ptr`). Each step compiles to one instruction:
 
 ```text
 chase_int:   movslq (%rcx,%rax,4), %rax     # base + index × 4, load 4 bytes and sign-extend to 64 bits
@@ -95,17 +83,17 @@ On the other hand, a pointer is 8 bytes and an index 4, so for the same number o
 
 ### 2.3 "32-Bit Pointers": in a 64-Bit Program, Usually Just an Index
 
-Section 2.2 is a trade-off: a pointer takes 8 bytes and is about one cycle faster per step; an index takes only 4 bytes but costs that extra cycle. A "32-bit pointer" tries to have both: 4 bytes that you can load through directly, like a pointer.
+The pointer wins on addressing and the index wins on size, so the natural wish is to have both: a pointer that takes only 4 bytes and can be loaded through directly. That's what people call a "32-bit pointer".
 
 In a 64-bit program that usually doesn't work, because 4 bytes can't hold an address. Four bytes reach only 4 GiB (`0xffffffff`), while addresses in a 64-bit program usually sit far above that; on Linux something like `0x7ffd5a3c1e80` is typical. Casting an address straight to `uint32_t` is a compile error in g++ (`cast ... loses precision`: the cast would lose information). Forcing it (casting to `uintptr_t` first, then truncating to `uint32_t`) compiles, but the high bits are thrown away, and the pointer you rebuild from it points somewhere else.
 
-What 4 bytes can hold is "which slot of the array the next node is in" (or how many bytes it is from the start of the array). To follow it, you first compute "array start + slot × node size", which is exactly the index version from 2.2, and you pay the same extra cycle. **So most of the time a "32-bit pointer" is just another name for an index**, and the conclusion of 2.2 stands: for small chains count instructions, for big chains count bytes.
+What 4 bytes can hold is "which slot of the array the next node is in" (or how many bytes it is from the start of the array). To follow it, you first compute "array start + slot × node size", which is exactly the index version above, and you pay the same extra cycle. **So most of the time a "32-bit pointer" is just another name for an index**, and the trade-off between pointer and index doesn't go away.
 
 There are two exceptions. If the nodes already live below 4 GiB (for example, memory from Linux `mmap` with `MAP_32BIT`, which lands in the lowest 2 GiB), 4 bytes do hold the full address and can be loaded through directly. Or the whole program can be built with 4-byte pointers: a 32-bit build (`-m32`), or the rarely used x32 ABI (`-mx32`).
 
 ### 2.4 A 24-Bit Compact Index: 25% Less Space, More Instructions per Step
 
-Since you can't have both, the only way to make the chain smaller still is to go narrower: each element takes only 3 bytes, 25% less than a 4-byte index. The cost is reading 3 bytes and stitching them together at every step:
+If the index chain is only slightly bigger than some cache level, you can squeeze further: each element takes only 3 bytes, 25% less than a 4-byte index. The cost is reading 3 bytes and stitching them together at every step:
 
 ```cpp
 int chase_24(const uint8_t* q, int k, int steps) {   // k is a byte offset = index × 3
@@ -121,33 +109,9 @@ Each step compiles to 3 loads, 2 shifts and 2 ORs, plus a few address and sign-e
 
 Get the capacity right too: this stores a **byte offset** (index × 3), and 24 bits top out at $2^{24} - 1$, so at most about $2^{24} / 3 \approx 5.59$ million elements, not $2^{24}$. For about 16 million, store the index itself and multiply by 3 at each step (one `lea`).
 
-### 2.5 Composite Indexes: Several IDs Packed Into One 64-Bit Integer
-
-2.4 uses shifts and ORs to stitch 3 bytes back into one number. The same trick shows up elsewhere, not to shrink a chain but to merge several fields into one key. Packing a client ID (32 bits), a member ID (12 bits) and a contract ID (20 bits) into one `uint64_t` lets it act as a single integer: a hash-map key, a sort key, a one-instruction compare:
-
-```cpp
-struct CompositeIndex {
-    uint64_t client : 32;
-    uint64_t member : 12;
-    uint64_t contract : 20;
-};
-uint64_t encode(CompositeIndex idx) {
-    return uint64_t(idx.client) | (uint64_t(idx.member) << 32) | (uint64_t(idx.contract) << 44);
-}
-CompositeIndex decode(uint64_t val) {
-    return {
-        .client = val & 0xFFFFFFFF,
-        .member = (val >> 32) & 0xFFF,
-        .contract = (val >> 44) & 0xFFFFF
-    };
-}
-```
-
-The `uint64_t(...)` casts in `encode` are required. A 12- or 20-bit bit-field is first **promoted to `int`** before arithmetic (an `int` can hold all its values), so writing `idx.member << 32` shifts a 32-bit `int` by 32: undefined behavior. GCC 13 gives only a `-Wshift-count-overflow` warning, and `member` and `contract` vanish from the result; Clang 18 returns 0 outright. Also, bit-field layout in memory is implementation-defined, so for a stable encoding shift explicitly as `encode` does, rather than reinterpreting the struct's bytes as an integer.
-
 ## 3. Pointer Compression: Store Offsets, Not Addresses
 
-2.3 showed that 4 bytes can't hold an address, only "how far from the start of the array". Pointer compression applies that idea to pointers in general: when all objects live in one contiguous pool, a pointer doesn't need the full 64-bit address, only "how far from the start of the pool". If objects are aligned to $2^s$ bytes, the low $s$ bits of the offset are always 0 and needn't be stored either:
+When all objects live in one contiguous pool (which is what an object pool is), any pointer in a node can work like an index: it doesn't need the full 64-bit address, only "how far from the start of the pool". If objects are aligned to $2^s$ bytes, the low $s$ bits of the offset are always 0 and needn't be stored either:
 
 $$
 \text{code} = \frac{\text{address} - \text{base}}{2^{s}}, \qquad \text{address} = \text{base} + \text{code} \times 2^{s}
@@ -175,11 +139,33 @@ struct Compressed32 {
 
 Another value (such as `UINT32_MAX`) can stand for null instead. Two more rules: the pool must not exceed what the code can represent, and object addresses must really be aligned to $2^s$, or the shifted-out low bits are lost.
 
-## 4. Large Writes and Writes to Devices
+## 4. Composite Indexes: Several IDs Packed Into One 64-Bit Integer
 
-Everything so far has been about reads. Two kinds of writes shouldn't go the ordinary way: a large block that won't be read again for a long time, which an ordinary write would first pull into the cache line by line (4.1); and writes whose target is a device rather than memory, where every write becomes a transaction on the bus, so how you split the writes decides how many transactions there are (4.2).
+Positions and risk records are often looked up by several IDs together. Kept as separate fields, a comparison takes several compares and a hash has to mix several values. Packing a client ID (32 bits), a member ID (12 bits) and a contract ID (20 bits) into one `uint64_t` lets it act as a single integer: a hash-map key, a sort key, a one-instruction compare:
 
-### 4.1 Non-Temporal Stores: No Read-Back, No Cache
+```cpp
+struct CompositeIndex {
+    uint64_t client : 32;
+    uint64_t member : 12;
+    uint64_t contract : 20;
+};
+uint64_t encode(CompositeIndex idx) {
+    return uint64_t(idx.client) | (uint64_t(idx.member) << 32) | (uint64_t(idx.contract) << 44);
+}
+CompositeIndex decode(uint64_t val) {
+    return {
+        .client = val & 0xFFFFFFFF,
+        .member = (val >> 32) & 0xFFF,
+        .contract = (val >> 44) & 0xFFFFF
+    };
+}
+```
+
+The `uint64_t(...)` casts in `encode` are required. A 12- or 20-bit bit-field is first **promoted to `int`** before arithmetic (an `int` can hold all its values), so writing `idx.member << 32` shifts a 32-bit `int` by 32: undefined behavior. GCC 13 gives only a `-Wshift-count-overflow` warning, and `member` and `contract` vanish from the result; Clang 18 returns 0 outright. Also, bit-field layout in memory is implementation-defined, so for a stable encoding shift explicitly as `encode` does, rather than reinterpreting the struct's bytes as an integer.
+
+## 5. Large Writes and Writes to Devices
+
+### 5.1 Non-Temporal Stores: No Read-Back, No Cache
 
 An ordinary store to a line that isn't cached first reads the whole line back (RFO) and later writes it back, so each line crosses the bus twice. A **streaming store** (non-temporal store, such as `_mm256_stream_si256`) fills 64 B in a WC (write-combining) buffer and writes it straight to memory, crossing once, for up to twice the bandwidth (the mechanism is in the streaming-store section of [memory latency and bandwidth](/posts/low-latency-memory-latency-bandwidth/)). Rules for using it:
 
@@ -188,7 +174,7 @@ An ordinary store to a line that isn't cached first reads the whole line back (R
 - **It's weakly ordered.** Streaming stores don't keep the ordering ordinary stores have: write the data, then a "ready" flag, and another core may see the flag before the data. Issue `_mm_sfence()` before publishing.
 - **`memset` / `memcpy` already use it.** glibc switches to streaming stores by itself once a block is on the order of the shared cache (L3). Writing it by hand is worth it to control the threshold explicitly, or where glibc wouldn't use it.
 
-### 4.2 Writing PCIe / MMIO: Whole 8-Byte Writes, Not a Generic `memcpy`
+### 5.2 Writing PCIe / MMIO: Whole 8-Byte Writes, Not a Generic `memcpy`
 
 The registers and descriptor areas of a NIC or FPGA are mapped into the process address space (MMIO), often as WC (write-combining) memory. Every write to it ends up as a write transaction on the PCIe bus. A generic `memcpy`, handling every length and alignment, may break a copy into 1- and 2-byte pieces, each of which may become a separate transaction. Whole, aligned 8-byte writes are more likely to merge in the WC buffer into fewer transactions:
 
