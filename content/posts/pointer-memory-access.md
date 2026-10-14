@@ -81,9 +81,15 @@ The index version doesn't add a multiply: `× 4` is part of the x86 addressing m
 
 On the other hand, a pointer is 8 bytes and an index 4, so for the same number of nodes the pointer chain is twice as big. With 1024 nodes it's 8 KiB versus 4 KiB, both in L1, and the pointer wins. With a million nodes it's 8 MiB versus 4 MiB: the index chain may still be in L3 while the pointer chain has to read memory, and that step differs by 10–30 ns versus 70–120 ns; the one-cycle addressing advantage stops mattering. **For small chains count instructions; for big chains count bytes.**
 
-### 2.3 "32-Bit Pointers": in a 64-Bit Program, That's a 32-Bit Index
+### 2.3 "32-Bit Pointers": in a 64-Bit Program, Usually Just an Index
 
-A 64-bit program can't squeeze an address into a `uint32_t`: `(uint32_t)&q[i]` fails to compile (`cast ... loses precision`), and forcing it would cut off the high bits. The usable "32-bit pointer" in a 64-bit program is **a 32-bit offset or index relative to a base**, which is exactly the index version in 2.2. Real 32-bit pointers need the x32 ABI (`-mx32`: 64-bit registers, 32-bit pointers), which almost nobody uses.
+Section 2.2 is a trade-off: a pointer takes 8 bytes and is about one cycle faster per step; an index takes only 4 bytes but costs that extra cycle. A "32-bit pointer" tries to have both: 4 bytes that you can load through directly, like a pointer.
+
+In a 64-bit program that usually doesn't work, because 4 bytes can't hold an address. Four bytes reach only 4 GiB (`0xffffffff`), while addresses in a 64-bit program usually sit far above that; on Linux something like `0x7ffd5a3c1e80` is typical. Casting an address straight to `uint32_t` is a compile error in g++ (`cast ... loses precision`: the cast would lose information). Forcing it (casting to `uintptr_t` first, then truncating to `uint32_t`) compiles, but the high bits are thrown away, and the pointer you rebuild from it points somewhere else.
+
+What 4 bytes can hold is "which slot of the array the next node is in" (or how many bytes it is from the start of the array). To follow it, you first compute "array start + slot × node size", which is exactly the index version from 2.2, and you pay the same extra cycle. **So most of the time a "32-bit pointer" is just another name for an index**, and the conclusion of 2.2 stands: for small chains count instructions, for big chains count bytes.
+
+There are two exceptions. If the nodes already live below 4 GiB (for example, memory from Linux `mmap` with `MAP_32BIT`, which lands in the lowest 2 GiB), 4 bytes do hold the full address and can be loaded through directly. Or the whole program can be built with 4-byte pointers: a 32-bit build (`-m32`), or the rarely used x32 ABI (`-mx32`).
 
 ### 2.4 A 24-Bit Compact Index: 25% Less Space, More Instructions per Step
 
