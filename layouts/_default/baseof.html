@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {{ $pt := .Title }}{{ if and .IsPage (eq .Section "posts") }}{{ $s := partial "series.html" . }}{{ if eq $s.key "lowlatency" }}{{ $pt = print $s.label " " (cond (eq $s.num "") "" (print $s.num " ")) $s.title }}{{ end }}{{ end }}
+    {{ $pt := .Title }}{{ if and .IsPage (eq .Section "posts") }}{{ $s := partial "series.html" . }}{{ if eq $s.key "lowlatency" }}{{ $pt = $s.title }}{{ end }}{{ end }}
     <title>{{ if .IsHome }}{{ site.Title }} — {{ i18n "homeTitle" }}{{ else if and (eq .Kind "term") (eq .Data.Plural "categories") }}{{ partial "cat-name.html" .Title }} · {{ site.Title }}{{ else }}{{ $pt }} · {{ site.Title }}{{ end }}</title>
     <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
     <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
