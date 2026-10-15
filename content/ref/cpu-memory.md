@@ -2,7 +2,7 @@
 title: "CPU and Memory: Map, Numbers, Estimates"
 description: "Which boxes one memory access passes through, how big and how fast each box is, and how to combine those numbers to estimate the memory time of a piece of code."
 date: 2026-10-08
-lastmod: 2026-10-10
+lastmod: 2026-10-15
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -46,6 +46,8 @@ A store first goes into the **store buffer**, so later instructions don't wait f
 | Several cores reading and writing one line | [#4 Lock-Free Queues](/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
 | Page faults | [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
 | Alignment, layout, set associativity, inside a DIMM, refresh, channels | [#6 Alignment, Layout, and Geometry](/posts/alignment-layout-cache-dram-geometry/) |
+| Branch predictor, fetch and speculative execution | [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/) |
+| Execution units: ALU, multiplier, divider | [#12 Strength Reduction and Arithmetic Optimization](/posts/strength-reduction-arithmetic/) |
 | The roads between the boxes: latency, bandwidth, ROB, LFB | Parts 2 and 3 of this page |
 
 ## 2. Performance Parameters: How Big and How Fast Each Box Is {#numbers}
@@ -57,8 +59,13 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | One… | About |
 |---|---|
 | Register read | 0–1 cycles |
+| Integer add/subtract, bit operation, shift | 1 cycle |
+| Integer multiply | 3 cycles |
+| Floating-point add/subtract, multiply | 3–5 cycles |
 | L1D hit | ~1 ns (4–5 cycles) |
+| Floating-point divide, square root | ~3–5 ns (10–20 cycles) |
 | L2 hit | ~3–5 ns |
+| Integer divide, remainder | ~3–20 ns (10–90 cycles) |
 | L3 hit | ~10–30 ns |
 | Uncontended atomic read-modify-write (`lock add`, CAS, line in your own L1) | ~3–5 ns (10–20 cycles) |
 | One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
@@ -77,6 +84,8 @@ The two memory rows differ in the first step, the address translation in [1.1](#
 How much a TLB covers is $\text{TLB entries} \times \text{page size}$: 64–96 entries in the L1 dTLB and 1500–3000 in the STLB cover only ~6–12 MiB with 4 KiB pages, several GiB with 2 MiB pages. For the other-socket row: which node a physical page lands on is decided at **first touch**, by whoever writes it first, and it doesn't follow the thread afterwards. Pinning a thread to the other node leaves its memory where it was.
 
 A mispredict costs about as much as an L2 hit, but it can't be hidden: on an L2 miss, out-of-order execution keeps working on later independent instructions; on a mispredict, everything fetched after the branch is thrown away and fetch starts over, so for those dozen-plus cycles the back end has no correct work to do.
+
+The integer-division row is wide because the quotient can only be found round by round, a few bits per round: a 64-bit division needs more rounds than a 32-bit one, and recent chips produce more bits per round. A multiplier can start a new multiply every cycle and a divider can't, so divisions on the hot path are best turned into multiplies or shifts (see [#12](/posts/strength-reduction-arithmetic/)).
 
 From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as 1,000–2,000 L1 hits.
 

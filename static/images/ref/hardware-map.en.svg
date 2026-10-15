@@ -69,7 +69,7 @@
   <text x="412" y="313" class="t">Schedule → execution units</text>
   <text x="412" y="331" class="s">ALU math · AGU addresses</text>
   <text x="412" y="349" class="s">branches are resolved here</text>
-  <text x="412" y="366" class="tag">#2 dependency chains</text>
+  <text x="412" y="366" class="tag">#2 dependency chains · #12 the divider</text>
   <rect x="400" y="390" width="280" height="80" rx="6" class="box"/>
   <text x="412" y="413" class="t">Retire</text>
   <text x="412" y="431" class="s">commits results in program order</text>
