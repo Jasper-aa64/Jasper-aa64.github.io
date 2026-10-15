@@ -47,7 +47,8 @@ A store first goes into the **store buffer**, so later instructions don't wait f
 | Page faults | [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
 | Alignment, layout, set associativity, inside a DIMM, refresh, channels | [#6 Alignment, Layout, and Geometry](/posts/alignment-layout-cache-dram-geometry/) |
 | Branch predictor, fetch and speculative execution | [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/) |
-| Execution units: ALU, multiplier, divider | [#12 Strength Reduction and Arithmetic Optimization](/posts/strength-reduction-arithmetic/) |
+| Execution units: ALU, multiplier, divider, SIMD units | [#12 Strength Reduction and Arithmetic Optimization](/posts/strength-reduction-arithmetic/) · [#15 SIMD Vectorization](/posts/simd-vectorization-intrinsics/) |
+| Hardware prefetch, software prefetch, cache warming | [#14 Prefetching, Warming, Double Buffering](/posts/prefetch-warmup-double-buffer/) |
 | The roads between the boxes: latency, bandwidth, ROB, LFB | Parts 2 and 3 of this page |
 
 ## 2. Performance Parameters: How Big and How Fast Each Box Is {#numbers}
