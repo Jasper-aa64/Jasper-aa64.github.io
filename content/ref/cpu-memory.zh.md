@@ -2,7 +2,7 @@
 title: "CPU 与内存：地图、数字、怎么估算"
 description: "一次访存经过哪些框，每个框多大、多快，以及怎么把这些数合起来，估一段代码的访存时间。"
 date: 2026-10-08
-lastmod: 2026-10-10
+lastmod: 2026-10-15
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -46,6 +46,8 @@ math: true
 | 多个核读写同一条行 | [#4 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) |
 | 缺页 | [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) |
 | 对齐、布局、组相联、内存条内部、刷新、多通道 | [#6 对齐、布局与几何](/zh/posts/alignment-layout-cache-dram-geometry/) |
+| 分支预测器、取指与推测执行 | [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/) |
+| 执行单元：ALU、乘法器、除法器 | [#12 强度削弱与算术优化](/zh/posts/strength-reduction-arithmetic/) |
 | 框与框之间的路：延迟、带宽、ROB、LFB | 本页第 2、3 部分 |
 
 ## 2. 性能参数：每个框多大、多快 {#numbers}
@@ -57,8 +59,13 @@ math: true
 | 一次…… | 大约多久 |
 |---|---|
 | 读寄存器 | 0–1 周期 |
+| 整数加减、位运算、移位 | 1 周期 |
+| 整数乘法 | 3 周期 |
+| 浮点加减、乘法 | 3–5 周期 |
 | L1D 命中 | 约 1 ns（4–5 周期） |
+| 浮点除法、开方 | 约 3–5 ns（10–20 周期） |
 | L2 命中 | 约 3–5 ns |
+| 整数除法、取余 | 约 3–20 ns（10–90 周期） |
 | L3 命中 | 约 10–30 ns |
 | 无竞争的原子读改写（`lock add`、CAS，行在自己的 L1 里） | 约 3–5 ns（10–20 周期） |
 | 一次分支猜错（冲刷流水线，见 [#7](/zh/posts/branch-prediction-branch-optimization/)） | 约 4–5 ns（15–20 周期） |
@@ -77,6 +84,8 @@ math: true
 TLB 能盖住多少，看 $\text{TLB 项数} \times \text{页大小}$：L1 dTLB 64–96 项、STLB 1500–3000 项，4 KiB 页时只盖约 6–12 MiB，2 MiB 页时盖几 GiB。另一个插槽的内存那一行，物理页落在哪个节点按**首次访问**（first-touch）定：谁第一次写这一页，就从谁所在的节点分配，之后不跟着线程走。只把线程绑到另一个节点，内存还留在原地。
 
 分支猜错和 L2 命中差不多贵，但藏不住：L2 没命中时，乱序执行还能接着做后面不相关的指令；猜错时，分支后面已经取进来的指令全部作废，要从取指重新开始，这十几个周期里后端没有正确的活可做。
+
+整数除法那一行宽，是因为商只能一轮一轮地求，每轮只出几位：64 位要的轮数比 32 位多，近几年的芯片每轮出的位数多。乘法每个周期都能开始一条新的，除法器做不到，所以热路径上的除法尽量换成乘法或移位（见 [#12](/zh/posts/strength-reduction-arithmetic/)）。
 
 从 L1 到内存，每往下一层慢 3–10 倍，一共差约 100 倍。到了微秒那一档，已经出了缓存层级，是操作系统在替你干活：一次缺页的时间，够 L1 命中 1000–2000 次。
 

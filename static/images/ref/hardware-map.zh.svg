@@ -69,7 +69,7 @@
   <text x="412" y="313" class="t">调度 → 执行单元</text>
   <text x="412" y="331" class="s">ALU 算数 · AGU 算地址</text>
   <text x="412" y="349" class="s">分支在这里算出真假</text>
-  <text x="412" y="366" class="tag">#2 依赖链 · 多累加器</text>
+  <text x="412" y="366" class="tag">#2 依赖链 · 多累加器 · #12 除法器</text>
   <rect x="400" y="390" width="280" height="80" rx="6" class="box"/>
   <text x="412" y="413" class="t">退休（retire）</text>
   <text x="412" y="431" class="s">按程序顺序提交结果</text>
