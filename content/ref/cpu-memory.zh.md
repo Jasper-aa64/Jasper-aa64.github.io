@@ -47,7 +47,8 @@ math: true
 | 缺页 | [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) |
 | 对齐、布局、组相联、内存条内部、刷新、多通道 | [#6 对齐、布局与几何](/zh/posts/alignment-layout-cache-dram-geometry/) |
 | 分支预测器、取指与推测执行 | [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/) |
-| 执行单元：ALU、乘法器、除法器 | [#12 强度削弱与算术优化](/zh/posts/strength-reduction-arithmetic/) |
+| 执行单元：ALU、乘法器、除法器、SIMD 向量单元 | [#12 强度削弱与算术优化](/zh/posts/strength-reduction-arithmetic/) · [#15 SIMD 向量化](/zh/posts/simd-vectorization-intrinsics/) |
+| 硬件预取、软件预取、缓存预热 | [#14 预取、预热与双缓冲](/zh/posts/prefetch-warmup-double-buffer/) |
 | 框与框之间的路：延迟、带宽、ROB、LFB | 本页第 2、3 部分 |
 
 ## 2. 性能参数：每个框多大、多快 {#numbers}
