@@ -100,11 +100,31 @@ In the following cases the returned object can never be created in the caller's 
 - **Returning part of an object** (such as `return p.first;` from a local `std::pair`): only one member of `p` is returned, and the whole of `p` doesn't fit in the return slot. It isn't moved automatically either (implicit move applies only to a plain local variable name); measured as a copy under both C++17 and C++23. To move, write `return std::move(p.first);`; there is no elision here for it to block.
 - **`return std::move(local);`**: `local` could have had NRVO, but what follows `return` is no longer its name, it's the result of a function call, so the compiler no longer recognizes it and is forced to move instead. GCC `-Wall` reports `-Wpessimizing-move`: "moving a local object in a return statement prevents copy elision".
 
-### 1.4 Keep Logic Out of Copy Constructors
+So on the hot path, write by-value returns the way `make_snap` does: one object used from start to finish and returned on every path, or a plain `return T(...)`. That neither copies nor moves, so there's no need to switch to out-parameters (`void make(Snapshot& out)`) to "save a copy". Extra moves or copies come only from the cases in 1.2 the compiler can't decide and the ones above.
 
-Whether a copy or move is elided depends on the conditions above, and sometimes on the compiler, so side effects in a copy constructor (printing, counting, registering) run an unpredictable number of times. A `Counter` that counts in its copy constructor reads 1 after `Counter c = createCounter();`: the "copy" the code seems to imply was elided.
+### 1.4 Copy Constructors Only Copy: The Compiler May Skip Them
 
-On the hot path this means returning a struct by value costs nothing, so there's no need to switch to out-parameters (`void make(Snapshot& out)`) to "save a copy"; just watch for the cases in 1.3.
+`Tracer` prints a line on every copy and move, yet several examples above printed only the constructor line: the copy and move constructors were not called at all. Normally a compiler isn't allowed to do that. Optimizations keep one rule: what the program visibly does must match running the code line by line (the as-if rule). Printing is visible, so the compiler can't drop a call that prints. Copy elision is an exception the standard makes on purpose: even if a copy or move constructor prints or counts, the compiler may skip it. When a function returns a temporary directly, as in 1.1, the standard requires skipping it.
+
+As a result, how many times the copy and move constructors run depends on how the function is written, which compiler you use and which flags you pass. For the function in 1.2 where one path returns a temporary and another returns a named object, GCC 13 prints one more move and Clang 18 doesn't; `nrvoExample` with `-fno-elide-constructors` also prints one more. With printing, only the output differs. If they do real work, such as counting how many copies were made, giving the copy a new ID or writing an audit log line, the program's results change with the compiler.
+
+So copy and move constructors should only copy and move. Work that must happen once per object goes into the constructors and the destructor, as a pair. A `Counter` that tracks how many objects are alive adds 1 in every constructor and subtracts 1 in the destructor:
+
+```cpp
+class Counter {
+public:
+    Counter() { ++instance_count_; }
+    Counter(const Counter&) { ++instance_count_; }
+    ~Counter() { --instance_count_; }
+    static int instance_count() { return instance_count_; }
+private:
+    static int instance_count_;
+};
+
+Counter createCounter() { return Counter(); }
+```
+
+After `Counter c = createCounter();` the count reads 1. To see it without elision you have to go back to C++14 and add `-fno-elide-constructors` (from C++17 on, the copy in this form can't be turned off). Then the temporary in the function is copied into the return value and the return value is copied into `c`: two extra copies, and the count still reads 1, because both intermediate objects are destroyed after use and take back the 1 they added. When the copy is elided, the intermediate object is never created, so its constructor and its destructor are skipped together, and the +1 and the -1 disappear together. Bookkeeping done in pairs stays correct whether or not copies are elided.
 
 ## 2. Pure Functions: Telling the Compiler Calls Can Be Merged
 
