@@ -2,7 +2,7 @@
 title: "CPU and Memory: Map, Numbers, Estimates"
 description: "Which boxes one memory access passes through, how big and how fast each box is, and how to combine those numbers to estimate the memory time of a piece of code."
 date: 2026-10-08
-lastmod: 2026-10-15
+lastmod: 2026-10-16
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -57,36 +57,47 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 
 ### 2.1 Latency: How Long One Access Waits {#latency}
 
-| One… | About |
-|---|---|
-| Register read | 0–1 cycles |
-| Integer add/subtract, bit operation, shift | 1 cycle |
-| Integer multiply | 3 cycles |
-| Floating-point add/subtract, multiply | 3–5 cycles |
-| L1D hit | ~1 ns (4–5 cycles) |
-| Floating-point divide, square root | ~3–5 ns (10–20 cycles) |
-| L2 hit | ~3–5 ns |
-| Integer divide, remainder | ~3–20 ns (10–90 cycles) |
-| L3 hit | ~10–30 ns |
-| Uncontended atomic read-modify-write (`lock add`, CAS, line in your own L1) | ~3–5 ns (10–20 cycles) |
-| One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
-| Line sitting in another core's cache | ~20–100 ns |
-| Memory, translation hits in the TLB | ~70–90 ns |
-| Memory, translation misses the TLB too | ~85–120 ns |
-| The other socket's memory (remote NUMA) | ~120–200 ns |
-| Running into a DRAM refresh | Up to ~300–500 ns more |
-| First write to a page (page fault) | ~1–2 µs |
-| Simplest system call | ~0.1–0.5 µs |
-| Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
-| NVMe SSD 4 KiB read | 10–100 µs |
+| Kind | One… | About |
+|---|---|---|
+| **Getting data** | Register read | 0–1 cycles |
+| | L1D hit | ~1 ns (4–5 cycles) |
+| | L2 hit | ~3–5 ns |
+| | L3 hit | ~10–30 ns |
+| | Line sitting in another core's cache | ~20–100 ns |
+| | Memory, translation hits in the TLB | ~70–90 ns |
+| | Memory, translation misses the TLB too | ~85–120 ns |
+| | The other socket's memory (remote NUMA) | ~120–200 ns |
+| | Running into a DRAM refresh | Up to ~300–500 ns more |
+| **Atomics** | Atomic load (any order), relaxed or release store | Same as a plain load or store: a `mov` on x86 |
+| | Acquire or release fence | 0: no instruction on x86 |
+| | `sfence` | 1–6 cycles |
+| | `lfence` | ~1–4 ns by itself (4–15 cycles) |
+| | Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–5 ns (8–20 cycles) |
+| | seq_cst store, seq_cst fence (compiled to `xchg`, `lock or`) | Same as the row above |
+| | `mfence` | ~8–20 ns (30–80 cycles) |
+| | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete |
+| **Arithmetic** | Integer add/subtract, bit operation, shift | 1 cycle |
+| | Integer multiply | 3 cycles |
+| | Floating-point add/subtract, multiply | 3–5 cycles |
+| | Floating-point divide, square root | ~3–5 ns (10–20 cycles) |
+| | Integer divide, remainder | ~3–20 ns (10–90 cycles) |
+| **Branches** | One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
+| **System** | Simplest system call | ~0.1–0.5 µs |
+| | First write to a page (page fault) | ~1–2 µs |
+| | Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
+| | NVMe SSD 4 KiB read | 10–100 µs |
 
 The two memory rows differ in the first step, the address translation in [1.1](#load)'s figure: when the TLB has no entry for the page, the hardware walks the page tables level by level (a page walk) to find the physical address before it can issue the real read. The page-table entries are usually in cache, so this adds only ~15–30 ns. Random reads over a large region pay it almost every time. With 2 MiB huge pages one TLB entry covers 512 times as much memory, and this part mostly disappears.
 
 How much a TLB covers is $\text{TLB entries} \times \text{page size}$: 64–96 entries in the L1 dTLB and 1500–3000 in the STLB cover only ~6–12 MiB with 4 KiB pages, several GiB with 2 MiB pages. For the other-socket row: which node a physical page lands on is decided at **first touch**, by whoever writes it first, and it doesn't follow the thread afterwards. Pinning a thread to the other node leaves its memory where it was.
 
-A mispredict costs about as much as an L2 hit, but it can't be hidden: on an L2 miss, out-of-order execution keeps working on later independent instructions; on a mispredict, everything fetched after the branch is thrown away and fetch starts over, so for those dozen-plus cycles the back end has no correct work to do.
+What an atomic costs is what it has to wait for. x86 allows only one kind of reordering to begin with: a later load passing an earlier store that is still in the store buffer ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)). So plain loads and stores already have acquire and release semantics: atomic loads and relaxed or release stores are plain `mov`s, and acquire or release fences only stop the compiler from reordering and emit no instruction. seq_cst forbids that one reordering as well, so its stores and fences need a `lock`-prefixed instruction. A locked read-modify-write holds the line in its own L1 while it reads, modifies and writes, and it first waits for the earlier stores in the store buffer to reach the cache, so with unwritten stores queued ahead of it, it takes longer than the table says. A standalone fence moves no data either; it too pays for waiting: `lfence` waits until every earlier instruction has finished, so a cache miss just before it has to come back first; `sfence` orders only stores against stores, which plain stores already are, so it mainly goes with non-temporal stores; a hand-written `mfence` also has to order non-temporal stores and the like, which makes it heavier than a `lock` instruction, and GCC doesn't use it for a seq_cst fence.
+
+Under contention, the cost is pulling the line over from another core first, the same bill as "line sitting in another core's cache". When N cores take turns doing read-modify-writes on one line, each core waits for the other N−1 to move it once in between, so every operation gets slower the more cores compete ([2.6](#cross-core)).
 
 The integer-division row is wide because the quotient can only be found round by round, a few bits per round: a 64-bit division needs more rounds than a 32-bit one, and recent chips produce more bits per round. A multiplier can start a new multiply every cycle and a divider can't, so divisions on the hot path are best turned into multiplies or shifts (see [#12](/posts/strength-reduction-arithmetic/)).
+
+A mispredict costs about as much as an L2 hit, but it can't be hidden: on an L2 miss, out-of-order execution keeps working on later independent instructions; on a mispredict, everything fetched after the branch is thrown away and fetch starts over, so for those dozen-plus cycles the back end has no correct work to do.
 
 From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as 1,000–2,000 L1 hits.
 
