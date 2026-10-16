@@ -67,21 +67,22 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | Memory, translation hits in the TLB | ~70–90 ns |
 | | Memory, translation misses the TLB too | ~85–120 ns |
 | | The other socket's memory (remote NUMA) | ~120–200 ns |
-| | Running into a DRAM refresh | Up to ~300–500 ns more |
-| **Atomics** | Atomic load (any order), relaxed or release store | Same as a plain load or store: a `mov` on x86 |
-| | Acquire or release fence | 0: no instruction on x86 |
-| | `sfence` | 1–6 cycles |
-| | `lfence` | ~1–4 ns by itself (4–15 cycles) |
-| | Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–5 ns (8–20 cycles) |
-| | seq_cst store, seq_cst fence (compiled to `xchg`, `lock or`) | Same as the row above |
-| | `mfence` | ~8–20 ns (30–80 cycles) |
+| | Running into a DRAM refresh | ~300–500 ns, the extra wait in the worst case |
+| **Atomics** | Atomic load (any order), relaxed or release store | ~1 ns (4–5 cycles), same as a plain load or store: a `mov` on x86; on ARM the ordered ones become `ldar` and `stlr`, which aren't slow either |
+| | seq_cst store | ~1–5 ns (4–20 cycles): an `xchg` on x86, as expensive as a read-modify-write; an `stlr` on ARM, same as a release store |
+| | Acquire or release fence | 0–6 ns: no instruction on x86, one `dmb` on ARM |
+| | Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–6 ns (8–25 cycles): a `lock`-prefixed instruction on x86, `ldaddal`, `casal` and the like on ARM |
+| | seq_cst fence | ~2–6 ns (8–25 cycles): GCC emits `lock or` on x86; `dmb ish` on ARM |
+| | x86's `sfence`, `lfence`, `mfence` | 1–6, 4–15, 30–80 cycles; for `lfence`, not counting the wait for earlier instructions |
 | | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete |
 | **Arithmetic** | Integer add/subtract, bit operation, shift | 1 cycle |
 | | Integer multiply | 3 cycles |
 | | Floating-point add/subtract, multiply | 3–5 cycles |
 | | Floating-point divide, square root | ~3–5 ns (10–20 cycles) |
 | | Integer divide, remainder | ~3–20 ns (10–90 cycles) |
-| **Branches** | One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
+| **Branches** | Correctly predicted branch | 0–1 cycles |
+| | Conditional move (x86 `cmov`, ARM `csel`) | 1 cycle, but it waits for the condition and both values |
+| | One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
 | **System** | Simplest system call | ~0.1–0.5 µs |
 | | First write to a page (page fault) | ~1–2 µs |
 | | Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
@@ -91,13 +92,15 @@ The two memory rows differ in the first step, the address translation in [1.1](#
 
 How much a TLB covers is $\text{TLB entries} \times \text{page size}$: 64–96 entries in the L1 dTLB and 1500–3000 in the STLB cover only ~6–12 MiB with 4 KiB pages, several GiB with 2 MiB pages. For the other-socket row: which node a physical page lands on is decided at **first touch**, by whoever writes it first, and it doesn't follow the thread afterwards. Pinning a thread to the other node leaves its memory where it was.
 
-What an atomic costs is what it has to wait for. x86 allows only one kind of reordering to begin with: a later load passing an earlier store that is still in the store buffer ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)). So plain loads and stores already have acquire and release semantics: atomic loads and relaxed or release stores are plain `mov`s, and acquire or release fences only stop the compiler from reordering and emit no instruction. seq_cst forbids that one reordering as well, so its stores and fences need a `lock`-prefixed instruction. A locked read-modify-write holds the line in its own L1 while it reads, modifies and writes, and it first waits for the earlier stores in the store buffer to reach the cache, so with unwritten stores queued ahead of it, it takes longer than the table says. A standalone fence moves no data either; it too pays for waiting: `lfence` waits until every earlier instruction has finished, so a cache miss just before it has to come back first; `sfence` orders only stores against stores, which plain stores already are, so it mainly goes with non-temporal stores; a hand-written `mfence` also has to order non-temporal stores and the like, which makes it heavier than a `lock` instruction, and GCC doesn't use it for a seq_cst fence.
+What an atomic costs is what it has to wait for. x86 allows only one kind of reordering to begin with: a later load passing an earlier store that is still in the store buffer ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)). So plain loads and stores already have acquire and release semantics: atomic loads and relaxed or release stores are plain `mov`s, and acquire or release fences only stop the compiler from reordering and emit no instruction. ARM allows far more reordering, loads with loads and stores with stores included, so the ordering has to be paid for with instructions: the ordered accesses `ldar` and `stlr` aren't slow themselves, they just keep other accesses from passing them; the barrier `dmb` waits for earlier accesses to finish, which is why the acquire/release fence row isn't 0 on ARM. seq_cst also forbids a later load passing an earlier store: on x86 the only way is to turn the store into a `lock`-prefixed `xchg`; on ARM an `stlr` and a later `ldar` never pass each other anyway, so a seq_cst store stays an `stlr` and the cost moves to that later `ldar`, which has to wait for the store to finish.
+
+A read-modify-write holds the line in its own L1 while it reads, modifies and writes, and it first waits for the earlier stores in the store buffer to reach the cache; x86's `lock`-prefixed instructions and ARM's `ldaddal` and `casal` both work this way, so with unwritten stores queued ahead, it takes longer than the table says. x86's standalone fences move no data either; they too pay for waiting: `lfence` waits until every earlier instruction has finished, so a cache miss just before it has to come back first; `sfence` orders only stores against stores, which plain stores already are, so it mainly goes with non-temporal stores; a hand-written `mfence` also has to order non-temporal stores and the like, which makes it heavier than a `lock` instruction, and GCC uses `lock or` for a seq_cst fence instead.
 
 Under contention, the cost is pulling the line over from another core first, the same bill as "line sitting in another core's cache". When N cores take turns doing read-modify-writes on one line, each core waits for the other N−1 to move it once in between, so every operation gets slower the more cores compete ([2.6](#cross-core)).
 
 The integer-division row is wide because the quotient can only be found round by round, a few bits per round: a 64-bit division needs more rounds than a 32-bit one, and recent chips produce more bits per round. A multiplier can start a new multiply every cycle and a divider can't, so divisions on the hot path are best turned into multiplies or shifts (see [#12](/posts/strength-reduction-arithmetic/)).
 
-A mispredict costs about as much as an L2 hit, but it can't be hidden: on an L2 miss, out-of-order execution keeps working on later independent instructions; on a mispredict, everything fetched after the branch is thrown away and fetch starts over, so for those dozen-plus cycles the back end has no correct work to do.
+A mispredict costs about as much as an L2 hit, but it can't be hidden: on an L2 miss, out-of-order execution keeps working on later independent instructions; on a mispredict, everything fetched after the branch is thrown away and fetch starts over, so for those dozen-plus cycles the back end has no correct work to do. A conditional move (`cmov`, `csel`) replaces the branch with picking one of two values, so there is nothing to mispredict, but it has to wait for the condition and both values: when the branch is predicted well, the CPU runs ahead without waiting for the condition and the branch can be faster; when the condition is random, the conditional move pays off (see [#7](/posts/branch-prediction-branch-optimization/)).
 
 From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as 1,000–2,000 L1 hits.
 
