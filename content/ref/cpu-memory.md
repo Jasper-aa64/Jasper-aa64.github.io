@@ -63,7 +63,7 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | L1D hit | ~1 ns (4–5 cycles) |
 | | L2 hit | ~3–5 ns |
 | | L3 hit | ~10–30 ns |
-| | Line sitting in another core's cache | ~20–100 ns |
+| | Line sitting in another core's cache | ~20–100 ns; false sharing pays this too (see [#2](/posts/memory-ordering-false-sharing-dependency-chains/)) |
 | | Memory, translation hits in the TLB | ~70–90 ns |
 | | Memory, translation misses the TLB too | ~85–120 ns |
 | | The other socket's memory (remote NUMA) | ~120–200 ns |
@@ -74,7 +74,7 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–6 ns (8–25 cycles): a `lock`-prefixed instruction on x86, `ldaddal`, `casal` and the like on ARM |
 | | seq_cst fence | ~2–6 ns (8–25 cycles): GCC emits `lock or` on x86; `dmb ish` on ARM |
 | | x86's `sfence`, `lfence`, `mfence` | 1–6, 4–15, 30–80 cycles; for `lfence`, not counting the wait for earlier instructions |
-| | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete |
+| | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete; falsely shared counters pay this too |
 | **Arithmetic** | Integer add/subtract, bit operation, shift | 1 cycle |
 | | Integer multiply | 3 cycles |
 | | Floating-point add/subtract, multiply | 3–5 cycles |
