@@ -1536,16 +1536,16 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .code-block__copy {
   pointer-events: auto;
-  height: 24px;
-  padding: 0 12px;
+  height: 26px;
+  padding: 0 10px;
   border: 1px solid var(--rule);
-  border-radius: 999px;
-  background: var(--wash);
+  border-radius: 7px;
+  background: var(--card);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--muted);
   cursor: pointer;
-  opacity: .7;
+  opacity: .6;
   transition: opacity .2s, color .2s, border-color .2s;
 }
 .code-block:hover .code-block__copy, .code-block__copy:focus-visible, .code-block__copy.is-copied { opacity: 1; }
