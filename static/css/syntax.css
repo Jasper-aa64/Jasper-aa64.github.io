@@ -67,75 +67,75 @@
 :root:not([data-theme="dark"]):not([data-theme="black"]) .chroma .go { color:#1f2328 }
 :root:not([data-theme="dark"]):not([data-theme="black"]) .chroma .gl { text-decoration:underline }
 
-:root[data-theme="dark"] .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }, :root[data-theme="black"] .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
-:root[data-theme="dark"] .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }, :root[data-theme="black"] .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
-:root[data-theme="dark"] .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }, :root[data-theme="black"] .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }
-:root[data-theme="dark"] .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#737679 }, :root[data-theme="black"] .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#737679 }
-:root[data-theme="dark"] .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#6e7681 }, :root[data-theme="black"] .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#6e7681 }
-:root[data-theme="dark"] .chroma .line { display:flex; }, :root[data-theme="black"] .chroma .line { display:flex; }
-:root[data-theme="dark"] .chroma .k { color:#ff7b72 }, :root[data-theme="black"] .chroma .k { color:#ff7b72 }
-:root[data-theme="dark"] .chroma .kc { color:#79c0ff }, :root[data-theme="black"] .chroma .kc { color:#79c0ff }
-:root[data-theme="dark"] .chroma .kd { color:#ff7b72 }, :root[data-theme="black"] .chroma .kd { color:#ff7b72 }
-:root[data-theme="dark"] .chroma .kn { color:#ff7b72 }, :root[data-theme="black"] .chroma .kn { color:#ff7b72 }
-:root[data-theme="dark"] .chroma .kp { color:#79c0ff }, :root[data-theme="black"] .chroma .kp { color:#79c0ff }
-:root[data-theme="dark"] .chroma .kr { color:#ff7b72 }, :root[data-theme="black"] .chroma .kr { color:#ff7b72 }
-:root[data-theme="dark"] .chroma .kt { color:#ff7b72 }, :root[data-theme="black"] .chroma .kt { color:#ff7b72 }
-:root[data-theme="dark"] .chroma .nc { color:#f0883e;font-weight:bold }, :root[data-theme="black"] .chroma .nc { color:#f0883e;font-weight:bold }
-:root[data-theme="dark"] .chroma .no { color:#79c0ff;font-weight:bold }, :root[data-theme="black"] .chroma .no { color:#79c0ff;font-weight:bold }
-:root[data-theme="dark"] .chroma .nd { color:#d2a8ff;font-weight:bold }, :root[data-theme="black"] .chroma .nd { color:#d2a8ff;font-weight:bold }
-:root[data-theme="dark"] .chroma .ni { color:#ffa657 }, :root[data-theme="black"] .chroma .ni { color:#ffa657 }
-:root[data-theme="dark"] .chroma .ne { color:#f0883e;font-weight:bold }, :root[data-theme="black"] .chroma .ne { color:#f0883e;font-weight:bold }
-:root[data-theme="dark"] .chroma .nl { color:#79c0ff;font-weight:bold }, :root[data-theme="black"] .chroma .nl { color:#79c0ff;font-weight:bold }
-:root[data-theme="dark"] .chroma .nn { color:#ff7b72 }, :root[data-theme="black"] .chroma .nn { color:#ff7b72 }
-:root[data-theme="dark"] .chroma .py { color:#79c0ff }, :root[data-theme="black"] .chroma .py { color:#79c0ff }
-:root[data-theme="dark"] .chroma .nt { color:#7ee787 }, :root[data-theme="black"] .chroma .nt { color:#7ee787 }
-:root[data-theme="dark"] .chroma .nv { color:#79c0ff }, :root[data-theme="black"] .chroma .nv { color:#79c0ff }
-:root[data-theme="dark"] .chroma .vc { color:#79c0ff }, :root[data-theme="black"] .chroma .vc { color:#79c0ff }
-:root[data-theme="dark"] .chroma .vg { color:#79c0ff }, :root[data-theme="black"] .chroma .vg { color:#79c0ff }
-:root[data-theme="dark"] .chroma .vi { color:#79c0ff }, :root[data-theme="black"] .chroma .vi { color:#79c0ff }
-:root[data-theme="dark"] .chroma .vm { color:#79c0ff }, :root[data-theme="black"] .chroma .vm { color:#79c0ff }
-:root[data-theme="dark"] .chroma .nf { color:#d2a8ff;font-weight:bold }, :root[data-theme="black"] .chroma .nf { color:#d2a8ff;font-weight:bold }
-:root[data-theme="dark"] .chroma .fm { color:#d2a8ff;font-weight:bold }, :root[data-theme="black"] .chroma .fm { color:#d2a8ff;font-weight:bold }
-:root[data-theme="dark"] .chroma .l { color:#a5d6ff }, :root[data-theme="black"] .chroma .l { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .ld { color:#79c0ff }, :root[data-theme="black"] .chroma .ld { color:#79c0ff }
-:root[data-theme="dark"] .chroma .s { color:#a5d6ff }, :root[data-theme="black"] .chroma .s { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .sa { color:#79c0ff }, :root[data-theme="black"] .chroma .sa { color:#79c0ff }
-:root[data-theme="dark"] .chroma .sb { color:#a5d6ff }, :root[data-theme="black"] .chroma .sb { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .sc { color:#a5d6ff }, :root[data-theme="black"] .chroma .sc { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .dl { color:#79c0ff }, :root[data-theme="black"] .chroma .dl { color:#79c0ff }
-:root[data-theme="dark"] .chroma .sd { color:#a5d6ff }, :root[data-theme="black"] .chroma .sd { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .s2 { color:#a5d6ff }, :root[data-theme="black"] .chroma .s2 { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .se { color:#79c0ff }, :root[data-theme="black"] .chroma .se { color:#79c0ff }
-:root[data-theme="dark"] .chroma .sh { color:#79c0ff }, :root[data-theme="black"] .chroma .sh { color:#79c0ff }
-:root[data-theme="dark"] .chroma .si { color:#a5d6ff }, :root[data-theme="black"] .chroma .si { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .sx { color:#a5d6ff }, :root[data-theme="black"] .chroma .sx { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .sr { color:#79c0ff }, :root[data-theme="black"] .chroma .sr { color:#79c0ff }
-:root[data-theme="dark"] .chroma .s1 { color:#a5d6ff }, :root[data-theme="black"] .chroma .s1 { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .ss { color:#a5d6ff }, :root[data-theme="black"] .chroma .ss { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .m { color:#a5d6ff }, :root[data-theme="black"] .chroma .m { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .mb { color:#a5d6ff }, :root[data-theme="black"] .chroma .mb { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .mf { color:#a5d6ff }, :root[data-theme="black"] .chroma .mf { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .mh { color:#a5d6ff }, :root[data-theme="black"] .chroma .mh { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .mi { color:#a5d6ff }, :root[data-theme="black"] .chroma .mi { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .il { color:#a5d6ff }, :root[data-theme="black"] .chroma .il { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .mo { color:#a5d6ff }, :root[data-theme="black"] .chroma .mo { color:#a5d6ff }
-:root[data-theme="dark"] .chroma .o { color:#ff7b72;font-weight:bold }, :root[data-theme="black"] .chroma .o { color:#ff7b72;font-weight:bold }
-:root[data-theme="dark"] .chroma .ow { color:#ff7b72;font-weight:bold }, :root[data-theme="black"] .chroma .ow { color:#ff7b72;font-weight:bold }
-:root[data-theme="dark"] .chroma .c { color:#8b949e;font-style:italic }, :root[data-theme="black"] .chroma .c { color:#8b949e;font-style:italic }
-:root[data-theme="dark"] .chroma .ch { color:#8b949e;font-style:italic }, :root[data-theme="black"] .chroma .ch { color:#8b949e;font-style:italic }
-:root[data-theme="dark"] .chroma .cm { color:#8b949e;font-style:italic }, :root[data-theme="black"] .chroma .cm { color:#8b949e;font-style:italic }
-:root[data-theme="dark"] .chroma .c1 { color:#8b949e;font-style:italic }, :root[data-theme="black"] .chroma .c1 { color:#8b949e;font-style:italic }
-:root[data-theme="dark"] .chroma .cs { color:#8b949e;font-weight:bold;font-style:italic }, :root[data-theme="black"] .chroma .cs { color:#8b949e;font-weight:bold;font-style:italic }
-:root[data-theme="dark"] .chroma .cp { color:#8b949e;font-weight:bold;font-style:italic }, :root[data-theme="black"] .chroma .cp { color:#8b949e;font-weight:bold;font-style:italic }
-:root[data-theme="dark"] .chroma .cpf { color:#8b949e;font-weight:bold;font-style:italic }, :root[data-theme="black"] .chroma .cpf { color:#8b949e;font-weight:bold;font-style:italic }
-:root[data-theme="dark"] .chroma .gd { color:#ffa198; }, :root[data-theme="black"] .chroma .gd { color:#ffa198; }
-:root[data-theme="dark"] .chroma .ge { font-style:italic }, :root[data-theme="black"] .chroma .ge { font-style:italic }
-:root[data-theme="dark"] .chroma .gr { color:#ffa198 }, :root[data-theme="black"] .chroma .gr { color:#ffa198 }
-:root[data-theme="dark"] .chroma .gh { color:#79c0ff;font-weight:bold }, :root[data-theme="black"] .chroma .gh { color:#79c0ff;font-weight:bold }
-:root[data-theme="dark"] .chroma .gi { color:#56d364; }, :root[data-theme="black"] .chroma .gi { color:#56d364; }
-:root[data-theme="dark"] .chroma .go { color:#8b949e }, :root[data-theme="black"] .chroma .go { color:#8b949e }
-:root[data-theme="dark"] .chroma .gp { color:#8b949e }, :root[data-theme="black"] .chroma .gp { color:#8b949e }
-:root[data-theme="dark"] .chroma .gs { font-weight:bold }, :root[data-theme="black"] .chroma .gs { font-weight:bold }
-:root[data-theme="dark"] .chroma .gu { color:#79c0ff }, :root[data-theme="black"] .chroma .gu { color:#79c0ff }
-:root[data-theme="dark"] .chroma .gt { color:#ff7b72 }, :root[data-theme="black"] .chroma .gt { color:#ff7b72 }
-:root[data-theme="dark"] .chroma .gl { text-decoration:underline }, :root[data-theme="black"] .chroma .gl { text-decoration:underline }
+:root[data-theme="dark"] .chroma .lnlinks, :root[data-theme="black"] .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
+:root[data-theme="dark"] .chroma .lntd, :root[data-theme="black"] .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
+:root[data-theme="dark"] .chroma .lntable, :root[data-theme="black"] .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }
+:root[data-theme="dark"] .chroma .lnt, :root[data-theme="black"] .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#737679 }
+:root[data-theme="dark"] .chroma .ln, :root[data-theme="black"] .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#6e7681 }
+:root[data-theme="dark"] .chroma .line, :root[data-theme="black"] .chroma .line { display:flex; }
+:root[data-theme="dark"] .chroma .k, :root[data-theme="black"] .chroma .k { color:#ff7b72 }
+:root[data-theme="dark"] .chroma .kc, :root[data-theme="black"] .chroma .kc { color:#79c0ff }
+:root[data-theme="dark"] .chroma .kd, :root[data-theme="black"] .chroma .kd { color:#ff7b72 }
+:root[data-theme="dark"] .chroma .kn, :root[data-theme="black"] .chroma .kn { color:#ff7b72 }
+:root[data-theme="dark"] .chroma .kp, :root[data-theme="black"] .chroma .kp { color:#79c0ff }
+:root[data-theme="dark"] .chroma .kr, :root[data-theme="black"] .chroma .kr { color:#ff7b72 }
+:root[data-theme="dark"] .chroma .kt, :root[data-theme="black"] .chroma .kt { color:#ff7b72 }
+:root[data-theme="dark"] .chroma .nc, :root[data-theme="black"] .chroma .nc { color:#f0883e;font-weight:bold }
+:root[data-theme="dark"] .chroma .no, :root[data-theme="black"] .chroma .no { color:#79c0ff;font-weight:bold }
+:root[data-theme="dark"] .chroma .nd, :root[data-theme="black"] .chroma .nd { color:#d2a8ff;font-weight:bold }
+:root[data-theme="dark"] .chroma .ni, :root[data-theme="black"] .chroma .ni { color:#ffa657 }
+:root[data-theme="dark"] .chroma .ne, :root[data-theme="black"] .chroma .ne { color:#f0883e;font-weight:bold }
+:root[data-theme="dark"] .chroma .nl, :root[data-theme="black"] .chroma .nl { color:#79c0ff;font-weight:bold }
+:root[data-theme="dark"] .chroma .nn, :root[data-theme="black"] .chroma .nn { color:#ff7b72 }
+:root[data-theme="dark"] .chroma .py, :root[data-theme="black"] .chroma .py { color:#79c0ff }
+:root[data-theme="dark"] .chroma .nt, :root[data-theme="black"] .chroma .nt { color:#7ee787 }
+:root[data-theme="dark"] .chroma .nv, :root[data-theme="black"] .chroma .nv { color:#79c0ff }
+:root[data-theme="dark"] .chroma .vc, :root[data-theme="black"] .chroma .vc { color:#79c0ff }
+:root[data-theme="dark"] .chroma .vg, :root[data-theme="black"] .chroma .vg { color:#79c0ff }
+:root[data-theme="dark"] .chroma .vi, :root[data-theme="black"] .chroma .vi { color:#79c0ff }
+:root[data-theme="dark"] .chroma .vm, :root[data-theme="black"] .chroma .vm { color:#79c0ff }
+:root[data-theme="dark"] .chroma .nf, :root[data-theme="black"] .chroma .nf { color:#d2a8ff;font-weight:bold }
+:root[data-theme="dark"] .chroma .fm, :root[data-theme="black"] .chroma .fm { color:#d2a8ff;font-weight:bold }
+:root[data-theme="dark"] .chroma .l, :root[data-theme="black"] .chroma .l { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .ld, :root[data-theme="black"] .chroma .ld { color:#79c0ff }
+:root[data-theme="dark"] .chroma .s, :root[data-theme="black"] .chroma .s { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .sa, :root[data-theme="black"] .chroma .sa { color:#79c0ff }
+:root[data-theme="dark"] .chroma .sb, :root[data-theme="black"] .chroma .sb { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .sc, :root[data-theme="black"] .chroma .sc { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .dl, :root[data-theme="black"] .chroma .dl { color:#79c0ff }
+:root[data-theme="dark"] .chroma .sd, :root[data-theme="black"] .chroma .sd { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .s2, :root[data-theme="black"] .chroma .s2 { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .se, :root[data-theme="black"] .chroma .se { color:#79c0ff }
+:root[data-theme="dark"] .chroma .sh, :root[data-theme="black"] .chroma .sh { color:#79c0ff }
+:root[data-theme="dark"] .chroma .si, :root[data-theme="black"] .chroma .si { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .sx, :root[data-theme="black"] .chroma .sx { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .sr, :root[data-theme="black"] .chroma .sr { color:#79c0ff }
+:root[data-theme="dark"] .chroma .s1, :root[data-theme="black"] .chroma .s1 { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .ss, :root[data-theme="black"] .chroma .ss { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .m, :root[data-theme="black"] .chroma .m { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .mb, :root[data-theme="black"] .chroma .mb { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .mf, :root[data-theme="black"] .chroma .mf { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .mh, :root[data-theme="black"] .chroma .mh { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .mi, :root[data-theme="black"] .chroma .mi { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .il, :root[data-theme="black"] .chroma .il { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .mo, :root[data-theme="black"] .chroma .mo { color:#a5d6ff }
+:root[data-theme="dark"] .chroma .o, :root[data-theme="black"] .chroma .o { color:#ff7b72;font-weight:bold }
+:root[data-theme="dark"] .chroma .ow, :root[data-theme="black"] .chroma .ow { color:#ff7b72;font-weight:bold }
+:root[data-theme="dark"] .chroma .c, :root[data-theme="black"] .chroma .c { color:#8b949e;font-style:italic }
+:root[data-theme="dark"] .chroma .ch, :root[data-theme="black"] .chroma .ch { color:#8b949e;font-style:italic }
+:root[data-theme="dark"] .chroma .cm, :root[data-theme="black"] .chroma .cm { color:#8b949e;font-style:italic }
+:root[data-theme="dark"] .chroma .c1, :root[data-theme="black"] .chroma .c1 { color:#8b949e;font-style:italic }
+:root[data-theme="dark"] .chroma .cs, :root[data-theme="black"] .chroma .cs { color:#8b949e;font-weight:bold;font-style:italic }
+:root[data-theme="dark"] .chroma .cp, :root[data-theme="black"] .chroma .cp { color:#8b949e;font-weight:bold;font-style:italic }
+:root[data-theme="dark"] .chroma .cpf, :root[data-theme="black"] .chroma .cpf { color:#8b949e;font-weight:bold;font-style:italic }
+:root[data-theme="dark"] .chroma .gd, :root[data-theme="black"] .chroma .gd { color:#ffa198; }
+:root[data-theme="dark"] .chroma .ge, :root[data-theme="black"] .chroma .ge { font-style:italic }
+:root[data-theme="dark"] .chroma .gr, :root[data-theme="black"] .chroma .gr { color:#ffa198 }
+:root[data-theme="dark"] .chroma .gh, :root[data-theme="black"] .chroma .gh { color:#79c0ff;font-weight:bold }
+:root[data-theme="dark"] .chroma .gi, :root[data-theme="black"] .chroma .gi { color:#56d364; }
+:root[data-theme="dark"] .chroma .go, :root[data-theme="black"] .chroma .go { color:#8b949e }
+:root[data-theme="dark"] .chroma .gp, :root[data-theme="black"] .chroma .gp { color:#8b949e }
+:root[data-theme="dark"] .chroma .gs, :root[data-theme="black"] .chroma .gs { font-weight:bold }
+:root[data-theme="dark"] .chroma .gu, :root[data-theme="black"] .chroma .gu { color:#79c0ff }
+:root[data-theme="dark"] .chroma .gt, :root[data-theme="black"] .chroma .gt { color:#ff7b72 }
+:root[data-theme="dark"] .chroma .gl, :root[data-theme="black"] .chroma .gl { text-decoration:underline }
