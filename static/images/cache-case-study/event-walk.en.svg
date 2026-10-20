@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 430" width="1100" height="430" font-family="Segoe UI, Helvetica, Arial, PingFang SC, Microsoft YaHei, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.b{font-size:13px;fill:#1f2328}.k{font-size:13.5px;font-weight:700;fill:#1f2328}.n{font-size:12px;fill:#57606a}.v{font-size:12px;fill:#1f2328}.r{font-size:12.5px;fill:#cf222e}.rk{font-size:13px;font-weight:700;fill:#ffffff}</style></defs>
+<rect x="0" y="0" width="1100" height="430" fill="#ffffff"/>
+<text class="h" x="20" y="32">The 140 cache lines one event touches</text>
+<text class="s" x="20" y="54">Option addresses come out of the stock record; once it has arrived, the 64 options are independent of each other.</text>
+<text class="n" x="20" y="92">A writer on another core adds one every 5 µs</text>
+<rect x="20" y="102" width="200" height="196" rx="6" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.4"/>
+<text class="k" x="120" y="126" text-anchor="middle">Ring buffer · 8 MiB</text>
+<rect x="36" y="140" width="168" height="20" rx="3" fill="#ffffff" stroke="#d0d7de" stroke-width="1.4"/>
+<rect x="36" y="164" width="168" height="20" rx="3" fill="#ffffff" stroke="#d0d7de" stroke-width="1.4"/>
+<rect x="36" y="188" width="168" height="20" rx="3" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<text class="b" x="120" y="203" text-anchor="middle">Event 192 B = 3 lines</text>
+<rect x="36" y="212" width="168" height="20" rx="3" fill="#ffffff" stroke="#d0d7de" stroke-width="1.4"/>
+<rect x="36" y="236" width="168" height="20" rx="3" fill="#ffffff" stroke="#d0d7de" stroke-width="1.4"/>
+<rect x="36" y="260" width="168" height="20" rx="3" fill="#ffffff" stroke="#d0d7de" stroke-width="1.4"/>
+<text class="n" x="20" y="318">The consumer reads it once, never again</text>
+<line x1="220" y1="200" x2="286" y2="200" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="n" x="253" y="192" text-anchor="middle">stock id</text>
+<rect x="290" y="102" width="230" height="196" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.4"/>
+<text class="k" x="405" y="126" text-anchor="middle">Stock · 576 B = 9 lines</text>
+<rect x="301" y="140" width="208" height="24" rx="3" fill="#ffffff" stroke="#d4a72c" stroke-width="1.4"/>
+<text class="b" x="405" y="157" text-anchor="middle">last price, last_px</text>
+<rect x="302" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="315" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="328" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="341" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="354" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="367" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="380" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="393" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="406" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="419" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="432" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="445" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="458" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="471" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="484" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="497" y="176" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="302" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="315" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="328" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="341" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="354" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="367" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="380" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="393" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="406" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="419" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="432" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="445" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="458" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="471" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="484" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="497" y="193" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="302" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="315" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="328" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="341" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="354" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="367" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="380" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="393" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="406" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="419" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="432" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="445" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="458" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="471" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="484" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="497" y="210" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="302" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="315" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="328" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="341" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="354" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="367" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="380" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="393" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="406" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="419" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="432" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="445" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="458" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="471" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="484" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<rect x="497" y="227" width="10" height="13" rx="2" fill="#ffffff" stroke="#d4a72c" stroke-width="1"/>
+<text class="b" x="405" y="262" text-anchor="middle">64 × (option id, delta)</text>
+<text class="n" x="405" y="282" text-anchor="middle">8 + 64 × 8 = 520 B → 576 B</text>
+<line x1="520" y1="200" x2="636" y2="200" stroke="#cf222e" stroke-width="1.6" marker-end="url(#ar)"/>
+<text class="r" x="578" y="190" text-anchor="middle">dependent hop</text>
+<text class="r" x="578" y="220" text-anchor="middle">address read here</text>
+<rect x="640" y="92" width="292" height="216" rx="6" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text class="k" x="786" y="116" text-anchor="middle">64 options · 128 B = 2 lines each</text>
+<rect x="652" y="130" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="788" y="130" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<text class="v" x="718" y="146" text-anchor="middle">line 1: price</text>
+<text class="v" x="854" y="146" text-anchor="middle">line 2: alpha state</text>
+<rect x="652" y="160" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="788" y="160" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="652" y="190" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="788" y="190" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="652" y="252" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<rect x="788" y="252" width="132" height="22" rx="3" fill="#ffffff" stroke="#8250df" stroke-width="1.4"/>
+<text class="k" x="786" y="238" text-anchor="middle">⋮</text>
+<text class="n" x="786" y="297" text-anchor="middle">128 lines among 524,288 records</text>
+<line x1="932" y1="210" x2="966" y2="210" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="n" x="1022" y="182" text-anchor="middle">alpha &gt; threshold</text>
+<rect x="970" y="190" width="104" height="44" rx="6" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.4"/>
+<text class="k" x="1022" y="217" text-anchor="middle">hits</text>
+<rect x="20.0" y="350" width="22.6" height="22" fill="#ddf4ff" stroke="#0969da" stroke-width="1.2"/>
+<rect x="44.6" y="350" width="67.9" height="22" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.2"/>
+<rect x="114.5" y="350" width="965.5" height="22" fill="#fbefff" stroke="#8250df" stroke-width="1.2"/>
+<text class="n" x="20" y="342">event 3</text>
+<text class="n" x="78.6" y="388" text-anchor="middle">stock record 9</text>
+<text class="b" x="597.3" y="366" text-anchor="middle">options 128</text>
+<text class="s" x="20" y="416">3 + 9 + 128 = 140 lines, 8,960 B per event; the options are 128 of them.</text>
+</svg>
