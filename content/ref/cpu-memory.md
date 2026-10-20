@@ -15,7 +15,7 @@ This page is a map to keep open, not a post. It has three parts, in the order "w
 2. [Performance parameters](#numbers): latency, bandwidth and capacity for each box, how many requests can be in flight (MLP), and how fast the CPU itself wants data (bandwidth demand). They are rough magnitudes for intuition, not any particular machine.
 3. [Estimation model](#estimate): one formula that strings the numbers of Part 2 together, to tell whether code is slow because it moves too much or because each move is slow.
 
-When a later post covers a new hardware layer, it goes here.
+When a later post covers a new hardware layer, it goes here. One layer up, the threads a market data message passes through are mapped in [Trading System Architecture](/ref/trading-architecture/).
 
 ## 1. Memory Hierarchy: The Boxes One Access Passes Through {#map}
 

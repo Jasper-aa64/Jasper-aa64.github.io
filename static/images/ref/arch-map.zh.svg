@@ -1,0 +1,236 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1140" width="1600" height="1140" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .labr{ font-size: 11.5px; fill: #cf222e; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .ext  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .hot  { fill: #eefbf1; stroke: #1a7f37; stroke-width: 1.4; }
+      .data { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .sync { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .note { fill: #fbfbfc; stroke: #8c959f; stroke-width: 1; stroke-dasharray: 3 3; }
+      .cold { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 3; }
+      .sock { fill: #fbfbfc; stroke: #1f2328; stroke-width: 2; }
+      .line { stroke: #555; stroke-width: 1.6; fill: none; }
+      .ret  { stroke: #cf222e; stroke-width: 1.6; fill: none; }
+      .side { stroke: #6e7781; stroke-width: 1.4; fill: none; stroke-dasharray: 5 3; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1140" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">交易系统架构地图：一条行情怎么变成一笔成交</text>
+  <text x="20" y="62" class="s">蓝字 = 在哪里讲过（#N = 交易系统笔记 #N，速查 = 速查页的小节）。时间都是量级。</text>
+  <text x="20" y="82" class="s">黑线 = 热路径（行情 → 报单）；红线 = 回报回来（成交 → 持仓 → 策略）；灰色虚线 = 旁路（落盘、日志、监控、推送）。</text>
+  <text x="20" y="102" class="s">绿框 = 热线程，各绑一个隔离核；蓝框 = 线程之间交接数据的结构；黄框 = 汇合点；虚线框 = 旁路上的线程或进程。</text>
+  <rect x="20" y="120" width="200" height="700" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="32" y="146" class="lane-h" style="fill:#57606a">场外</text>
+  <rect x="240" y="120" width="1340" height="700" rx="10" class="sock"/>
+  <text x="256" y="148" class="h">交易服务器：热线程各绑一个隔离核</text>
+  <text x="558" y="148" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 绑核 / 隔离</tspan></a></text>
+  <rect x="1005" y="365" width="565" height="440" rx="8" fill="#f4fbf5" stroke="#4ac26b" stroke-dasharray="6 4"/>
+  <text x="1017" y="388" class="lane-h" style="fill:#1a7f37">决策线程：一路调下去，不过队列</text>
+  <rect x="20" y="850" width="1560" height="220" rx="10" fill="#ffffff" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="32" y="874" class="lane-h" style="fill:#57606a">旁路与控制面：慢了不能拖住热路径</text>
+  <g id="exch">
+  <rect x="32" y="170" width="176" height="230" rx="6" class="ext"/>
+  <text x="44" y="194" class="t">交易所</text>
+  <text x="44" y="212" class="s">撮合引擎</text>
+  <text x="44" y="230" class="s">行情：按通道组播</text>
+  <text x="44" y="248" class="s">收报单，发回报</text>
+  </g>
+  <g id="counter">
+  <rect x="32" y="600" width="176" height="190" rx="6" class="ext"/>
+  <text x="44" y="624" class="t">券商柜台</text>
+  <text x="44" y="642" class="s">券商的风控和报盘</text>
+  <text x="44" y="660" class="s">极速柜台：几十 µs</text>
+  <text x="44" y="678" class="s">普通柜台：到毫秒</text>
+  </g>
+  <g id="nic">
+  <rect x="260" y="170" width="220" height="160" rx="6" class="ext"/>
+  <text x="272" y="194" class="t">网卡（NIC）</text>
+  <text x="272" y="212" class="s">收行情包</text>
+  <text x="272" y="230" class="s">绕过内核：约 1 µs</text>
+  <text x="272" y="248" class="s">走内核协议栈：5–10 µs</text>
+  <text x="272" y="266" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 中断别打到热核</tspan></a></text>
+  </g>
+  <g id="feed">
+  <rect x="520" y="170" width="220" height="160" rx="6" class="hot"/>
+  <text x="532" y="194" class="t">行情接入线程</text>
+  <text x="532" y="212" class="s">解码，转成内部格式</text>
+  <text x="532" y="230" class="s">按通道查序号，断档就补</text>
+  <text x="532" y="248" class="s">先写广播环，再按股票分发</text>
+  <text x="532" y="266" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#16-什么时候不用广播环" target="_blank" rel="noopener"><tspan>#5 广播环 1.6</tspan></a></text>
+  </g>
+  <g id="spsc">
+  <rect x="780" y="170" width="200" height="160" rx="6" class="data"/>
+  <text x="792" y="194" class="t">分片队列（SPSC）</text>
+  <text x="792" y="212" class="s">股票 → 分片，查表</text>
+  <text x="792" y="230" class="s">同一只股票只进一片</text>
+  <text x="792" y="248" class="s">交接一次：几十 ns</text>
+  <text x="792" y="266" class="tag"><a href="/zh/posts/lock-free-queue-logger-micro-batching/" target="_blank" rel="noopener"><tspan>#4 无锁队列</tspan></a></text>
+  <text x="792" y="284" class="tag"><a href="/zh/ref/cpu-memory/#cross-core" target="_blank" rel="noopener"><tspan>速查 2.6 跨核交接</tspan></a></text>
+  </g>
+  <g id="shard">
+  <rect x="1020" y="170" width="270" height="160" rx="6" class="hot"/>
+  <text x="1032" y="194" class="t">分片线程 ×N</text>
+  <text x="1032" y="212" class="s">盘口重建 → 因子增量更新</text>
+  <text x="1032" y="230" class="s">只碰自己那些股票的状态</text>
+  <text x="1032" y="248" class="s">每条几百 ns 到几 µs</text>
+  <text x="1032" y="266" class="tag"><a href="/zh/posts/low-latency-cache-case-study/" target="_blank" rel="noopener"><tspan>缓存案例：一次行情重算 64 个期权</tspan></a></text>
+  <text x="1032" y="284" class="tag"><a href="/zh/posts/prefetch-warmup-double-buffer/" target="_blank" rel="noopener"><tspan>#14 在干活的核上预热</tspan></a></text>
+  </g>
+  <g id="barrier">
+  <rect x="1330" y="170" width="230" height="160" rx="6" class="sync"/>
+  <text x="1342" y="194" class="t">汇合：bar 收齐</text>
+  <text x="1342" y="212" class="s">等所有分片算完这根 bar</text>
+  <text x="1342" y="230" class="s">截面排名、标准化</text>
+  <text x="1342" y="248" class="s">节奏：毫秒到秒</text>
+  </g>
+  <g id="ring">
+  <rect x="520" y="380" width="220" height="130" rx="6" class="data"/>
+  <text x="532" y="404" class="t">广播环（共享内存）</text>
+  <text x="532" y="422" class="s">接入线程写一份</text>
+  <text x="532" y="440" class="s">落盘、监控各自来读</text>
+  <text x="532" y="458" class="s">生产者不等任何读者</text>
+  <text x="532" y="476" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/" target="_blank" rel="noopener"><tspan>#5 SPMC 广播环</tspan></a></text>
+  </g>
+  <g id="clock">
+  <rect x="780" y="380" width="200" height="200" rx="6" class="note"/>
+  <text x="792" y="404" class="t">两种节奏</text>
+  <text x="792" y="422" class="s">按 bar 截面（多因子）：</text>
+  <text x="792" y="440" class="s">分片 → 汇合 → 策略，</text>
+  <text x="792" y="458" class="s">毫秒到秒。</text>
+  <text x="792" y="476" class="s">逐笔触发（做市、套利）：</text>
+  <text x="792" y="494" class="s">分片线程里一路做到报单，</text>
+  <text x="792" y="512" class="s">不过汇合，微秒级。</text>
+  </g>
+  <g id="acct">
+  <rect x="1020" y="400" width="270" height="100" rx="6" class="data"/>
+  <text x="1032" y="424" class="t">账户状态</text>
+  <text x="1032" y="442" class="s">持仓、资金、在途单</text>
+  <text x="1032" y="460" class="s">只有决策线程改，别人读快照</text>
+  <text x="1032" y="478" class="tag"><a href="/zh/posts/prefetch-warmup-double-buffer/" target="_blank" rel="noopener"><tspan>#14 双缓冲读快照</tspan></a></text>
+  </g>
+  <g id="strategy">
+  <rect x="1330" y="400" width="230" height="100" rx="6" class="hot"/>
+  <text x="1342" y="424" class="t">策略</text>
+  <text x="1342" y="442" class="s">合成打分、排名</text>
+  <text x="1342" y="460" class="s">对照持仓、资金、在途单</text>
+  <text x="1342" y="478" class="s">给出买、卖、撤</text>
+  </g>
+  <g id="risk">
+  <rect x="1330" y="525" width="230" height="85" rx="6" class="hot"/>
+  <text x="1342" y="549" class="t">事前风控</text>
+  <text x="1342" y="567" class="s">单笔、持仓上限，价格范围</text>
+  <text x="1342" y="585" class="s">报撤频率，总开关</text>
+  </g>
+  <g id="oms">
+  <rect x="1330" y="640" width="230" height="150" rx="6" class="hot"/>
+  <text x="1342" y="664" class="t">订单管理（OMS）</text>
+  <text x="1342" y="682" class="s">订单状态机：</text>
+  <text x="1342" y="700" class="s">已报 → 部成 → 已成或已撤</text>
+  <text x="1342" y="718" class="s">大单拆成小单按时间发</text>
+  <text x="1342" y="736" class="s">（TWAP 等）</text>
+  <text x="1342" y="754" class="tag"><a href="/zh/posts/hot-path-memory-allocators/" target="_blank" rel="noopener"><tspan>#3 热路径不现分配内存</tspan></a></text>
+  </g>
+  <g id="gw">
+  <rect x="1020" y="680" width="270" height="110" rx="6" class="hot"/>
+  <text x="1032" y="704" class="t">下单网关</text>
+  <text x="1032" y="722" class="s">编码成柜台、交易所的协议</text>
+  <text x="1032" y="740" class="s">会话、序号、流控</text>
+  <text x="1032" y="758" class="s">报单从网卡发出</text>
+  </g>
+  <g id="research">
+  <rect x="32" y="890" width="200" height="160" rx="6" class="cold"/>
+  <text x="44" y="914" class="t">离线回放与研究</text>
+  <text x="44" y="932" class="s">录下的行情喂回</text>
+  <text x="44" y="950" class="s">同一份因子代码</text>
+  <text x="44" y="968" class="s">离线和盘中逐值对得上</text>
+  <text x="44" y="986" class="s">才说明回放可信</text>
+  </g>
+  <g id="rec">
+  <rect x="270" y="890" width="210" height="160" rx="6" class="cold"/>
+  <text x="282" y="914" class="t">行情落盘（录制）</text>
+  <text x="282" y="932" class="s">全量写文件，攒批写</text>
+  <text x="282" y="950" class="s">落后满一圈会被套圈</text>
+  <text x="282" y="968" class="s">要能发现、要报警</text>
+  <text x="282" y="986" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#23-部署时的三个坑" target="_blank" rel="noopener"><tspan>#5 2.3 部署时的坑</tspan></a></text>
+  </g>
+  <g id="mon">
+  <rect x="520" y="890" width="220" height="160" rx="6" class="cold"/>
+  <text x="532" y="914" class="t">监控与告警</text>
+  <text x="532" y="932" class="s">断档、积压、延迟分位数</text>
+  <text x="532" y="950" class="s">拒单、撤单率、仓位</text>
+  <text x="532" y="968" class="s">只读计数器，不进热路径</text>
+  </g>
+  <g id="log">
+  <rect x="780" y="890" width="200" height="160" rx="6" class="cold"/>
+  <text x="792" y="914" class="t">异步日志</text>
+  <text x="792" y="932" class="s">热线程往队列写一条</text>
+  <text x="792" y="950" class="s">就走，后台线程</text>
+  <text x="792" y="968" class="s">攒一批再写盘</text>
+  <text x="792" y="986" class="tag"><a href="/zh/posts/lock-free-queue-logger-micro-batching/" target="_blank" rel="noopener"><tspan>#4 无锁队列与攒批</tspan></a></text>
+  </g>
+  <g id="ctrl">
+  <rect x="1020" y="890" width="270" height="160" rx="6" class="cold"/>
+  <text x="1032" y="914" class="t">交易员指令</text>
+  <text x="1032" y="932" class="s">启停、撤单、改参数</text>
+  <text x="1032" y="950" class="s">经服务进程走队列，</text>
+  <text x="1032" y="968" class="s">送进决策线程</text>
+  <text x="1032" y="986" class="s">次数少，但要尽快生效</text>
+  </g>
+  <g id="push">
+  <rect x="1330" y="890" width="230" height="160" rx="6" class="cold"/>
+  <text x="1342" y="914" class="t">客户端推送</text>
+  <text x="1342" y="932" class="s">订单、持仓、算法进度</text>
+  <text x="1342" y="950" class="s">推到交易员的屏幕</text>
+  <text x="1342" y="968" class="s">人看的：几十毫秒够用</text>
+  <text x="1342" y="986" class="s">读快照，不碰热状态</text>
+  </g>
+  <path d="M208,250 L258,250" class="line edge" id="e_exch_nic" marker-end="url(#arr)"/>
+  <path d="M480,250 L518,250" class="line edge" id="e_nic_feed" marker-end="url(#arr)"/>
+  <path d="M740,250 L778,250" class="line edge" id="e_feed_spsc" marker-end="url(#arr)"/>
+  <path d="M980,250 L1018,250" class="line edge" id="e_spsc_shard" marker-end="url(#arr)"/>
+  <path d="M1290,250 L1328,250" class="line edge" id="e_shard_barrier" marker-end="url(#arr)"/>
+  <path d="M1445,330 L1445,398" class="line edge" id="e_barrier_strategy" marker-end="url(#arr)"/>
+  <path d="M1445,500 L1445,523" class="line edge" id="e_strategy_risk" marker-end="url(#arr)"/>
+  <path d="M1445,610 L1445,638" class="line edge" id="e_risk_oms" marker-end="url(#arr)"/>
+  <path d="M1330,705 L1292,705" class="line edge" id="e_oms_gw" marker-end="url(#arr)"/>
+  <path d="M1020,720 L210,720" class="line edge" id="e_gw_counter" marker-end="url(#arr)"/>
+  <path d="M90,600 L90,402" class="line edge" id="e_counter_exch" marker-end="url(#arr)"/>
+  <path d="M150,400 L150,598" class="ret edge" id="e_exch_counter_r" marker-end="url(#arrR)"/>
+  <path d="M208,770 L1018,770" class="ret edge" id="e_counter_gw_r" marker-end="url(#arrR)"/>
+  <path d="M1290,770 L1328,770" class="ret edge" id="e_gw_oms_r" marker-end="url(#arrR)"/>
+  <path d="M1330,660 L1310,660 L1310,470 L1292,470" class="ret edge" id="e_oms_acct_r" marker-end="url(#arrR)"/>
+  <path d="M1290,430 L1328,430" class="ret edge" id="e_acct_strategy_r" marker-end="url(#arrR)"/>
+  <path d="M630,330 L630,378" class="side edge" id="e_feed_ring" marker-end="url(#arrG)"/>
+  <path d="M590,510 L590,840 L375,840 L375,888" class="side edge" id="e_ring_rec" marker-end="url(#arrG)"/>
+  <path d="M680,510 L680,888" class="side edge" id="e_ring_mon" marker-end="url(#arrG)"/>
+  <path d="M270,970 L234,970" class="side edge" id="e_rec_research" marker-end="url(#arrG)"/>
+  <path d="M880,822 L880,888" class="side edge" id="e_hot_log" marker-end="url(#arrG)"/>
+  <path d="M1155,890 L1155,807" class="side edge" id="e_ctrl_dec" marker-end="url(#arrG)"/>
+  <path d="M1445,790 L1445,888" class="side edge" id="e_oms_push" marker-end="url(#arrG)"/>
+  <text x="233" y="242" class="lab" text-anchor="middle">行情</text>
+  <text x="638" y="360" class="lab" text-anchor="start">写一份</text>
+  <text x="420" y="712" class="lab" text-anchor="middle">← 报单</text>
+  <text x="96" y="505" class="lab" text-anchor="start">报单</text>
+  <text x="156" y="505" class="labr" text-anchor="start">回报</text>
+  <text x="420" y="790" class="labr" text-anchor="middle">回报：确认、成交、撤单 →</text>
+  <text x="888" y="842" class="lab" text-anchor="start">各热线程写一条就走</text>
+  <text x="1163" y="848" class="lab" text-anchor="start">指令走队列进来</text>
+  <text x="1453" y="830" class="lab" text-anchor="start">订单、持仓变化</text>
+  <text x="20" y="1098" class="s">时间都是量级，用来判断该抠哪一段，不对应哪套系统；每一段的数见速查页第 2 部分。</text>
+  <text x="20" y="1120" class="s">图随文章更新：后续文章讲到新的组件时再往上补。</text>
+</svg>
