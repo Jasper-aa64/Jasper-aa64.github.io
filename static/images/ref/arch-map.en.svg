@@ -1,0 +1,242 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1140" width="1600" height="1140" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .labr{ font-size: 11.5px; fill: #cf222e; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .ext  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .hot  { fill: #eefbf1; stroke: #1a7f37; stroke-width: 1.4; }
+      .data { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .sync { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .note { fill: #fbfbfc; stroke: #8c959f; stroke-width: 1; stroke-dasharray: 3 3; }
+      .cold { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 3; }
+      .sock { fill: #fbfbfc; stroke: #1f2328; stroke-width: 2; }
+      .line { stroke: #555; stroke-width: 1.6; fill: none; }
+      .ret  { stroke: #cf222e; stroke-width: 1.6; fill: none; }
+      .side { stroke: #6e7781; stroke-width: 1.4; fill: none; stroke-dasharray: 5 3; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1140" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">Trading system architecture map: how a market data message becomes a fill</text>
+  <text x="20" y="62" class="s">Blue text = where it is covered (#N = Trading System Notes #N, Ref = a section of the reference page). Times are orders of magnitude.</text>
+  <text x="20" y="82" class="s">Black = hot path (market data → order); red = reports coming back (fill → position → strategy); grey dashed = side paths (recording, logging, monitoring, push).</text>
+  <text x="20" y="102" class="s">Green = hot thread, each pinned to an isolated core; blue = a structure that hands data between threads; yellow = a join point; dashed = side-path threads or processes.</text>
+  <rect x="20" y="120" width="200" height="700" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="32" y="146" class="lane-h" style="fill:#57606a">Outside</text>
+  <rect x="240" y="120" width="1340" height="700" rx="10" class="sock"/>
+  <text x="256" y="148" class="h">Trading server: each hot thread pinned to an isolated core</text>
+  <text x="788" y="148" class="tag"><a href="/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 pinning / isolation</tspan></a></text>
+  <rect x="1005" y="365" width="565" height="440" rx="8" fill="#f4fbf5" stroke="#4ac26b" stroke-dasharray="6 4"/>
+  <text x="1017" y="388" class="lane-h" style="fill:#1a7f37">Decision thread: plain calls, no queues</text>
+  <rect x="20" y="850" width="1560" height="220" rx="10" fill="#ffffff" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="32" y="874" class="lane-h" style="fill:#57606a">Side paths: never block the hot path</text>
+  <g id="exch">
+  <rect x="32" y="170" width="176" height="230" rx="6" class="ext"/>
+  <text x="44" y="194" class="t">Exchange</text>
+  <text x="44" y="212" class="s">Matching engine</text>
+  <text x="44" y="230" class="s">Market data:</text>
+  <text x="44" y="248" class="s">multicast by channel</text>
+  <text x="44" y="266" class="s">Orders in, reports out</text>
+  </g>
+  <g id="counter">
+  <rect x="32" y="600" width="176" height="190" rx="6" class="ext"/>
+  <text x="44" y="624" class="t">Broker system</text>
+  <text x="44" y="642" class="s">Broker risk checks,</text>
+  <text x="44" y="660" class="s">then routing</text>
+  <text x="44" y="678" class="s">Fast tier: tens of µs</text>
+  <text x="44" y="696" class="s">Standard: up to ms</text>
+  </g>
+  <g id="nic">
+  <rect x="260" y="170" width="220" height="160" rx="6" class="ext"/>
+  <text x="272" y="194" class="t">NIC</text>
+  <text x="272" y="212" class="s">Receives market data</text>
+  <text x="272" y="230" class="s">Kernel bypass: ~1 µs</text>
+  <text x="272" y="248" class="s">Kernel stack: 5–10 µs</text>
+  <text x="272" y="266" class="tag"><a href="/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 keep IRQs off hot cores</tspan></a></text>
+  </g>
+  <g id="feed">
+  <rect x="520" y="170" width="220" height="160" rx="6" class="hot"/>
+  <text x="532" y="194" class="t">Feed handler thread</text>
+  <text x="532" y="212" class="s">Decode to internal format</text>
+  <text x="532" y="230" class="s">Check per-channel</text>
+  <text x="532" y="248" class="s">sequence, fill gaps</text>
+  <text x="532" y="266" class="s">Ring first, then by stock</text>
+  <text x="532" y="284" class="tag"><a href="/posts/spmc-shared-memory-broadcast-ring/#16-when-not-to-use-a-broadcast-ring" target="_blank" rel="noopener"><tspan>#5 broadcast ring 1.6</tspan></a></text>
+  </g>
+  <g id="spsc">
+  <rect x="780" y="170" width="200" height="160" rx="6" class="data"/>
+  <text x="792" y="194" class="t">Shard queues</text>
+  <text x="792" y="212" class="s">SPSC, one per shard</text>
+  <text x="792" y="230" class="s">Stock → shard by table</text>
+  <text x="792" y="248" class="s">One stock, one shard</text>
+  <text x="792" y="266" class="s">Handoff: tens of ns</text>
+  <text x="792" y="284" class="tag"><a href="/posts/lock-free-queue-logger-micro-batching/" target="_blank" rel="noopener"><tspan>#4 lock-free queue</tspan></a></text>
+  <text x="792" y="302" class="tag"><a href="/ref/cpu-memory/#cross-core" target="_blank" rel="noopener"><tspan>Ref 2.6 cross-core</tspan></a></text>
+  </g>
+  <g id="shard">
+  <rect x="1020" y="170" width="270" height="160" rx="6" class="hot"/>
+  <text x="1032" y="194" class="t">Shard threads ×N</text>
+  <text x="1032" y="212" class="s">Book rebuild → incremental factors</text>
+  <text x="1032" y="230" class="s">Touches only its own stocks</text>
+  <text x="1032" y="248" class="s">Hundreds of ns to µs a message</text>
+  <text x="1032" y="266" class="tag"><a href="/posts/low-latency-cache-case-study/" target="_blank" rel="noopener"><tspan>Cache case study: 64 options a tick</tspan></a></text>
+  <text x="1032" y="284" class="tag"><a href="/posts/prefetch-warmup-double-buffer/" target="_blank" rel="noopener"><tspan>#14 warm up on the working core</tspan></a></text>
+  </g>
+  <g id="barrier">
+  <rect x="1330" y="170" width="230" height="160" rx="6" class="sync"/>
+  <text x="1342" y="194" class="t">Join: bar complete</text>
+  <text x="1342" y="212" class="s">Wait for every shard</text>
+  <text x="1342" y="230" class="s">Cross-sectional rank, z-score</text>
+  <text x="1342" y="248" class="s">Cadence: ms to s</text>
+  </g>
+  <g id="ring">
+  <rect x="520" y="380" width="220" height="130" rx="6" class="data"/>
+  <text x="532" y="404" class="t">Broadcast ring (shm)</text>
+  <text x="532" y="422" class="s">Feed thread writes once</text>
+  <text x="532" y="440" class="s">Recorder, monitor read</text>
+  <text x="532" y="458" class="s">Producer waits for no one</text>
+  <text x="532" y="476" class="tag"><a href="/posts/spmc-shared-memory-broadcast-ring/" target="_blank" rel="noopener"><tspan>#5 SPMC broadcast ring</tspan></a></text>
+  </g>
+  <g id="clock">
+  <rect x="780" y="380" width="200" height="200" rx="6" class="note"/>
+  <text x="792" y="404" class="t">Two cadences</text>
+  <text x="792" y="422" class="s">Per bar (multi-factor):</text>
+  <text x="792" y="440" class="s">shards → join → strategy,</text>
+  <text x="792" y="458" class="s">ms to s.</text>
+  <text x="792" y="476" class="s">Per tick (MM, arbitrage):</text>
+  <text x="792" y="494" class="s">signal to order inside</text>
+  <text x="792" y="512" class="s">the shard thread, in µs.</text>
+  </g>
+  <g id="acct">
+  <rect x="1020" y="400" width="270" height="100" rx="6" class="data"/>
+  <text x="1032" y="424" class="t">Account state</text>
+  <text x="1032" y="442" class="s">Positions, cash, open orders</text>
+  <text x="1032" y="460" class="s">One writer; others read snapshots</text>
+  <text x="1032" y="478" class="tag"><a href="/posts/prefetch-warmup-double-buffer/" target="_blank" rel="noopener"><tspan>#14 double-buffered snapshots</tspan></a></text>
+  </g>
+  <g id="strategy">
+  <rect x="1330" y="400" width="230" height="100" rx="6" class="hot"/>
+  <text x="1342" y="424" class="t">Strategy</text>
+  <text x="1342" y="442" class="s">Combine scores, rank</text>
+  <text x="1342" y="460" class="s">Check positions, cash, orders</text>
+  <text x="1342" y="478" class="s">Decide buy, sell, cancel</text>
+  </g>
+  <g id="risk">
+  <rect x="1330" y="525" width="230" height="85" rx="6" class="hot"/>
+  <text x="1342" y="549" class="t">Pre-trade risk</text>
+  <text x="1342" y="567" class="s">Size and position limits,</text>
+  <text x="1342" y="585" class="s">price bands, rate, kill switch</text>
+  </g>
+  <g id="oms">
+  <rect x="1330" y="640" width="230" height="150" rx="6" class="hot"/>
+  <text x="1342" y="664" class="t">Order manager (OMS)</text>
+  <text x="1342" y="682" class="s">Order state machine:</text>
+  <text x="1342" y="700" class="s">sent → partial → filled/cxl</text>
+  <text x="1342" y="718" class="s">Slice big orders over time</text>
+  <text x="1342" y="736" class="s">(TWAP and the like)</text>
+  <text x="1342" y="754" class="tag"><a href="/posts/hot-path-memory-allocators/" target="_blank" rel="noopener"><tspan>#3 no hot-path allocation</tspan></a></text>
+  </g>
+  <g id="gw">
+  <rect x="1020" y="680" width="270" height="110" rx="6" class="hot"/>
+  <text x="1032" y="704" class="t">Order gateway</text>
+  <text x="1032" y="722" class="s">Encode the broker/exchange protocol</text>
+  <text x="1032" y="740" class="s">Session, sequence numbers, throttle</text>
+  <text x="1032" y="758" class="s">Orders leave through the NIC</text>
+  </g>
+  <g id="research">
+  <rect x="32" y="890" width="200" height="160" rx="6" class="cold"/>
+  <text x="44" y="914" class="t">Replay and research</text>
+  <text x="44" y="932" class="s">Recorded data goes back</text>
+  <text x="44" y="950" class="s">into the same factor code</text>
+  <text x="44" y="968" class="s">Offline must match live,</text>
+  <text x="44" y="986" class="s">value for value</text>
+  </g>
+  <g id="rec">
+  <rect x="270" y="890" width="210" height="160" rx="6" class="cold"/>
+  <text x="282" y="914" class="t">Recorder</text>
+  <text x="282" y="932" class="s">Writes all data to files</text>
+  <text x="282" y="950" class="s">in batches</text>
+  <text x="282" y="968" class="s">A ring behind = lapped:</text>
+  <text x="282" y="986" class="s">detect it, alert</text>
+  <text x="282" y="1004" class="tag"><a href="/posts/spmc-shared-memory-broadcast-ring/#23-three-deployment-traps" target="_blank" rel="noopener"><tspan>#5 2.3 deployment traps</tspan></a></text>
+  </g>
+  <g id="mon">
+  <rect x="520" y="890" width="220" height="160" rx="6" class="cold"/>
+  <text x="532" y="914" class="t">Monitoring</text>
+  <text x="532" y="932" class="s">Gaps, backlog, latency tails</text>
+  <text x="532" y="950" class="s">Rejects, cancels, positions</text>
+  <text x="532" y="968" class="s">Reads counters, off hot path</text>
+  </g>
+  <g id="log">
+  <rect x="780" y="890" width="200" height="160" rx="6" class="cold"/>
+  <text x="792" y="914" class="t">Async logger</text>
+  <text x="792" y="932" class="s">Hot threads enqueue</text>
+  <text x="792" y="950" class="s">one record and move on;</text>
+  <text x="792" y="968" class="s">a background thread</text>
+  <text x="792" y="986" class="s">batches the writes</text>
+  <text x="792" y="1004" class="tag"><a href="/posts/lock-free-queue-logger-micro-batching/" target="_blank" rel="noopener"><tspan>#4 queue and batching</tspan></a></text>
+  </g>
+  <g id="ctrl">
+  <rect x="1020" y="890" width="270" height="160" rx="6" class="cold"/>
+  <text x="1032" y="914" class="t">Trader commands</text>
+  <text x="1032" y="932" class="s">Start/stop, cancel, set params</text>
+  <text x="1032" y="950" class="s">via a service and a queue</text>
+  <text x="1032" y="968" class="s">into the decision thread</text>
+  <text x="1032" y="986" class="s">Rare, but must act fast</text>
+  </g>
+  <g id="push">
+  <rect x="1330" y="890" width="230" height="160" rx="6" class="cold"/>
+  <text x="1342" y="914" class="t">Client push</text>
+  <text x="1342" y="932" class="s">Orders, positions, algo</text>
+  <text x="1342" y="950" class="s">progress to traders&#x27; screens</text>
+  <text x="1342" y="968" class="s">For people: tens of ms is fine</text>
+  <text x="1342" y="986" class="s">Reads snapshots only</text>
+  </g>
+  <path d="M208,250 L258,250" class="line edge" id="e_exch_nic" marker-end="url(#arr)"/>
+  <path d="M480,250 L518,250" class="line edge" id="e_nic_feed" marker-end="url(#arr)"/>
+  <path d="M740,250 L778,250" class="line edge" id="e_feed_spsc" marker-end="url(#arr)"/>
+  <path d="M980,250 L1018,250" class="line edge" id="e_spsc_shard" marker-end="url(#arr)"/>
+  <path d="M1290,250 L1328,250" class="line edge" id="e_shard_barrier" marker-end="url(#arr)"/>
+  <path d="M1445,330 L1445,398" class="line edge" id="e_barrier_strategy" marker-end="url(#arr)"/>
+  <path d="M1445,500 L1445,523" class="line edge" id="e_strategy_risk" marker-end="url(#arr)"/>
+  <path d="M1445,610 L1445,638" class="line edge" id="e_risk_oms" marker-end="url(#arr)"/>
+  <path d="M1330,705 L1292,705" class="line edge" id="e_oms_gw" marker-end="url(#arr)"/>
+  <path d="M1020,720 L210,720" class="line edge" id="e_gw_counter" marker-end="url(#arr)"/>
+  <path d="M90,600 L90,402" class="line edge" id="e_counter_exch" marker-end="url(#arr)"/>
+  <path d="M150,400 L150,598" class="ret edge" id="e_exch_counter_r" marker-end="url(#arrR)"/>
+  <path d="M208,770 L1018,770" class="ret edge" id="e_counter_gw_r" marker-end="url(#arrR)"/>
+  <path d="M1290,770 L1328,770" class="ret edge" id="e_gw_oms_r" marker-end="url(#arrR)"/>
+  <path d="M1330,660 L1310,660 L1310,470 L1292,470" class="ret edge" id="e_oms_acct_r" marker-end="url(#arrR)"/>
+  <path d="M1290,430 L1328,430" class="ret edge" id="e_acct_strategy_r" marker-end="url(#arrR)"/>
+  <path d="M630,330 L630,378" class="side edge" id="e_feed_ring" marker-end="url(#arrG)"/>
+  <path d="M590,510 L590,840 L375,840 L375,888" class="side edge" id="e_ring_rec" marker-end="url(#arrG)"/>
+  <path d="M680,510 L680,888" class="side edge" id="e_ring_mon" marker-end="url(#arrG)"/>
+  <path d="M270,970 L234,970" class="side edge" id="e_rec_research" marker-end="url(#arrG)"/>
+  <path d="M880,822 L880,888" class="side edge" id="e_hot_log" marker-end="url(#arrG)"/>
+  <path d="M1155,890 L1155,807" class="side edge" id="e_ctrl_dec" marker-end="url(#arrG)"/>
+  <path d="M1445,790 L1445,888" class="side edge" id="e_oms_push" marker-end="url(#arrG)"/>
+  <text x="233" y="242" class="lab" text-anchor="middle">data</text>
+  <text x="638" y="360" class="lab" text-anchor="start">write once</text>
+  <text x="420" y="712" class="lab" text-anchor="middle">← orders</text>
+  <text x="96" y="505" class="lab" text-anchor="start">orders</text>
+  <text x="156" y="505" class="labr" text-anchor="start">reports</text>
+  <text x="420" y="790" class="labr" text-anchor="middle">reports: acks, fills, cancels →</text>
+  <text x="888" y="842" class="lab" text-anchor="start">each hot thread enqueues and moves on</text>
+  <text x="1163" y="848" class="lab" text-anchor="start">commands via a queue</text>
+  <text x="1453" y="830" class="lab" text-anchor="start">order/position changes</text>
+  <text x="20" y="1098" class="s">Times are orders of magnitude to show which stage is worth optimising, not measurements of any one system; see Part 2 of the reference page.</text>
+  <text x="20" y="1120" class="s">The map grows with the series: new components are added as later posts cover them.</text>
+</svg>

@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>架构地图</title>
+<link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
+<style>
+:root { --bg:#f6f7f9; --card:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --accent:#0969da; --hl:#bf3989; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#1c1a19; --card:#26231f; --fg:#ece6df; --muted:#b3aaa0; --line:#463f38; --accent:#e9a0b4; --hl:#ff7bb0; } }
+:root[data-theme="dark"] { --bg:#1c1a19; --card:#26231f; --fg:#ece6df; --muted:#b3aaa0; --line:#463f38; --accent:#e9a0b4; --hl:#ff7bb0; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font: 15px/1.6 PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif; -webkit-tap-highlight-color: transparent; }
+header { padding: 14px 16px 10px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:baseline; }
+h1 { font-size: 22px; margin: 0; }
+header .lead { flex: 1 1 420px; margin:0; color:var(--muted); font-size:14px; }
+header nav { display:flex; gap:12px; font-size:14px; }
+a { color: var(--accent); }
+.tours { display:flex; flex-wrap:wrap; gap:8px; padding: 0 16px 10px; }
+.tours button, .stepbar button { font: inherit; font-size:14px; padding: 5px 12px; border-radius: 999px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+.tours button[aria-pressed="true"] { border-color: var(--hl); color: var(--hl); }
+.tours .zoom { margin-left: auto; }
+.map.full svg { width: 1600px; max-width: none; }
+.layout { display:grid; grid-template-columns: minmax(0,1fr) 340px; gap: 12px; padding: 0 16px 16px; align-items:start; }
+.map { background:#ffffff; border:1px solid var(--line); border-radius:10px; overflow:auto; max-height: calc(100vh - 140px); }
+.map svg { display:block; width:100%; height:auto; min-width: 1000px; }
+.side { position: sticky; top: 12px; display:flex; flex-direction:column; gap:12px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding: 12px 14px; }
+.card h2 { font-size:17px; margin:0 0 6px; }
+.card p { margin: 4px 0; color: var(--muted); font-size:14px; }
+.card h3 { font-size:13px; margin:10px 0 4px; color:var(--muted); font-weight:600; }
+.card ul { margin:0; padding-left: 18px; font-size:14px; }
+.stepbar { display:none; }
+.stepbar.on { display:block; }
+.stepbar .count { font-size:13px; color:var(--muted); }
+.stepbar .cap { margin: 6px 0 10px; font-size:15px; color:var(--fg); }
+.stepbar .btns { display:flex; gap:8px; }
+.node { cursor:pointer; outline:none; }
+.node:hover > rect:first-of-type, .node:focus-visible > rect:first-of-type { stroke:#bf3989; stroke-width:2.5; }
+.node.sel > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
+svg .tag a tspan { text-decoration: underline; text-decoration-color: rgba(9,105,218,.35); }
+svg .tag a:hover tspan { fill:#bf3989; }
+svg.dim .node, svg.dim .edge { opacity:.18; transition: opacity .25s; }
+svg.dim .node.on, svg.dim .edge.on { opacity:1; }
+svg .edge.on { stroke:#bf3989; stroke-width:3; }
+svg.dim .node.on > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .side { position: static; order: -1; }
+  .map { max-height: 70vh; }
+}
+@media (prefers-reduced-motion: reduce) { svg.dim .node, svg.dim .edge { transition:none; } }
+</style>
+</head>
+<body>
+<header>
+<h1>架构地图</h1>
+<p class="lead">点一个框看它做什么、为什么这样设计；选一条路径，一步一步看一条行情怎么变成一笔成交。蓝字可以直接点开对应的文章。</p>
+<nav><a href="arch-map.en.html">English</a><a href="/zh/ref/trading-architecture/">速查页</a><a href="/images/ref/arch-map.zh.svg">静态图</a></nav>
+</header>
+<div class="tours"><button type="button" data-k="tick" aria-pressed="false">一条行情到下单</button><button type="button" data-k="fast" aria-pressed="false">逐笔触发</button><button type="button" data-k="fill" aria-pressed="false">一笔成交回来</button><button type="button" data-k="side" aria-pressed="false">旁路与指令</button><button type="button" data-k="burst" aria-pressed="false">开盘蜂拥</button><button type="button" class="zoom" aria-pressed="false">看原尺寸</button></div>
+<div class="layout">
+<div class="map">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1140" width="1600" height="1140" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6e7781"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .labr{ font-size: 11.5px; fill: #cf222e; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .ext  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .hot  { fill: #eefbf1; stroke: #1a7f37; stroke-width: 1.4; }
+      .data { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .sync { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .note { fill: #fbfbfc; stroke: #8c959f; stroke-width: 1; stroke-dasharray: 3 3; }
+      .cold { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 3; }
+      .sock { fill: #fbfbfc; stroke: #1f2328; stroke-width: 2; }
+      .line { stroke: #555; stroke-width: 1.6; fill: none; }
+      .ret  { stroke: #cf222e; stroke-width: 1.6; fill: none; }
+      .side { stroke: #6e7781; stroke-width: 1.4; fill: none; stroke-dasharray: 5 3; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1140" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">交易系统架构地图：一条行情怎么变成一笔成交</text>
+  <text x="20" y="62" class="s">蓝字 = 在哪里讲过（#N = 交易系统笔记 #N，速查 = 速查页的小节）。时间都是量级。</text>
+  <text x="20" y="82" class="s">黑线 = 热路径（行情 → 报单）；红线 = 回报回来（成交 → 持仓 → 策略）；灰色虚线 = 旁路（落盘、日志、监控、推送）。</text>
+  <text x="20" y="102" class="s">绿框 = 热线程，各绑一个隔离核；蓝框 = 线程之间交接数据的结构；黄框 = 汇合点；虚线框 = 旁路上的线程或进程。</text>
+  <rect x="20" y="120" width="200" height="700" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="32" y="146" class="lane-h" style="fill:#57606a">场外</text>
+  <rect x="240" y="120" width="1340" height="700" rx="10" class="sock"/>
+  <text x="256" y="148" class="h">交易服务器：热线程各绑一个隔离核</text>
+  <text x="558" y="148" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 绑核 / 隔离</tspan></a></text>
+  <rect x="1005" y="365" width="565" height="440" rx="8" fill="#f4fbf5" stroke="#4ac26b" stroke-dasharray="6 4"/>
+  <text x="1017" y="388" class="lane-h" style="fill:#1a7f37">决策线程：一路调下去，不过队列</text>
+  <rect x="20" y="850" width="1560" height="220" rx="10" fill="#ffffff" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="32" y="874" class="lane-h" style="fill:#57606a">旁路与控制面：慢了不能拖住热路径</text>
+  <g id="exch" class="node" tabindex="0" role="button" aria-label="交易所">
+  <rect x="32" y="170" width="176" height="230" rx="6" class="ext"/>
+  <text x="44" y="194" class="t">交易所</text>
+  <text x="44" y="212" class="s">撮合引擎</text>
+  <text x="44" y="230" class="s">行情：按通道组播</text>
+  <text x="44" y="248" class="s">收报单，发回报</text>
+  </g>
+  <g id="counter" class="node" tabindex="0" role="button" aria-label="券商柜台">
+  <rect x="32" y="600" width="176" height="190" rx="6" class="ext"/>
+  <text x="44" y="624" class="t">券商柜台</text>
+  <text x="44" y="642" class="s">券商的风控和报盘</text>
+  <text x="44" y="660" class="s">极速柜台：几十 µs</text>
+  <text x="44" y="678" class="s">普通柜台：到毫秒</text>
+  </g>
+  <g id="nic" class="node" tabindex="0" role="button" aria-label="网卡（NIC）">
+  <rect x="260" y="170" width="220" height="160" rx="6" class="ext"/>
+  <text x="272" y="194" class="t">网卡（NIC）</text>
+  <text x="272" y="212" class="s">收行情包</text>
+  <text x="272" y="230" class="s">绕过内核：约 1 µs</text>
+  <text x="272" y="248" class="s">走内核协议栈：5–10 µs</text>
+  <text x="272" y="266" class="tag"><a href="/zh/posts/cpu-affinity-core-isolation-numa/" target="_blank" rel="noopener"><tspan>#1 中断别打到热核</tspan></a></text>
+  </g>
+  <g id="feed" class="node" tabindex="0" role="button" aria-label="行情接入线程">
+  <rect x="520" y="170" width="220" height="160" rx="6" class="hot"/>
+  <text x="532" y="194" class="t">行情接入线程</text>
+  <text x="532" y="212" class="s">解码，转成内部格式</text>
+  <text x="532" y="230" class="s">按通道查序号，断档就补</text>
+  <text x="532" y="248" class="s">先写广播环，再按股票分发</text>
+  <text x="532" y="266" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#16-什么时候不用广播环" target="_blank" rel="noopener"><tspan>#5 广播环 1.6</tspan></a></text>
+  </g>
+  <g id="spsc" class="node" tabindex="0" role="button" aria-label="分片队列（SPSC）">
+  <rect x="780" y="170" width="200" height="160" rx="6" class="data"/>
+  <text x="792" y="194" class="t">分片队列（SPSC）</text>
+  <text x="792" y="212" class="s">股票 → 分片，查表</text>
+  <text x="792" y="230" class="s">同一只股票只进一片</text>
+  <text x="792" y="248" class="s">交接一次：几十 ns</text>
+  <text x="792" y="266" class="tag"><a href="/zh/posts/lock-free-queue-logger-micro-batching/" target="_blank" rel="noopener"><tspan>#4 无锁队列</tspan></a></text>
+  <text x="792" y="284" class="tag"><a href="/zh/ref/cpu-memory/#cross-core" target="_blank" rel="noopener"><tspan>速查 2.6 跨核交接</tspan></a></text>
+  </g>
+  <g id="shard" class="node" tabindex="0" role="button" aria-label="分片线程 ×N">
+  <rect x="1020" y="170" width="270" height="160" rx="6" class="hot"/>
+  <text x="1032" y="194" class="t">分片线程 ×N</text>
+  <text x="1032" y="212" class="s">盘口重建 → 因子增量更新</text>
+  <text x="1032" y="230" class="s">只碰自己那些股票的状态</text>
+  <text x="1032" y="248" class="s">每条几百 ns 到几 µs</text>
+  <text x="1032" y="266" class="tag"><a href="/zh/posts/low-latency-cache-case-study/" target="_blank" rel="noopener"><tspan>缓存案例：一次行情重算 64 个期权</tspan></a></text>
+  <text x="1032" y="284" class="tag"><a href="/zh/posts/prefetch-warmup-double-buffer/" target="_blank" rel="noopener"><tspan>#14 在干活的核上预热</tspan></a></text>
+  </g>
+  <g id="barrier" class="node" tabindex="0" role="button" aria-label="汇合：bar 收齐">
+  <rect x="1330" y="170" width="230" height="160" rx="6" class="sync"/>
+  <text x="1342" y="194" class="t">汇合：bar 收齐</text>
+  <text x="1342" y="212" class="s">等所有分片算完这根 bar</text>
+  <text x="1342" y="230" class="s">截面排名、标准化</text>
+  <text x="1342" y="248" class="s">节奏：毫秒到秒</text>
+  </g>
+  <g id="ring" class="node" tabindex="0" role="button" aria-label="广播环（共享内存）">
+  <rect x="520" y="380" width="220" height="130" rx="6" class="data"/>
+  <text x="532" y="404" class="t">广播环（共享内存）</text>
+  <text x="532" y="422" class="s">接入线程写一份</text>
+  <text x="532" y="440" class="s">落盘、监控各自来读</text>
+  <text x="532" y="458" class="s">生产者不等任何读者</text>
+  <text x="532" y="476" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/" target="_blank" rel="noopener"><tspan>#5 SPMC 广播环</tspan></a></text>
+  </g>
+  <g id="clock" class="node" tabindex="0" role="button" aria-label="两种节奏">
+  <rect x="780" y="380" width="200" height="200" rx="6" class="note"/>
+  <text x="792" y="404" class="t">两种节奏</text>
+  <text x="792" y="422" class="s">按 bar 截面（多因子）：</text>
+  <text x="792" y="440" class="s">分片 → 汇合 → 策略，</text>
+  <text x="792" y="458" class="s">毫秒到秒。</text>
+  <text x="792" y="476" class="s">逐笔触发（做市、套利）：</text>
+  <text x="792" y="494" class="s">分片线程里一路做到报单，</text>
+  <text x="792" y="512" class="s">不过汇合，微秒级。</text>
+  </g>
+  <g id="acct" class="node" tabindex="0" role="button" aria-label="账户状态">
+  <rect x="1020" y="400" width="270" height="100" rx="6" class="data"/>
+  <text x="1032" y="424" class="t">账户状态</text>
+  <text x="1032" y="442" class="s">持仓、资金、在途单</text>
+  <text x="1032" y="460" class="s">只有决策线程改，别人读快照</text>
+  <text x="1032" y="478" class="tag"><a href="/zh/posts/prefetch-warmup-double-buffer/" target="_blank" rel="noopener"><tspan>#14 双缓冲读快照</tspan></a></text>
+  </g>
+  <g id="strategy" class="node" tabindex="0" role="button" aria-label="策略">
+  <rect x="1330" y="400" width="230" height="100" rx="6" class="hot"/>
+  <text x="1342" y="424" class="t">策略</text>
+  <text x="1342" y="442" class="s">合成打分、排名</text>
+  <text x="1342" y="460" class="s">对照持仓、资金、在途单</text>
+  <text x="1342" y="478" class="s">给出买、卖、撤</text>
+  </g>
+  <g id="risk" class="node" tabindex="0" role="button" aria-label="事前风控">
+  <rect x="1330" y="525" width="230" height="85" rx="6" class="hot"/>
+  <text x="1342" y="549" class="t">事前风控</text>
+  <text x="1342" y="567" class="s">单笔、持仓上限，价格范围</text>
+  <text x="1342" y="585" class="s">报撤频率，总开关</text>
+  </g>
+  <g id="oms" class="node" tabindex="0" role="button" aria-label="订单管理（OMS）">
+  <rect x="1330" y="640" width="230" height="150" rx="6" class="hot"/>
+  <text x="1342" y="664" class="t">订单管理（OMS）</text>
+  <text x="1342" y="682" class="s">订单状态机：</text>
+  <text x="1342" y="700" class="s">已报 → 部成 → 已成或已撤</text>
+  <text x="1342" y="718" class="s">大单拆成小单按时间发</text>
+  <text x="1342" y="736" class="s">（TWAP 等）</text>
+  <text x="1342" y="754" class="tag"><a href="/zh/posts/hot-path-memory-allocators/" target="_blank" rel="noopener"><tspan>#3 热路径不现分配内存</tspan></a></text>
+  </g>
+  <g id="gw" class="node" tabindex="0" role="button" aria-label="下单网关">
+  <rect x="1020" y="680" width="270" height="110" rx="6" class="hot"/>
+  <text x="1032" y="704" class="t">下单网关</text>
+  <text x="1032" y="722" class="s">编码成柜台、交易所的协议</text>
+  <text x="1032" y="740" class="s">会话、序号、流控</text>
+  <text x="1032" y="758" class="s">报单从网卡发出</text>
+  </g>
+  <g id="research" class="node" tabindex="0" role="button" aria-label="离线回放与研究">
+  <rect x="32" y="890" width="200" height="160" rx="6" class="cold"/>
+  <text x="44" y="914" class="t">离线回放与研究</text>
+  <text x="44" y="932" class="s">录下的行情喂回</text>
+  <text x="44" y="950" class="s">同一份因子代码</text>
+  <text x="44" y="968" class="s">离线和盘中逐值对得上</text>
+  <text x="44" y="986" class="s">才说明回放可信</text>
+  </g>
+  <g id="rec" class="node" tabindex="0" role="button" aria-label="行情落盘（录制）">
+  <rect x="270" y="890" width="210" height="160" rx="6" class="cold"/>
+  <text x="282" y="914" class="t">行情落盘（录制）</text>
+  <text x="282" y="932" class="s">全量写文件，攒批写</text>
+  <text x="282" y="950" class="s">落后满一圈会被套圈</text>
+  <text x="282" y="968" class="s">要能发现、要报警</text>
+  <text x="282" y="986" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#23-部署时的三个坑" target="_blank" rel="noopener"><tspan>#5 2.3 部署时的坑</tspan></a></text>
+  </g>
+  <g id="mon" class="node" tabindex="0" role="button" aria-label="监控与告警">
+  <rect x="520" y="890" width="220" height="160" rx="6" class="cold"/>
+  <text x="532" y="914" class="t">监控与告警</text>
+  <text x="532" y="932" class="s">断档、积压、延迟分位数</text>
+  <text x="532" y="950" class="s">拒单、撤单率、仓位</text>
+  <text x="532" y="968" class="s">只读计数器，不进热路径</text>
+  </g>
+  <g id="log" class="node" tabindex="0" role="button" aria-label="异步日志">
+  <rect x="780" y="890" width="200" height="160" rx="6" class="cold"/>
+  <text x="792" y="914" class="t">异步日志</text>
+  <text x="792" y="932" class="s">热线程往队列写一条</text>
+  <text x="792" y="950" class="s">就走，后台线程</text>
+  <text x="792" y="968" class="s">攒一批再写盘</text>
+  <text x="792" y="986" class="tag"><a href="/zh/posts/lock-free-queue-logger-micro-batching/" target="_blank" rel="noopener"><tspan>#4 无锁队列与攒批</tspan></a></text>
+  </g>
+  <g id="ctrl" class="node" tabindex="0" role="button" aria-label="交易员指令">
+  <rect x="1020" y="890" width="270" height="160" rx="6" class="cold"/>
+  <text x="1032" y="914" class="t">交易员指令</text>
+  <text x="1032" y="932" class="s">启停、撤单、改参数</text>
+  <text x="1032" y="950" class="s">经服务进程走队列，</text>
+  <text x="1032" y="968" class="s">送进决策线程</text>
+  <text x="1032" y="986" class="s">次数少，但要尽快生效</text>
+  </g>
+  <g id="push" class="node" tabindex="0" role="button" aria-label="客户端推送">
+  <rect x="1330" y="890" width="230" height="160" rx="6" class="cold"/>
+  <text x="1342" y="914" class="t">客户端推送</text>
+  <text x="1342" y="932" class="s">订单、持仓、算法进度</text>
+  <text x="1342" y="950" class="s">推到交易员的屏幕</text>
+  <text x="1342" y="968" class="s">人看的：几十毫秒够用</text>
+  <text x="1342" y="986" class="s">读快照，不碰热状态</text>
+  </g>
+  <path d="M208,250 L258,250" class="line edge" id="e_exch_nic" marker-end="url(#arr)"/>
+  <path d="M480,250 L518,250" class="line edge" id="e_nic_feed" marker-end="url(#arr)"/>
+  <path d="M740,250 L778,250" class="line edge" id="e_feed_spsc" marker-end="url(#arr)"/>
+  <path d="M980,250 L1018,250" class="line edge" id="e_spsc_shard" marker-end="url(#arr)"/>
+  <path d="M1290,250 L1328,250" class="line edge" id="e_shard_barrier" marker-end="url(#arr)"/>
+  <path d="M1445,330 L1445,398" class="line edge" id="e_barrier_strategy" marker-end="url(#arr)"/>
+  <path d="M1445,500 L1445,523" class="line edge" id="e_strategy_risk" marker-end="url(#arr)"/>
+  <path d="M1445,610 L1445,638" class="line edge" id="e_risk_oms" marker-end="url(#arr)"/>
+  <path d="M1330,705 L1292,705" class="line edge" id="e_oms_gw" marker-end="url(#arr)"/>
+  <path d="M1020,720 L210,720" class="line edge" id="e_gw_counter" marker-end="url(#arr)"/>
+  <path d="M90,600 L90,402" class="line edge" id="e_counter_exch" marker-end="url(#arr)"/>
+  <path d="M150,400 L150,598" class="ret edge" id="e_exch_counter_r" marker-end="url(#arrR)"/>
+  <path d="M208,770 L1018,770" class="ret edge" id="e_counter_gw_r" marker-end="url(#arrR)"/>
+  <path d="M1290,770 L1328,770" class="ret edge" id="e_gw_oms_r" marker-end="url(#arrR)"/>
+  <path d="M1330,660 L1310,660 L1310,470 L1292,470" class="ret edge" id="e_oms_acct_r" marker-end="url(#arrR)"/>
+  <path d="M1290,430 L1328,430" class="ret edge" id="e_acct_strategy_r" marker-end="url(#arrR)"/>
+  <path d="M630,330 L630,378" class="side edge" id="e_feed_ring" marker-end="url(#arrG)"/>
+  <path d="M590,510 L590,840 L375,840 L375,888" class="side edge" id="e_ring_rec" marker-end="url(#arrG)"/>
+  <path d="M680,510 L680,888" class="side edge" id="e_ring_mon" marker-end="url(#arrG)"/>
+  <path d="M270,970 L234,970" class="side edge" id="e_rec_research" marker-end="url(#arrG)"/>
+  <path d="M880,822 L880,888" class="side edge" id="e_hot_log" marker-end="url(#arrG)"/>
+  <path d="M1155,890 L1155,807" class="side edge" id="e_ctrl_dec" marker-end="url(#arrG)"/>
+  <path d="M1445,790 L1445,888" class="side edge" id="e_oms_push" marker-end="url(#arrG)"/>
+  <text x="233" y="242" class="lab" text-anchor="middle">行情</text>
+  <text x="638" y="360" class="lab" text-anchor="start">写一份</text>
+  <text x="420" y="712" class="lab" text-anchor="middle">← 报单</text>
+  <text x="96" y="505" class="lab" text-anchor="start">报单</text>
+  <text x="156" y="505" class="labr" text-anchor="start">回报</text>
+  <text x="420" y="790" class="labr" text-anchor="middle">回报：确认、成交、撤单 →</text>
+  <text x="888" y="842" class="lab" text-anchor="start">各热线程写一条就走</text>
+  <text x="1163" y="848" class="lab" text-anchor="start">指令走队列进来</text>
+  <text x="1453" y="830" class="lab" text-anchor="start">订单、持仓变化</text>
+  <text x="20" y="1098" class="s">时间都是量级，用来判断该抠哪一段，不对应哪套系统；每一段的数见速查页第 2 部分。</text>
+  <text x="20" y="1120" class="s">图随文章更新：后续文章讲到新的组件时再往上补。</text>
+</svg>
+</div>
+<aside class="side">
+<div class="card stepbar" id="stepbar"><div class="count"></div><div class="cap"></div><div class="btns"><button type="button" class="prev">上一步</button><button type="button" class="next">下一步</button><button type="button" class="exit">退出</button></div></div>
+<div class="card" id="panel"><p>点图里的任意一个框。</p></div>
+</aside>
+</div>
+<script>
+const DATA = {"nodes": {"exch": {"title": "交易所", "lines": ["交易所的撮合引擎是行情的源头，也是报单的终点。", "行情按通道组播发出：每个通道只带一部分证券，通道里的消息序号连续。报单进来撮合，结果以回报发回。"], "tags": []}, "counter": {"title": "券商柜台", "lines": ["报单一般不直接进交易所：先过券商的柜台系统，它做自己的风控和报盘，再转给交易所。", "极速柜台几十微秒，普通柜台到毫秒（常见量级）。这一段在自己的系统之外，能优化的不多。"], "tags": []}, "nic": {"title": "网卡（NIC）", "lines": ["网卡收到行情包。走操作系统内核的协议栈，每个包要过中断、拷贝和系统调用，约 5–10 µs；绕过内核（kernel bypass），线程直接轮询网卡，约 1 µs。", "网卡的中断要绑到别的核上，别打断热线程。"], "tags": [[["#1 中断别打到热核", "/zh/posts/cpu-affinity-core-isolation-numa/"]]]}, "feed": {"title": "行情接入线程", "lines": ["把网卡上的包解码成内部格式。", "每个通道的序号必须连续：发现断档就要去补（重传或拿快照恢复），补齐之前这个通道的数据不可信。", "解码完先写一份进广播环，给不赶时间的读者；再按股票查表，写进负责这只股票的分片队列。"], "tags": [[["#5 广播环 1.6", "/zh/posts/spmc-shared-memory-broadcast-ring/#16-什么时候不用广播环"]]]}, "spsc": {"title": "分片队列（SPSC）", "lines": ["每个分片一个单生产者、单消费者的队列：接入线程写，分片线程读。", "股票到分片是一张表，开盘前排好；同一只股票永远进同一片，顺序就不会乱。", "交接一次，就是一条缓存行从一个核搬到另一个核，几十纳秒。"], "tags": [[["#4 无锁队列", "/zh/posts/lock-free-queue-logger-micro-batching/"]], [["速查 2.6 跨核交接", "/zh/ref/cpu-memory/#cross-core"]]]}, "shard": {"title": "分片线程 ×N", "lines": ["每个分片线程只管自己那些股票：更新盘口，再增量更新因子。状态只有它自己碰，不用锁。", "分片按消息量分，不按股票个数分：热门股的消息多得多。", "开盘前在这个核上把要用的数据碰一遍（预热），别让第一次缺页、第一次缓存缺失落在开盘那几秒。"], "tags": [[["缓存案例：一次行情重算 64 个期权", "/zh/posts/low-latency-cache-case-study/"]], [["#14 在干活的核上预热", "/zh/posts/prefetch-warmup-double-buffer/"]]]}, "barrier": {"title": "汇合：bar 收齐", "lines": ["按 bar 截面的策略，要等所有分片都算完这一根 bar，才能一起排名、标准化。", "这是一个汇合点，要等最慢的那个分片。", "只有截面才要汇合；单只股票自己的因子不用等别人。"], "tags": []}, "ring": {"title": "广播环（共享内存）", "lines": ["接入线程只写一份，要全量的读者各自来读：落盘、监控、研究。", "生产者从不看读者读到哪，慢读者会被套圈，要自己发现。", "读者再多也不会让生产者等，但死循环盯着最新槽位的读者，会让每次写变贵（#5 1.5.3）。"], "tags": [[["#5 SPMC 广播环", "/zh/posts/spmc-shared-memory-broadcast-ring/"]]]}, "clock": {"title": "两种节奏", "lines": ["两种策略的节奏不一样。", "按 bar 截面（多因子）：所有股票算完一根 bar 再一起打分。几十纳秒的交接看不出来，要盯的是一波数据进来以后，多久全部算完。", "逐笔触发（做市、套利）：一条行情就可能触发一笔报单。分片线程里一路算信号、过风控、发单，不过汇合、不过队列，全程微秒级。"], "tags": []}, "acct": {"title": "账户状态", "lines": ["持仓、资金、在途单，是整个系统里最要紧的状态。", "只让决策线程一个人改；推送、监控要看，就读它发布出来的快照，不碰正在改的那份。", "快照怎么发才不会读到一半新一半旧，见 #14 的双缓冲。"], "tags": [[["#14 双缓冲读快照", "/zh/posts/prefetch-warmup-double-buffer/"]]]}, "strategy": {"title": "策略", "lines": ["把各股票的打分合成、排名，再对照现在的持仓、资金和还没成交的单子，决定买什么、卖什么、撤哪些。", "它只决定“做什么、做多少”，“怎么下”交给后面的订单管理。"], "tags": []}, "risk": {"title": "事前风控", "lines": ["每一笔单子发出去之前都要过的检查：单笔和持仓上限、价格在不在合理范围、报撤单是不是太频繁。", "总开关（kill switch）一关，什么都发不出去。它在热路径上，所以只做内存里的比较。"], "tags": []}, "oms": {"title": "订单管理（OMS）", "lines": ["给每笔单子一个状态机：新建、已报、部分成交、全部成交、已撤、被拒。", "大单不一次发出去，拆成小单按时间表发（TWAP 平均分到一段时间里，VWAP 按成交量分），免得一下把价格砸穿。", "订单对象从预先分配好的池子里拿，热路径上不现分配内存（#3）。"], "tags": [[["#3 热路径不现分配内存", "/zh/posts/hot-path-memory-allocators/"]]]}, "gw": {"title": "下单网关", "lines": ["把单子编码成柜台或交易所的协议，维护会话和序号，控制发送速度，再从网卡发出去。", "回报也从这里进来，解码后交给订单管理。"], "tags": []}, "research": {"title": "离线回放与研究", "lines": ["录下的行情按原来的顺序，喂回同一份因子代码。", "离线算出来的和盘中算出来的逐值对得上，才说明回放可信。改了代码以后也靠它做回归：改前改后输出一个值都不变，才算没改坏。"], "tags": []}, "rec": {"title": "行情落盘（录制）", "lines": ["落盘进程从广播环读全量，写成文件，给回放和研究用。", "它可以隔一会读一批，但不能落后满一圈，否则会被套圈、无声丢数据；重启要从存下的游标接着读（#5 2.3）。"], "tags": [[["#5 2.3 部署时的坑", "/zh/posts/spmc-shared-memory-broadcast-ring/#23-部署时的三个坑"]]]}, "mon": {"title": "监控与告警", "lines": ["盯行情断档、各队列的积压、每一段延迟的分位数、拒单和撤单率、仓位。", "只读各线程自己记的计数器，统计在监控自己的线程里算，不往热路径上加活。"], "tags": []}, "log": {"title": "异步日志", "lines": ["热线程打日志，只把一条记录写进队列就走；后台线程攒一批，再格式化、写盘。", "格式化和写盘都不在热路径上（#4）。"], "tags": [[["#4 无锁队列与攒批", "/zh/posts/lock-free-queue-logger-micro-batching/"]]]}, "ctrl": {"title": "交易员指令", "lines": ["交易员的指令：启停策略或算法单、撤单、改参数。", "经服务进程校验后走队列送进决策线程，由决策线程自己改状态。次数少，但人点了要尽快生效，撤单尤其要快。"], "tags": []}, "push": {"title": "客户端推送", "lines": ["把订单状态、持仓、算法单进度推到交易员的屏幕上。", "是给人看的：几十毫秒够用，到百毫秒、秒级才开始误事。", "读决策线程发布的快照，不碰热路径正在改的状态。"], "tags": []}}, "ui": {"page_title": "架构地图", "lead": "点一个框看它做什么、为什么这样设计；选一条路径，一步一步看一条行情怎么变成一笔成交。蓝字可以直接点开对应的文章。", "other_lang": ["English", "arch-map.en.html"], "static": ["静态图", "/images/ref/arch-map.zh.svg"], "ref": ["速查页", "/zh/ref/trading-architecture/"], "prev": "上一步", "next": "下一步", "exit": "退出", "step": "第 {i} / {n} 步", "panel_empty": "点图里的任意一个框。", "zoom": ["看原尺寸", "适应宽度"], "panel_links": "在哪里讲过", "tours": {"tick": ["一条行情到下单", [[["exch", "e_exch_nic", "nic"], "交易所把行情按通道组播出来，网卡收到包。绕过内核直接收约 1 µs，走内核协议栈要 5–10 µs。"], [["e_nic_feed", "feed"], "行情接入线程解码，按通道查序号：断档了就去补。"], [["e_feed_ring", "ring"], "先写一份进广播环，给落盘、监控这些不赶时间的读者。写完就走，不等任何读者。"], [["e_feed_spsc", "spsc"], "再按股票查表，写进负责这只股票的分片队列。同一只股票永远进同一片，顺序不会乱；交接一次几十纳秒。"], [["e_spsc_shard", "shard"], "分片线程更新这只股票的盘口，再增量更新它的因子。每个分片只碰自己那些股票的状态，不用锁。"], [["e_shard_barrier", "barrier"], "按 bar 截面的策略要等所有分片都算完这根 bar，再一起排名、标准化。这是汇合点，要等最慢的那个分片。"], [["e_barrier_strategy", "strategy"], "策略对照持仓、资金、在途单，决定买什么、卖什么、撤哪些。"], [["e_strategy_risk", "risk"], "事前风控检查单笔和持仓上限、价格范围、报撤频率；总开关一关，什么都发不出去。"], [["e_risk_oms", "oms"], "订单管理给每笔单子建状态。大单不一次发出去，拆成小单按时间表发（TWAP 等）。"], [["e_oms_gw", "gw", "e_gw_counter", "counter", "e_counter_exch"], "下单网关编码成协议发出去，经券商柜台到交易所。托管直连往返几十到几百 µs，经普通柜台可到毫秒。"]]], "fast": ["逐笔触发", [[["exch", "e_exch_nic", "nic", "e_nic_feed", "feed"], "前面一样：行情进网卡，接入线程解码。最快的系统让交易所的通道直接对应线程，连按股票分发这一步都省掉。"], [["e_feed_spsc", "spsc", "e_spsc_shard", "shard"], "消息交给负责这只股票的线程。"], [["clock", "shard"], "逐笔触发的策略（做市、套利）不等汇合：在这个线程里一路算信号，算完马上决定发不发单。"], [["risk", "oms", "gw"], "风控、订单管理、网关的代码也在这个线程里接着调，中间不过任何队列。每多一次跨核交接，就多几十纳秒和一份抖动。"]]], "fill": ["一笔成交回来", [[["exch", "e_exch_counter_r", "counter"], "交易所撮合以后发出回报：确认、成交、撤单都算。回报先回到券商柜台。"], [["e_counter_gw_r", "gw"], "柜台把回报转给下单网关，网关解码。"], [["e_gw_oms_r", "oms"], "订单管理更新这笔单子的状态：部分成交、全部成交、已撤。"], [["e_oms_acct_r", "acct"], "账户状态跟着变：持仓、资金、在途单。这些只让决策线程一个人改，别的线程只读快照。"], [["e_acct_strategy_r", "strategy"], "下一次决策用的就是新的持仓和资金，回路闭合。风控检查上限时，读的也是这份状态。"], [["e_oms_push", "push"], "旁边，推送把订单和持仓的变化送到交易员的屏幕上。给人看的，几十毫秒够用。"]]], "side": ["旁路与指令", [[["e_ring_rec", "rec"], "落盘进程读广播环，全量写文件。它可以隔一会读一批，但不能落后满一圈，否则会被套圈、丢数据。"], [["e_rec_research", "research"], "录下的行情拿去离线回放：喂回同一份因子代码，离线结果和盘中逐值对得上，才说明回放可信。"], [["e_ring_mon", "mon"], "监控读环和各线程的计数器：断档、积压、延迟分位数、拒单。它慢了不要紧，但不能拖住热路径。"], [["e_hot_log", "log"], "热线程打日志只往队列里写一条就走，后台线程攒一批再写盘。"], [["ctrl", "e_ctrl_dec"], "交易员的指令（启停、撤单、改参数）经服务进程走队列送进决策线程。次数少，但人点了要尽快生效。"]]], "burst": ["开盘蜂拥", [[["exch", "e_exch_nic", "nic", "e_nic_feed", "feed"], "开盘、收盘、消息面的时候，消息一下涌进来，是平时的好几倍。接入线程每条只做解码和分发，扛得住。"], [["e_feed_spsc", "spsc", "e_spsc_shard", "shard"], "慢的是后面：每条要算的因子多了，分片线程算不过来，消息就在分片队列里排队，因子用的就是旧行情。"], [["e_feed_ring", "ring", "e_ring_rec", "rec"], "积压都堆在环和队列里：积压 =（到达速度 − 处理速度）× 持续时间，不能超过容量。广播环超过就会套圈。"], [["shard", "clock"], "所以要省的是排队，不是交接：按消息量分片，多开几个分片线程，让每条的活变少。"]]]}}};
+const svg = document.querySelector('.map svg');
+const panel = document.getElementById('panel');
+const bar = document.getElementById('stepbar');
+let tour = null, step = 0;
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function show(id){
+  svg.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+  const n = DATA.nodes[id]; if (!n) return;
+  document.getElementById(id).classList.add('sel');
+  let h = '<h2>' + esc(n.title) + '</h2>' + n.lines.map(l => '<p>' + esc(l) + '</p>').join('');
+  const links = [];
+  n.tags.forEach(line => line.forEach(([txt, url]) => { if (url) links.push('<li><a href="' + url + '" target="_blank" rel="noopener">' + esc(txt.replace(/^ · /, '')) + '</a></li>'); }));
+  if (links.length) h += '<h3>' + esc(DATA.ui.panel_links) + '</h3><ul>' + links.join('') + '</ul>';
+  panel.innerHTML = h;
+}
+svg.querySelectorAll('.node').forEach(g => {
+  g.addEventListener('click', e => { if (e.target.closest('a')) return; show(g.id); });
+  g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(g.id); } });
+});
+function render(){
+  svg.querySelectorAll('.on').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.tours button[data-k]').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === tour ? 'true' : 'false'));
+  if (!tour) { svg.classList.remove('dim'); bar.classList.remove('on'); return; }
+  const steps = DATA.ui.tours[tour][1];
+  svg.classList.add('dim'); bar.classList.add('on');
+  for (let i = 0; i <= step; i++) steps[i][0].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('on'); });
+  bar.querySelector('.count').textContent = DATA.ui.step.replace('{i}', step + 1).replace('{n}', steps.length);
+  bar.querySelector('.cap').textContent = steps[step][1];
+  bar.querySelector('.prev').disabled = step === 0;
+  bar.querySelector('.next').disabled = step === steps.length - 1;
+  const last = steps[step][0].map(id => document.getElementById(id)).filter(el => el && el.classList.contains('node')).pop();
+  if (last) { show(last.id); last.scrollIntoView({block:'nearest', inline:'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); }
+}
+document.querySelector('.tours .zoom').addEventListener('click', e => {
+  const on = document.querySelector('.map').classList.toggle('full');
+  e.currentTarget.setAttribute('aria-pressed', on ? 'true' : 'false');
+  e.currentTarget.textContent = on ? DATA.ui.zoom[1] : DATA.ui.zoom[0];
+});
+document.querySelectorAll('.tours button[data-k]').forEach(b => b.addEventListener('click', () => { tour = tour === b.dataset.k ? null : b.dataset.k; step = 0; render(); }));
+bar.querySelector('.prev').addEventListener('click', () => { step--; render(); });
+bar.querySelector('.next').addEventListener('click', () => { step++; render(); });
+bar.querySelector('.exit').addEventListener('click', () => { tour = null; render(); });
+document.addEventListener('keydown', e => {
+  if (!tour) return;
+  const n = DATA.ui.tours[tour][1].length;
+  if (e.key === 'ArrowRight' && step < n - 1) { step++; render(); }
+  if (e.key === 'ArrowLeft' && step > 0) { step--; render(); }
+  if (e.key === 'Escape') { tour = null; render(); }
+});
+const h = location.hash.slice(1);
+if (DATA.ui.tours[h]) { tour = h; step = 0; render(); }
+try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</body>
+</html>
