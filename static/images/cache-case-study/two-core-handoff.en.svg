@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 486" width="1100" height="486" font-family="Segoe UI, Helvetica, Arial, PingFang SC, Microsoft YaHei, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.b{font-size:13px;fill:#1f2328}.k{font-size:13.5px;font-weight:700;fill:#1f2328}.n{font-size:12px;fill:#57606a}.v{font-size:12px;fill:#1f2328}.r{font-size:12.5px;fill:#cf222e}.rk{font-size:13px;font-weight:700;fill:#ffffff}</style></defs>
+<rect x="0" y="0" width="1100" height="486" fill="#ffffff"/>
+<text class="h" x="20" y="32">Split across two cores: two places where main waits on the other core</text>
+<text class="s" x="20" y="54">Main keeps 40 options, aux takes 24; req and res are each written by one core and read by the other, so every line crosses cores.</text>
+<text class="k" x="20" y="128">main · CPU 1</text>
+<text class="k" x="20" y="368">aux · CPU 2</text>
+<rect x="120" y="100" width="180" height="46" rx="5" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.4"/>
+<text class="b" x="210.0" y="128" text-anchor="middle">poll, look up, move</text>
+<rect x="304" y="100" width="106" height="46" rx="5" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<text class="b" x="357.0" y="128" text-anchor="middle">write req</text>
+<rect x="414" y="100" width="396" height="46" rx="5" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<text class="b" x="612.0" y="128" text-anchor="middle">price its own 40</text>
+<rect x="814" y="100" width="86" height="46" rx="5" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text class="b" x="857.0" y="128" text-anchor="middle">wait res</text>
+<rect x="904" y="100" width="172" height="46" rx="5" fill="#ddf4ff" stroke="#0969da" stroke-width="1.4"/>
+<text class="b" x="990.0" y="128" text-anchor="middle">fold hits</text>
+<rect x="120" y="340" width="290" height="46" rx="5" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text class="b" x="265.0" y="368" text-anchor="middle">spin on req.seq</text>
+<rect x="414" y="340" width="286" height="46" rx="5" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text class="b" x="557.0" y="368" text-anchor="middle">price the 24 it was given</text>
+<rect x="704" y="340" width="136" height="46" rx="5" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text class="b" x="772.0" y="368" text-anchor="middle">write res</text>
+<rect x="844" y="340" width="76" height="46" rx="5" fill="#fbefff" stroke="#8250df" stroke-width="1.4"/>
+<text class="b" x="882.0" y="368" text-anchor="middle">clwb</text>
+<rect x="300" y="206" width="260" height="66" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.4"/>
+<text class="k" x="430.0" y="232" text-anchor="middle">req</text>
+<text class="n" x="430.0" y="254" text-anchor="middle">move, 24 × (id, delta), seq</text>
+<rect x="650" y="206" width="260" height="66" rx="6" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.4"/>
+<text class="k" x="780.0" y="232" text-anchor="middle">res</text>
+<text class="n" x="780.0" y="254" text-anchor="middle">hit ids, count, seq</text>
+<line x1="357" y1="146" x2="357" y2="206" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="n" x="365" y="176">release</text>
+<line x1="430" y1="272" x2="430" y2="340" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="n" x="438" y="308">acquire</text>
+<line x1="772" y1="340" x2="772" y2="272" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="n" x="780" y="308">release</text>
+<line x1="880" y1="206" x2="960" y2="146" stroke="#57606a" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="n" x="930" y="190">acquire</text>
+<circle cx="428" cy="86" r="10" fill="#cf222e"/>
+<text class="rk" x="428" y="91" text-anchor="middle">1</text>
+<circle cx="990" cy="86" r="10" fill="#cf222e"/>
+<text class="rk" x="990" y="91" text-anchor="middle">2</text>
+<text class="b" x="20" y="428">① Main prices its own 40 with req.move. Aux is spinning on</text>
+<text class="b" x="20" y="447">seq in the same line, and its read took the line away, so main</text>
+<text class="b" x="20" y="466">fetches it back from aux: ~28 ns. Use main's own move instead.</text>
+<text class="b" x="560" y="428">② Main reads res: aux has just written it, the dirty lines sit in</text>
+<text class="b" x="560" y="447">aux's L1, and main must ask aux: ~30 ns. If aux runs clwb after</text>
+<text class="b" x="560" y="466">publishing, L3 answers by itself: ~12 ns.</text>
+</svg>
