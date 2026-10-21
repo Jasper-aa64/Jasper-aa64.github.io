@@ -206,7 +206,7 @@ The compiler vectorizes an `int` sum by itself, while a `float` sum needs `-ffas
 
 ### 2.6 Cache-Line Ping-Pong: A Line Bouncing Between Cores {#cross-core}
 
-One producer writes into a ring nonstop while readers on other cores busy-poll the same blocks (the experiment in [#5](/posts/spmc-shared-memory-broadcast-ring/)). With no readers, the line stays in the producer's own L1 and each write takes about 3 ns. With readers, every block has to invalidate their copies before it can be written ([MESI](/posts/low-latency-mesi-cache-coherence/)), and each write climbs to about 20–30 ns, more with more readers. That's throughput, with the store buffer absorbing part of the wait; a single cross-core round trip by itself is ~20–100 ns ([2.1](#latency)).
+One producer writes into a ring nonstop while readers on other cores busy-poll the same blocks (the experiment in [#5](/posts/spmc-shared-memory-broadcast-ring/)). With no readers, the line stays in the producer's own L2 and each write takes about 3 ns. With readers sitting on the producer's next block, every block has to invalidate their copies before it can be written ([MESI](/posts/low-latency-mesi-cache-coherence/)), and each write climbs to about 20–40 ns, more with more readers. That's flat-out throughput: when writes are spaced out, the store buffer hides the round trip, and in a large ring readers that have fallen behind never touch the lines the producer is writing, so they cost nothing ([#5 1.6](/posts/spmc-shared-memory-broadcast-ring/#16-readers-steal-the-line-the-producer-writes-next)). A single cross-core round trip by itself is ~20–100 ns ([2.1](#latency)).
 
 ## 3. Estimation Model: Lines to Move × Time per Line {#estimate}
 

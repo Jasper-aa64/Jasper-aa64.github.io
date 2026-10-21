@@ -73,7 +73,7 @@ These are orders of magnitude to aid understanding, not measurements of any one 
 | NIC → the program has the packet | Kernel bypass: about 1 µs; kernel network stack: about 5–10 µs | The kernel path pays for an interrupt, a copy and a system call |
 | Decode one message | About 0.1–1 µs | Depends on the format |
 | One cross-core handoff (queue, ring) | About 20–100 ns | One cache line moving between cores ([Ref 2.1](/ref/cpu-memory/#latency)) |
-| One write into the broadcast ring | About 3–40 ns | Measured here: more readers cost more ([#5 1.5.3](/posts/spmc-shared-memory-broadcast-ring/#153-not-blocking-is-not-free)) |
+| One write into the broadcast ring | About 3–40 ns | Measured here: flat out, more readers sitting on the newest slot cost more ([#5 1.6](/posts/spmc-shared-memory-broadcast-ring/#16-readers-steal-the-line-the-producer-writes-next)) |
 | Book and factor update for one message | Hundreds of ns to a few µs | Depends on the factors; one cache level further away costs several times more |
 | Join | Waits for the slowest shard | A cross-sectional strategy runs per bar: milliseconds to seconds |
 | Strategy and risk | Per-tick decision: microseconds; ranking a few thousand stocks: about 100 µs | All in memory |
@@ -95,7 +95,7 @@ When one thread cannot keep up with the whole market, split the stocks across th
 
 ### 3.3 One Stream, Several Readers: Broadcast Ring or Separate SPSC Queues {#fanout}
 
-When readers all need the full stream, come and go, or live in other processes (recording, republishing, monitoring), use a broadcast ring: one write, and the producer never looks at the readers. When readers each need a subset, or a drop must be known the moment it happens, use per-reader SPSC queues. The two often combine: the feed thread writes each message into the broadcast ring and also into the queue of the shard that owns the stock ([#5 1.6](/posts/spmc-shared-memory-broadcast-ring/#16-when-not-to-use-a-broadcast-ring)).
+When readers all need the full stream, come and go, or live in other processes (recording, republishing, monitoring), use a broadcast ring: one write, and the producer never looks at the readers. When readers each need a subset, or a drop must be known the moment it happens, use per-reader SPSC queues. The two often combine: the feed thread writes each message into the broadcast ring and also into the queue of the shard that owns the stock ([#5 1.7](/posts/spmc-shared-memory-broadcast-ring/#17-when-not-to-use-a-broadcast-ring)).
 
 ### 3.4 Join Only Where You Must, and Give State a Single Writer {#barrier}
 
@@ -109,7 +109,7 @@ The backlog sits in the rings and queues: backlog = (arrival rate − service ra
 
 ### 3.6 Side Paths Must Never Block the Hot Path {#side-rule}
 
-A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often spares the producer an invalidation per message ([#5 1.5.3](/posts/spmc-shared-memory-broadcast-ring/#153-not-blocking-is-not-free)).
+A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often keeps them from taking the producer's line on every message ([#5 1.6.5](/posts/spmc-shared-memory-broadcast-ring/#165-who-should-pay)).
 
 ### 3.7 Replay Through the Same Code {#replay}
 

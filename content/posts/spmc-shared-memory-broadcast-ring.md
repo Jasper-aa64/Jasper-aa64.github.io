@@ -2,8 +2,8 @@
 title: "Trading System Notes #5: An SPMC Broadcast Ring in Shared Memory"
 date: 2026-10-04
 slug: "spmc-shared-memory-broadcast-ring"
-description: "A single-producer multi-consumer ring where every reader sees every message and the producer never waits: a sequence stamp in every slot, private reader cursors, one wrap-safe subtraction with three meanings — and the bill the readers pay instead: silent overruns, torn reads, a producer that still slows down as readers join, and the shared-memory traps of addresses, first-lap page faults and restarts."
-summary: "Market data has one producer and several consumers, each of which must see every message, and the producer is the hot path that may not wait for anyone. The answer is a broadcast ring: every slot carries its own sequence stamp, readers keep private cursors, and the producer overwrites the oldest slot without ever reading reader state. The price moves to the readers — overruns are silent, a re-check after reading can't catch a half-written slot unless the writer invalidates the stamp first, and polling readers still make every write more expensive. Moving the ring into shared memory adds three more rules: nothing inside it may be a pointer, the first lap pays a page fault every 32 messages, and a restarted reader loses everything unless it saved its cursor."
+description: "A single-producer multi-consumer ring where every reader sees every message and the producer never waits: a sequence stamp in every slot, private reader cursors, one wrap-safe subtraction with three meanings — and the bill the readers pay instead: silent overruns, torn reads, readers that catch up taking the very line the producer writes next, and the shared-memory traps of addresses, first-lap page faults and restarts."
+summary: "Market data has one producer and several consumers, each of which must see every message, and the producer is the hot path that may not wait for anyone. The answer is a broadcast ring: every slot carries its own sequence stamp, readers keep private cursors, and the producer overwrites the oldest slot without ever reading reader state. The price moves to the readers — overruns are silent, a re-check after reading can't catch a half-written slot unless the writer invalidates the stamp first, and readers that catch up take the line the producer writes next, so every flat-out write costs more. Moving the ring into shared memory adds three more rules: nothing inside it may be a pointer, the first lap pays a page fault every 32 messages, and a restarted reader loses everything unless it saved its cursor."
 chapter: 1
 categories: [Systems]
 tags: [cpp, lock-free, spmc, shared-memory, ring-buffer, atomics, market-data, hft, low-latency]
@@ -15,7 +15,7 @@ An exchange's Level-2 feed arrives on one callback thread: trades and order upda
 
 How do you hand one message to three readers? The first idea is the SPSC queue from [#4](/posts/lock-free-queue-logger-micro-batching/): three of them, with the producer writing every message three times. An SPSC producer reads the consumer's position to know whether the queue is full, and that read pays for itself: the producer never overwrites data a reader hasn't read, and if it does drop something, it knows on the spot whose message it dropped. The cost is that once any reader falls behind and its queue fills, the producer has to choose right there: drop, or wait. Here the producer is the market-data hot path. **It can never wait for any reader.**
 
-This post walks through a roughly fifty-line answer: an SPMC broadcast ring. Its trade is that the producer doesn't look at the readers at all and simply overwrites the oldest slot once the ring is full. The idea fits in one sentence — move the "this message is published" signal out of a shared index and into each slot — but its consequences take a while to work through. Part 1 is the ring itself, what it does not guarantee, and when not to use it; Part 2 is what changes when it moves into memory shared between processes.
+This post walks through a roughly fifty-line answer: an SPMC broadcast ring. Its trade is that the producer doesn't look at the readers at all and simply overwrites the oldest slot once the ring is full. The idea fits in one sentence — move the "this message is published" signal out of a shared index and into each slot — but its consequences take a while to work through. Part 1 is the ring itself, what it does not guarantee, how readers still make the producer pay, and when not to use it; Part 2 is what changes when it moves into memory shared between processes.
 
 ## 1. The Broadcast Ring: One Producer, Many Readers
 
@@ -177,30 +177,50 @@ These are boundaries found under stress, not a claim that the original ring tear
 
 #### 1.5.3 Not Blocking Is Not Free
 
-"Readers can't slow the producer down" sounds like it follows from "the producer never reads reader state". The first half is true — the producer never *waits*. The second half isn't: readers don't change the producer's *steps*, but they change what each step costs in hardware.
+"Readers can't slow the producer down" sounds like it follows from "the producer never reads reader state". The first half is true — the producer never *waits*. The second half isn't: readers don't change the producer's *steps*, but they change what each step costs in hardware. Once a reader has caught up, it takes the line the producer is about to write, and the producer has to get that line back before every write.
 
-The experiment first. The producer writes flat out while readers busy-poll on separate physical cores (Ryzen 5 5600GT, Windows, median of three 1-second runs). There are two rings: 512 KiB, which fits in L2, and 64 MiB, the production size, larger than both L2 and L3. And two kinds of reader: one that only polls the stamp, and one that also reads the payload of each message it gets.
+How the line gets taken, what that costs in normal times and when the producer writes flat out, and why it stops once a reader falls behind, gets a section of its own next.
 
-| ns per `write()` | 0 readers | 1 | 2 | 3 | 4 | 5 |
-|---|---|---|---|---|---|---|
-| 512 KiB ring (fits in L2), readers only poll | 2.8 | 18.5 | 24.0 | 25.3 | 26.4 | 28.0 |
-| 512 KiB ring, readers also read the payload | 2.8 | 22.8 | 25.8 | 28.5 | 32.5 | 37.0 |
-| 64 MiB ring (the production size), readers only poll | 12.6 | 15.3 | 17.4 | 19.9 | 22.5 | 26.0 |
-| 64 MiB ring, readers also read the payload | 12.6 | 20.1 | 26.8 | 29.8 | 33.8 | 38.7 |
+---
 
-**What a reader is waiting on.** `read()` looks once and returns `nullptr` if nothing is new; the readers in this experiment call it in a busy loop. Once a reader has caught up, the slot it keeps looking at — where message `next_idx` will land — is **exactly the slot the producer writes next**. The first look leaves a read-only copy of that slot's first cache line in the reader's core; after that, as long as nobody writes the line, every spin reads the local copy, generates no cross-core traffic and never touches the producer.
+### 1.6 Readers Steal the Line the Producer Writes Next
 
-**The cost lands on the producer's write.** To write a line, the producer has to own it exclusively. If other cores hold copies, it must tell them to invalidate and wait for their acknowledgements before the write can go through — the S→M upgrade from [MESI cache coherence](/posts/low-latency-mesi-cache-coherence/) is exactly such a cross-core round trip. After the write, each reader finds its copy gone on its next spin and asks for the new line, which the producer's cache has to forward. Every reader watching that slot goes through this once per message.
+The whole effect rests on two things: one rule of cache coherence, and what a reader does when there is nothing new. First how the line gets taken (1.6.1), then what the producer pays in three situations: normal times (1.6.2), flat out with readers keeping up (1.6.3), and flat out with readers falling behind (1.6.4). Last, who should pay (1.6.5).
 
-With that mechanism in hand, read the table again.
+#### 1.6.1 How the Line Gets Taken
 
-**Zero readers: the two rings start from different floors.** In the 512 KiB ring, the line the producer comes back to has long left L1 but is still in its own L2, still Modified and still its alone — nobody to ask, 2.8 ns a message. In the 64 MiB ring, a lap later the line has been pushed out to memory and has to be fetched back before the write; the hardware prefetcher sees the sequential pattern and fetches ahead with many requests in flight, so 12.6 ns a message is essentially the cost of moving data. In both cases only the producer touches these lines; there isn't a single cross-core round trip.
+The rule: **to write a line, a core must be the only one holding it.** If other cores hold copies, it has to tell them to invalidate and wait for their answers before the write can go through. That exchange is one cross-core round trip — the S→M upgrade in [MESI](/posts/low-latency-mesi-cache-coherence/) — about 20–100 ns when the line sits in another core ([reference 2.1](/ref/cpu-memory/#latency)). If no other core holds a copy, there is nobody to ask and the write goes straight through.
 
-**The first reader is the expensive one.** Going from "no other core holds my lines" to "every write needs a cross-core round trip" changes the kind of work, and it shows most in the ring that fits in L2: 2.8 ns becomes 18.5 ns. From the second reader on, it's one more recipient in the same round trip — the invalidations go out together and the producer waits for the slowest acknowledgement — so in that ring each extra reader adds 1–5 ns, not another full round trip.
+A reader that has caught up holds exactly such a copy the whole time. `read()` returns `nullptr` when there is nothing new, and the caller's loop looks again — at the slot where message `next_idx` will land, **which is exactly the slot the producer writes next**. The first look copies that slot's first cache line into the reader's core; after that, every spin reads the local copy and generates no cross-core traffic.
 
-(In the last two paragraphs the numbers are measured; why they come out this way is reasoned from the coherence mechanism and was not verified level by level.)
+So every message goes like this (reader core on the left, producer core on the right):
 
-**When the producer isn't flat out, the store buffer hides the bill.** A write happens in two stages inside the core:
+```
+read slot n's stamp: not yet
+  └ line copied to the reader
+spin on its own copy
+                                write slot n: the reader has the line
+                                  ├ tell it to invalidate, wait   ← one cross-core round trip
+                                  └ write
+copy gone, ask for the line again
+  └ producer forwards the new line
+see the new stamp, take message n
+read slot n+1's stamp: not yet
+  └ that line copied over too
+                                write slot n+1: invalidate first, again…
+```
+
+As long as a reader keeps sitting on the producer's next slot, the producer has to get the line back from it before every write. That is the "stealing". With several readers sitting there, each holds a copy, and all of them have to be invalidated.
+
+The reader pays something too: every new message reaches it only after the line has moved over from the producer's core once. Any handoff to a thread on another core pays this trip. The experiments below all measure the producer's side; this one isn't measured here.
+
+---
+
+#### 1.6.2 Normal Times: Taken, but the Producer Can't Tell
+
+In normal times the hot-path reader sits on the next slot. Even a busy feed is tens of thousands of messages a second, tens of microseconds apart; a hot-path reader handles each one in less than that (it has to, or it would build a backlog even in normal times) and comes back to wait for the next. So in normal times every message has its line taken once.
+
+Yet the producer can't tell, because a write happens in two stages inside the core:
 
 ```
 producer core
@@ -218,25 +238,76 @@ producer core
        └──► only once it owns the line does the store reach L1
 ```
 
-The cross-core round trip — invalidate, wait for the acknowledgements — all happens in ②. When the producer is slow (one message every 2 µs), ② is long finished before the next write and the store buffer always has room, so the median `write()` stayed at 10 ns (timer resolution) for 0 to 5 readers, and only the tail moved — p99.9 from 20 to 70 ns. Flat out, earlier stores are still waiting for acknowledgements while new ones keep arriving; the store buffer fills, the core has to stall, and only then does it show up as slower writes and lower throughput. "Flat out" in the table means writing and doing nothing else; a real producer decodes and builds each record first, and that work sits between its writes.
+The round trip that gets the line back happens entirely in ②. When writes are spaced much further apart than one round trip, ② is long finished before the next write, the store buffer always has room, and `write()` never waits. Measured:
 
-**Who runs up the bill: a reader that sits spinning on the newest slot.** The loop belongs to the caller, so each reader picks how it waits. A reader on the hot path has to spin and pay. A reader that isn't in a hurry — the disk writer, a monitor — can wake up every so often and read everything that piled up in one go. At 50,000 messages a second, a disk writer that wakes every 1 ms reads batches of 50, far inside the roughly 10-second overrun headroom worked out in 2.3.2, and it costs the producer about one invalidation per wake-up rather than one per message. (That last part follows from the mechanism; it wasn't measured separately.)
+- 512 KiB ring, one write every 2 µs, readers reading the payload: with 0 to 5 readers the median `write()` stayed at 10 ns (timer resolution); only the tail moved, p99.9 from 20 to 70 ns.
+- 64 MiB ring, one write every 1 µs (a second test program, also used in 1.6.4, where the timing itself costs 30 ns): with 0 to 4 readers sitting on the next slot, the median `write()` was 30 ns, the same as with no reader.
 
-So the honest sentence is: **more readers never make the producer wait, but they are not free.**
-
-One more thing the table doesn't say: it measures how much readers slow the producer down, not how long a reader waits for a message. That is roughly one cross-core transfer, and it isn't measured here.
+The round trip hasn't gone away; it's just off the producer's path. In the same 64 MiB test, putting an `mfence` after each write — so the core waits until the write has really reached the cache — makes a write take 60–110 ns with readers sitting on the next slot: that is how long a write really takes to finish (timing included). With no readers it's even longer, 130–140 ns: a 64 MiB ring doesn't fit in cache, so the line has to come back from memory, which is further away than a reader's core (that reason is inferred).
 
 ---
 
-### 1.6 When Not to Use a Broadcast Ring
+#### 1.6.3 Flat Out, Readers Keeping Up: Every Write Costs More
+
+When the producer writes and does nothing else, writes come closer together than one round trip, and the store buffer can't hide it any more: earlier stores are still waiting for their lines while new ones keep arriving, the buffer fills, and the core has to stall. The producer does ask for the next few slots' lines early (hardware prefetch), but as soon as a reader reaches a slot it reads a copy, the early ownership is gone, and the producer has to ask again when it writes.
+
+That is the situation in this experiment. The producer writes flat out; readers on separate physical cores busy-poll and do nothing but read, so once they catch up they sit on the next slot (Ryzen 5 5600GT, Windows, median of three 1-second runs). Real readers do work on every message; whether they keep up with a flat-out producer depends on how long that work takes, and if they don't, it's 1.6.4. There are two rings: 512 KiB, which fits in L2, and 64 MiB, the production size, larger than both L2 and L3. And two kinds of reader: one that only polls the stamp, and one that also reads the payload of each message it gets.
+
+| ns per `write()` | 0 readers | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
+| 512 KiB ring (fits in L2), readers only poll | 2.8 | 18.5 | 24.0 | 25.3 | 26.4 | 28.0 |
+| 512 KiB ring, readers also read the payload | 2.8 | 22.8 | 25.8 | 28.5 | 32.5 | 37.0 |
+| 64 MiB ring (the production size), readers only poll | 12.6 | 15.3 | 17.4 | 19.9 | 22.5 | 26.0 |
+| 64 MiB ring, readers also read the payload | 12.6 | 20.1 | 26.8 | 29.8 | 33.8 | 38.7 |
+
+**Zero readers: the two rings start from different floors.** In the 512 KiB ring, the line the producer comes back to has long left L1 but is still in its own L2, still Modified and still its alone — nobody to ask, 2.8 ns a message. In the 64 MiB ring, a lap later the line has been pushed out to memory and has to be fetched back before the write; the hardware prefetcher sees the sequential pattern and fetches ahead with many requests in flight, so 12.6 ns a message is essentially the cost of moving data. In both cases only the producer touches these lines; there isn't a single cross-core round trip.
+
+**The first reader is the expensive one, most clearly in the ring that fits in L2.** 2.8 ns becomes 18.5 ns: from "no other core holds my lines" to "every write first has to take the line back from a reader". From the second reader on, it's one more recipient in the same round trip — the invalidations go out together and the producer waits for the slowest acknowledgement — so each extra reader adds 1–7 ns, not another full round trip.
+
+Readers that also read the payload cost more than readers that only poll, in the 64 MiB ring too; which step the extra cost comes from wasn't broken down here.
+
+(The numbers in this section are measured; why they come out this way is reasoned from the coherence mechanism and was not verified level by level.)
+
+---
+
+#### 1.6.4 Flat Out, Readers Falling Behind: Nothing Taken
+
+In the first minutes after the open, market data comes in waves and the producer writes a run of messages back to back. A hot-path reader does work on every message and may not keep up, so it falls behind. A reader that has fallen behind reads slots the producer finished long ago; it holds no copy of the slots the producer is about to write, so there is nothing to take.
+
+A second experiment tested exactly this. A 64 MiB ring with 128-byte slots; the producer fills all 88 bytes of every message. Three kinds of reader: normal ones (sitting on the next slot once caught up); ones that only read slots 4,096–8,191 behind the producer (payload included, never near the newest slot); and cores that spin on a local variable without touching the ring (a control: does having more busy cores matter by itself). Ryzen 5 5600GT, Windows, three runs of each, 20 million flat-out writes per run. Average time per write:
+
+- no readers: 12.6–14.0 ns
+- 1–4 readers that have fallen behind: 13.0–13.9 ns, the same as no readers
+- 1–4 cores spinning without touching the ring: 12.7–15.2 ns
+- 1 normal reader: 25.6–35.4 ns; 2–4: 49.9–55.0 ns
+
+(This is not the program behind the table in 1.6.3, and the absolute numbers differ; compare only within one program.)
+
+Why a reader that has fallen behind takes nothing: before the producer writes a slot that reader has read, it has to come all the way round the ring, which takes 6–7 ms flat out on a 64 MiB ring; by then the reader has read another full 64 MiB, and its old copies are long gone from its caches. When the producer comes back, no other core holds the line, and there's nobody to ask. (Measured on the 64 MiB ring; in a ring small enough to fit in a reader's caches, a reader that has fallen behind may still hold copies. Not measured.)
+
+With nothing taken, the bill moves to the reader: messages queue in the ring until it reaches them. A reader k messages behind makes a new message wait until it has handled the k before it; a reader a whole lap behind gets overrun, and 2.3.2 works out the headroom.
+
+---
+
+#### 1.6.5 Who Should Pay
+
+The spinning loop belongs to the caller, so each reader picks how it waits. A hot-path reader has to take every message the moment it lands, so it has to sit on the next slot and pay; in normal times the store buffer hides the bill, and only a flat-out producer turns it into slower writes.
+
+A reader that isn't in a hurry — the disk writer, a monitor — shouldn't sit on the next slot: it can wake up every so often and read everything that piled up in one go. At 50,000 messages a second, a disk writer that wakes every 1 ms reads batches of 50, far inside the roughly 10-second overrun headroom worked out in 2.3.2. Most of what it reads are slots the producer finished long ago, so it takes a line about once per wake-up, when it reaches the newest slot, rather than once per message. (That part follows from the mechanism; the readers that had fallen behind in 1.6.4 never came near the newest slot, which isn't quite the same pattern.)
+
+So the honest sentence is: **more readers never make the producer wait, but a reader sitting on the producer's next slot takes the line the producer is about to write. In normal times the store buffer hides that; flat out, every write costs more. A reader that has fallen behind takes nothing.**
+
+---
+
+### 1.7 When Not to Use a Broadcast Ring
 
 Back to the opening choice: several SPSC queues, or one broadcast ring. They differ in one thing — **whether the producer looks at where the readers are**.
 
 Several SPSC queues means looking. What looking buys is that 1.5.1 and 1.5.2 can't happen: the producer never overwrites a slot a reader hasn't finished, so there are no silent overruns and no half-written reads; and each queue can carry only the part its reader needs. What it costs: the producer's work grows with the number of readers, one copy per reader; when a reader falls far enough behind to fill its queue, the producer has to choose between waiting and dropping on the spot; and the set of readers has to be known up front, so attaching a new one means touching the producer.
 
-A broadcast ring means not looking. One write, readers attach whenever they like, and the producer's steps never change. The cost is all of 1.5: readers carry overruns and torn reads themselves, every reader has to go through the full stream, and busy-polling readers still make each write more expensive.
+A broadcast ring means not looking. One write, readers attach whenever they like, and the producer's steps never change. The cost is all of 1.5 and 1.6: readers carry overruns and torn reads themselves, every reader has to go through the full stream, and readers sitting on the newest slot still take the lines the producer is about to write.
 
-The table in 1.5.3 also lets you compare the hardware bills. The first reader is the expensive one; each extra reader adds 1–5 ns. If every reader needs everything, N SPSC queues mean N copies of every message, each watched by its own reader and each needing its own invalidation, while the broadcast ring writes once and every reader after the first adds a few nanoseconds. If each reader needs only a part — stocks split across a few compute threads, say — every message goes into exactly one queue with one reader watching, so the producer's cost stays at roughly the one-reader level, plus the check on that reader's position, however many readers there are; and no reader has to skip over messages meant for others. (This paragraph is reasoned from the table and the mechanism; it was not measured with SPSC queues.)
+The table in 1.6.3 also lets you compare the hardware bills: from the second reader on, each extra reader adds only 1–7 ns. If every reader needs everything, N SPSC queues mean N copies of every message, each watched by its own reader and each needing its own invalidation, while the broadcast ring writes once and every reader after the first adds a few nanoseconds. If each reader needs only a part — stocks split across a few compute threads, say — every message goes into exactly one queue with one reader watching, so the producer's cost stays at roughly the one-reader level, plus the check on that reader's position, however many readers there are; and no reader has to skip over messages meant for others. (This paragraph is reasoned from the table and the mechanism; it was not measured with SPSC queues.)
 
 So: when readers all need the full stream, come and go, or live in other processes (disk, republishing, monitoring), use the broadcast ring; when readers each need a subset, or a drop must be known the moment it happens, use per-reader SPSC queues. The two combine: the feed thread writes every message into the broadcast ring for the readers that aren't in a hurry, and also into the SPSC queue of the compute thread that owns that stock. Having a separate thread read the ring and redistribute instead puts one more cross-core handoff on the hot path.
 

@@ -206,7 +206,7 @@ GCC 对这两件事的实际处理：
 
 ### 2.6 缓存行乒乓（cache-line ping-pong）：一条行在核之间来回 {#cross-core}
 
-一个生产者往环里连着写，几个读者在别的核上忙着轮询同一块（[#5](/zh/posts/spmc-shared-memory-broadcast-ring/) 的实验）。没人读时，行一直在生产者自己的 L1 里，每写一条约 3 ns。来了读者，每写一块之前都要先作废读者手里的副本（[MESI](/zh/posts/low-latency-mesi-cache-coherence/)），每条涨到约 20–30 ns，读者越多越贵。这是吞吐，store buffer 吸收了一部分等待。单次跨核往返本身约 20–100 ns（[2.1](#latency)）。
+一个生产者往环里连着写，几个读者在别的核上忙着轮询同一块（[#5](/zh/posts/spmc-shared-memory-broadcast-ring/) 的实验）。没人读时，行一直在生产者自己的 L2 里，每写一条约 3 ns。来了读者，读者守在生产者下一块上，每写一块之前都要先作废读者手里的副本（[MESI](/zh/posts/low-latency-mesi-cache-coherence/)），每条涨到约 20–40 ns，读者越多越贵。这是全速写的吞吐；写得慢时，这一趟藏在 store buffer 后面，看不出来；大环里落在后面的读者碰不到生产者要写的行，不贵（[#5 1.6](/zh/posts/spmc-shared-memory-broadcast-ring/#16-读者抢走生产者要写的那一行)）。单次跨核往返本身约 20–100 ns（[2.1](#latency)）。
 
 ## 3. 估算模型：搬几条行 × 每条多久 {#estimate}
 
