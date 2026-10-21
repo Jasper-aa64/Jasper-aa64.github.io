@@ -1,5 +1,6 @@
 {{ define "main" }}
 {{/* About page (知悉): profile card, writing stats, projects, skills, then the page's own text.
+     Projects, skills and the background timeline are CV material, shown only with params.showCV.
      Structured content lives in data/about.yaml; the prose is content/about*.md. */}}
 {{ $a := index hugo.Data.about site.Language.Lang }}
 {{ $posts := partial "posts-all.html" . }}
@@ -80,6 +81,7 @@
     </div>
   </section>
 
+  {{ if site.Params.showCV }}
   <!-- projects -->
   <section class="about-sec reveal">
     <h2 class="about-sec__head">{{ i18n "aboutProjects" }}</h2>
@@ -121,5 +123,13 @@
       </div>
     </div>
   </section>
+  {{ else }}
+  <!-- the page's own text, full width -->
+  <section class="about-sec reveal">
+    <div class="about-prose">
+      <div class="prose">{{ .Content }}</div>
+    </div>
+  </section>
+  {{ end }}
 </section>
 {{ end }}

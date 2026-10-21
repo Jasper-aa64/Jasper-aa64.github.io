@@ -97,7 +97,7 @@
               <a class="site-nav__link{{ if eq $.Section "life" }} is-active{{ end }}" href="{{ "life/" | relLangURL }}">{{ i18n "secLife" }}</a>
             {{ end }}
           {{ end }}
-          <a class="site-nav__link site-nav__cv" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>
+          {{ if site.Params.showCV }}<a class="site-nav__link site-nav__cv" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>{{ end }}
         </nav>
 
         <div class="site-actions">
@@ -122,10 +122,7 @@
       <div class="wrap site-footer__inner">
         <p class="site-footer__meta">© {{ now.Format "2006" }} Jasper · <a href="#main" data-to-top>{{ i18n "backToTop" }} ↑</a></p>
         <nav class="site-footer__links" aria-label="Footer">
-          <a href="{{ site.Params.github }}" rel="me">GitHub</a>
-          <a href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }}</a>
-          <a href="{{ "posts/" | relLangURL }}">{{ i18n "secWriting" }}</a>
-          <a href="{{ "index.xml" | relLangURL }}">{{ i18n "rss" }}</a>
+          {{ partial "social-icons.html" . }}
         </nav>
       </div>
     </footer>

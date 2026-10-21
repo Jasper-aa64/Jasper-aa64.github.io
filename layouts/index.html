@@ -16,7 +16,7 @@
     <div class="hero__actions reveal">
       <a class="btn btn--solid" href="{{ "posts/" | relLangURL }}">{{ i18n "catAll" }} <span aria-hidden="true">→</span></a>
       <a class="btn" href="{{ site.Params.github }}" rel="me">GitHub <span aria-hidden="true">↗</span></a>
-      <a class="btn" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>
+      {{ if site.Params.showCV }}<a class="btn" href="/files/cv.pdf" target="_blank" rel="noopener">{{ i18n "cv" }} <span aria-hidden="true">↗</span></a>{{ end }}
     </div>
   </div>
   {{/* Photos are kept in data/profile.yaml but not shown for now.
