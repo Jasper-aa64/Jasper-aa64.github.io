@@ -2,7 +2,7 @@
 title: "CPU 与内存：地图、数字、怎么估算"
 description: "一次访存经过哪些框，每个框多大、多快，以及怎么把这些数合起来，估一段代码的访存时间。"
 date: 2026-10-08
-lastmod: 2026-10-16
+lastmod: 2026-10-21
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -43,7 +43,7 @@ math: true
 | 流水线与依赖链、寄存器、store buffer、invalidate queue、缓存行与伪共享 | [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/) |
 | 缓存一致性 | [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/) |
 | 锁住内存、TLB shootdown | [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/) |
-| 多个核读写同一条行 | [#4 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) |
+| 多个核读写同一条行 | [#4 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) · [#16 自旋锁](/zh/posts/spinlock-implementation/) |
 | 缺页 | [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) |
 | 对齐、布局、组相联、内存条内部、刷新、多通道 | [#6 对齐、布局与几何](/zh/posts/alignment-layout-cache-dram-geometry/) |
 | 分支预测器、取指与推测执行 | [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/) |
@@ -74,6 +74,7 @@ math: true
 | | 无竞争的原子读改写：`fetch_add`、CAS、`exchange`（行在自己的 L1 里） | 约 2–6 ns（8–25 周期）：x86 上是带 `lock` 的指令，ARM 上是 `ldaddal`、`casal` 这类 |
 | | seq_cst 屏障 | 约 2–6 ns（8–25 周期）：x86 上 GCC 编成 `lock or`，ARM 上是 `dmb ish` |
 | | x86 的 `sfence`、`lfence`、`mfence` | 1–6、4–15、30–80 周期，`lfence` 不算等前面指令的时间 |
+| | 自旋等待里的一条 `pause` | 约 10–150 周期，各代差很多：Intel 从 Skylake 起约 140 周期，之前约 10 周期；ARM 没有对应的指令，常用 `yield`（很多核上等于空操作）或 `isb`（见 [#16](/zh/posts/spinlock-implementation/)） |
 | | 有竞争的原子读改写（行在别的核那里，要先抢过来） | 约 20–100 ns，抢的核越多越慢；伪共享的计数器也是这一笔 |
 | **运算** | 整数加减、位运算、移位 | 1 周期 |
 | | 整数乘法 | 3 周期 |
@@ -86,6 +87,7 @@ math: true
 | **系统** | 最简单的系统调用 | 约 0.1–0.5 µs |
 | | 第一次写一页（缺页） | 约 1–2 µs |
 | | 线程切换 | 约 1–5 µs，再加缓存被冲掉的代价 |
+| | 抢锁失败去睡、再被叫醒（futex：从放锁到它真正跑起来） | 约 2–10 µs：两次系统调用加两次线程切换，等的核进了深的省电状态还要更久（见 [#16](/zh/posts/spinlock-implementation/)） |
 | | NVMe SSD 读 4 KiB | 10–100 µs |
 
 内存那两行差在第一步，也就是 [1.1](#load) 图里的地址翻译：TLB 里没有这一页的翻译时，硬件要先按页表一级一级查出物理地址（page walk），才能发真正的读。页表项多半在缓存里，所以只多约 15–30 ns。随机读一大片内存，几乎每次都要付这一份。换成 2 MiB 的大页，一个 TLB 项管的范围大 512 倍，这一份基本就没了。

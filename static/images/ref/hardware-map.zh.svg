@@ -64,7 +64,7 @@
   <text x="412" y="213" class="t">重命名 + ROB</text>
   <text x="412" y="231" class="s">ROB（reorder buffer，重排序缓冲）</text>
   <text x="412" y="249" class="s">记着还没退休的指令</text>
-  <text x="412" y="266" class="tag">速查 2.3 ROB 与 MLP</text>
+  <text x="412" y="266" class="tag">速查 2.3 ROB 与 MLP · #16 PAUSE</text>
   <rect x="400" y="290" width="280" height="80" rx="6" class="box"/>
   <text x="412" y="313" class="t">调度 → 执行单元</text>
   <text x="412" y="331" class="s">ALU 算数 · AGU 算地址</text>
@@ -184,6 +184,7 @@
   <text x="1080" y="538" class="tag">#2 伪共享（两个核抢同一行）</text>
   <text x="1080" y="556" class="tag">#4 缓存游标 · #5 读者越多写越贵</text>
   <text x="1080" y="574" class="tag">#6 alignas(64) 让对象独占一行</text>
+  <text x="1080" y="592" class="tag">#16 自旋锁：先读后抢（TTAS）</text>
   <rect x="1080" y="605" width="460" height="64" rx="6" class="cache"/>
   <text x="1094" y="630" class="t">每个核各有自己的 L1、L2</text>
   <text x="1094" y="652" class="s">（TLB、store buffer 也各有一份）</text>

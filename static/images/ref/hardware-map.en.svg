@@ -64,7 +64,7 @@
   <text x="412" y="213" class="t">Rename + ROB</text>
   <text x="412" y="231" class="s">ROB = reorder buffer:</text>
   <text x="412" y="249" class="s">instructions not yet retired</text>
-  <text x="412" y="266" class="tag">Ref 2.3 ROB and MLP</text>
+  <text x="412" y="266" class="tag">Ref 2.3 ROB and MLP · #16 PAUSE</text>
   <rect x="400" y="290" width="280" height="80" rx="6" class="box"/>
   <text x="412" y="313" class="t">Schedule → execution units</text>
   <text x="412" y="331" class="s">ALU math · AGU addresses</text>
@@ -184,6 +184,7 @@
   <text x="1080" y="538" class="tag">#2 false sharing (two cores fight over a line)</text>
   <text x="1080" y="556" class="tag">#4 cached cursor · #5 more readers, costlier writes</text>
   <text x="1080" y="574" class="tag">#6 alignas(64) gives an object its own line</text>
+  <text x="1080" y="592" class="tag">#16 spinlocks: read before you grab (TTAS)</text>
   <rect x="1080" y="605" width="460" height="64" rx="6" class="cache"/>
   <text x="1094" y="630" class="t">Every core has its own L1 and L2</text>
   <text x="1094" y="652" class="s">(and its own TLB and store buffer)</text>
