@@ -1378,6 +1378,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   overflow-wrap: break-word;
 }
 :lang(zh) .prose { line-height: 1.9; letter-spacing: .012em; }
+/* Chinese glyphs fill the em box and read larger than Latin at the same size: 16px above the phone breakpoint. */
+@media (min-width: 761px) { :lang(zh) .prose { font-size: 1rem; } }
 .prose > :first-child { margin-top: 0; }
 .prose p, .prose ul, .prose ol, .prose blockquote, .prose dl { margin: 0 0 1.25em; }
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5 { color: var(--ink); scroll-margin-top: calc(var(--header-h) + 24px); text-wrap: balance; }
