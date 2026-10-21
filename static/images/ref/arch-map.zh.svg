@@ -71,7 +71,7 @@
   <text x="532" y="212" class="s">解码，转成内部格式</text>
   <text x="532" y="230" class="s">按通道查序号，断档就补</text>
   <text x="532" y="248" class="s">先写广播环，再按股票分发</text>
-  <text x="532" y="266" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#16-什么时候不用广播环" target="_blank" rel="noopener"><tspan>#5 广播环 1.6</tspan></a></text>
+  <text x="532" y="266" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#17-什么时候不用广播环" target="_blank" rel="noopener"><tspan>#5 广播环 1.7</tspan></a></text>
   </g>
   <g id="spsc">
   <rect x="780" y="170" width="200" height="160" rx="6" class="data"/>
