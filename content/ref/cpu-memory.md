@@ -2,7 +2,7 @@
 title: "CPU and Memory: Map, Numbers, Estimates"
 description: "Which boxes one memory access passes through, how big and how fast each box is, and how to combine those numbers to estimate the memory time of a piece of code."
 date: 2026-10-08
-lastmod: 2026-10-16
+lastmod: 2026-10-21
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -43,7 +43,7 @@ A store first goes into the **store buffer**, so later instructions don't wait f
 | Pipeline and dependency chains, registers, store buffer, invalidate queue, cache lines and false sharing | [#2 Memory Ordering and Cache Lines](/posts/memory-ordering-false-sharing-dependency-chains/) |
 | Cache coherence | [MESI](/posts/low-latency-mesi-cache-coherence/) |
 | Locking memory, TLB shootdowns | [#3 Memory Pools and Allocators](/posts/hot-path-memory-allocators/) |
-| Several cores reading and writing one line | [#4 Lock-Free Queues](/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
+| Several cores reading and writing one line | [#4 Lock-Free Queues](/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) · [#16 Spinlocks](/posts/spinlock-implementation/) |
 | Page faults | [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
 | Alignment, layout, set associativity, inside a DIMM, refresh, channels | [#6 Alignment, Layout, and Geometry](/posts/alignment-layout-cache-dram-geometry/) |
 | Branch predictor, fetch and speculative execution | [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/) |
@@ -74,6 +74,7 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–6 ns (8–25 cycles): a `lock`-prefixed instruction on x86, `ldaddal`, `casal` and the like on ARM |
 | | seq_cst fence | ~2–6 ns (8–25 cycles): GCC emits `lock or` on x86; `dmb ish` on ARM |
 | | x86's `sfence`, `lfence`, `mfence` | 1–6, 4–15, 30–80 cycles; for `lfence`, not counting the wait for earlier instructions |
+| | One `pause` in a spin-wait loop | ~10–150 cycles, varying a lot by generation: ~140 on Intel since Skylake, ~10 before; ARM has no equivalent and uses `yield` (a no-op on many cores) or `isb` (see [#16](/posts/spinlock-implementation/)) |
 | | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete; falsely shared counters pay this too |
 | **Arithmetic** | Integer add/subtract, bit operation, shift | 1 cycle |
 | | Integer multiply | 3 cycles |
@@ -86,6 +87,7 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | **System** | Simplest system call | ~0.1–0.5 µs |
 | | First write to a page (page fault) | ~1–2 µs |
 | | Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
+| | Sleep on a taken lock, then get woken (futex: from the unlock until the waiter runs) | ~2–10 µs: two system calls plus two thread switches; longer if the waiter's core was in a deep power-saving state (see [#16](/posts/spinlock-implementation/)) |
 | | NVMe SSD 4 KiB read | 10–100 µs |
 
 The two memory rows differ in the first step, the address translation in [1.1](#load)'s figure: when the TLB has no entry for the page, the hardware walks the page tables level by level (a page walk) to find the physical address before it can issue the real read. The page-table entries are usually in cache, so this adds only ~15–30 ns. Random reads over a large region pay it almost every time. With 2 MiB huge pages one TLB entry covers 512 times as much memory, and this part mostly disappears.
