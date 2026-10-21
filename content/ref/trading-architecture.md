@@ -73,7 +73,7 @@ These are orders of magnitude to aid understanding, not measurements of any one 
 | NIC → the program has the packet | Kernel bypass: about 1 µs; kernel network stack: about 5–10 µs | The kernel path pays for an interrupt, a copy and a system call |
 | Decode one message | About 0.1–1 µs | Depends on the format |
 | One cross-core handoff (queue, ring) | About 20–100 ns | One cache line moving between cores ([Ref 2.1](/ref/cpu-memory/#latency)) |
-| One write into the broadcast ring | About 3–40 ns | Measured here: flat out, more readers sitting on the newest slot cost more ([#5 1.6](/posts/spmc-shared-memory-broadcast-ring/#16-readers-steal-the-line-the-producer-writes-next)) |
+| One write into the broadcast ring | About 3–40 ns | Measured here: flat out, more readers sitting on the newest slot cost more ([#5 1.6](/posts/spmc-shared-memory-broadcast-ring/#16-on-real-hardware-do-readers-slow-the-producer)) |
 | Book and factor update for one message | Hundreds of ns to a few µs | Depends on the factors; one cache level further away costs several times more |
 | Join | Waits for the slowest shard | A cross-sectional strategy runs per bar: milliseconds to seconds |
 | Strategy and risk | Per-tick decision: microseconds; ranking a few thousand stocks: about 100 µs | All in memory |
@@ -109,7 +109,7 @@ The backlog sits in the rings and queues: backlog = (arrival rate − service ra
 
 ### 3.6 Side Paths Must Never Block the Hot Path {#side-rule}
 
-A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often keeps them from taking the producer's line on every message ([#5 1.6.5](/posts/spmc-shared-memory-broadcast-ring/#165-who-should-pay)).
+A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often keeps them from taking the producer's line on every message ([#5 1.6.5](/posts/spmc-shared-memory-broadcast-ring/#165-how-should-a-reader-wait)).
 
 ### 3.7 Replay Through the Same Code {#replay}
 

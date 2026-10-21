@@ -119,12 +119,12 @@ node('ring', (520, 380, 220, 130), 'data',
              tags=[[('#5 SPMC 广播环', post('zh', 'spmc-shared-memory-broadcast-ring'))]],
              panel=['接入线程只写一份，要全量的读者各自来读：落盘、监控、研究。',
                     '生产者从不看读者读到哪，慢读者会被套圈，要自己发现。',
-                    '读者再多也不会让生产者等，但死循环盯着最新槽位的读者，会让每次写变贵（#5 1.5.3）。']),
+                    '读者再多也不会让生产者等，但死循环盯着最新槽位的读者，会在全速写时让每次写变贵（#5 1.6）。']),
      en=dict(title='Broadcast ring (shm)', lines=['Feed thread writes once', 'Recorder, monitor read', 'Producer waits for no one'],
              tags=[[('#5 SPMC broadcast ring', post('en', 'spmc-shared-memory-broadcast-ring'))]],
              panel=['The feed thread writes each message once; every reader that needs the full stream reads it on its own: recorder, monitor, research.',
                     'The producer never looks at where readers are; a slow reader gets lapped and has to notice it itself.',
-                    'More readers never make the producer wait, but a reader that spins on the newest slot makes every write more expensive (#5 1.5.3).']))
+                    'More readers never make the producer wait, but a reader that spins on the newest slot makes every write more expensive when the producer runs flat out (#5 1.6).']))
 
 node('clock', (780, 380, 200, 200), 'note',
      zh=dict(title='两种节奏', lines=['按 bar 截面（多因子）：', '分片 → 汇合 → 策略，', '毫秒到秒。', '逐笔触发（做市、套利）：', '分片线程里一路做到报单，', '不过汇合，微秒级。'], tags=[],
