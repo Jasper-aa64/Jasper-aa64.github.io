@@ -254,8 +254,31 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .icon-btn:hover { border-color: var(--rule-strong); color: var(--ink); background: var(--card); }
 .icon-btn:active { background: var(--wash); }
+/* Icon links name themselves on hover: data-tip shows in a small label under the icon. */
+.icon-btn[data-tip] { position: relative; }
+.icon-btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 5;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -3px);
+  transition: opacity .15s, transform .15s;
+}
+.icon-btn[data-tip]:hover::after, .icon-btn[data-tip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
 @media (hover: none) {
   /* On phones :hover sticks after a tap; keep buttons looking untouched once the finger lifts. */
+  .icon-btn[data-tip]::after { display: none; }
   .icon-btn:hover { border-color: var(--rule); color: var(--ink-2); background: transparent; }
   .icon-btn:active { background: var(--wash); }
   .btn:hover { border-color: var(--rule-strong); }
@@ -1691,9 +1714,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   padding-top: 40px;
   padding-bottom: 44px;
 }
-.site-footer__links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 14.5px; }
-.site-footer__links a { color: var(--ink-2); transition: color .2s; }
-.site-footer__links a:hover { color: var(--accent); }
+.site-footer__links { display: flex; flex-wrap: wrap; gap: 8px; }
 .site-footer__meta { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--faint); }
 .site-footer__meta a:hover { color: var(--accent); }
 
