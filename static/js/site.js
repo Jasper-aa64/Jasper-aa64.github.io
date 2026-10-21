@@ -229,15 +229,26 @@
         });
         if (empty) empty.hidden = shown > 0;
       };
-      if (first || reduce || !changed || !list) { show(); }
+      // If the reader had scrolled into the list, bring its start back under the sticky filter.
+      // The second row may still be opening or closing, so measure against the height the filter ends at.
+      // Jump rather than scroll smoothly: the list is faded out at this moment, and the smooth scroll
+      // used to land short, leaving the first card under the filter.
+      var settle = function () {
+        var top = list.getBoundingClientRect().top;
+        var under = filterBox ? filterBox.getBoundingClientRect().bottom : 0;
+        if (subsBox && inner) {
+          var end = subsBox.classList.contains("is-open") ? inner.scrollHeight : parseFloat(getComputedStyle(inner).paddingTop) || 0;
+          under += end - subsBox.getBoundingClientRect().height;
+        }
+        if (top < under) window.scrollBy({ top: top - under - 8, behavior: "instant" });
+      };
+      if (first || !changed || !list) { show(); }
+      else if (reduce) { show(); settle(); }
       else {
         list.classList.add("is-switching");
         setTimeout(function () {
           show();
-          // If the reader had scrolled into the list, bring its start back under the sticky filter.
-          var top = list.getBoundingClientRect().top;
-          var under = filterBox ? filterBox.getBoundingClientRect().bottom : 0;
-          if (top < under) window.scrollBy({ top: top - under - 8, behavior: "auto" });
+          settle();
           list.classList.remove("is-switching");
         }, 180);
       }
