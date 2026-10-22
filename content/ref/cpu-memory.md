@@ -2,7 +2,7 @@
 title: "CPU and Memory: Map, Numbers, Estimates"
 description: "Which boxes one memory access passes through, how big and how fast each box is, and how to combine those numbers to estimate the memory time of a piece of code."
 date: 2026-10-08
-lastmod: 2026-10-21
+lastmod: 2026-10-22
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -49,6 +49,7 @@ A store first goes into the **store buffer**, so later instructions don't wait f
 | Branch predictor, fetch and speculative execution | [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/) |
 | Execution units: ALU, multiplier, divider, SIMD units | [#12 Strength Reduction and Arithmetic Optimization](/posts/strength-reduction-arithmetic/) · [#15 SIMD Vectorization](/posts/simd-vectorization-intrinsics/) |
 | Hardware prefetch, software prefetch, cache warming | [#14 Prefetching, Warming, Double Buffering](/posts/prefetch-warmup-double-buffer/) |
+| Performance counters (PMU) and sampling: which function and instruction the time goes to | [perf](/posts/low-latency-perf-profiling/) |
 | The roads between the boxes: latency, bandwidth, ROB, LFB | Parts 2 and 3 of this page |
 
 ## 2. Performance Parameters: How Big and How Fast Each Box Is {#numbers}
