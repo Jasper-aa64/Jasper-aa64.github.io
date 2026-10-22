@@ -19,10 +19,10 @@ math: true
 
 perf 常用的就是四个命令，从粗到细：
 
-- **`perf stat`：几秒钟出总账**。 跑一遍程序，报耗时、上下文切换、缺页；有硬件计数器时还有周期数、指令数、缓存和分支的缺失次数，用来判断 CPU 是在算还是在等（3.1）。
-- **`perf record` + `perf report`：哪个函数热**。 record 每隔一小段时间记下程序正在执行的指令地址，一次记录叫一个样本；report 按函数汇总，谁占的样本多，时间就花在谁身上（3.2、4.4）。
-- **`perf annotate`：哪条指令热**。 把一个函数的样本摊到它的每条汇编指令上（4.5）。
-- **`perf c2c`：多线程抢同一条缓存行**。 找出被几个核来回抢的缓存行，以及抢的是行里哪个位置（3.3）。
+- **`perf stat`：几秒钟出总账**。跑一遍程序，报耗时、上下文切换、缺页；有硬件计数器时还有周期数、指令数、缓存和分支的缺失次数，用来判断 CPU 是在算还是在等（3.1）。
+- **`perf record` + `perf report`：哪个函数热**。record 每隔一小段时间记下程序正在执行的指令地址，一次记录叫一个样本；report 按函数汇总，谁占的样本多，时间就花在谁身上（3.2、4.4）。
+- **`perf annotate`：哪条指令热**。把一个函数的样本摊到它的每条汇编指令上（4.5）。
+- **`perf c2c`：多线程抢同一条缓存行**。找出被几个核来回抢的缓存行，以及抢的是行里哪个位置（3.3）。
 
 一般先跑 stat，再 record 和 report，最后对热函数用 annotate。拿不准从哪下手，就先跑 stat：它最快，常常就够回答问题了，Intel 的 linux-perf skill 也是这么建议的。多核扩展不上去（线程加倍、吞吐不涨）是另一类问题：用 1 个线程和 N 个线程各 record 一次，比两次的热点排名，名次跳上来的函数再用 c2c 查（3.4）。
 
@@ -45,7 +45,7 @@ perf 常用的就是四个命令，从粗到细：
 
 report 里的函数名来自二进制里的符号表。看到的是一串十六进制地址，说明 perf 没读到符号表。常见原因有两个，第 4 部分的实测里还碰上了第三个：
 
-- **二进制被 strip 了**。 strip 会删掉符号表。同一个演示程序，strip 之前 report 里是 `sum_serial`，strip 之后成了这样：
+- **二进制被 strip 了**。strip 会删掉符号表。同一个演示程序，strip 之前 report 里是 `sum_serial`，strip 之后成了这样：
 
   ```text
     98.03%  perf_demo.strip  perf_demo.stripped  [.] 0x0000000000000a14
@@ -54,7 +54,7 @@ report 里的函数名来自二进制里的符号表。看到的是一串十六�
 
   分析时用没 strip 的那份。
 
-- **`-g` 管的是源码行，不是函数名**。 `-g` 往二进制里加调试信息，annotate 能在汇编上面印出对应的源码行，靠的就是它（见 4.5 的输出）。函数名不靠 `-g`：同一个程序不加 `-g` 编译，只要没 strip，report 里照样有名字：
+- **`-g` 管的是源码行，不是函数名**。`-g` 往二进制里加调试信息，annotate 能在汇编上面印出对应的源码行，靠的就是它（见 4.5 的输出）。函数名不靠 `-g`：同一个程序不加 `-g` 编译，只要没 strip，report 里照样有名字：
 
   ```text
     98.52%  perf_demo_nog  perf_demo_nog      [.] sum_serial
@@ -62,7 +62,7 @@ report 里的函数名来自二进制里的符号表。看到的是一串十六�
      0.09%  perf_demo_nog  perf_demo_nog      [.] main
   ```
 
-- **程序放在 `/tmp/perf-` 开头的路径下**。 perf 支持 JIT（just-in-time，即时编译）程序：JIT 把它生成的代码的符号写进文本文件 `/tmp/perf-<进程号>.map`，perf 照着解析（perf 文档 `tools/perf/Documentation/jit-interface.txt`）。6.11 之前的 perf 只比前缀，凡是路径以 `/tmp/perf-` 开头的文件都当成这种符号文件来读，二进制当然读不出来（Linux 源码 `tools/perf/util/symbol.c`，v3.10 第 774 行、v6.10 第 1802 行；提交 b0979f008f13 改成只认 `/tmp/perf-<数字>.map`，从 v6.11 起）。第一次实测时我把程序放在 `/tmp/perf-demo-20261022/` 下，没 strip 的二进制在 report 里也全是地址，`perf report -vv` 把它的符号来源标成 `j`，也就是 JIT。换成 `/tmp/demo-perf-20261022/` 就正常了，两次的输出都在[原始输出](https://github.com/Jasper-aa64/trading-system-notes-study/tree/main/02-%E5%B8%B8%E8%A7%81%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E4%B8%8E%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91/00-%E8%A1%A5-perf-%E5%AE%9E%E6%B5%8B/first-run)里。
+- **程序放在 `/tmp/perf-` 开头的路径下**。perf 支持 JIT（just-in-time，即时编译）程序：JIT 把它生成的代码的符号写进文本文件 `/tmp/perf-<进程号>.map`，perf 照着解析（perf 文档 `tools/perf/Documentation/jit-interface.txt`）。6.11 之前的 perf 只比前缀，凡是路径以 `/tmp/perf-` 开头的文件都当成这种符号文件来读，二进制当然读不出来（Linux 源码 `tools/perf/util/symbol.c`，v3.10 第 774 行、v6.10 第 1802 行；提交 b0979f008f13 改成只认 `/tmp/perf-<数字>.map`，从 v6.11 起）。第一次实测时我把程序放在 `/tmp/perf-demo-20261022/` 下，没 strip 的二进制在 report 里也全是地址，`perf report -vv` 把它的符号来源标成 `j`，也就是 JIT。换成 `/tmp/demo-perf-20261022/` 就正常了，两次的输出都在[原始输出](https://github.com/Jasper-aa64/trading-system-notes-study/tree/main/02-%E5%B8%B8%E8%A7%81%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E4%B8%8E%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91/00-%E8%A1%A5-perf-%E5%AE%9E%E6%B5%8B/first-run)里。
 
 调用栈是另一回事。`perf record -g` 默认顺着帧指针往回找调用者，编译器省掉帧指针时调用栈会乱，这时改用 `--call-graph dwarf`（perf-record(1) 的 `--call-graph` 一节）。所以第 4 部分编译时加了 `-fno-omit-frame-pointer`。即便这样，4.4 的调用链还是少了一层，原因在那一节。
 
@@ -70,9 +70,9 @@ report 里的函数名来自二进制里的符号表。看到的是一串十六�
 
 采样要有个触发条件，常用的是这两个：
 
-- **`cpu-clock` 是软件事件**。 由内核里每个 CPU 一个的高精度定时器按时间触发（perf_event_open(2) 对 `PERF_COUNT_SW_CPU_CLOCK` 的说明），不需要硬件支持，虚拟机上也能用。第 4 部分 record 用的是默认频率，每秒 4000 次。
-- **`cycles` 是硬件事件**。 由 CPU 里的 PMU（performance monitoring unit，性能监控单元）计数。IPC、缓存缺失、分支失败和 c2c 都要用 PMU；精确采样也要它，Intel 上叫 PEBS，AMD 上叫 IBS（perf-list(1)）。
-- **虚拟机常常不给 PMU**。 这时 `cycles` 拿不到，`cpu-clock` 照样能采。所以先探测再用（4.2）。
+- **`cpu-clock` 是软件事件**。由内核里每个 CPU 一个的高精度定时器按时间触发（perf_event_open(2) 对 `PERF_COUNT_SW_CPU_CLOCK` 的说明），不需要硬件支持，虚拟机上也能用。第 4 部分 record 用的是默认频率，每秒 4000 次。
+- **`cycles` 是硬件事件**。由 CPU 里的 PMU（performance monitoring unit，性能监控单元）计数。IPC、缓存缺失、分支失败和 c2c 都要用 PMU；精确采样也要它，Intel 上叫 PEBS，AMD 上叫 IBS（perf-list(1)）。
+- **虚拟机常常不给 PMU**。这时 `cycles` 拿不到，`cpu-clock` 照样能采。所以先探测再用（4.2）。
 
 ## 3. 指标和判读线：数到多少该往哪查 {#thresholds}
 
@@ -127,10 +127,10 @@ perf c2c record -- ./prog
 perf c2c report --stdio
 ```
 
-- **HITM（hit modified）是什么**。 一次读命中了另一个核缓存里改过、还没写回的行（内核头文件 `include/uapi/linux/perf_event.h` 的 `PERF_MEM_SNOOP_HITM`）。这条行得从那个核搬过来，一次 20–100 ns（[速查 2.6](/zh/ref/cpu-memory/#cross-core)，原理见 [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/)）。c2c 按 HITM 的次数排出争得最凶的缓存行（perf-c2c(1)）。
-- **先看哪些行**。 默认只看 Tot Hitm（这一行的 HITM 占全部 HITM 的比例）> 5% 的行（`SKILL.md`）。
-- **真共享还是伪共享**。 同一个偏移被多个线程写，是真共享：大家在改同一份数据。同一行里不同偏移被不同线程写，是伪共享：数据本来互不相干，只是挤在了一条缓存行里（`references/flow-c.md`；伪共享见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）。
-- **要硬件支持**。 Intel 上 c2c 用的是 load latency 和精确 store 两类采样事件（默认是 `cpu/mem-loads,ldlat=30/P` 和 `cpu/mem-stores/P`），AMD 上用 IBS（perf-c2c(1)）。第 4 部分的虚拟机拿不到。
+- **HITM（hit modified）是什么**。一次读命中了另一个核缓存里改过、还没写回的行（内核头文件 `include/uapi/linux/perf_event.h` 的 `PERF_MEM_SNOOP_HITM`）。这条行得从那个核搬过来，一次 20–100 ns（[速查 2.6](/zh/ref/cpu-memory/#cross-core)，原理见 [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/)）。c2c 按 HITM 的次数排出争得最凶的缓存行（perf-c2c(1)）。
+- **先看哪些行**。默认只看 Tot Hitm（这一行的 HITM 占全部 HITM 的比例）> 5% 的行（`SKILL.md`）。
+- **真共享还是伪共享**。同一个偏移被多个线程写，是真共享：大家在改同一份数据。同一行里不同偏移被不同线程写，是伪共享：数据本来互不相干，只是挤在了一条缓存行里（`references/flow-c.md`；伪共享见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）。
+- **要硬件支持**。Intel 上 c2c 用的是 load latency 和精确 store 两类采样事件（默认是 `cpu/mem-loads,ldlat=30/P` 和 `cpu/mem-stores/P`），AMD 上用 IBS（perf-c2c(1)）。第 4 部分的虚拟机拿不到。
 
 ### 3.4 多核扩展不上去：比较 1 核和 N 核的热点排名 {#scaling}
 
@@ -285,10 +285,10 @@ perf stat -r 10 ./perf_demo 1
            0.54486 +- 0.00755 seconds time elapsed  ( +-  1.39% )
 ```
 
-- **单线程，一直在跑**。 task-clock 544.05 ms，`0.999 CPUs utilized`：从头到尾占着一个核。上下文切换和 CPU 迁移平均都不到 1 次（perf 按整数打印，所以显示 0）。
+- **单线程，一直在跑**。task-clock 544.05 ms，`0.999 CPUs utilized`：从头到尾占着一个核。上下文切换和 CPU 迁移平均都不到 1 次（perf 按整数打印，所以显示 0）。
 - **缺页 376 次，10 次几乎一样**（±0.03%）。
 - **硬件事件全是 `<not supported>`**，和 4.2 的探测一致。
-- **耗时 0.54486 s ± 0.00755 s**。 ± 后面不是单次运行之间的波动，是 10 次平均值的标准误：perf 源码（`tools/perf/util/stat.c` 的 `stddev_stats()`）算的是
+- **耗时 0.54486 s ± 0.00755 s**。± 后面不是单次运行之间的波动，是 10 次平均值的标准误：perf 源码（`tools/perf/util/stat.c` 的 `stddev_stats()`）算的是
 
   $$\text{标准误} = \sqrt{\frac{s^2}{n}}$$
 
@@ -337,10 +337,10 @@ report 的开头（往下还有内核和动态链接器的几十行，都在 0.3
      0.26%     0.00%  perf_demo  [kernel.kallsyms]  [k] page_fault
 ```
 
-- **样本数和频率**。 record 一共记了 2346 个样本。cpu-clock 的 Event count 单位是纳秒：586,500,000 ns ÷ 2346 = 250 µs 一个，也就是默认的每秒 4000 次。
+- **样本数和频率**。record 一共记了 2346 个样本。cpu-clock 的 Event count 单位是纳秒：586,500,000 ns ÷ 2346 = 250 µs 一个，也就是默认的每秒 4000 次。
 - **Self 和 Children**（perf 文档 `tools/perf/Documentation/callchain-overhead-calculation.txt`）。Self 是样本直接落在这个函数里的比例；Children 再加上它调用的函数。`__libc_start_main` 的 Self 是 0、Children 是 99.19%：它自己不干活，时间全花在它调用的函数里。所有 Self 加起来是 100%，Children 加起来会超过 100%。
-- **该看哪个函数**。 `sum_serial` 的 Self 是 98.04%，过了“≥ 20% 必须看汇编”那条线，下一步是 annotate（4.5）。`refresh` 只有 0.90%，在 5% 以下，是冷函数，不用管。
-- **用户态还是内核态**。 `[.]` 是用户态，`[k]` 是内核态。内核里最多的是 `page_fault`，只有 0.26%。
+- **该看哪个函数**。`sum_serial` 的 Self 是 98.04%，过了“≥ 20% 必须看汇编”那条线，下一步是 annotate（4.5）。`refresh` 只有 0.90%，在 5% 以下，是冷函数，不用管。
+- **用户态还是内核态**。`[.]` 是用户态，`[k]` 是内核态。内核里最多的是 `page_fault`，只有 0.26%。
 
 调用链里少了 `main`。明明是 `main` 调的 `sum_serial`，链上却是 `__libc_start_main` 直接到 `sum_serial`。原因是 `sum_serial` 不调用别的函数，是叶子函数，GCC 12 没给它建栈帧：加了 `-fno-omit-frame-pointer`，它开头也没有 `push %rbp`（4.5 的汇编）。按帧指针回溯，从它往上一跳就越过了 `main`。换成按 DWARF 回溯（`perf record -e cpu-clock --call-graph dwarf`），`main` 就回来了：
 
@@ -393,10 +393,10 @@ perf annotate --stdio -i perf.serial.data sum_serial
     0.00 :   400a24:       ret
 ```
 
-- **样本记在加法的下一条上**。 这个函数的 2300 个样本，100% 记在 `add $0x4,%rdi` 上。真正要等的是它前面那条 `addss (%rdi),%xmm0`：`s += a[i]` 编出来就是它，每次都要用上一次算出的 `%xmm0`。
-- **这叫 skid**。 不用精确采样时，记下的指令地址可以往后偏（perf_event_open(2) 里 `precise_ip` 为 0 的说明）。这里偏了一条：循环卡在等 `addss` 出结果，样本记在它后面。精确采样要硬件计数器，这台机器用不了。所以读 annotate 时，热点可能在标出来的那条，也可能在它前面一条。
-- **照字面套规则会漏**。 3.2 里“串行累加”那条要单条浮点指令占 40% 以上，这里 100% 记在整数指令 `add` 上，套规则查不出来。往前看一条才对得上。
-- **源码行从 `-g` 来**。 汇编上面印的 `for (int i = 0; i < n; ++i) s += a[i];` 是调试信息给的；不加 `-g` 编译，同样的位置只有汇编（[原始输出](https://github.com/Jasper-aa64/trading-system-notes-study/tree/main/02-%E5%B8%B8%E8%A7%81%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E4%B8%8E%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91/00-%E8%A1%A5-perf-%E5%AE%9E%E6%B5%8B)里的 `extra/annotate_nog.txt`）。
+- **样本记在加法的下一条上**。这个函数的 2300 个样本，100% 记在 `add $0x4,%rdi` 上。真正要等的是它前面那条 `addss (%rdi),%xmm0`：`s += a[i]` 编出来就是它，每次都要用上一次算出的 `%xmm0`。
+- **这叫 skid**。不用精确采样时，记下的指令地址可以往后偏（perf_event_open(2) 里 `precise_ip` 为 0 的说明）。这里偏了一条：循环卡在等 `addss` 出结果，样本记在它后面。精确采样要硬件计数器，这台机器用不了。所以读 annotate 时，热点可能在标出来的那条，也可能在它前面一条。
+- **照字面套规则会漏**。3.2 里“串行累加”那条要单条浮点指令占 40% 以上，这里 100% 记在整数指令 `add` 上，套规则查不出来。往前看一条才对得上。
+- **源码行从 `-g` 来**。汇编上面印的 `for (int i = 0; i < n; ++i) s += a[i];` 是调试信息给的；不加 `-g` 编译，同样的位置只有汇编（[原始输出](https://github.com/Jasper-aa64/trading-system-notes-study/tree/main/02-%E5%B8%B8%E8%A7%81%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88%E4%B8%8E%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91/00-%E8%A1%A5-perf-%E5%AE%9E%E6%B5%8B)里的 `extra/annotate_nog.txt`）。
 
 慢的原因在源码里就能看出来：只有一个累加器，每次加法都要等上一次的结果。解决办法是拆成几条互不相干的加法链。
 
@@ -443,8 +443,8 @@ perf stat -r 10 ./perf_demo 4
 | 四累加器 | 0.16404 s | 0.00933 s（5.69%） |
 
 - **快了约 3.3 倍**（0.54486 ÷ 0.16404 ≈ 3.32）。两个均值差 0.38 s，是标准误的 40 倍以上，远大于波动。
-- **相对波动变大，绝对值差不多**。 标准误从 1.39% 涨到 5.69%，绝对值却都在 10 ms 以内（7.55 ms 和 9.33 ms）。程序变快了，同样大小的波动占比就大。
-- **编译器把四个累加器装进了一个寄存器**。 GCC 12 在 `-O2` 下把四个累加器放进一个 xmm 寄存器的四格，循环里只剩一条 `addps`，一次加 4 个数（objdump 的输出）：
+- **相对波动变大，绝对值差不多**。标准误从 1.39% 涨到 5.69%，绝对值却都在 10 ms 以内（7.55 ms 和 9.33 ms）。程序变快了，同样大小的波动占比就大。
+- **编译器把四个累加器装进了一个寄存器**。GCC 12 在 `-O2` 下把四个累加器放进一个 xmm 寄存器的四格，循环里只剩一条 `addps`，一次加 4 个数（objdump 的输出）：
 
   ```text
   400a53:	movups (%rdi,%rcx,1),%xmm0
