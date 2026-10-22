@@ -1,6 +1,6 @@
 ---
 title: "Condition Variable Thundering Herd"
-weight: 9
+num: 9
 signal: "`futex_wake` and `try_to_wake_up` are hot; context switches grow with the threads woken per broadcast"
 source: "skills/performance-patterns/patterns/cv-thundering-herd.md"
 ---

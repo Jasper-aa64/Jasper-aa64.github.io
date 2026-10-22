@@ -467,8 +467,8 @@ Which node a physical page lands on is decided by default on **first touch**: th
 
 One more runtime trap: Linux's **automatic NUMA balancing** (`kernel.numa_balancing`) periodically marks pages inaccessible, uses the resulting faults to see who touches them, and migrates them. For a hot path that means page faults and TLB shootdowns out of nowhere, so it is usually turned off on low-latency machines ([#1](/posts/cpu-affinity-core-isolation-numa/)).
 
-## In Practice: The Matching Bottleneck Cards {#in-practice}
+## In Practice {#in-practice}
 
-The multiple accumulators of 1.5.1 match the Serial Accumulator card below: what perf shows, how to fix it, how to verify the fix.
+The multiple accumulators of 1.5.1 match the {{% bottleneck-ref "serial-accumulator" "plain" %}} card below: what perf shows, how to fix it, how to verify the fix.
 
 {{% bottleneck "serial-accumulator" %}}

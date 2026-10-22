@@ -1,6 +1,6 @@
 ---
 title: "Missing restrict"
-weight: 4
+num: 4
 signal: "An overlap check (pointer subtract, compare, jump) before the loop; the same loop compiled into vector and scalar versions"
 source: "skills/performance-patterns/patterns/missing-restrict.md"
 ---

@@ -156,13 +156,13 @@ The ranking comparison works with cpu-clock alone; the c2c step needs hardware c
 
 Once report points at a hot function, annotate shows its assembly. Intel lists seven things to check (`references/building-blocks.md`), each followed here by the matching [bottleneck card](/ref/bottlenecks/):
 
-1. **No vectorization**: the hot instructions are all scalar floating point (`vaddsd`, `vmulsd` and the like), not one packed instruction, and scalar holds > 50% of the function's samples. Find what blocks vectorization first, then widen ([Vectors Too Narrow](/ref/bottlenecks/#narrow-vector)).
-2. **Vectors too narrow**: the CPU supports AVX2/AVX-512, but the hot path's packed instructions still use xmm (or ymm on an AVX-512 machine), at > 20% ([Vectors Too Narrow](/ref/bottlenecks/#narrow-vector)).
-3. **Serial accumulator**: one floating-point instruction holds > 40%, plus any one of three: IPC < 0.5, miss rate < 2%, or the same register as source and destination. Samples often land on the instruction after the slow one (skid), so counting floating-point instructions literally misses it: in the run in 4.5, 100% of the samples sit on the integer `add` after `addss`; look one instruction back ([Serial Accumulator](/ref/bottlenecks/#serial-accumulator)).
-4. **Horizontal reduction**: `shufps`/`addss`/`unpckhps` within 3–5 instructions after a multiply, > 10% combined. This is a horizontal reduction the compiler generated; rewrite it with multiple accumulators ([Serial Accumulator](/ref/bottlenecks/#serial-accumulator)).
-5. **TAS spinning**: `lock cmpxchg`/`lock xchg` in a loop at > 10% ([Test-and-Set Spinlock](/ref/bottlenecks/#tas-spinlock)).
+1. **No vectorization**: the hot instructions are all scalar floating point (`vaddsd`, `vmulsd` and the like), not one packed instruction, and scalar holds > 50% of the function's samples. Find what blocks vectorization first, then widen ({{% bottleneck-ref "narrow-vector" %}}).
+2. **Vectors too narrow**: the CPU supports AVX2/AVX-512, but the hot path's packed instructions still use xmm (or ymm on an AVX-512 machine), at > 20% ({{% bottleneck-ref "narrow-vector" %}}).
+3. **Serial accumulator**: one floating-point instruction holds > 40%, plus any one of three: IPC < 0.5, miss rate < 2%, or the same register as source and destination. Samples often land on the instruction after the slow one (skid), so counting floating-point instructions literally misses it: in the run in 4.5, 100% of the samples sit on the integer `add` after `addss`; look one instruction back ({{% bottleneck-ref "serial-accumulator" %}}).
+4. **Horizontal reduction**: `shufps`/`addss`/`unpckhps` within 3–5 instructions after a multiply, > 10% combined. This is a horizontal reduction the compiler generated; rewrite it with multiple accumulators ({{% bottleneck-ref "serial-accumulator" %}}).
+5. **TAS spinning**: `lock cmpxchg`/`lock xchg` in a loop at > 10% ({{% bottleneck-ref "tas-spinlock" %}}).
 6. **Memory pressure**: loads > 30% combined, with no comparable computation. There is no ready fix; it points at locality, a smaller working set and prefetching, and is only credible if perf stat's miss rate is high too. This one has no matching card; the mechanism is in the [memory latency and bandwidth special](/posts/low-latency-memory-latency-bandwidth/).
-7. **Atomic counter**: `lock add/inc/xadd/sub` at > 10%. If a conditional jump follows the result, it is really a lock built from an add; treat it as TAS ([Test-and-Set Spinlock](/ref/bottlenecks/#tas-spinlock)). If nobody uses the result, it is a statistics counter; bucket it per CPU ([Shared Statistics Counter](/ref/bottlenecks/#shared-counter)).
+7. **Atomic counter**: `lock add/inc/xadd/sub` at > 10%. If a conditional jump follows the result, it is really a lock built from an add; treat it as TAS ({{% bottleneck-ref "tas-spinlock" %}}). If nobody uses the result, it is a statistics counter; bucket it per CPU ({{% bottleneck-ref "shared-counter" %}}).
 
 ## 4. One Real Run: A Virtual Machine with No Hardware Counters {#demo}
 
@@ -466,8 +466,8 @@ One more record:
 
 The code of `refresh` didn't change, yet its share rose from 0.90% to 4.10%: the total got shorter, so the unchanged part takes a bigger share, though still below 5%. `sum_4acc` is still past the 20% line, so by the rules it gets another annotate. In the raw output, `out/annotate_4acc.txt` shows 73.87% of the samples on the `cmp` after `addps`: the hot spot is still this chain of adds.
 
-## In Practice: The Matching Bottleneck Cards {#in-practice}
+## In Practice {#in-practice}
 
-Splitting one accumulator into four in 4.6 is one measured case of the Serial Accumulator card below. The card lists what perf shows, how to fix it and how to verify the fix; the speedups in its fix line are the original's numbers, while this virtual machine measured the roughly 3.3 times of 4.6.
+Splitting one accumulator into four in 4.6 is one measured case of the {{% bottleneck-ref "serial-accumulator" "plain" %}} card below. The card lists what perf shows, how to fix it and how to verify the fix; the speedups in its fix line are the original's numbers, while this virtual machine measured the roughly 3.3 times of 4.6.
 
 {{% bottleneck "serial-accumulator" %}}

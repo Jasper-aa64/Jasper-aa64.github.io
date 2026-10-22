@@ -612,8 +612,8 @@ Two realities:
 - **Real controllers rarely just take a modulus.** Most XOR-hash high address bits before choosing channel and bank, precisely to break such patterns, and the interleave granularity varies by platform. Before padding by hand, find out the platform's mapping, then measure.
 - Only **bandwidth-bound** work (scanning many objects, hot lines spread over a large working set) needs this. A hot set that lives in cache never reaches a channel.
 
-## In Practice: The Matching Bottleneck Cards {#in-practice}
+## In Practice {#in-practice}
 
-Giving an object cache lines of its own with `alignas(64)` in 1.3 is the fix in the False Sharing card below; the card also covers how to spot false sharing in perf and how to verify the fix.
+Giving an object cache lines of its own with `alignas(64)` in 1.3 is the fix in the {{% bottleneck-ref "false-sharing" "plain" %}} card below; the card also covers how to spot false sharing in perf and how to verify the fix.
 
 {{% bottleneck "false-sharing" %}}

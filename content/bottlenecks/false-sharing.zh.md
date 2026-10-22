@@ -1,6 +1,6 @@
 ---
 title: "伪共享"
-weight: 6
+num: 6
 signal: "c2c 某行 Tot Hitm > 5%，同一行里不同偏移被不同线程写"
 source: "skills/performance-patterns/patterns/false-sharing.md"
 ---

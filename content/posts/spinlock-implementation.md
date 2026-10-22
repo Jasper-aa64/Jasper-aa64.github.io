@@ -185,9 +185,9 @@ Every loss doubles the next rest (exponential backoff), so the cores come back a
 
 With many waiters, backoff only eases the problem. The real fix is to let each waiter spin on a line of its own and hand the lock over in arrival order, so a release disturbs only the next in line; that is what queue locks (ticket locks, MCS locks) do. In a trading system, though, a lock that several cores keep fighting over is itself a sign that the design should change: have a single thread do the writing, and let the others hand it their changes through a queue ([#4](/posts/lock-free-queue-logger-micro-batching/), [#5](/posts/spmc-shared-memory-broadcast-ring/)). That helps more than any better lock.
 
-## In Practice: The Matching Bottleneck Cards {#in-practice}
+## In Practice {#in-practice}
 
-The line-stealing read-modify-writes and TTAS of 1.3 to 1.5 match the Test-and-Set Spinlock card below, and the cost of a thread sleeping and being woken in 1.1 is the mechanism behind the Condition Variable Thundering Herd card. Both cards list what perf shows, how to fix it and how to verify the fix.
+The line-stealing read-modify-writes and TTAS of 1.3 to 1.5 match the {{% bottleneck-ref "tas-spinlock" "plain" %}} card below, and the cost of a thread sleeping and being woken in 1.1 is the mechanism behind the {{% bottleneck-ref "thundering-herd" "plain" %}} card. Both cards list what perf shows, how to fix it and how to verify the fix.
 
 {{% bottleneck "tas-spinlock" %}}
 

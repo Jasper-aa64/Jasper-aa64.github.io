@@ -1,6 +1,6 @@
 ---
 title: "系统库版本旧"
-weight: 11
+num: 11
 signal: "perf report 里热符号在系统 `.so` 里，而且在版本表里"
 source: "skills/performance-patterns/patterns/library-version-upgrade.md"
 ---

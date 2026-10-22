@@ -1,11 +1,11 @@
 {{- /* One bottleneck card, embedded by id at the end of a post: {{% bottleneck "false-sharing" %}}.
      The card's only copy is content/bottlenecks/<id>.md (English) / <id>.zh.md (Chinese); its body is a > quote.
-     Call it with % so the output is read as markdown: a quote whose first line links back to the card on
-     the bottlenecks reference page, followed by the card body. */ -}}
+     Call it with % so the output is read as markdown: a quote whose first line, the card's number and title,
+     links back to the card on the bottlenecks reference page, followed by the card body. */ -}}
 {{- $id := .Get 0 -}}
 {{- $card := site.GetPage (printf "/bottlenecks/%s" $id) -}}
 {{- if not $card }}{{ errorf "bottleneck card %q not found (%s)" $id .Position }}{{ end -}}
 {{- $list := site.GetPage "/ref/bottlenecks" -}}
-> **[{{ $card.Title }}]({{ $list.RelPermalink }}#{{ $id }})**
+> **[{{ partial "bottleneck-label.html" $card }}]({{ $list.RelPermalink }}#{{ $id }})**
 >
 {{ $card.RawContent | strings.TrimSpace | safeHTML }}

@@ -1,6 +1,6 @@
 ---
 title: "Vectors Too Narrow"
-weight: 2
+num: 2
 signal: "The hot loop is scalar floating point; or xmm on an AVX2 machine, ymm on an AVX-512 machine"
 source: "skills/performance-patterns/patterns/simd-upconversion.md"
 ---

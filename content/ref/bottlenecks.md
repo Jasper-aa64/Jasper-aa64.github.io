@@ -23,7 +23,7 @@ When perf shows you something, find its card in this table first. The left colum
 
 ## 2. Bottleneck Cards: Signal, Cause, Fix, Verify {#cards}
 
-Each card's title is the bottleneck's name and its anchor is its English id. Cards are in the order they were added, with new ones at the end; a post that explains a bottleneck's mechanism carries the same card at its end.
+Each card's title is its number and the bottleneck's name, and its anchor is its English id. Numbers follow the order cards were added and never change once given, and a new card takes the next number and goes at the end; a post that explains a bottleneck's mechanism carries the same card at its end.
 
 {{% bottleneck-cards %}}
 
@@ -31,20 +31,20 @@ Each card's title is the bottleneck's name and its anchor is its English id. Car
 
 When writing new code from scratch, follow this list and the bottlenecks of Part 2 are avoided from the start. Each item links to its card.
 
-- **Pointers**: give non-overlapping pointer parameters `restrict` (C), and read-only inputs `const` ([Missing restrict](#missing-restrict)).
-- **Floating-point reductions such as sums**: no single accumulator in a hot loop; state in the function's documentation that a changed summation order shifts the result by a rounding error ([Serial Accumulator](#serial-accumulator)).
+- **Pointers**: give non-overlapping pointer parameters `restrict` (C), and read-only inputs `const` ({{% bottleneck-ref "missing-restrict" %}}).
+- **Floating-point reductions such as sums**: no single accumulator in a hot loop; state in the function's documentation that a changed summation order shifts the result by a rounding error ({{% bottleneck-ref "serial-accumulator" %}}).
 - **SIMD**:
-  - use the widest registers the target machine supports ([Vectors Too Narrow](#narrow-vector));
-  - functions that used ymm or zmm0–15 add `vzeroupper` at their exits ([Missing vzeroupper](#missing-vzeroupper));
+  - use the widest registers the target machine supports ({{% bottleneck-ref "narrow-vector" %}});
+  - functions that used ymm or zmm0–15 add `vzeroupper` at their exits ({{% bottleneck-ref "missing-vzeroupper" %}});
   - handle the tail when the length is not a multiple of the vector width;
   - annotate inline assembly with `/* CPUID: <feature> */`, and add `"cc"` to the clobbers when flags change.
 - **Several SIMD versions**: when one function has several versions, pick one by CPU at run time (Part 4) rather than hard-coding it with a compile-time `#ifdef`.
 - **Multithreading**:
-  - pad per-thread data apart at 64-byte alignment ([False Sharing](#false-sharing));
-  - one counter per CPU or per thread, no global atomics ([Shared Statistics Counter](#shared-counter));
-  - spinlocks read before they CAS ([Test-and-Set Spinlock](#tas-spinlock)).
-- **Rare paths**: mark error-handling and rare-path functions `[[gnu::cold]]` ([Unmarked Cold Path](#cold-path)).
-- **Don't rewrite what exists**: use a ready-made CRC32C ([Slow CRC32C](#slow-crc32c)); write known algorithms by the table ([Known Algorithms](#known-algorithms)); sort numbers with x86-simd-sort ([std::sort on Numeric Arrays](#std-sort-numeric)).
+  - pad per-thread data apart at 64-byte alignment ({{% bottleneck-ref "false-sharing" %}});
+  - one counter per CPU or per thread, no global atomics ({{% bottleneck-ref "shared-counter" %}});
+  - spinlocks read before they CAS ({{% bottleneck-ref "tas-spinlock" %}}).
+- **Rare paths**: mark error-handling and rare-path functions `[[gnu::cold]]` ({{% bottleneck-ref "cold-path" %}}).
+- **Don't rewrite what exists**: use a ready-made CRC32C ({{% bottleneck-ref "slow-crc32c" %}}); write known algorithms by the table ({{% bottleneck-ref "known-algorithms" %}}); sort numbers with x86-simd-sort ({{% bottleneck-ref "std-sort-numeric" %}}).
 
 ## 4. Letting a Program Pick Its Instruction Set on Each CPU {#isa-dispatch}
 

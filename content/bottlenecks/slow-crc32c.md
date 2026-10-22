@@ -1,6 +1,6 @@
 ---
 title: "Slow CRC32C"
-weight: 12
+num: 12
 signal: "`crc32b/l/q` dominates annotate; a single `_mm_crc32_u64` accumulator, or a byte-by-byte table"
 source: "skills/performance-patterns/patterns/fast-crc32c.md"
 ---

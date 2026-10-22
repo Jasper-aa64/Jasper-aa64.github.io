@@ -1,6 +1,6 @@
 ---
 title: "Unmarked Cold Path"
-weight: 8
+num: 8
 signal: "A hot function calls functions only on rare branches: error handling, logging, asserts, one-time setup"
 source: "skills/performance-patterns/patterns/cold-path-annotation.md"
 ---

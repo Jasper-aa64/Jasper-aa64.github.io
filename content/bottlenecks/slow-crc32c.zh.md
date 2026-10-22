@@ -1,6 +1,6 @@
 ---
 title: "CRC32C 写得慢"
-weight: 12
+num: 12
 signal: "annotate 上 `crc32b/l/q` 占大头；只有一个 `_mm_crc32_u64` 累加器，或逐字节查表"
 source: "skills/performance-patterns/patterns/fast-crc32c.md"
 ---

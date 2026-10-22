@@ -1,6 +1,6 @@
 ---
 title: "Missing vzeroupper"
-weight: 3
+num: 3
 signal: "The first SSE instruction after an AVX function takes a huge number of cycles; the AVX-to-SSE assist event is non-zero"
 source: "skills/performance-patterns/patterns/missing-vzeroupper.md"
 ---

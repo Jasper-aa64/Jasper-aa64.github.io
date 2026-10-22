@@ -1,6 +1,6 @@
 ---
 title: "std::sort on Numeric Arrays"
-weight: 13
+num: 13
 signal: "`std::sort`, `nth_element`, `partial_sort` or `qsort` on arrays of float, double or integers"
 source: "skills/performance-patterns/patterns/simd-sort.md"
 ---

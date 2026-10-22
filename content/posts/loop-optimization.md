@@ -376,8 +376,8 @@ No guessing needed; let GCC tell you:
 
 Since GCC 12, `-O2` also vectorizes, but only under the most conservative cost model. At `-O2`, the plainly written loops in this post (the dot product at the top, the integer sum, `fill_10i`, the normalization, `add_or_sub`) were not vectorized at all; only the two dot products hand-written as four identical statements per iteration got vector multiplies (the multiple-accumulator one got `addps` too). That is SLP vectorization: merging identical statements within one iteration into one vector instruction, not merging iterations. At `-O3` all of these loops vectorized. For a key loop on the hot path, either build it with `-O3` or confirm against the report.
 
-## In Practice: The Matching Bottleneck Cards {#in-practice}
+## In Practice {#in-practice}
 
-The multiple accumulators of 3.2 match the Serial Accumulator card below: what perf shows, how to fix it, how to verify the fix.
+The multiple accumulators of 3.2 match the {{% bottleneck-ref "serial-accumulator" "plain" %}} card below: what perf shows, how to fix it, how to verify the fix.
 
 {{% bottleneck "serial-accumulator" %}}

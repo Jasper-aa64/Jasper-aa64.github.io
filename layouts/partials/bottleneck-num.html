@@ -1,0 +1,6 @@
+{{- /* A bottleneck card's number, "B6", from the `num` in the card's front matter. Every place that shows a card
+     builds its number here, so the format lives in one file. A number is issued once, in the order cards are added,
+     and never changes or gets reused; a card without a whole number in `num` fails the build. */ -}}
+{{- $n := string .Params.num -}}
+{{- if not (findRE `^[1-9][0-9]*$` $n) }}{{ errorf "bottleneck card %q needs a whole number in num, has %q" .File.Path $n }}{{ end -}}
+{{- return printf "B%s" $n -}}

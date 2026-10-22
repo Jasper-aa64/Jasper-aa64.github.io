@@ -372,9 +372,9 @@ How large should `K` be? Exactly large enough to keep the execution ports fed wh
 
 `K = 8` is the sweet spot here — enough independent work to hide the full 4-cycle latency behind both ports' throughput, with no benefit (and, per the register-spill trap above, real risk) in going further. This is a standard technique (the derivation is the same one Agner Fog's optimization manuals walk through for any latency/throughput pair), and the honest caveat that goes with it: this ceiling assumes the arithmetic units are the bottleneck. In practice, memory bandwidth or the number of load ports feeding data in can cap throughput first — this is exactly the **compute-bound vs. memory-bound** distinction at the heart of the **roofline model** — so the formula tells you the arithmetic ceiling, and `perf` tells you whether you actually reached it.
 
-## In Practice: The Matching Bottleneck Cards {#in-practice}
+## In Practice {#in-practice}
 
-False sharing from Part 2 and the dependency chains of Part 3 each match one card below: what perf shows, how to fix it, how to verify the fix.
+False sharing from Part 2 and the dependency chains of Part 3 each match one card below ({{% bottleneck-ref "false-sharing" "num" %}}, {{% bottleneck-ref "serial-accumulator" "num" %}}): what perf shows, how to fix it, how to verify the fix.
 
 {{% bottleneck "false-sharing" %}}
 

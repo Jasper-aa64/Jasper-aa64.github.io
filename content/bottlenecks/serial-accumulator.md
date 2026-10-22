@@ -1,6 +1,6 @@
 ---
 title: "Serial Accumulator"
-weight: 1
+num: 1
 signal: "One `vaddss`/`vfmadd` (or the instruction after it) dominates annotate; IPC ≪ 1 while cache misses stay low"
 source: "skills/performance-patterns/patterns/parallel-accumulator.md"
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Outdated System Library"
-weight: 11
+num: 11
 signal: "In perf report the hot symbol is in a system `.so` and is listed in the version table"
 source: "skills/performance-patterns/patterns/library-version-upgrade.md"
 ---

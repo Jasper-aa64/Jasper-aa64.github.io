@@ -1,6 +1,6 @@
 ---
 title: "共享统计计数器"
-weight: 7
+num: 7
 signal: "热路径上有 `lock add/inc/xadd`、没有重试循环；c2c 上同一偏移被很多 CPU 写"
 source: "skills/performance-patterns/patterns/per-cpu-stats.md"
 ---

@@ -1,0 +1,11 @@
+{{- /* Every bottleneck card of the current language in number order, the order of the reference page.
+     Two cards with the same number fail the build, so a number always means one card. */ -}}
+{{- $cards := (site.GetPage "/bottlenecks").Pages.ByParam "num" -}}
+{{- $seen := dict -}}
+{{- range $cards -}}
+  {{- $n := partial "bottleneck-num.html" . -}}
+  {{- $id := .File.ContentBaseName -}}
+  {{- with index $seen $n }}{{ errorf "bottleneck cards %q and %q both have number %s" . $id $n }}{{ end -}}
+  {{- $seen = merge $seen (dict $n $id) -}}
+{{- end -}}
+{{- return $cards -}}

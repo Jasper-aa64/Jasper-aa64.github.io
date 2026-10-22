@@ -437,8 +437,8 @@ concept BatchSource = requires(Q q, Msg& m) {
 
 一个近似的快照就够了——它只是在三档里选一档,差几条消息什么都不会改变。不自己计数并不是免费的;代价是对队列提出了更强的要求。
 
-## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+## 应用 {#in-practice}
 
-1.2 节那个让两个核打起来的计数器，在实际优化里对应“共享统计计数器”这张卡片：在 perf 里看到什么、怎么改、怎么验证。
+1.2 节那个让两个核打起来的计数器，在实际优化里对应“{{% bottleneck-ref "shared-counter" "plain" %}}”这张卡片：在 perf 里看到什么、怎么改、怎么验证。
 
 {{% bottleneck "shared-counter" %}}
