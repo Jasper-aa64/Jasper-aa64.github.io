@@ -92,18 +92,18 @@ $$\text{分支失败率} = \frac{\text{branch-misses}}{\text{branches}}$$
 
 单看一个数（`references/flow-a.md`）：
 
-- IPC（instructions per cycle，每周期执行的指令数）< 1：CPU 多数时间在等；> 3：算得很满。
-- 缓存缺失率 > 3–5%：偏内存瓶颈。
-- 分支失败率 > 3–5%：偏分支。
-- 内核态时间占 task-clock 的 30% 以上：偏系统调用或 I/O。
+> - IPC（instructions per cycle，每周期执行的指令数）< 1：CPU 多数时间在等；> 3：算得很满。
+> - 缓存缺失率 > 3–5%：偏内存瓶颈。
+> - 分支失败率 > 3–5%：偏分支。
+> - 内核态时间占 task-clock 的 30% 以上：偏系统调用或 I/O。
 
 几个数合起来判：
 
-- IPC < 1 且缓存缺失率 > 3%：内存瓶颈，看数据布局、分块、预取（见[内存延迟与带宽专题](/zh/posts/low-latency-memory-latency-bandwidth/)）。
-- IPC < 1 且分支失败率 > 3%：分支问题，消掉分支、改用条件传送（`cmov`）、加预测提示（见 [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/)）。
-- 内核态 > 30%：减少系统调用，批量或异步做 I/O。
-- IPC ≥ 3 且缺失率低：CPU 已经用得很充分，瓶颈在别处。
-- 都不明显：转到 record 和 report。
+> - IPC < 1 且缓存缺失率 > 3%：内存瓶颈，看数据布局、分块、预取（见[内存延迟与带宽专题](/zh/posts/low-latency-memory-latency-bandwidth/)）。
+> - IPC < 1 且分支失败率 > 3%：分支问题，消掉分支、改用条件传送（`cmov`）、加预测提示（见 [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/)）。
+> - 内核态 > 30%：减少系统调用，批量或异步做 I/O。
+> - IPC ≥ 3 且缺失率低：CPU 已经用得很充分，瓶颈在别处。
+> - 都不明显：转到 record 和 report。
 
 内核态占比不要硬件计数器：单跑一次 perf stat（不加 `-r`），输出末尾有 `seconds user` 和 `seconds sys` 两行，4.2 的输出里就有。
 
@@ -111,12 +111,12 @@ $$\text{分支失败率} = \frac{\text{branch-misses}}{\text{branches}}$$
 
 `references/flow-b.md` 里的线：
 
-- 某个函数占 ≥ 20% 的样本：必须进 annotate 看汇编。原文写的是必须，不是可以看。
-- 每个函数都 < 5%：没有单点热点，去看并行和算法。
-- malloc、free、new、delete 占大头：考虑对象池或 arena（见 [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/)）。
-- 排第一的是内核符号（标 `[k]`）且 > 40%：系统调用或 I/O，用 `strace -c` 数系统调用。
-- 很多小的内核函数（`copy_to_user`、`mutex_lock`）：锁竞争或系统调用开销。
-- 自旋锁、CAS 的包装函数显眼：进 annotate 看是不是 `lock cmpxchg` 扎堆，改法见 [#16 自旋锁](/zh/posts/spinlock-implementation/)。
+> - 某个函数占 ≥ 20% 的样本：必须进 annotate 看汇编。原文写的是必须，不是可以看。
+> - 每个函数都 < 5%：没有单点热点，去看并行和算法。
+> - malloc、free、new、delete 占大头：考虑对象池或 arena（见 [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/)）。
+> - 排第一的是内核符号（标 `[k]`）且 > 40%：系统调用或 I/O，用 `strace -c` 数系统调用。
+> - 很多小的内核函数（`copy_to_user`、`mutex_lock`）：锁竞争或系统调用开销。
+> - 自旋锁、CAS 的包装函数显眼：进 annotate 看是不是 `lock cmpxchg` 扎堆，改法见 [#16 自旋锁](/zh/posts/spinlock-implementation/)（{{% bottleneck-ref "tas-spinlock" %}}）。
 
 annotate 里看什么，Intel 另有一份扫描清单（`references/building-blocks.md`）。和第 4 部分直接相关的是“串行累加”：单条浮点指令占函数样本的 40% 以上，再满足 IPC < 0.5、缓存缺失率 < 2%、源和目的是同一个寄存器这三条中的一条。套这条规则时要留意样本的偏移，见 4.5。
 
@@ -128,27 +128,27 @@ perf c2c report --stdio
 ```
 
 - **HITM（hit modified）是什么**。一次读命中了另一个核缓存里改过、还没写回的行（内核头文件 `include/uapi/linux/perf_event.h` 的 `PERF_MEM_SNOOP_HITM`）。这条行得从那个核搬过来，一次 20–100 ns（[速查 2.6](/zh/ref/cpu-memory/#cross-core)，原理见 [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/)）。c2c 按 HITM 的次数排出争得最凶的缓存行（perf-c2c(1)）。
-- **先看哪些行**。默认只看 Tot Hitm（这一行的 HITM 占全部 HITM 的比例）> 5% 的行（`SKILL.md`）。
-- **真共享还是伪共享**。同一个偏移被多个线程写，是真共享：大家在改同一份数据。同一行里不同偏移被不同线程写，是伪共享：数据本来互不相干，只是挤在了一条缓存行里（`references/flow-c.md`；伪共享见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）。
+> - **先看哪些行**。默认只看 Tot Hitm（这一行的 HITM 占全部 HITM 的比例）> 5% 的行（`SKILL.md`）。
+> - **真共享还是伪共享**。同一个偏移被多个线程写，是真共享：大家在改同一份数据。同一行里不同偏移被不同线程写，是伪共享：数据本来互不相干，只是挤在了一条缓存行里（`references/flow-c.md`；伪共享见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)、{{% bottleneck-ref "false-sharing" %}}）。
 - **要硬件支持**。Intel 上 c2c 用的是 load latency 和精确 store 两类采样事件（默认是 `cpu/mem-loads,ldlat=30/P` 和 `cpu/mem-stores/P`），AMD 上用 IBS（perf-c2c(1)）。第 4 部分的虚拟机拿不到。
 
 ### 3.4 多核扩展不上去：比较 1 核和 N 核的热点排名 {#scaling}
 
 `references/flow-d.md` 的做法：
 
-- 先确认程序真在用多线程：`ldd ./prog` 看有没有链 libpthread、libgomp、libtbb、libomp，再分别在 1、N/2、N 个核上测吞吐。
-- 1 核和 N 核各 record 一次，比两次的前 15 名函数。满足任一条就算“跳上来”：
-  - 名次升了 3 位以上；
-  - 占比翻倍以上；
-  - 占比涨了 3 个百分点以上；
-  - 1 核时不在前 15，N 核时 ≥ 2%。
-- 对跳上来的函数做 c2c，按结果分五类：
-  - 伪共享：把字段垫开；
-  - TAS 自旋：改成先读后抢（见 [#16 自旋锁](/zh/posts/spinlock-implementation/)）；
-  - 统计计数器被多个核写：按 CPU 分桶；
-  - 真的在共享数据：原子操作、RCU、更细的锁；
-  - 没有 c2c 信号：回到 report 看计算和分支。
-- 改完重新采样：修掉一个瓶颈，会露出下一个。
+> - 先确认程序真在用多线程：`ldd ./prog` 看有没有链 libpthread、libgomp、libtbb、libomp，再分别在 1、N/2、N 个核上测吞吐。
+> - 1 核和 N 核各 record 一次，比两次的前 15 名函数。满足任一条就算“跳上来”：
+>   - 名次升了 3 位以上；
+>   - 占比翻倍以上；
+>   - 占比涨了 3 个百分点以上；
+>   - 1 核时不在前 15，N 核时 ≥ 2%。
+> - 对跳上来的函数做 c2c，按结果分五类：
+>   - 伪共享：把字段垫开（{{% bottleneck-ref "false-sharing" %}}）；
+>   - TAS 自旋：改成先读后抢（见 [#16 自旋锁](/zh/posts/spinlock-implementation/)、{{% bottleneck-ref "tas-spinlock" %}}）；
+>   - 统计计数器被多个核写：按 CPU 分桶（{{% bottleneck-ref "shared-counter" %}}）；
+>   - 真的在共享数据：原子操作、RCU、更细的锁；
+>   - 没有 c2c 信号：回到 report 看计算和分支。
+> - 改完重新采样：修掉一个瓶颈，会露出下一个。
 
 排名比较用 cpu-clock 就能做，c2c 那一步要硬件计数器。
 
@@ -156,13 +156,13 @@ perf c2c report --stdio
 
 report 指到一个热函数以后，用 annotate 看它的汇编。Intel 把要查的东西列成 7 条（`references/building-blocks.md`），每条后面是对应的[瓶颈卡片](/zh/ref/bottlenecks/)：
 
-1. **没向量化**：热指令全是标量浮点（`vaddsd`、`vmulsd` 等），没有一条打包指令，标量占函数样本 > 50%。先找挡住向量化的原因，再加宽（{{% bottleneck-ref "narrow-vector" %}}）。
-2. **向量太窄**：CPU 支持 AVX2/AVX-512，热路径的打包指令还用 xmm（或 AVX-512 机器上用 ymm），占 > 20%（{{% bottleneck-ref "narrow-vector" %}}）。
-3. **串行累加**：单条浮点指令占 > 40%，再加上 IPC < 0.5、缺失率 < 2%、源和目的是同一个寄存器这三条中的任一条。样本常记在慢指令的下一条上（skid），照字面数浮点指令会漏：4.5 的实测里，样本 100% 落在 `addss` 后面那条整数 `add` 上，要往前看一条（{{% bottleneck-ref "serial-accumulator" %}}）。
-4. **水平归约**：乘法后 3–5 条指令内跟着 `shufps`/`addss`/`unpckhps`，合计 > 10%。这是编译器生成的水平归约，按多累加器改写处理（{{% bottleneck-ref "serial-accumulator" %}}）。
-5. **TAS 自旋**：循环里的 `lock cmpxchg`/`lock xchg` 占 > 10%（{{% bottleneck-ref "tas-spinlock" %}}）。
-6. **内存压力**：读内存指令合计 > 30%，没有分量相当的计算。没有现成修法，提示去看局部性、缩小工作集、预取；perf stat 的缺失率也高才可信。这一条没有对应的卡片，原理见[内存延迟与带宽专题](/zh/posts/low-latency-memory-latency-bandwidth/)。
-7. **原子计数器**：`lock add/inc/xadd/sub` 占 > 10%。结果后面紧跟条件跳转，其实是用加法实现的锁，按 TAS 处理（{{% bottleneck-ref "tas-spinlock" %}}）；结果没人用，是统计计数器，按 CPU 分桶（{{% bottleneck-ref "shared-counter" %}}）。
+> 1. **没向量化**：热指令全是标量浮点（`vaddsd`、`vmulsd` 等），没有一条打包指令，标量占函数样本 > 50%。先找挡住向量化的原因，再加宽（{{% bottleneck-ref "narrow-vector" %}}）。
+> 2. **向量太窄**：CPU 支持 AVX2/AVX-512，热路径的打包指令还用 xmm（或 AVX-512 机器上用 ymm），占 > 20%（{{% bottleneck-ref "narrow-vector" %}}）。
+> 3. **串行累加**：单条浮点指令占 > 40%，再加上 IPC < 0.5、缺失率 < 2%、源和目的是同一个寄存器这三条中的任一条。样本常记在慢指令的下一条上（skid），照字面数浮点指令会漏：4.5 的实测里，样本 100% 落在 `addss` 后面那条整数 `add` 上，要往前看一条（{{% bottleneck-ref "serial-accumulator" %}}）。
+> 4. **水平归约**：乘法后 3–5 条指令内跟着 `shufps`/`addss`/`unpckhps`，合计 > 10%。这是编译器生成的水平归约，按多累加器改写处理（{{% bottleneck-ref "serial-accumulator" %}}）。
+> 5. **TAS 自旋**：循环里的 `lock cmpxchg`/`lock xchg` 占 > 10%（{{% bottleneck-ref "tas-spinlock" %}}）。
+> 6. **内存压力**：读内存指令合计 > 30%，没有分量相当的计算。没有现成修法，提示去看局部性、缩小工作集、预取；perf stat 的缺失率也高才可信。这一条没有对应的卡片，原理见[内存延迟与带宽专题](/zh/posts/low-latency-memory-latency-bandwidth/)。
+> 7. **原子计数器**：`lock add/inc/xadd/sub` 占 > 10%。结果后面紧跟条件跳转，其实是用加法实现的锁，按 TAS 处理（{{% bottleneck-ref "tas-spinlock" %}}）；结果没人用，是统计计数器，按 CPU 分桶（{{% bottleneck-ref "shared-counter" %}}）。
 
 ## 4. 真跑一遍：一台没有硬件计数器的虚拟机 {#demo}
 

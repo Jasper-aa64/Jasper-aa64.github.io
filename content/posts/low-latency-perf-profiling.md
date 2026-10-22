@@ -92,18 +92,18 @@ $$\text{branch-miss rate} = \frac{\text{branch-misses}}{\text{branches}}$$
 
 One number at a time (`references/flow-a.md`):
 
-- IPC (instructions per cycle) < 1: the CPU spends most of its time waiting; > 3: it is computing at full tilt.
-- Cache-miss rate > 3–5%: leaning memory-bound.
-- Branch-miss rate > 3–5%: leaning branch-bound.
-- Kernel time above 30% of task-clock: leaning on system calls or I/O.
+> - IPC (instructions per cycle) < 1: the CPU spends most of its time waiting; > 3: it is computing at full tilt.
+> - Cache-miss rate > 3–5%: leaning memory-bound.
+> - Branch-miss rate > 3–5%: leaning branch-bound.
+> - Kernel time above 30% of task-clock: leaning on system calls or I/O.
 
 Several numbers together:
 
-- IPC < 1 and cache-miss rate > 3%: memory-bound; look at data layout, blocking, prefetching (see the [memory latency and bandwidth special](/posts/low-latency-memory-latency-bandwidth/)).
-- IPC < 1 and branch-miss rate > 3%: branch-bound; remove branches, use conditional moves (`cmov`), add prediction hints (see [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/)).
-- Kernel time > 30%: make fewer system calls, batch I/O or make it asynchronous.
-- IPC ≥ 3 and low miss rates: the CPU is already well used; the bottleneck is elsewhere.
-- Nothing stands out: move on to record and report.
+> - IPC < 1 and cache-miss rate > 3%: memory-bound; look at data layout, blocking, prefetching (see the [memory latency and bandwidth special](/posts/low-latency-memory-latency-bandwidth/)).
+> - IPC < 1 and branch-miss rate > 3%: branch-bound; remove branches, use conditional moves (`cmov`), add prediction hints (see [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/)).
+> - Kernel time > 30%: make fewer system calls, batch I/O or make it asynchronous.
+> - IPC ≥ 3 and low miss rates: the CPU is already well used; the bottleneck is elsewhere.
+> - Nothing stands out: move on to record and report.
 
 The kernel-time share needs no hardware counters: run perf stat once (without `-r`) and the output ends with two lines, `seconds user` and `seconds sys`; the output in 4.2 has them.
 
@@ -111,12 +111,12 @@ The kernel-time share needs no hardware counters: run perf stat once (without `-
 
 The lines in `references/flow-b.md`:
 
-- One function holds ≥ 20% of the samples: you must go into annotate and read the assembly. The original says must, not may.
-- Every function is below 5%: no single hot spot; look at parallelism and algorithms.
-- malloc, free, new, delete dominate: consider an object pool or an arena (see [#3 Memory Pools and Allocators](/posts/hot-path-memory-allocators/)).
-- The top entry is a kernel symbol (marked `[k]`) above 40%: system calls or I/O; count the system calls with `strace -c`.
-- Many small kernel functions (`copy_to_user`, `mutex_lock`): lock contention or system-call overhead.
-- Spinlock or CAS wrapper functions stand out: check in annotate whether `lock cmpxchg` piles up; the fix is in [#16 Spinlocks](/posts/spinlock-implementation/).
+> - One function holds ≥ 20% of the samples: you must go into annotate and read the assembly. The original says must, not may.
+> - Every function is below 5%: no single hot spot; look at parallelism and algorithms.
+> - malloc, free, new, delete dominate: consider an object pool or an arena (see [#3 Memory Pools and Allocators](/posts/hot-path-memory-allocators/)).
+> - The top entry is a kernel symbol (marked `[k]`) above 40%: system calls or I/O; count the system calls with `strace -c`.
+> - Many small kernel functions (`copy_to_user`, `mutex_lock`): lock contention or system-call overhead.
+> - Spinlock or CAS wrapper functions stand out: check in annotate whether `lock cmpxchg` piles up; the fix is in [#16 Spinlocks](/posts/spinlock-implementation/) ({{% bottleneck-ref "tas-spinlock" %}}).
 
 For what to look for in annotate, Intel has a separate scan list (`references/building-blocks.md`). The entry that matters for Part 4 is the serial accumulator: one floating-point instruction holds more than 40% of the function's samples, plus one of three conditions: IPC < 0.5, cache-miss rate < 2%, or the same register as source and destination. When applying it, mind where the samples land; see 4.5.
 
@@ -128,27 +128,27 @@ perf c2c report --stdio
 ```
 
 - **What HITM (hit modified) is**. A load that hits a line another core's cache has modified and not yet written back (`PERF_MEM_SNOOP_HITM` in the kernel header `include/uapi/linux/perf_event.h`). The line has to be moved over from that core, 20–100 ns each time ([Reference 2.6](/ref/cpu-memory/#cross-core); how it works is in the [MESI special](/posts/low-latency-mesi-cache-coherence/)). c2c ranks cache lines by their HITM counts to find the most contended ones (perf-c2c(1)).
-- **Which lines to look at first**. By default only lines with Tot Hitm (this line's share of all HITMs) above 5% (`SKILL.md`).
-- **True or false sharing**. The same offset written by several threads is true sharing: everyone is changing the same data. Different offsets in one line written by different threads is false sharing: the data has nothing to do with each other and just happens to share a cache line (`references/flow-c.md`; false sharing is covered in [#2 Memory Ordering and Cache Lines](/posts/memory-ordering-false-sharing-dependency-chains/)).
+> - **Which lines to look at first**. By default only lines with Tot Hitm (this line's share of all HITMs) above 5% (`SKILL.md`).
+> - **True or false sharing**. The same offset written by several threads is true sharing: everyone is changing the same data. Different offsets in one line written by different threads is false sharing: the data has nothing to do with each other and just happens to share a cache line (`references/flow-c.md`; false sharing is covered in [#2 Memory Ordering and Cache Lines](/posts/memory-ordering-false-sharing-dependency-chains/), {{% bottleneck-ref "false-sharing" %}}).
 - **It needs hardware support**. On Intel, c2c uses load-latency and precise-store sampling events (by default `cpu/mem-loads,ldlat=30/P` and `cpu/mem-stores/P`); on AMD it uses IBS (perf-c2c(1)). The virtual machine in Part 4 has neither.
 
 ### 3.4 Poor Multi-Core Scaling: Compare the 1-Core and N-Core Hot-Spot Rankings {#scaling}
 
 The method in `references/flow-d.md`:
 
-- First confirm the program really uses threads: `ldd ./prog` to see whether it links libpthread, libgomp, libtbb or libomp, then measure throughput on 1, N/2 and N cores.
-- Record once on 1 core and once on N cores and compare the top 15 functions of each. A function has jumped up if any of these holds:
-  - it rose 3 or more places;
-  - its share at least doubled;
-  - its share grew by 3 or more percentage points;
-  - it was outside the top 15 on 1 core and is at ≥ 2% on N cores.
-- Run c2c on the functions that jumped and sort the results into five kinds:
-  - false sharing: pad the fields apart;
-  - TAS spinning: read before you grab (see [#16 Spinlocks](/posts/spinlock-implementation/));
-  - a statistics counter written by many cores: one bucket per CPU;
-  - genuinely shared data: atomics, RCU, finer-grained locks;
-  - no c2c signal: back to report to look at computation and branches.
-- Re-profile after each fix: removing one bottleneck exposes the next.
+> - First confirm the program really uses threads: `ldd ./prog` to see whether it links libpthread, libgomp, libtbb or libomp, then measure throughput on 1, N/2 and N cores.
+> - Record once on 1 core and once on N cores and compare the top 15 functions of each. A function has jumped up if any of these holds:
+>   - it rose 3 or more places;
+>   - its share at least doubled;
+>   - its share grew by 3 or more percentage points;
+>   - it was outside the top 15 on 1 core and is at ≥ 2% on N cores.
+> - Run c2c on the functions that jumped and sort the results into five kinds:
+>   - false sharing: pad the fields apart ({{% bottleneck-ref "false-sharing" %}});
+>   - TAS spinning: read before you grab (see [#16 Spinlocks](/posts/spinlock-implementation/), {{% bottleneck-ref "tas-spinlock" %}});
+>   - a statistics counter written by many cores: one bucket per CPU ({{% bottleneck-ref "shared-counter" %}});
+>   - genuinely shared data: atomics, RCU, finer-grained locks;
+>   - no c2c signal: back to report to look at computation and branches.
+> - Re-profile after each fix: removing one bottleneck exposes the next.
 
 The ranking comparison works with cpu-clock alone; the c2c step needs hardware counters.
 
@@ -156,13 +156,13 @@ The ranking comparison works with cpu-clock alone; the c2c step needs hardware c
 
 Once report points at a hot function, annotate shows its assembly. Intel lists seven things to check (`references/building-blocks.md`), each followed here by the matching [bottleneck card](/ref/bottlenecks/):
 
-1. **No vectorization**: the hot instructions are all scalar floating point (`vaddsd`, `vmulsd` and the like), not one packed instruction, and scalar holds > 50% of the function's samples. Find what blocks vectorization first, then widen ({{% bottleneck-ref "narrow-vector" %}}).
-2. **Vectors too narrow**: the CPU supports AVX2/AVX-512, but the hot path's packed instructions still use xmm (or ymm on an AVX-512 machine), at > 20% ({{% bottleneck-ref "narrow-vector" %}}).
-3. **Serial accumulator**: one floating-point instruction holds > 40%, plus any one of three: IPC < 0.5, miss rate < 2%, or the same register as source and destination. Samples often land on the instruction after the slow one (skid), so counting floating-point instructions literally misses it: in the run in 4.5, 100% of the samples sit on the integer `add` after `addss`; look one instruction back ({{% bottleneck-ref "serial-accumulator" %}}).
-4. **Horizontal reduction**: `shufps`/`addss`/`unpckhps` within 3–5 instructions after a multiply, > 10% combined. This is a horizontal reduction the compiler generated; rewrite it with multiple accumulators ({{% bottleneck-ref "serial-accumulator" %}}).
-5. **TAS spinning**: `lock cmpxchg`/`lock xchg` in a loop at > 10% ({{% bottleneck-ref "tas-spinlock" %}}).
-6. **Memory pressure**: loads > 30% combined, with no comparable computation. There is no ready fix; it points at locality, a smaller working set and prefetching, and is only credible if perf stat's miss rate is high too. This one has no matching card; the mechanism is in the [memory latency and bandwidth special](/posts/low-latency-memory-latency-bandwidth/).
-7. **Atomic counter**: `lock add/inc/xadd/sub` at > 10%. If a conditional jump follows the result, it is really a lock built from an add; treat it as TAS ({{% bottleneck-ref "tas-spinlock" %}}). If nobody uses the result, it is a statistics counter; bucket it per CPU ({{% bottleneck-ref "shared-counter" %}}).
+> 1. **No vectorization**: the hot instructions are all scalar floating point (`vaddsd`, `vmulsd` and the like), not one packed instruction, and scalar holds > 50% of the function's samples. Find what blocks vectorization first, then widen ({{% bottleneck-ref "narrow-vector" %}}).
+> 2. **Vectors too narrow**: the CPU supports AVX2/AVX-512, but the hot path's packed instructions still use xmm (or ymm on an AVX-512 machine), at > 20% ({{% bottleneck-ref "narrow-vector" %}}).
+> 3. **Serial accumulator**: one floating-point instruction holds > 40%, plus any one of three: IPC < 0.5, miss rate < 2%, or the same register as source and destination. Samples often land on the instruction after the slow one (skid), so counting floating-point instructions literally misses it: in the run in 4.5, 100% of the samples sit on the integer `add` after `addss`; look one instruction back ({{% bottleneck-ref "serial-accumulator" %}}).
+> 4. **Horizontal reduction**: `shufps`/`addss`/`unpckhps` within 3–5 instructions after a multiply, > 10% combined. This is a horizontal reduction the compiler generated; rewrite it with multiple accumulators ({{% bottleneck-ref "serial-accumulator" %}}).
+> 5. **TAS spinning**: `lock cmpxchg`/`lock xchg` in a loop at > 10% ({{% bottleneck-ref "tas-spinlock" %}}).
+> 6. **Memory pressure**: loads > 30% combined, with no comparable computation. There is no ready fix; it points at locality, a smaller working set and prefetching, and is only credible if perf stat's miss rate is high too. This one has no matching card; the mechanism is in the [memory latency and bandwidth special](/posts/low-latency-memory-latency-bandwidth/).
+> 7. **Atomic counter**: `lock add/inc/xadd/sub` at > 10%. If a conditional jump follows the result, it is really a lock built from an add; treat it as TAS ({{% bottleneck-ref "tas-spinlock" %}}). If nobody uses the result, it is a statistics counter; bucket it per CPU ({{% bottleneck-ref "shared-counter" %}}).
 
 ## 4. One Real Run: A Virtual Machine with No Hardware Counters {#demo}
 
