@@ -466,3 +466,9 @@ Which node a physical page lands on is decided by default on **first touch**: th
 - **Pinning the thread doesn't move the memory.** Either have a thread pinned on the target node do the first write, or start with `numactl --cpunodebind=1 --membind=1` (or `mbind` / libnuma) to place the memory on node 1.
 
 One more runtime trap: Linux's **automatic NUMA balancing** (`kernel.numa_balancing`) periodically marks pages inaccessible, uses the resulting faults to see who touches them, and migrates them. For a hot path that means page faults and TLB shootdowns out of nowhere, so it is usually turned off on low-latency machines ([#1](/posts/cpu-affinity-core-isolation-numa/)).
+
+## In Practice: The Matching Bottleneck Cards {#in-practice}
+
+The multiple accumulators of 1.5.1 match the Serial Accumulator card below: what perf shows, how to fix it, how to verify the fix.
+
+{{% bottleneck "serial-accumulator" %}}

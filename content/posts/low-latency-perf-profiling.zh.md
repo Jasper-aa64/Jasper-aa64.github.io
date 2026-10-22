@@ -152,6 +152,18 @@ perf c2c report --stdio
 
 排名比较用 cpu-clock 就能做，c2c 那一步要硬件计数器。
 
+### 3.5 annotate 扫描：一个热函数的汇编按 7 条查 {#annotate-scan}
+
+report 指到一个热函数以后，用 annotate 看它的汇编。Intel 把要查的东西列成 7 条（`references/building-blocks.md`），每条后面是对应的[瓶颈卡片](/zh/ref/bottlenecks/)：
+
+1. **没向量化**：热指令全是标量浮点（`vaddsd`、`vmulsd` 等），没有一条打包指令，标量占函数样本 > 50%。先找挡住向量化的原因，再加宽（[向量太窄](/zh/ref/bottlenecks/#narrow-vector)）。
+2. **向量太窄**：CPU 支持 AVX2/AVX-512，热路径的打包指令还用 xmm（或 AVX-512 机器上用 ymm），占 > 20%（[向量太窄](/zh/ref/bottlenecks/#narrow-vector)）。
+3. **串行累加**：单条浮点指令占 > 40%，再加上 IPC < 0.5、缺失率 < 2%、源和目的是同一个寄存器这三条中的任一条。样本常记在慢指令的下一条上（skid），照字面数浮点指令会漏：4.5 的实测里，样本 100% 落在 `addss` 后面那条整数 `add` 上，要往前看一条（[串行累加](/zh/ref/bottlenecks/#serial-accumulator)）。
+4. **水平归约**：乘法后 3–5 条指令内跟着 `shufps`/`addss`/`unpckhps`，合计 > 10%。这是编译器生成的水平归约，按多累加器改写处理（[串行累加](/zh/ref/bottlenecks/#serial-accumulator)）。
+5. **TAS 自旋**：循环里的 `lock cmpxchg`/`lock xchg` 占 > 10%（[TAS 自旋锁](/zh/ref/bottlenecks/#tas-spinlock)）。
+6. **内存压力**：读内存指令合计 > 30%，没有分量相当的计算。没有现成修法，提示去看局部性、缩小工作集、预取；perf stat 的缺失率也高才可信。这一条没有对应的卡片，原理见[内存延迟与带宽专题](/zh/posts/low-latency-memory-latency-bandwidth/)。
+7. **原子计数器**：`lock add/inc/xadd/sub` 占 > 10%。结果后面紧跟条件跳转，其实是用加法实现的锁，按 TAS 处理（[TAS 自旋锁](/zh/ref/bottlenecks/#tas-spinlock)）；结果没人用，是统计计数器，按 CPU 分桶（[共享统计计数器](/zh/ref/bottlenecks/#shared-counter)）。
+
 ## 4. 真跑一遍：一台没有硬件计数器的虚拟机 {#demo}
 
 结论先说：perf 指到 `sum_serial` 占了 98% 的样本，这些样本全落在它的加法后面一条指令上，那是一条一环扣一环的加法链。拆成四个累加器以后，结果在舍入误差内一致，平均耗时从 0.545 s 降到 0.164 s。这些数只代表这台机器、这组参数。
@@ -453,3 +465,9 @@ perf stat -r 10 ./perf_demo 4
 ```
 
 `refresh` 的代码没动，占比从 0.90% 涨到 4.10%：总时间短了，没改的部分占比就上来了，不过还在 5% 以下。`sum_4acc` 仍然过了 20% 的线，照规矩还要再 annotate 一次。原始输出里的 `out/annotate_4acc.txt` 显示，73.87% 的样本记在 `addps` 后面的 `cmp` 上，热点还是这条加法链。
+
+## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+
+4.6 把一个累加器拆成四个，就是“串行累加”这张卡片的一次实测。卡片写了在 perf 里看到什么、怎么改、怎么验证；修法那一条的加速倍数是原文的数字，这台虚拟机上测到的是 4.6 的约 3.3 倍。
+
+{{% bottleneck "serial-accumulator" %}}

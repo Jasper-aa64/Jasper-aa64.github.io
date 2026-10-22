@@ -1,0 +1,7 @@
+{{- /* Signal -> bottleneck table, one row per card from its `signal` front matter, in weight order:
+     {{% bottleneck-lookup "看到什么" "对应的瓶颈" %}} (the two arguments are the column headers). */ -}}
+{{- $s := site.GetPage "/bottlenecks" -}}
+| {{ .Get 0 }} | {{ .Get 1 }} |
+|---|---|
+{{ range $s.Pages.ByWeight }}| {{ .Params.signal }} | [{{ .Title }}](#{{ .File.ContentBaseName }}) |
+{{ end }}

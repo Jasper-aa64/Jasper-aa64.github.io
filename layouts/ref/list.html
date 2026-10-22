@@ -8,15 +8,20 @@
 <section class="wrap page-body">
   <div class="card-list">
     {{ range .Pages.ByWeight }}
+      {{/* An entry with `target` (e.g. content/ref/perf.md) is not a page of its own: the card shows and links
+           the post it names, so that post stays the only copy. */}}
+      {{ $p := . }}{{ $isPost := false }}
+      {{ with .Params.target }}{{ with site.GetPage . }}{{ $p = . }}{{ $isPost = true }}{{ end }}{{ end }}
+      {{ $title := $p.Title }}{{ if $isPost }}{{ $title = (partial "series.html" $p).title }}{{ end }}
       <article class="card">
-        <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
+        <a class="card__link" href="{{ $p.RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ $title }}"></a>
         <div class="card__main">
           <div class="card__meta">
-            <span class="card__series">{{ i18n "secRef" }}</span>
-            <time datetime="{{ .Lastmod.Format `2006-01-02` }}">{{ i18n "refUpdated" (.Lastmod.Format (i18n "dateLong")) }}</time>
+            <span class="card__series">{{ if $isPost }}{{ i18n "topicTag" }}{{ else }}{{ i18n "secRef" }}{{ end }}</span>
+            <time datetime="{{ $p.Lastmod.Format `2006-01-02` }}">{{ i18n "refUpdated" ($p.Lastmod.Format (i18n "dateLong")) }}</time>
           </div>
-          <h3 class="card__title">{{ .Title }}</h3>
-          {{ with .Description }}<p class="card__summary">{{ . }}</p>{{ end }}
+          <h3 class="card__title">{{ $title }}</h3>
+          {{ with $p.Description }}<p class="card__summary">{{ . }}</p>{{ end }}
         </div>
       </article>
     {{ end }}

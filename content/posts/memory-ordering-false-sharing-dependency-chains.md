@@ -9,6 +9,7 @@ categories: [Systems]
 tags: [cpp, memory-model, atomics, cache-coherence, false-sharing, mesi, x86, hft, low-latency, pipelining]
 toc: true
 homepage: false
+math: true
 ---
 
 Thread A writes `x = 1`. Thread B reads `x`. Does B ever see `1`? And if A wrote `y` just before `x`, is B guaranteed to see the new `y` once it sees the new `x`? Now a second, very different question: two threads each increment their *own* counter, with no shared variable and no bug anywhere — so why does the loop run ten times slower when the two counters sit next to each other in one struct?
@@ -371,3 +372,10 @@ How large should `K` be? Exactly large enough to keep the execution ports fed wh
 
 `K = 8` is the sweet spot here — enough independent work to hide the full 4-cycle latency behind both ports' throughput, with no benefit (and, per the register-spill trap above, real risk) in going further. This is a standard technique (the derivation is the same one Agner Fog's optimization manuals walk through for any latency/throughput pair), and the honest caveat that goes with it: this ceiling assumes the arithmetic units are the bottleneck. In practice, memory bandwidth or the number of load ports feeding data in can cap throughput first — this is exactly the **compute-bound vs. memory-bound** distinction at the heart of the **roofline model** — so the formula tells you the arithmetic ceiling, and `perf` tells you whether you actually reached it.
 
+## In Practice: The Matching Bottleneck Cards {#in-practice}
+
+False sharing from Part 2 and the dependency chains of Part 3 each match one card below: what perf shows, how to fix it, how to verify the fix.
+
+{{% bottleneck "false-sharing" %}}
+
+{{% bottleneck "serial-accumulator" %}}

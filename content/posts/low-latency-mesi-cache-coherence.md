@@ -142,3 +142,10 @@ These are the follow-ups interviewers love: *if MESI keeps caches consistent, wh
 
 The "three pieces of lock-free programming" now each have a job: the `lock` prefix makes one read-modify-write indivisible by holding the line exclusively until it completes; MESI keeps the copies of each line consistent; memory fences order accesses to different addresses. Drop any one and something breaks.
 
+## In Practice: The Matching Bottleneck Cards {#in-practice}
+
+The cost of a write from Part 5, and false sharing and per-thread counters from Part 6, match the False Sharing and Shared Statistics Counter cards below: what perf shows, how to fix it, how to verify the fix.
+
+{{% bottleneck "false-sharing" %}}
+
+{{% bottleneck "shared-counter" %}}
