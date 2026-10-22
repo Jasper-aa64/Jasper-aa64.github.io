@@ -1,6 +1,6 @@
 ---
 title: "已知算法"
-weight: 14
+num: 14
 signal: "函数名是 cosine、hamming、jaccard 一类"
 source: "skills/performance-patterns/references/known-algorithms.md"
 ---

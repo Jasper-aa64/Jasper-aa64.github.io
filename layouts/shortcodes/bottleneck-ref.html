@@ -1,0 +1,18 @@
+{{- /* A bottleneck card named in running text, numbered from its front matter: {{% bottleneck-ref "false-sharing" %}}
+     gives a link "B6 False Sharing" to the card on the bottlenecks reference page.
+     A second argument "plain" gives the same words without a link, "num" only the number "B6".
+     Call it with % so the link is read as markdown. */ -}}
+{{- $id := .Get 0 -}}
+{{- $card := site.GetPage (printf "/bottlenecks/%s" $id) -}}
+{{- if not $card }}{{ errorf "bottleneck card %q not found (%s)" $id .Position }}{{ end -}}
+{{- $mode := .Get 1 | default "link" -}}
+{{- if eq $mode "num" -}}
+{{ partial "bottleneck-num.html" $card }}
+{{- else if eq $mode "plain" -}}
+{{ partial "bottleneck-label.html" $card }}
+{{- else if eq $mode "link" -}}
+{{- $list := site.GetPage "/ref/bottlenecks" -}}
+[{{ partial "bottleneck-label.html" $card }}]({{ $list.RelPermalink }}#{{ $id }})
+{{- else -}}
+{{ errorf "bottleneck-ref: unknown second argument %q, use plain or num (%s)" $mode .Position }}
+{{- end -}}

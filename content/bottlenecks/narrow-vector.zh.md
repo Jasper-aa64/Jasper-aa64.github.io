@@ -1,6 +1,6 @@
 ---
 title: "向量太窄"
-weight: 2
+num: 2
 signal: "热循环是标量浮点；或支持 AVX2 的机器上用 xmm，支持 AVX-512 的机器上用 ymm"
 source: "skills/performance-patterns/patterns/simd-upconversion.md"
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Known Algorithms"
-weight: 14
+num: 14
 signal: "Functions named cosine, hamming, jaccard and the like"
 source: "skills/performance-patterns/references/known-algorithms.md"
 ---

@@ -1,6 +1,6 @@
 ---
 title: "False Sharing"
-weight: 6
+num: 6
 signal: "A line above 5% Tot Hitm in c2c, with different offsets written by different threads"
 source: "skills/performance-patterns/patterns/false-sharing.md"
 ---

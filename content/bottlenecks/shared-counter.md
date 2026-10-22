@@ -1,6 +1,6 @@
 ---
 title: "Shared Statistics Counter"
-weight: 7
+num: 7
 signal: "`lock add/inc/xadd` on the hot path with no retry loop; the same offset written by many CPUs in c2c"
 source: "skills/performance-patterns/patterns/per-cpu-stats.md"
 ---

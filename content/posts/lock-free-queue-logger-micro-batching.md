@@ -501,8 +501,8 @@ concept BatchSource = requires(Q q, Msg& m) {
 
 An approximate snapshot is enough — it only selects one of three tiers, and being off by a few messages changes nothing. Not counting yourself isn't free; you pay for it with a stronger requirement on the queue.
 
-## In Practice: The Matching Bottleneck Cards {#in-practice}
+## In Practice {#in-practice}
 
-The counter that made two cores fight in 1.2 matches the Shared Statistics Counter card below: what perf shows, how to fix it, how to verify the fix.
+The counter that made two cores fight in 1.2 matches the {{% bottleneck-ref "shared-counter" "plain" %}} card below: what perf shows, how to fix it, how to verify the fix.
 
 {{% bottleneck "shared-counter" %}}

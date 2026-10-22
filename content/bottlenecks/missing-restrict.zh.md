@@ -1,6 +1,6 @@
 ---
 title: "漏 restrict"
-weight: 4
+num: 4
 signal: "循环前有一段指针相减、比较、跳转的重叠检查；同一个循环编出向量和标量两个版本"
 source: "skills/performance-patterns/patterns/missing-restrict.md"
 ---

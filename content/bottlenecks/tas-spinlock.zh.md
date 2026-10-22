@@ -1,6 +1,6 @@
 ---
 title: "TAS 自旋锁"
-weight: 5
+num: 5
 signal: "annotate 上 `lock cmpxchg` 在紧循环里扎堆；线程越多吞吐越低"
 source: "skills/performance-patterns/patterns/ttas.md"
 ---

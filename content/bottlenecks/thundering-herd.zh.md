@@ -1,6 +1,6 @@
 ---
 title: "条件变量惊群"
-weight: 9
+num: 9
 signal: "`futex_wake`、`try_to_wake_up` 热；上下文切换率随每次广播叫醒的线程数涨"
 source: "skills/performance-patterns/patterns/cv-thundering-herd.md"
 ---

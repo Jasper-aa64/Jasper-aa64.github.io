@@ -1,6 +1,6 @@
 ---
 title: "数值数组用 std::sort"
-weight: 13
+num: 13
 signal: "对 float、double 或整数数组调 `std::sort`、`nth_element`、`partial_sort`、`qsort`"
 source: "skills/performance-patterns/patterns/simd-sort.md"
 ---

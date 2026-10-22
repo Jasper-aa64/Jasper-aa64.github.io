@@ -23,7 +23,7 @@ perf 给出一个现象，先在这张表里找它对应哪张卡片。左边是
 
 ## 2. 瓶颈卡片：信号、原因、修法、验证 {#cards}
 
-每张卡片的标题是瓶颈名，锚点是它的英文 id。卡片按收录先后排，新收的接在后面；讲到某种瓶颈原理的文章，末尾也嵌着同一张卡片。
+每张卡片的标题是编号加瓶颈名，锚点是它的英文 id。编号按收录先后发，发出后不再改，新收的取下一个号，排在最后；讲到某种瓶颈原理的文章，末尾也嵌着同一张卡片。
 
 {{% bottleneck-cards %}}
 
@@ -31,20 +31,20 @@ perf 给出一个现象，先在这张表里找它对应哪张卡片。左边是
 
 从零写新代码时，照下面的清单写，第 2 节那些瓶颈一开始就避开。每条后面是对应的卡片。
 
-- **指针**：互不重叠的指针参数加 `restrict`（C），只读输入加 `const`（[漏 restrict](#missing-restrict)）。
-- **求和这类浮点归约**：热循环里不用单个累加器；在函数说明里写明，求和顺序变了，结果会差一个舍入误差（[串行累加](#serial-accumulator)）。
+- **指针**：互不重叠的指针参数加 `restrict`（C），只读输入加 `const`（{{% bottleneck-ref "missing-restrict" %}}）。
+- **求和这类浮点归约**：热循环里不用单个累加器；在函数说明里写明，求和顺序变了，结果会差一个舍入误差（{{% bottleneck-ref "serial-accumulator" %}}）。
 - **SIMD**：
-  - 用目标机器支持的最宽寄存器（[向量太窄](#narrow-vector)）；
-  - 用过 ymm 或 zmm0–15 的函数，出口加 `vzeroupper`（[漏 vzeroupper](#missing-vzeroupper)）；
+  - 用目标机器支持的最宽寄存器（{{% bottleneck-ref "narrow-vector" %}}）；
+  - 用过 ymm 或 zmm0–15 的函数，出口加 `vzeroupper`（{{% bottleneck-ref "missing-vzeroupper" %}}）；
   - 处理长度不是向量宽度整数倍的尾巴；
   - 内联汇编标注 `/* CPUID: <特性> */`，改了标志位要把 `"cc"` 加进 clobber。
 - **几个 SIMD 版本**：同一个函数写了几个版本，在运行时按 CPU 选（第 4 节），不要用编译期的 `#ifdef` 写死。
 - **多线程**：
-  - 每线程的数据按 64 字节对齐垫开（[伪共享](#false-sharing)）；
-  - 计数器每 CPU 或每线程一份，不用全局原子量（[共享统计计数器](#shared-counter)）；
-  - 自旋锁先读再 CAS（[TAS 自旋锁](#tas-spinlock)）。
-- **罕见路径**：报错和罕见路径的函数标 `[[gnu::cold]]`（[冷路径没标注](#cold-path)）。
-- **有现成的不重写**：CRC32C 用现成实现（[CRC32C 写得慢](#slow-crc32c)）；已知算法照表写（[已知算法](#known-algorithms)）；数值排序用 x86-simd-sort（[数值数组用 std::sort](#std-sort-numeric)）。
+  - 每线程的数据按 64 字节对齐垫开（{{% bottleneck-ref "false-sharing" %}}）；
+  - 计数器每 CPU 或每线程一份，不用全局原子量（{{% bottleneck-ref "shared-counter" %}}）；
+  - 自旋锁先读再 CAS（{{% bottleneck-ref "tas-spinlock" %}}）。
+- **罕见路径**：报错和罕见路径的函数标 `[[gnu::cold]]`（{{% bottleneck-ref "cold-path" %}}）。
+- **有现成的不重写**：CRC32C 用现成实现（{{% bottleneck-ref "slow-crc32c" %}}）；已知算法照表写（{{% bottleneck-ref "known-algorithms" %}}）；数值排序用 x86-simd-sort（{{% bottleneck-ref "std-sort-numeric" %}}）。
 
 ## 4. 让程序在不同 CPU 上自动选指令集 {#isa-dispatch}
 

@@ -1,6 +1,6 @@
 ---
 title: "Test-and-Set Spinlock"
-weight: 5
+num: 5
 signal: "`lock cmpxchg` piles up in a tight loop in annotate; throughput drops as threads are added"
 source: "skills/performance-patterns/patterns/ttas.md"
 ---

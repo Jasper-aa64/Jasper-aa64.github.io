@@ -1,6 +1,6 @@
 ---
 title: "串行累加"
-weight: 1
+num: 1
 signal: "annotate 上一条 `vaddss`/`vfmadd`（或它的下一条）占大头；IPC ≪ 1，缓存缺失却很低"
 source: "skills/performance-patterns/patterns/parallel-accumulator.md"
 ---

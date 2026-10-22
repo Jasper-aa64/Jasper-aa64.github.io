@@ -185,9 +185,9 @@ private:
 
 等的核一多，退避也只是缓解。根本的办法是让每个等的核在自己的那条行上转、按先来后到一个一个交接，放锁时只惊动下一个，排队锁（票据锁、MCS 锁）就是这么做的。不过在交易系统里，一把锁经常有好几个核在抢，本身就说明设计该改了：改成只有一个线程写，别的线程把要改的东西通过队列交给它（[#4](/zh/posts/lock-free-queue-logger-micro-batching/)、[#5](/zh/posts/spmc-shared-memory-broadcast-ring/)），比把锁写得再好都管用。
 
-## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+## 应用 {#in-practice}
 
-1.3 到 1.5 节的读改写抢行和 TTAS，在实际优化里对应“TAS 自旋锁”这张卡片；1.1 节讲的线程睡下、再被叫醒的代价，是“条件变量惊群”这张卡片的原理。两张卡片都写了在 perf 里看到什么、怎么改、怎么验证。
+1.3 到 1.5 节的读改写抢行和 TTAS，在实际优化里对应“{{% bottleneck-ref "tas-spinlock" "plain" %}}”这张卡片；1.1 节讲的线程睡下、再被叫醒的代价，是“{{% bottleneck-ref "thundering-herd" "plain" %}}”这张卡片的原理。两张卡片都写了在 perf 里看到什么、怎么改、怎么验证。
 
 {{% bottleneck "tas-spinlock" %}}
 

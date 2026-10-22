@@ -1,9 +1,8 @@
-{{- /* Every bottleneck card, in weight order, for the bottlenecks reference page: {{% bottleneck-cards %}}.
-     Each card becomes "### <title> {#<id>}" plus its > body, so it shows in the TOC under a stable anchor.
-     A new card is just two new files in content/bottlenecks/ with the next weight; nothing here changes. */ -}}
-{{- $s := site.GetPage "/bottlenecks" -}}
-{{- range $s.Pages.ByWeight }}
-### {{ .Title }} {#{{ .File.ContentBaseName }}}
+{{- /* Every bottleneck card, in number order, for the bottlenecks reference page: {{% bottleneck-cards %}}.
+     Each card becomes "### B<num> <title> {#<id>}" plus its > body, so it shows in the TOC under a stable anchor.
+     A new card is just two new files in content/bottlenecks/ with the next number; nothing here changes. */ -}}
+{{- range partial "bottleneck-list.html" . }}
+### {{ partial "bottleneck-label.html" . }} {#{{ .File.ContentBaseName }}}
 
 {{ .RawContent | strings.TrimSpace | safeHTML }}
 {{ end -}}

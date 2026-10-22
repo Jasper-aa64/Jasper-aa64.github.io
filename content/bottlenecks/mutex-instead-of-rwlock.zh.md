@@ -1,6 +1,6 @@
 ---
 title: "该用读写锁的地方用了 mutex"
-weight: 10
+num: 10
 signal: "mutex 护着读多写少的数据（读超过约 75%）；`perf lock stat` 里等待时间远大于持有时间"
 source: "skills/performance-patterns/patterns/mutex-to-rwlock.md"
 ---

@@ -1,6 +1,6 @@
 ---
 title: "漏 vzeroupper"
-weight: 3
+num: 3
 signal: "AVX 函数之后第一条 SSE 指令的周期数极高；AVX 转 SSE 的辅助事件非零"
 source: "skills/performance-patterns/patterns/missing-vzeroupper.md"
 ---

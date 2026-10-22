@@ -326,9 +326,9 @@ double dot_unrolled(const double *a, const double *b, size_t n) {
 
 这里 `K = 8` 是最佳点——独立的活刚好够把 4 个周期的延迟藏在两个端口的吞吐后面,再往上没有收益(按 3.3 的寄存器溢出陷阱,还有实打实的风险)。这是一个标准技术(推导和 Agner Fog 优化手册里对任意延迟/吞吐组合的推导是同一套),也要附上诚实的说明:这个上限假设瓶颈在算术单元。实际上,内存带宽或者喂数据的 load 端口个数可能先卡住吞吐——这正是 **roofline 模型**核心的**计算受限 vs 访存受限**之分——所以公式告诉你算术上限,`perf` 告诉你有没有真的达到它。
 
-## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+## 应用 {#in-practice}
 
-第 2 节的伪共享和第 3 节的依赖链，在实际优化里各对应一张卡片：在 perf 里看到什么、怎么改、怎么验证。
+第 2 节的伪共享和第 3 节的依赖链，在实际优化里各对应一张卡片（{{% bottleneck-ref "false-sharing" "num" %}}、{{% bottleneck-ref "serial-accumulator" "num" %}}）：在 perf 里看到什么、怎么改、怎么验证。
 
 {{% bottleneck "false-sharing" %}}
 

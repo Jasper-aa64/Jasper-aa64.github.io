@@ -1,6 +1,6 @@
 ---
 title: "冷路径没标注"
-weight: 8
+num: 8
 signal: "热函数里有只在罕见分支上调用的函数：报错、日志、断言、一次性初始化"
 source: "skills/performance-patterns/patterns/cold-path-annotation.md"
 ---

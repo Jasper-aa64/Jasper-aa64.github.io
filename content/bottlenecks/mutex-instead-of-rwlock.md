@@ -1,6 +1,6 @@
 ---
 title: "Mutex Where a Reader-Writer Lock Belongs"
-weight: 10
+num: 10
 signal: "A mutex guards mostly-read data (reads above about 75%); in `perf lock stat` the wait time far exceeds the hold time"
 source: "skills/performance-patterns/patterns/mutex-to-rwlock.md"
 ---
