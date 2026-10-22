@@ -1656,6 +1656,13 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   padding: 4px 0;
   margin: 1.4em 0 !important;
 }
+/* An inline formula wider than its line (marked by the MathJax startup in baseof.html): a line of its own, scrolling sideways. */
+.prose mjx-container[jax="CHTML"].mjx-wide {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+}
 .prose .mermaid { margin: 2em 0; text-align: center; }
 
 /* Post footer */

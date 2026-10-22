@@ -40,7 +40,25 @@
       <script>
         window.MathJax = {
           tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
-          options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }{{ if eq site.Language.Lang `zh` }},
+          options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
+          // MathJax 3 cannot break an inline formula, so one wider than its line ran past the screen edge on a phone. After typesetting
+          // and on resize, such a formula gets mjx-wide (site.css): a line of its own that scrolls sideways, as display math does.
+          startup: {
+            pageReady() {
+              return MathJax.startup.defaultPageReady().then(() => {
+                const fit = () => document.querySelectorAll('.prose mjx-container[jax="CHTML"]:not([display="true"])').forEach(m => {
+                  let box = m.parentElement;
+                  while (getComputedStyle(box).display.startsWith('inline')) box = box.parentElement;
+                  const cs = getComputedStyle(box);
+                  const room = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+                  m.classList.toggle('mjx-wide', m.querySelector('mjx-math').getBoundingClientRect().width > room + 1);
+                });
+                fit();
+                let t;
+                addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fit, 150); });
+              });
+            }
+          }{{ if eq site.Language.Lang `zh` }},
           // Chinese inside \text{} is not in the MathJax fonts; draw it with the page's sans CJK fonts instead of the default serif.
           chtml: { unknownFamily: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", sans-serif' }{{ end }}
         };
