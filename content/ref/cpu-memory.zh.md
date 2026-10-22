@@ -2,7 +2,7 @@
 title: "CPU 与内存：地图、数字、怎么估算"
 description: "一次访存经过哪些框，每个框多大、多快，以及怎么把这些数合起来，估一段代码的访存时间。"
 date: 2026-10-08
-lastmod: 2026-10-21
+lastmod: 2026-10-22
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -49,6 +49,7 @@ math: true
 | 分支预测器、取指与推测执行 | [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/) |
 | 执行单元：ALU、乘法器、除法器、SIMD 向量单元 | [#12 强度削弱与算术优化](/zh/posts/strength-reduction-arithmetic/) · [#15 SIMD 向量化](/zh/posts/simd-vectorization-intrinsics/) |
 | 硬件预取、软件预取、缓存预热 | [#14 预取、预热与双缓冲](/zh/posts/prefetch-warmup-double-buffer/) |
+| 性能计数器（PMU）和采样：时间花在哪个函数、哪条指令 | [perf 专题](/zh/posts/low-latency-perf-profiling/) |
 | 框与框之间的路：延迟、带宽、ROB、LFB | 本页第 2、3 部分 |
 
 ## 2. 性能参数：每个框多大、多快 {#numbers}
