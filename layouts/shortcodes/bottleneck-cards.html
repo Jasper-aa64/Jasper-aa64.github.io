@@ -4,5 +4,5 @@
 {{- range partial "bottleneck-list.html" . }}
 ### {{ partial "bottleneck-label.html" . }} {#{{ .File.ContentBaseName }}}
 
-{{ .RawContent | strings.TrimSpace | safeHTML }}
+{{ partial "bottleneck-body.html" . | safeHTML }}
 {{ end -}}
