@@ -197,3 +197,9 @@ inline void copy_u64_blocks(volatile void* dst, const void* src, size_t nbytes) 
 ```
 
 The destination is a `volatile` pointer so the compiler won't merge, reorder or drop these writes; if the device must be guaranteed to have seen them, add an `sfence` afterwards. This applies only to device memory: `memcpy` on ordinary memory is already highly optimized, so don't replace it.
+
+## In Practice: The Matching Bottleneck Cards {#in-practice}
+
+`__restrict` and aliasing from Part 1 match the Missing restrict card below: what the assembly shows, how to fix it, how to verify the fix.
+
+{{% bottleneck "missing-restrict" %}}

@@ -139,3 +139,11 @@ int count_nan8(const float* p) {
 ```
 
 Measured, with 2 NaNs among 8 numbers it returns 2. Floating-point exceptions are masked by default, so a NaN raises no error and just propagates: adding those 8 numbers measurably gives nan. For computations like aggregating prices, rather than checking every element, compute a mask once per batch and handle NaNs separately when there are any.
+
+## In Practice: The Matching Bottleneck Cards {#in-practice}
+
+Register width from Part 1, auto-vectorization from Part 2 and `vzeroupper` from 3.3 match the two cards below: what perf shows, how to fix it, how to verify the fix.
+
+{{% bottleneck "narrow-vector" %}}
+
+{{% bottleneck "missing-vzeroupper" %}}

@@ -766,3 +766,9 @@ Each is one type definition, and each compiles as fast as hand-written code. By 
 
 - Every node uses `HFT_LIKELY`, which assumes every condition is usually true and the left side is common. That's fine for `IsPositionSafe`; but if `IsHighVol` is usually false, the hint here is backwards (the cost in 3.1). Write hints per node from the real probabilities, or leave it to PGO.
 - Changing the strategy means recompiling; a deep tree costs compile time and code size, and template errors are hard to read.
+
+## In Practice: The Matching Bottleneck Cards {#in-practice}
+
+The hot/cold splitting of 3.2 matches the Unmarked Cold Path card below: which calls count as cold, how to mark them, how to confirm.
+
+{{% bottleneck "cold-path" %}}

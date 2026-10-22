@@ -139,3 +139,11 @@ int count_nan8(const float* p) {
 ```
 
 实测 8 个数里放 2 个 NaN，返回 2。浮点异常默认是屏蔽的，NaN 不会报错，只会一路传下去：把这 8 个数加起来，实测结果就是 nan。汇总价格这类计算，与其每个元素都判断一次，不如对一批数据算一次掩码，有 NaN 再单独处理。
+
+## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+
+第 1 节的寄存器宽度、第 2 节的自动向量化和 3.3 节的 `vzeroupper`，在实际优化里对应下面两张卡片：在 perf 里看到什么、怎么改、怎么验证。
+
+{{% bottleneck "narrow-vector" %}}
+
+{{% bottleneck "missing-vzeroupper" %}}

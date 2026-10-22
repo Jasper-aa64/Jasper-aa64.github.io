@@ -467,3 +467,9 @@ $$
 - **只绑线程不会把内存搬过去**。要么让绑在目标节点上的线程自己做首次写入，要么启动时用 `numactl --cpunodebind=1 --membind=1`（或 `mbind` / libnuma）把内存指定到节点 1。
 
 还有一个运行时的坑：Linux 的**自动 NUMA 平衡**（`kernel.numa_balancing`）会周期性地把页标成不可访问，借缺页统计谁在用，再把页迁过去。对热路径来说，这意味着随机冒出来的缺页和 TLB shootdown，低延迟机器上通常关掉（[#1](/zh/posts/cpu-affinity-core-isolation-numa/)）。
+
+## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+
+1.5.1 讲的多个累加器，在实际优化里对应“串行累加”这张卡片：在 perf 里看到什么、怎么改、怎么验证。
+
+{{% bottleneck "serial-accumulator" %}}

@@ -767,3 +767,9 @@ using EthStrategy = DecisionNode<IsPositionSafe<50>,  MomentumBlock<350>, Action
 
 - 每个节点都用了 `HFT_LIKELY`，等于假设每个条件都多半成立、左边常走。`IsPositionSafe` 多半成立没问题；`IsHighVol` 要是多半不成立，这里的提示就写反了（3.1 的代价）。提示要按每个节点的真实概率写，或者交给 PGO。
 - 改策略要重新编译；树很深时，编译时间和代码体积都会涨，模板报错也难读。
+
+## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+
+3.2 节的冷热分离，在实际优化里对应“冷路径没标注”这张卡片：什么样的调用算冷、怎么标、怎么确认。
+
+{{% bottleneck "cold-path" %}}

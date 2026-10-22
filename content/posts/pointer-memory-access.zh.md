@@ -197,3 +197,9 @@ inline void copy_u64_blocks(volatile void* dst, const void* src, size_t nbytes) 
 ```
 
 目标用 `volatile` 指针，是为了不让编译器把这些写合并、重排或删掉；写完要求设备一定看到时，再补一条 `sfence`。这一条只针对设备内存，普通内存上的 `memcpy` 已经高度优化，不要替换。
+
+## 实际优化里怎么用：对应的瓶颈卡片 {#in-practice}
+
+第 1 节的 `__restrict` 和别名，在实际优化里对应“漏 restrict”这张卡片：在汇编里看到什么、怎么改、怎么验证。
+
+{{% bottleneck "missing-restrict" %}}
