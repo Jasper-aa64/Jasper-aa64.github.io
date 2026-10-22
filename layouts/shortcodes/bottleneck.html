@@ -8,4 +8,4 @@
 {{- $list := site.GetPage "/ref/bottlenecks" -}}
 > **[{{ partial "bottleneck-label.html" $card }}]({{ $list.RelPermalink }}#{{ $id }})**
 >
-{{ $card.RawContent | strings.TrimSpace | safeHTML }}
+{{ partial "bottleneck-body.html" $card | safeHTML }}

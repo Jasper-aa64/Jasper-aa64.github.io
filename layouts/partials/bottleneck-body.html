@@ -1,0 +1,12 @@
+{{- /* A card's body, ready to embed. The body goes out as written, so a shortcode inside it would not run; instead a link in it
+     to another card whose text is that card's title, "[Serial Accumulator](/ref/bottlenecks/#serial-accumulator)", gets the
+     card's number here like everywhere else ("B1 Serial Accumulator"). Links with other text are left alone. */ -}}
+{{- $body := .RawContent | strings.TrimSpace -}}
+{{- $list := site.GetPage "/ref/bottlenecks" -}}
+{{- range findRESubmatch (printf `\[([^\]]+)\]\(%s#([a-z0-9-]+)\)` $list.RelPermalink) $body -}}
+  {{- $card := site.GetPage (printf "/bottlenecks/%s" (index . 2)) -}}
+  {{- if and $card (eq (index . 1) $card.Title) -}}
+    {{- $body = replace $body (index . 0) (printf "[%s](%s#%s)" (partial "bottleneck-label.html" $card) $list.RelPermalink (index . 2)) -}}
+  {{- end -}}
+{{- end -}}
+{{- return $body -}}
