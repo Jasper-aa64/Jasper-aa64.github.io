@@ -166,6 +166,10 @@ So there are now two independent buffering structures, one on each side of every
 
 > Figure: A's store retires into its own store buffer instantly, but the RFO that actually claims the cache line is asynchronous. B's invalidate queue absorbs that RFO without stalling B's pipeline, which means a load that races ahead of B's own inbox can still observe the pre-write value. Both buffers exist for the same reason — don't stall the pipeline for a cross-core round trip — and together they are the entire physical cause of the four reorderings in 1.3.
 
+Put the two buffers back on the whole chip and one store travels as below. The invalidation crosses the on-chip interconnect and goes only to cores whose caches hold the line, which the snoop filter next to L3 keeps track of; the new value is never pushed over, and the reader fetches it when it needs it. The step that goes wrong in the figure is the reader ACKing before it processes the invalidation, so it sees the new ready and still reads the old data: the later load returns something older than the earlier one, a load-load reordering. x86 forbids it (1.3) and ARM allows it, which is why an acquire on ARM takes a real instruction (1.6).
+
+<a href="/images/ref/store-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/store-path.en.svg" alt="The store path across two cores. Core 0 runs data = 42 and the store enters its store buffer; the invalidation crosses the on-chip interconnect, and the snoop filter sends it only to core 1, which holds a copy; core 1 queues it in its invalidate queue and ACKs at once; with all ACKs in, core 0 writes 42 into L1D, then writes ready. Core 1 fetches ready = 1 from core 0, then reads data while the invalidation is still queued and gets the old 0. A note below: this is a load-load reordering, forbidden on x86 and allowed on ARM; the fix is an atomic ready with a release store and an acquire load." loading="lazy" decoding="async"></a>
+
 ### 1.3 Four Reorderings, and the One x86 Keeps
 
 In the general (formal) shared-memory model, there are exactly four ways a load and a store to *different* addresses can appear reordered to another observer:

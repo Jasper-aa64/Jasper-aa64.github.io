@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 1150" width="1100" height="1150" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#bc4c00"/>
+    </marker>
+    <marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/>
+    </marker>
+    <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0969da"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8c959f"/>
+    </marker>
+    <style>
+      .t    { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s    { font-size: 12.5px; fill: #57606a; }
+      .h    { font-size: 21px; font-weight: 700; fill: #1f2328; }
+      .f    { font-size: 13px; fill: #1f2328; }
+      .lab  { font-size: 12px; fill: #57606a; }
+      .code { font-family: Consolas, Menlo, monospace; font-size: 13.5px; fill: #1f2328; }
+      .cm   { font-family: Consolas, Menlo, monospace; font-size: 13px; fill: #6e7781; }
+      .box  { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .cache{ fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .buf  { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .iq   { fill: #fff1e5; stroke: #fb8f44; stroke-width: 1.2; }
+      .ban  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .slot { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .empty{ fill: none; stroke: #afb8c1; stroke-width: 1.2; stroke-dasharray: 4 3; }
+      .row  { fill: #ffffff; stroke: #54aeff; stroke-width: 1; }
+      .bad  { fill: #ffebe9; stroke: #cf222e; stroke-width: 1.4; }
+      .st   { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1; }
+      .stt  { font-family: Consolas, Menlo, monospace; font-size: 12.5px; font-weight: 700; fill: #1f2328; }
+      .red  { font-size: 12.5px; font-weight: 700; fill: #cf222e; }
+      .line { stroke: #8c959f; stroke-width: 1.5; fill: none; }
+      .inv  { stroke: #bc4c00; stroke-width: 2; fill: none; }
+      .ack  { stroke: #1a7f37; stroke-width: 2; fill: none; }
+      .data { stroke: #0969da; stroke-width: 2; fill: none; }
+      .dt   { font-size: 13px; font-weight: 700; fill: #ffffff; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="1150" fill="#ffffff"/>
+  <text x="40" y="40" class="h">写（store）的路径：一次写怎么让别的核看见</text>
+  <text x="40" y="66" class="s">开始时 data 在两个核的缓存里（S），ready 只在核 0 的缓存里（E）。按编号走。</text>
+  <!-- The program: message passing through data and ready -->
+  <rect x="40" y="84" width="1020" height="104" rx="6" class="ban"/>
+  <text x="60" y="108" class="cm">// 开始时：data = 0，ready = false</text>
+  <text x="60" y="132" class="cm">// 核 0（写）</text>
+  <text x="60" y="154" class="code">data = 42;</text>
+  <text x="60" y="176" class="code">ready = true;</text>
+  <text x="630" y="132" class="cm">// 核 1（读）</text>
+  <text x="630" y="154" class="code">while (!ready) {}</text>
+  <text x="630" y="176" class="code">use(data);   // 期望 42</text>
+  <!-- Core 0 -->
+  <rect x="40" y="206" width="450" height="46" rx="6" class="box"/>
+  <text x="56" y="235" class="t">核 0 · 写方</text>
+  <text x="474" y="235" class="s" text-anchor="end">执行 data = 42; ready = true;</text>
+  <rect x="40" y="270" width="215" height="100" rx="6" class="iq"/>
+  <text x="54" y="292" class="t">invalidate queue</text>
+  <rect x="275" y="270" width="215" height="100" rx="6" class="buf"/>
+  <text x="289" y="292" class="t">store buffer</text>
+  <rect x="54" y="304" width="150" height="28" rx="4" class="empty"/>
+  <text x="54" y="356" class="s">这次没用上</text>
+  <rect x="289" y="304" width="150" height="28" rx="4" class="slot"/>
+  <text x="364" y="323" class="code" text-anchor="middle">data = 42</text>
+  <circle cx="465" cy="318" r="11" fill="#1f2328"/>
+  <text x="465" y="322.5" class="dt" text-anchor="middle">1</text>
+  <text x="289" y="356" class="s">④ 收齐 ACK 才写进 L1D</text>
+  <rect x="40" y="388" width="450" height="112" rx="6" class="cache"/>
+  <text x="54" y="410" class="t">L1D（本核私有）</text>
+  <rect x="54" y="422" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="441" class="code">data</text>
+  <text x="140" y="441" class="code">0 → 42</text>
+  <rect x="250" y="427" width="66" height="18" rx="4" class="st"/>
+  <text x="283" y="440.5" class="stt" text-anchor="middle">S → M</text>
+  <rect x="54" y="458" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="477" class="code">ready</text>
+  <text x="140" y="477" class="code">0 → 1</text>
+  <rect x="250" y="463" width="66" height="18" rx="4" class="st"/>
+  <text x="283" y="476.5" class="stt" text-anchor="middle">E → M</text>
+  <circle cx="450" cy="436" r="11" fill="#1f2328"/>
+  <text x="450" y="440.5" class="dt" text-anchor="middle">4</text>
+  <rect x="40" y="518" width="450" height="40" rx="6" class="cache"/>
+  <text x="265" y="543" class="f" text-anchor="middle">L2（本核私有）</text>
+  <!-- Core 1 -->
+  <rect x="610" y="206" width="450" height="46" rx="6" class="box"/>
+  <text x="626" y="235" class="t">核 1 · 读方</text>
+  <text x="1044" y="235" class="s" text-anchor="end">执行 while (!ready); use(data);</text>
+  <rect x="610" y="270" width="215" height="100" rx="6" class="iq"/>
+  <text x="624" y="292" class="t">invalidate queue</text>
+  <rect x="845" y="270" width="215" height="100" rx="6" class="buf"/>
+  <text x="859" y="292" class="t">store buffer</text>
+  <rect x="624" y="304" width="150" height="28" rx="4" class="slot"/>
+  <text x="699" y="323" class="f" text-anchor="middle">失效：data</text>
+  <circle cx="800" cy="318" r="11" fill="#1a7f37"/>
+  <text x="800" y="322.5" class="dt" text-anchor="middle">3</text>
+  <text x="624" y="356" class="s">已回 ACK，还没处理</text>
+  <rect x="859" y="304" width="150" height="28" rx="4" class="empty"/>
+  <text x="859" y="356" class="s">这次没用上</text>
+  <rect x="610" y="388" width="450" height="112" rx="6" class="cache"/>
+  <text x="624" y="410" class="t">L1D（本核私有）</text>
+  <rect x="624" y="422" width="422" height="28" rx="4" class="bad"/>
+  <text x="638" y="441" class="code">data</text>
+  <text x="710" y="441" class="code">0</text>
+  <rect x="820" y="427" width="66" height="18" rx="4" class="st"/>
+  <text x="853" y="440.5" class="stt" text-anchor="middle">S</text>
+  <text x="900" y="441" class="red">失效还没处理</text>
+  <rect x="624" y="458" width="422" height="28" rx="4" class="row"/>
+  <text x="638" y="477" class="code">ready</text>
+  <text x="710" y="477" class="code">无 → 1</text>
+  <rect x="820" y="463" width="66" height="18" rx="4" class="st"/>
+  <text x="853" y="476.5" class="stt" text-anchor="middle">I → S</text>
+  <rect x="610" y="518" width="450" height="40" rx="6" class="cache"/>
+  <text x="835" y="543" class="f" text-anchor="middle">L2（本核私有）</text>
+  <!-- Step 5: ready's line goes from core 0 to core 1 -->
+  <line x1="265" y1="500" x2="265" y2="516" class="data"/>
+  <line x1="265" y1="558" x2="265" y2="606" class="data" marker-end="url(#ad)"/>
+  <line x1="835" y1="606" x2="835" y2="562" class="data" marker-end="url(#ad)"/>
+  <line x1="835" y1="518" x2="835" y2="504" class="data" marker-end="url(#ad)"/>
+  <circle cx="810" cy="584" r="11" fill="#0969da"/>
+  <text x="810" y="588.5" class="dt" text-anchor="middle">5</text>
+  <text x="850" y="588" class="lab">ready 的行转给核 1</text>
+  <!-- Step 2: invalidation out of core 0's store buffer, into core 1's invalidate queue; step 3: the ACK back -->
+  <path d="M490,300 H510 V606" class="inv"/>
+  <path d="M590,606 V300 H606" class="inv" marker-end="url(#ai)"/>
+  <path d="M610,344 H570 V606" class="ack"/>
+  <path d="M530,606 V344 H494" class="ack" marker-end="url(#aa)"/>
+  <circle cx="550" cy="430" r="11" fill="#bc4c00"/>
+  <text x="550" y="434.5" class="dt" text-anchor="middle">2</text>
+  <circle cx="550" cy="474" r="11" fill="#1a7f37"/>
+  <text x="550" y="478.5" class="dt" text-anchor="middle">3</text>
+  <circle cx="1020" cy="436" r="11" fill="#cf222e"/>
+  <text x="1020" y="440.5" class="dt" text-anchor="middle">6</text>
+  <text x="1046" y="410" class="red" text-anchor="end">核 1 在这里读到旧值 0</text>
+  <rect x="40" y="608" width="1020" height="40" rx="6" class="ban"/>
+  <text x="550" y="633" class="f" text-anchor="middle">片上互连（环或网格）：失效请求、ACK、整条行，核与核之间都走这里</text>
+  <line x1="550" y1="648" x2="550" y2="672" class="line"/>
+  <rect x="40" y="672" width="1020" height="74" rx="6" class="cache"/>
+  <text x="60" y="698" class="t">L3（全核共享）+ snoop filter</text>
+  <text x="60" y="724" class="s">snoop filter 记着每一行在哪些核里，失效只发给有副本的核（②）。它不会把新值推进别的核：核 1 要用 ready，得自己来取（⑤）。</text>
+  <text x="40" y="786" class="t">按编号走</text>
+  <circle cx="56" cy="812" r="11" fill="#1f2328"/>
+  <text x="56" y="816.5" class="dt" text-anchor="middle">1</text>
+  <text x="78" y="816" class="f">核 0 执行 data = 42：写进 store buffer，指令就退休了，后面的 ready = true 排在它后面。</text>
+  <circle cx="56" cy="840" r="11" fill="#bc4c00"/>
+  <text x="56" y="844.5" class="dt" text-anchor="middle">2</text>
+  <text x="78" y="844" class="f">核 1 也有 data 的副本，得先让它作废：失效请求经互连发出，snoop filter 只把它发给核 1。</text>
+  <circle cx="56" cy="868" r="11" fill="#1a7f37"/>
+  <text x="56" y="872.5" class="dt" text-anchor="middle">3</text>
+  <text x="78" y="872" class="f">核 1 把失效请求放进 invalidate queue，马上回 ACK。L1D 里的 data 没动，还是旧的 0。</text>
+  <circle cx="56" cy="896" r="11" fill="#1f2328"/>
+  <text x="56" y="900.5" class="dt" text-anchor="middle">4</text>
+  <text x="78" y="900" class="f">核 0 收齐 ACK，data 行变 M，42 写进 L1D。ready 只在核 0 的缓存里，不用问别人，接着写进去。</text>
+  <circle cx="56" cy="924" r="11" fill="#0969da"/>
+  <text x="56" y="928.5" class="dt" text-anchor="middle">5</text>
+  <text x="78" y="928" class="f">核 1 读 ready：本地没有这条行，经互连从核 0 取回 1，退出循环。两边的 ready 行都变 S。</text>
+  <circle cx="56" cy="952" r="11" fill="#cf222e"/>
+  <text x="56" y="956.5" class="dt" text-anchor="middle">6</text>
+  <text x="78" y="956" class="f">核 1 读 data：L1D 命中，可失效请求还排在队列里，读到旧值 0。</text>
+  <rect x="40" y="992" width="1020" height="122" rx="6" class="ban"/>
+  <text x="60" y="1016" class="t">⑥ 会不会发生，看 CPU 允许哪些乱序</text>
+  <text x="60" y="1040" class="s">后读的 data 比先读的 ready 还旧，这是读和读乱序（LoadLoad）。x86 不允许它，硬件保证 ⑥ 读到 42。</text>
+  <text x="60" y="1060" class="s">ARM 允许：读 ready 要用 acquire，后面的读才会等失效处理完。ARM 还允许两个写乱序（StoreStore），</text>
+  <text x="60" y="1080" class="s">ready 可能先于 data 被别的核看见，所以写 ready 要用 release。x86 上这段代码也是错的：ready 不是 atomic，</text>
+  <text x="60" y="1100" class="s">编译器可以把循环里的读提到循环外，或者调换两个写。修法：std::atomic&lt;bool&gt; ready，写 release，读 acquire。</text>
+  <text x="40" y="1138" class="s">示意图：只画了两个核、两条行；状态是 MESI 的 M、E、S、I。</text>
+</svg>

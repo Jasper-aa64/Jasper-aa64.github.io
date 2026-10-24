@@ -120,6 +120,10 @@ store buffer 解释了为什么 *A 的* 写会延迟。接收方还有一个镜�
 
 > 图:A 的写一进自己的 store buffer 就退休了,但真正去拿缓存行的 RFO 是异步的。B 的 invalidate queue 吸收这个 RFO,不让 B 的流水线停下,于是一个抢在 B 自己收件箱前面的 load,仍可能看到写之前的值。两个缓冲存在的理由是同一个——别让流水线为一次跨核往返停下来——合起来就是 1.3 里四种乱序的全部物理原因。
 
+把这两个缓冲放回整块芯片上，一次写走过的地方如下图。失效请求经片上互连，只发给缓存里有这条行的核，谁有由 L3 旁的 snoop filter 记着；新值不会被推过去，读方要用时自己来取。图里出错的那一步，是读方先回了 ACK、还没处理失效，于是看到了新的 ready，却读到旧的 data：后一个读比前一个读还旧，属于读和读的乱序。x86 不允许它（1.3），ARM 允许，所以 ARM 上的 acquire 要用真正的指令（1.6）。
+
+<a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/store-path.zh.svg" alt="写（store）的路径，两个核。核 0 执行 data = 42，写先进 store buffer；失效请求经片上互连，snoop filter 只把它发给有副本的核 1；核 1 先放进 invalidate queue，马上回 ACK；核 0 收齐 ACK 才把 42 写进 L1D，接着写 ready。核 1 从核 0 取回 ready = 1，再读 data 时失效还没处理，读到旧值 0。下方说明：这是读和读乱序，x86 不允许，ARM 允许，修法是 ready 用 atomic，写 release、读 acquire。" loading="lazy" decoding="async"></a>
+
 ### 1.3 四种乱序,以及 x86 留下的那一种
 
 在一般的(形式化的)共享内存模型里,对**不同**地址的一个读和一个写,在另一个观察者看来,恰好有四种乱序方式:

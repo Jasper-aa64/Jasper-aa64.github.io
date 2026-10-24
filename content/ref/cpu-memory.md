@@ -2,7 +2,7 @@
 title: "CPU and Memory: Map, Numbers, Estimates"
 description: "Which boxes one memory access passes through, how big and how fast each box is, and how to combine those numbers to estimate the memory time of a piece of code."
 date: 2026-10-08
-lastmod: 2026-10-22
+lastmod: 2026-10-25
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -33,7 +33,11 @@ The **LFB** (line fill buffer) in step 2 is L1D's small table of misses still on
 
 ### 1.2 Stores: Store Buffer and RFO {#store}
 
+<a href="/images/ref/store-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/store-path.en.svg" alt="The store path across two cores. Core 0 runs data = 42 and the store enters its store buffer; the invalidation crosses the on-chip interconnect, and the snoop filter sends it only to core 1, which holds a copy; core 1 queues it in its invalidate queue and ACKs at once; with all ACKs in, core 0 writes 42 into L1D, then writes ready. Core 1 fetches ready = 1 from core 0, then reads data while the invalidation is still queued and gets the old 0. A note below: this is a load-load reordering, forbidden on x86 and allowed on ARM; the fix is an atomic ready with a release store and an acquire load." loading="lazy" decoding="async"></a>
+
 A store first goes into the **store buffer**, so later instructions don't wait for it. Before it can be written into L1D, the core needs exclusive ownership of the line: every copy in another core has to be invalidated (**MESI**), and each of those cores queues the invalidation in its **invalidate queue** first. If the line isn't in the cache, the whole line has to be read in before it can be modified, which is called an **RFO** (read for ownership). So a store miss also moves a whole line from memory. The modified line is written back when evicted, so an ordinary store to a line not in cache crosses the bus twice. A **non-temporal store** skips the read and the cache, writing each completed 64 B line straight to memory in one trip; it suits bulk data nobody reads soon.
+
+The figure follows one store across two cores. The invalidation crosses the on-chip interconnect and goes only to cores that hold the line, which the snoop filter next to L3 keeps track of; the new value is never pushed over, and another core fetches it when it needs it. The other core ACKs as soon as the invalidation is in its invalidate queue, so it can see the later ready and still read the old data. x86 forbids this load-load reordering and ARM allows it, which is why an acquire on ARM takes a real instruction ([2.1](#latency), [#2](/posts/memory-ordering-false-sharing-dependency-chains/)).
 
 ### 1.3 Post Index: Which Post Covers Which Box {#posts}
 
