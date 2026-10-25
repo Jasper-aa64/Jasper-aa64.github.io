@@ -1,23 +1,14 @@
 # Homepage intro, one block per language. Edit here; the templates only lay it out.
 # topics: the one-line intro under the name, shown as "a | b | c".
-# Photo captions are used as alt text only (not shown on the page).
 
 en:
   kicker: "Personal blog"
   hello: "Hi, I'm"
   name: "Jasper"
   topics: ["low-latency C++", "algorithms", "AI-native"]
-  photos:
-    - { src: "/images/hero/hero-2.jpg", caption: "CCPC Jinan, 2025" }
-    - { src: "/images/hero/hero-1.jpg", caption: "Debugging with the team" }
-    - { src: "/images/hero/hero-3.jpg", caption: "Problem E, explained after the contest" }
 
 zh:
   kicker: "个人博客"
   hello: "Hi, I'm"
   name: "JM"
   topics: ["低延迟 C++", "算法", "AI Native"]
-  photos:
-    - { src: "/images/hero/hero-2.jpg", caption: "2025 CCPC 济南站" }
-    - { src: "/images/hero/hero-1.jpg", caption: "和队友一起调代码" }
-    - { src: "/images/hero/hero-3.jpg", caption: "赛后讲题 · Problem E" }
