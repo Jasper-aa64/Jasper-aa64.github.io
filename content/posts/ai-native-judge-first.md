@@ -2,6 +2,7 @@
 title: "AI-Native Work: Judge First, Then Compare"
 date: 2026-10-13
 slug: "ai-native-judge-first"
+draft: true
 description: "Once AI writes most of the code, the plan, the tests and the conclusions tend to go with it, leaving the human to approve and forward. When Jane Street rebuilt its intern curriculum for the AI era, it centered on three things: design, testing and code review. This post turns those three into practices you can start using right away: for each one, write down your own judgment first, then compare it with what the AI produced and log the difference; it ends with how to ask an AI so you come away understanding, not just holding an answer."
 summary: "Hand the code to the AI, keep design, testing and review: write half a page of design yourself, own the tests and make each one prove it can fail, and review blind before reading the AI's review. When you ask, ask “help me understand”, not “solve it for me”."
 categories: [AI, Workflow]
