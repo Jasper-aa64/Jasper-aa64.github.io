@@ -79,7 +79,7 @@ math: true
 | | 无竞争的原子读改写：`fetch_add`、CAS、`exchange`（行在自己的 L1 里） | 约 2–6 ns（8–25 周期）：x86 上是带 `lock` 的指令，ARM 上是 `ldaddal`、`casal` 这类 |
 | | seq_cst 屏障 | 约 2–6 ns（8–25 周期）：x86 上 GCC 编成 `lock or`，ARM 上是 `dmb ish` |
 | | x86 的 `sfence`、`lfence`、`mfence` | 1–6、4–15、30–80 周期，`lfence` 不算等前面指令的时间 |
-| | 自旋等待里的一条 `pause` | 约 10–150 周期，各代差很多：Intel 从 Skylake 起约 140 周期，之前约 10 周期；ARM 没有对应的指令，常用 `yield`（很多核上等于空操作）或 `isb`（见 [#16](/zh/posts/spinlock-implementation/)） |
+| | 自旋等待里的一条 `pause` | 约 140 周期（约 35 ns），现在交易服务器上按这个估；Skylake 之前的 Intel 只有约 10 周期，所以自旋预算按时间算，不按次数；ARM 没有对应的指令，常用 `yield`（很多核上等于空操作）或 `isb`（见 [#16](/zh/posts/spinlock-implementation/)） |
 | | 有竞争的原子读改写（行在别的核那里，要先抢过来） | 约 20–100 ns，抢的核越多越慢；伪共享的计数器也是这一笔 |
 | **运算** | 整数加减、位运算、移位 | 1 周期 |
 | | 整数乘法 | 3 周期 |

@@ -79,7 +79,7 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–6 ns (8–25 cycles): a `lock`-prefixed instruction on x86, `ldaddal`, `casal` and the like on ARM |
 | | seq_cst fence | ~2–6 ns (8–25 cycles): GCC emits `lock or` on x86; `dmb ish` on ARM |
 | | x86's `sfence`, `lfence`, `mfence` | 1–6, 4–15, 30–80 cycles; for `lfence`, not counting the wait for earlier instructions |
-| | One `pause` in a spin-wait loop | ~10–150 cycles, varying a lot by generation: ~140 on Intel since Skylake, ~10 before; ARM has no equivalent and uses `yield` (a no-op on many cores) or `isb` (see [#16](/posts/spinlock-implementation/)) |
+| | One `pause` in a spin-wait loop | ~140 cycles (~35 ns), the number to use on today's trading servers; Intel chips before Skylake take only ~10, so spin budgets count time, not iterations; ARM has no equivalent and uses `yield` (a no-op on many cores) or `isb` (see [#16](/posts/spinlock-implementation/)) |
 | | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete; falsely shared counters pay this too |
 | **Arithmetic** | Integer add/subtract, bit operation, shift | 1 cycle |
 | | Integer multiply | 3 cycles |
