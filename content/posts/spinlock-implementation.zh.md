@@ -74,7 +74,7 @@ private:
 
 ### 1.3 最简单的自旋锁：一个原子变量，循环 CAS
 
-不睡，就是把 `SleepingMutex` 里“进内核睡”那一步换成“再试一次”：
+自旋锁就是一个整数 `locked_`：0 是锁空着，1 是有人拿着。`lock()` 要亲手把它从 0 改成 1，改成了就是自己拿到了锁，可以进临界区；改不成说明别人拿着。`unlock()` 把它写回 0，下一个线程才改得成。不睡，就是把 `SleepingMutex` 里“进内核睡”那一步换成“再试一次”：
 
 ```cpp
 #include <atomic>
@@ -95,9 +95,9 @@ private:
 };
 ```
 
-`compare_exchange_weak(expected, 1, …)` 的意思是：`locked_` 等于 `expected`（0）就改成 1，返回 true；不等就把 `locked_` 的当前值写进 `expected`，返回 false。所以失败以后 `expected` 变成了 1，下一轮之前要改回 0。CAS 这么设计，是因为它最常见的用法是“读出旧值、算出新值、写回去”：失败说明别人刚改过，要拿最新的值重算。失败时顺手把当前值交回来，就省掉一次单独的读，硬件本来也已经读到了它（x86 的 `lock cmpxchg` 失败时把当前值放进 EAX 寄存器，ARM 的独占读先读出了它）。比如把一个原子数翻倍：`int old = x.load(); while (!x.compare_exchange_weak(old, old * 2)) {}`，失败后 `old` 已经是最新值，直接重算。锁的用法正好相反，期望值永远是 0，所以每轮都要改回去。`weak` 允许偶尔“明明相等也报失败”，ARM 上用一对独占读写实现时会这样。外面本来就有循环，用 `weak` 就够了；只判断一次、失败就走的地方才用 `strong`。
+`compare_exchange_weak(expected, 1, …)` 的意思是：`locked_` 等于 `expected`（0）就改成 1，返回 true；不等就把 `locked_` 的当前值写进 `expected`，返回 false。所以失败以后 `expected` 变成了 1，下一轮之前要改回 0。不改回去，下一轮问的就成了“等于 1 就改成 1”：锁明明被别人拿着，这次 CAS 却会成功，两个线程同时进了临界区。CAS 这么设计，是因为它最常见的用法是“读出旧值、算出新值、写回去”：失败说明别人刚改过，要拿最新的值重算。失败时顺手把当前值交回来，就省掉一次单独的读，硬件本来也已经读到了它（x86 的 `lock cmpxchg` 失败时把当前值放进 EAX 寄存器，ARM 的独占读先读出了它）。比如把一个原子数翻倍：`int old = x.load(); while (!x.compare_exchange_weak(old, old * 2)) {}`，失败后 `old` 已经是最新值，直接重算。锁的用法正好相反，期望值永远是 0，所以每轮都要改回去。`weak` 允许偶尔“明明相等也报失败”，ARM 上用一对独占读写实现时会这样。外面本来就有循环，用 `weak` 就够了；只判断一次、失败就走的地方才用 `strong`。
 
-内存序管的是临界区里的读写不能跑到锁外面去（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 的 1.5）。`lock()` 成功的那次 CAS 用 acquire：临界区里的读写不能提到拿锁之前，这样才看得到上一个持锁者写的东西。`unlock()` 的写用 release：临界区里的读写不能拖到放锁之后。两者配成一对，上一个持锁者在临界区里写的，下一个持锁者一定看得到。失败的那几次 CAS 什么也没拿到，用 relaxed 就行。拿锁时不需要 release，它管的是拿锁之前的读写，和临界区无关。
+`compare_exchange_weak` 后面那两个内存序参数，第一个用在 CAS 成功时，第二个用在失败时。内存序管的是临界区里的读写不能跑到锁外面去（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 的 1.5）。`lock()` 成功的那次 CAS 用 acquire：临界区里的读写不能提到拿锁之前，这样才看得到上一个持锁者写的东西。`unlock()` 的写用 release：临界区里的读写不能拖到放锁之后。两者配成一对，上一个持锁者在临界区里写的，下一个持锁者一定看得到。失败的那几次 CAS 什么也没拿到，用 relaxed 就行。拿锁时不需要 release，它管的是拿锁之前的读写，和临界区无关。
 
 用 `exchange` 写更短：`while (locked_.exchange(1, std::memory_order_acquire)) {}`，把 1 写进去、返回旧值，旧值是 0 就说明锁是自己拿到的。这就是测试并设置（test-and-set，TAS）。两种写法每试一次都是一次读改写（read-modify-write，RMW），毛病也一样。
 
