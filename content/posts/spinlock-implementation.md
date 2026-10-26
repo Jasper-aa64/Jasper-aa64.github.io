@@ -45,7 +45,7 @@ private:
 };
 ```
 
-Nobody competing means the state is 0 (unlocked) when `lock()` runs and no other thread tries to take the lock while it is held: the state only moves between 0 and 1 and never reaches 2. Then `lock()` does a single CAS (compare-and-swap: change the value to 1 only if it is 0) and `unlock()` a single `exchange` that turns the 1 back into 0. Both stay in user space and take about 2–6 ns each ([Reference 2.1](/ref/cpu-memory/#latency)); at this point the mutex is as cheap as a spinlock.
+With nobody competing (the state is 0 when `lock()` runs, and no other thread tries to take the lock while it is held, so the state never becomes 2), `lock()` does a single CAS (compare-and-swap: change the value to 1 only if it is 0) and `unlock()` a single `exchange` that turns the 1 back into 0. Both stay in user space and take about 2–6 ns each ([Reference 2.1](/ref/cpu-memory/#latency)); at this point the mutex is as cheap as a spinlock.
 
 The paths split only when the lock is taken. `lock()` first sets the state to 2, meaning "someone is about to sleep", then calls `wait`. On Linux, C++20's `atomic::wait` ends up in the futex (fast userspace mutex) system call: the kernel checks that the integer is still 2, puts the thread on a wait queue keyed by that address, and switches to another thread. The unlocking side sees the old value 2 come back from its `exchange` and calls `notify_one` (another futex call) to wake one waiter. The woken thread has to wait for the scheduler to put it back on a core before it can run its `exchange` and try again. The glibc mutex underneath `std::mutex` uses the same three states.
 
