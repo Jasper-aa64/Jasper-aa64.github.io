@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 860" width="1100" height="860" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif">
+  <defs>
+    <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#bc4c00"/>
+    </marker>
+    <style>
+      .t    { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s    { font-size: 12.5px; fill: #57606a; }
+      .h    { font-size: 21px; font-weight: 700; fill: #1f2328; }
+      .f    { font-size: 13px; fill: #1f2328; }
+      .lab  { font-size: 12px; fill: #57606a; }
+      .code { font-family: Consolas, Menlo, monospace; font-size: 14px; font-weight: 700; fill: #1f2328; }
+      .cs   { font-family: Consolas, Menlo, monospace; font-size: 12.5px; fill: #1f2328; }
+      .box  { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .ret  { fill: #eaeef2; stroke: #8c959f; stroke-width: 1.2; }
+      .ran  { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .pz   { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .empty{ fill: none; stroke: #afb8c1; stroke-width: 1.2; stroke-dasharray: 4 3; }
+      .ban  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .flush{ fill: #ff818226; stroke: #cf222e; stroke-width: 2; stroke-dasharray: 7 4; }
+      .red  { font-size: 13px; font-weight: 600; fill: #cf222e; }
+      .inv  { stroke: #bc4c00; stroke-width: 2; fill: none; }
+      .sep  { stroke: #d0d7de; stroke-width: 1.2; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="860" fill="#ffffff"/>
+  <text x="40" y="40" class="h">What the waiting core's ROB holds when the lock is released</text>
+  <text x="40" y="66" class="s">Each box is one load in the ROB (reorder buffer), oldest on the left; they retire in this order. Core 0 releases, core 1 waits.</text>
+  <!-- Panel A: the empty loop has run ahead by many laps -->
+  <text x="40" y="112" class="code">Empty loop: while (locked_.load(...)) {}</text>
+  <rect x="40" y="130" width="300" height="40" rx="6" class="box"/>
+  <text x="190" y="155" class="f" text-anchor="middle">Core 0 releases: locked_ = false</text>
+  <line x1="190" y1="170" x2="190" y2="226" class="inv" marker-end="url(#ai)"/>
+  <text x="202" y="204" class="lab">① Invalidation: locked_ is now false</text>
+  <text x="1054" y="220" class="lab" text-anchor="end">Core 1's ROB: oldest on the left →</text>
+  <rect x="40" y="230" width="96" height="60" rx="5" class="ret"/>
+  <text x="88.0" y="254" class="lab" text-anchor="middle">lap 1</text>
+  <text x="88.0" y="275" class="lab" text-anchor="middle">retired</text>
+  <rect x="142" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="190.0" y="254" class="lab" text-anchor="middle">lap 2</text>
+  <text x="190.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="244" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="292.0" y="254" class="lab" text-anchor="middle">lap 3</text>
+  <text x="292.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="346" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="394.0" y="254" class="lab" text-anchor="middle">lap 4</text>
+  <text x="394.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="448" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="496.0" y="254" class="lab" text-anchor="middle">lap 5</text>
+  <text x="496.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="550" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="598.0" y="254" class="lab" text-anchor="middle">lap 6</text>
+  <text x="598.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="652" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="700.0" y="254" class="lab" text-anchor="middle">lap 7</text>
+  <text x="700.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="754" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="802.0" y="254" class="lab" text-anchor="middle">lap 8</text>
+  <text x="802.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="856" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="904.0" y="254" class="lab" text-anchor="middle">lap 9</text>
+  <text x="904.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="958" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="1006.0" y="254" class="lab" text-anchor="middle">lap 10</text>
+  <text x="1006.0" y="275" class="cs" text-anchor="middle">load → true</text>
+  <rect x="137" y="225" width="922" height="70" rx="7" class="flush"/>
+  <text x="40" y="324" class="red">② These 9 loads were issued early on the guess "keep spinning" and already got the old true, but in program order they should see false.</text>
+  <text x="40" y="346" class="red">The core can't prove they kept loads in order, so it throws away everything from lap 2 on and reruns it: a memory ordering machine clear, tens of cycles.</text>
+  <text x="40" y="376" class="f">③ The rerun load gets false and the loop should exit, but the predictor kept guessing "keep spinning": one more mispredict, one more flush.</text>
+  <line x1="40" y1="410" x2="1060" y2="410" class="sep"/>
+  <!-- Panel B: pause keeps the next lap from starting -->
+  <text x="40" y="446" class="code">With pause: while (locked_.load(...)) _mm_pause();</text>
+  <rect x="424" y="464" width="300" height="40" rx="6" class="box"/>
+  <text x="574" y="489" class="f" text-anchor="middle">Core 0 releases: locked_ = false</text>
+  <line x1="574" y1="504" x2="574" y2="560" class="inv" marker-end="url(#ai)"/>
+  <text x="586" y="538" class="lab">① Invalidation: locked_ is now false</text>
+  <rect x="40" y="564" width="96" height="60" rx="5" class="ret"/>
+  <text x="88.0" y="588" class="lab" text-anchor="middle">lap 1</text>
+  <text x="88.0" y="609" class="lab" text-anchor="middle">retired</text>
+  <rect x="142" y="564" width="378" height="60" rx="5" class="pz"/>
+  <text x="331.0" y="588" class="f" text-anchor="middle">pause: waits about 140 cycles; the next lap hasn't started</text>
+  <rect x="526" y="564" width="96" height="60" rx="5" class="empty"/>
+  <text x="574.0" y="588" class="lab" text-anchor="middle">lap 2</text>
+  <text x="574.0" y="609" class="lab" text-anchor="middle">not issued</text>
+  <rect x="628" y="564" width="426" height="60" rx="5" class="empty"/>
+  <text x="841" y="599" class="lab" text-anchor="middle">later instructions not in yet</text>
+  <text x="40" y="660" class="f">① When the invalidation arrives, no loads ran ahead: the last one has retired, the next isn't issued, so there is nothing to throw away.</text>
+  <text x="40" y="684" class="f">② After the pause the next load gets false and the loop exits. Only the one mispredict is left.</text>
+  <rect x="40" y="716" width="1020" height="104" rx="6" class="ban"/>
+  <text x="60" y="742" class="t">The cost</text>
+  <text x="60" y="768" class="s">The release may land in the middle of a pause, and the next load waits for it to end: up to about 140 cycles (about 35 ns) late.</text>
+  <text x="60" y="790" class="s">In return the flush is gone, spinning uses less power, and with SMT the sibling thread gets the execution units.</text>
+</svg>

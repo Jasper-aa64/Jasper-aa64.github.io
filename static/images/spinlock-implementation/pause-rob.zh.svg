@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 860" width="1100" height="860" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#bc4c00"/>
+    </marker>
+    <style>
+      .t    { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s    { font-size: 12.5px; fill: #57606a; }
+      .h    { font-size: 21px; font-weight: 700; fill: #1f2328; }
+      .f    { font-size: 13px; fill: #1f2328; }
+      .lab  { font-size: 12px; fill: #57606a; }
+      .code { font-family: Consolas, Menlo, monospace; font-size: 14px; font-weight: 700; fill: #1f2328; }
+      .cs   { font-family: Consolas, Menlo, monospace; font-size: 12.5px; fill: #1f2328; }
+      .box  { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .ret  { fill: #eaeef2; stroke: #8c959f; stroke-width: 1.2; }
+      .ran  { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .pz   { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .empty{ fill: none; stroke: #afb8c1; stroke-width: 1.2; stroke-dasharray: 4 3; }
+      .ban  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .flush{ fill: #ff818226; stroke: #cf222e; stroke-width: 2; stroke-dasharray: 7 4; }
+      .red  { font-size: 13px; font-weight: 600; fill: #cf222e; }
+      .inv  { stroke: #bc4c00; stroke-width: 2; fill: none; }
+      .sep  { stroke: #d0d7de; stroke-width: 1.2; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="860" fill="#ffffff"/>
+  <text x="40" y="40" class="h">锁放开的那一刻，等锁的核的 ROB 里有什么</text>
+  <text x="40" y="66" class="s">每格是 ROB（重排序缓冲）里的一条读，左边老、右边新，按这个顺序退休。核 0 放锁，核 1 在等。</text>
+  <!-- Panel A: the empty loop has run ahead by many laps -->
+  <text x="40" y="112" class="code">空循环：while (locked_.load(...)) {}</text>
+  <rect x="40" y="130" width="300" height="40" rx="6" class="box"/>
+  <text x="190" y="155" class="f" text-anchor="middle">核 0 放锁：写 locked_ = false</text>
+  <line x1="190" y1="170" x2="190" y2="226" class="inv" marker-end="url(#ai)"/>
+  <text x="202" y="204" class="lab">① 失效请求：locked_ 已经是 false</text>
+  <text x="1054" y="220" class="lab" text-anchor="end">核 1 的 ROB：左边老，右边新 →</text>
+  <rect x="40" y="230" width="96" height="60" rx="5" class="ret"/>
+  <text x="88.0" y="254" class="lab" text-anchor="middle">第 1 圈</text>
+  <text x="88.0" y="275" class="lab" text-anchor="middle">已退休</text>
+  <rect x="142" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="190.0" y="254" class="lab" text-anchor="middle">第 2 圈</text>
+  <text x="190.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="244" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="292.0" y="254" class="lab" text-anchor="middle">第 3 圈</text>
+  <text x="292.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="346" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="394.0" y="254" class="lab" text-anchor="middle">第 4 圈</text>
+  <text x="394.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="448" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="496.0" y="254" class="lab" text-anchor="middle">第 5 圈</text>
+  <text x="496.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="550" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="598.0" y="254" class="lab" text-anchor="middle">第 6 圈</text>
+  <text x="598.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="652" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="700.0" y="254" class="lab" text-anchor="middle">第 7 圈</text>
+  <text x="700.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="754" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="802.0" y="254" class="lab" text-anchor="middle">第 8 圈</text>
+  <text x="802.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="856" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="904.0" y="254" class="lab" text-anchor="middle">第 9 圈</text>
+  <text x="904.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="958" y="230" width="96" height="60" rx="5" class="ran"/>
+  <text x="1006.0" y="254" class="lab" text-anchor="middle">第 10 圈</text>
+  <text x="1006.0" y="275" class="cs" text-anchor="middle">读 → true</text>
+  <rect x="137" y="225" width="922" height="70" rx="7" class="flush"/>
+  <text x="40" y="324" class="red">② 这 9 次读都是按“还要再转”提前发出去的，早就拿到了旧值 true，按程序顺序却该看到 false。</text>
+  <text x="40" y="346" class="red">核没法证明它们守住了“读和读不乱序”，只好从第 2 圈起全部扔掉、重新执行：内存序冲刷，几十个周期。</text>
+  <text x="40" y="376" class="f">③ 重新执行的读拿到 false，循环该退出了，可分支预测一直猜“还要再转”，这里又猜错一次，再冲一次。</text>
+  <line x1="40" y1="410" x2="1060" y2="410" class="sep"/>
+  <!-- Panel B: pause keeps the next lap from starting -->
+  <text x="40" y="446" class="code">加 pause：while (locked_.load(...)) _mm_pause();</text>
+  <rect x="424" y="464" width="300" height="40" rx="6" class="box"/>
+  <text x="574" y="489" class="f" text-anchor="middle">核 0 放锁：写 locked_ = false</text>
+  <line x1="574" y1="504" x2="574" y2="560" class="inv" marker-end="url(#ai)"/>
+  <text x="586" y="538" class="lab">① 失效请求：locked_ 已经是 false</text>
+  <rect x="40" y="564" width="96" height="60" rx="5" class="ret"/>
+  <text x="88.0" y="588" class="lab" text-anchor="middle">第 1 圈</text>
+  <text x="88.0" y="609" class="lab" text-anchor="middle">已退休</text>
+  <rect x="142" y="564" width="378" height="60" rx="5" class="pz"/>
+  <text x="331.0" y="588" class="f" text-anchor="middle">pause：停约 140 个周期，下一圈还没开始</text>
+  <rect x="526" y="564" width="96" height="60" rx="5" class="empty"/>
+  <text x="574.0" y="588" class="lab" text-anchor="middle">第 2 圈</text>
+  <text x="574.0" y="609" class="lab" text-anchor="middle">还没发出</text>
+  <rect x="628" y="564" width="426" height="60" rx="5" class="empty"/>
+  <text x="841" y="599" class="lab" text-anchor="middle">后面的指令还没进来</text>
+  <text x="40" y="660" class="f">① 失效请求来的时候，流水线里没有偷跑的读：上一次读已经退休，下一次还没发出，没东西要扔。</text>
+  <text x="40" y="684" class="f">② pause 停完，下一次读直接拿到 false，退出循环。只剩这一次分支猜错。</text>
+  <rect x="40" y="716" width="1020" height="104" rx="6" class="ban"/>
+  <text x="60" y="742" class="t">代价</text>
+  <text x="60" y="768" class="s">锁放开时可能正停在 pause 里，要等它停完才去读，最多晚约 140 个周期（约 35 ns）。</text>
+  <text x="60" y="790" class="s">换来的是省掉一次冲刷，转得省电，开超线程时把执行单元让给兄弟线程。</text>
+</svg>
