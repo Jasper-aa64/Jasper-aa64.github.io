@@ -11,7 +11,7 @@ toc: true
 math: true
 ---
 
-Updating one level of an order book or copying a market data snapshot takes tens of nanoseconds. Guard it with `std::mutex`, and a thread that finds the lock taken gets suspended and woken again once the lock is free. That sleep and wake-up costs microseconds, a hundred times the critical section itself. A spinlock simply doesn't sleep: a thread that can't get the lock stays where it is and keeps looking, and takes over the moment the lock is released.
+Code such as updating one level of an order book or copying a market data snapshot has to be guarded by a lock; it is called a critical section (the stretch between `lock()` and `unlock()`), and one run of it takes tens of nanoseconds. Guard it with `std::mutex`, and a thread that finds the lock taken gets suspended and woken again once the lock is free. That sleep and wake-up costs microseconds, a hundred times the critical section itself. A spinlock simply doesn't sleep: a thread that can't get the lock stays where it is and keeps looking, and takes over the moment the lock is released.
 
 How it keeps looking decides whether the lock is fast. Look the wrong way and the waiting cores drag the lock's cache line back and forth, slowing down even the core that holds the lock; when the lock is freed, they all rush at it together. Remove these problems one by one and you have a usable spinlock. Before writing any of it, though, it helps to see where the cost of sleeping comes from, and when spinning beats sleeping.
 
@@ -49,7 +49,7 @@ With nobody competing (the state is 0 when `lock()` runs, and no other thread tr
 
 The paths split only when the lock is taken. `lock()` first sets the state to 2, meaning "a thread is waiting for this lock; wake it when you release", and then this thread calls `wait` and goes to sleep. On Linux, C++20's `atomic::wait` ends up in the futex (fast userspace mutex) system call: the kernel checks that the integer is still 2, puts the thread on a wait queue keyed by that address, and switches to another thread. The unlocking side sees the old value 2 come back from its `exchange` and calls `notify_one` (another futex call) to wake one waiter. The woken thread has to wait for the scheduler to put it back on a core before it can run its `exchange` and try again. The glibc mutex underneath `std::mutex` uses the same three states.
 
-That round trip costs two system calls (about 0.1–0.5 µs each) plus two thread switches, out and back in, for the waiter (about 1–5 µs each, plus the cost of caches another thread has flushed). If the waiter's core had dropped into a power-saving state, waking it takes longer still ([#1](/posts/cpu-affinity-core-isolation-numa/), section 2.2). Altogether, from the unlock until the waiter actually runs again takes about 2–10 µs. The critical section is tens of nanoseconds, so one sleep pays for a hundred runs of it, and that is why spinlocks exist.
+That round trip costs two system calls (about 0.1–0.5 µs each) plus two thread switches, out and back in, for the waiter (about 1–5 µs each, plus the cost of caches another thread has flushed). If the waiter's core had dropped into a power-saving state, waking it takes longer still ([#1](/posts/cpu-affinity-core-isolation-numa/), section 2.2). Altogether, from the unlock until the waiter actually runs again takes about 2–10 µs. One run of the critical section takes tens of nanoseconds, so one sleep pays for a hundred runs of it, and that is why spinlocks exist.
 
 ### 1.2 When Spinning Pays: The Holder Must Keep Running
 
