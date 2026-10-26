@@ -2,7 +2,7 @@
 title: "Trading System Notes #16: Spinlocks"
 date: 2026-10-21
 slug: "spinlock-implementation"
-description: "When a critical section takes tens of nanoseconds, std::mutex goes to sleep in the kernel (futex) as soon as the lock is taken, and a sleep plus a wake-up costs microseconds. A spinlock never sleeps, but it only pays while the lock holder keeps running. The simplest CAS loop takes the lock's cache line exclusively on every attempt, so waiters fight over the line and even the holder has to queue to release it; test-and-test-and-set lets each waiter read its own copy; PAUSE in the loop avoids a pipeline flush the moment the lock is freed; and exponential backoff spreads out the rush when it is released."
+description: "When a lock is held for tens to a couple of hundred nanoseconds, std::mutex goes to sleep in the kernel (futex) as soon as the lock is taken, and a sleep plus a wake-up costs microseconds. A spinlock never sleeps, but it only pays while the lock holder keeps running. The simplest CAS loop takes the lock's cache line exclusively on every attempt, so waiters fight over the line and even the holder has to queue to release it; test-and-test-and-set lets each waiter read its own copy; PAUSE in the loop avoids a pipeline flush the moment the lock is freed; and exponential backoff spreads out the rush when it is released."
 summary: "Whether a spinlock is fast depends on what its waiters do: if every attempt is a read-modify-write, they drag the lock's line back and forth. Read before you grab, put PAUSE in the loop, back off after losing, and waiting costs the holder almost nothing."
 chapter: 1
 categories: [Systems]
@@ -11,7 +11,16 @@ toc: true
 math: true
 ---
 
-Code such as updating one level of an order book or copying a market data snapshot has to be guarded by a lock; it is called a critical section (the stretch between `lock()` and `unlock()`), and one run of it takes tens of nanoseconds: updating a level means finding it and adding a quantity, about ten instructions; copying a 10-level snapshot means copying about 5 cache lines; with the data in the core's own cache, each takes a few to a dozen or so nanoseconds, plus one atomic operation each to lock and unlock (about 2–6 ns each). When other threads are competing too, the lock's cache line and any data line another core just modified must first be pulled over from that core, about 20–100 ns per line, and one run grows to one or two hundred nanoseconds. Guard it with `std::mutex`, and a thread that finds the lock taken gets suspended and woken again once the lock is free. That sleep and wake-up costs microseconds, 10 to a hundred or more times the critical section itself. A spinlock simply doesn't sleep: a thread that can't get the lock stays where it is and keeps looking, and takes over the moment the lock is released.
+Code such as updating one level of an order book or copying a market data snapshot has to be guarded by a lock; it is called a critical section (the stretch between `lock()` and `unlock()`). How long a thread takes to get the lock, run the critical section and release the lock, broken down:
+
+| Step while holding the lock | What actually happens | Nobody competing (data in the core's own cache) | Others competing (lines come from another core) |
+|---|---|---|---|
+| Lock | One CAS | about 2–6 ns | about 20–100 ns: the previous holder's core just wrote the lock's line |
+| Update one order book level | Find the level by price, add the quantity, write it back: about ten instructions | a few to a dozen or so ns | about 20–200 ns: another core just modified the one or two lines holding the level |
+| Copy a 10-level snapshot | 10 levels per side, an 8 B price and an 8 B quantity each, 320 B in all, about 5 cache lines | a dozen or so ns | tens of ns to one or two hundred: the 5 lines can be fetched at the same time |
+| Unlock | One `exchange` | about 2–6 ns | about 20–100 ns: waiting cores hold copies of the line, which must be invalidated first |
+
+A critical section does one of the two middle rows, plus the lock and the unlock, so the lock is held for tens of nanoseconds with nobody competing and one or two hundred with others competing. Guard the critical section with `std::mutex`, and a thread that finds the lock taken gets suspended and woken again once the lock is free. That sleep and wake-up costs microseconds, 10 to a hundred or more times the time the lock is held. A spinlock simply doesn't sleep: a thread that can't get the lock stays where it is and keeps looking, and takes over the moment the lock is released.
 
 How it keeps looking decides whether the lock is fast. Look the wrong way and the waiting cores drag the lock's cache line back and forth, slowing down even the core that holds the lock; when the lock is freed, they all rush at it together. Remove these problems one by one and you have a usable spinlock. Before writing any of it, though, it helps to see where the cost of sleeping comes from, and when spinning beats sleeping.
 
@@ -49,11 +58,11 @@ With nobody competing (the state is 0 when `lock()` runs, and no other thread tr
 
 The paths split only when the lock is taken. `lock()` first sets the state to 2, meaning "a thread is waiting for this lock; wake it when you release", and then this thread calls `wait` and goes to sleep. On Linux, C++20's `atomic::wait` ends up in the futex (fast userspace mutex) system call: the kernel checks that the integer is still 2, puts the thread on a wait queue keyed by that address, and switches to another thread. The unlocking side sees the old value 2 come back from its `exchange` and calls `notify_one` (another futex call) to wake one waiter. The woken thread has to wait for the scheduler to put it back on a core before it can run its `exchange` and try again. The glibc mutex underneath `std::mutex` uses the same three states.
 
-That round trip costs two system calls (about 0.1–0.5 µs each) plus two thread switches, out and back in, for the waiter (about 1–5 µs each, plus the cost of caches another thread has flushed). If the waiter's core had dropped into a power-saving state, waking it takes longer still ([#1](/posts/cpu-affinity-core-isolation-numa/), section 2.2). Altogether, from the unlock until the waiter actually runs again takes about 2–10 µs. But one run of the critical section takes only tens of nanoseconds: the lock comes free after tens of nanoseconds, yet the thread that went to sleep takes over only microseconds later, 10 to a hundred or more times too late. A thread that stays awake and keeps watching the lock takes over the moment it comes free, and that is why spinlocks exist.
+That round trip costs two system calls (about 0.1–0.5 µs each) plus two thread switches, out and back in, for the waiter (about 1–5 µs each, plus the cost of caches another thread has flushed). If the waiter's core had dropped into a power-saving state, waking it takes longer still ([#1](/posts/cpu-affinity-core-isolation-numa/), section 2.2). Altogether, from the unlock until the waiter actually runs again takes about 2–10 µs. But the lock is held for only tens to a couple of hundred nanoseconds: it comes free soon, yet the thread that went to sleep takes over only microseconds later, 10 to a hundred or more times too late. A thread that stays awake and keeps watching the lock takes over the moment it comes free, and that is why spinlocks exist.
 
 ### 1.2 When Spinning Pays: The Holder Must Keep Running
 
-Spinning beats sleeping because the lock will be released soon. That takes two conditions: the holder keeps running, and the critical section is short. If either fails, spinning just burns CPU.
+Spinning beats sleeping because the lock will be released soon. That takes two conditions: the holder keeps running, and the lock is held only briefly. If either fails, spinning just burns CPU.
 
 The first one fails through scheduling. If the holder is taken off the CPU (its time slice ran out, another thread preempted it, it is waiting for I/O), the lock stops with it, and the waiting cores spin for nothing, for a whole time slice: milliseconds, far more than one sleep. It gets worse when a waiter and the holder share a core: the waiter occupies the core spinning, the holder can't get scheduled, and the lock can't be released until the time slice ends. That is why user-space spinlocks always come with pinning: every thread that touches the lock gets its own isolated core ([#1](/posts/cpu-affinity-core-isolation-numa/), section 1.2), so the OS has no reason to take the holder off its core.
 
@@ -96,7 +105,7 @@ The memory orders keep the critical section's reads and writes from leaking out 
 
 An RMW is a write. On x86 the CAS compiles to `lock cmpxchg`, which brings the line into this core in exclusive state (MESI's M or E) whether or not the comparison succeeds, writing the old value back when it fails. On ARM it becomes an instruction like `casal`, again an RMW on that one line. So with 3 cores waiting, each of them steals the line from another core on every spin, at about 20–100 ns per steal ([Reference 2.6](/ref/cpu-memory/#cross-core)). The line travels between the waiting cores nonstop.
 
-Moving the line is only waste in itself; the real damage is that it gets in the holder's way. To release the lock, the holder has to write `locked_`, so it too must get the line back, queued behind the waiters' RMWs: the lock should have been released long ago, but the releasing store still hasn't landed. If the protected data shares the line with `locked_`, every write to the data inside the critical section has to steal the line too, and the critical section itself gets longer. The second problem is easy to fix by giving the lock its own line (`alignas(64)`, [#6](/posts/alignment-layout-cache-dram-geometry/)); the first one needs a different way of waiting.
+Moving the line is only waste in itself; the real damage is that it gets in the holder's way. To release the lock, the holder has to write `locked_`, so it too must get the line back, queued behind the waiters' RMWs: the lock should have been released long ago, but the releasing store still hasn't landed. If the protected data shares the line with `locked_`, every write to the data inside the critical section has to steal the line too, and the lock is held longer. The second problem is easy to fix by giving the lock its own line (`alignas(64)`, [#6](/posts/alignment-layout-cache-dram-geometry/)); the first one needs a different way of waiting.
 
 ### 1.5 TTAS: Read First, Grab Only When It Looks Free
 
@@ -152,11 +161,11 @@ Don't use `std::this_thread::yield()` instead. On Linux it is the `sched_yield` 
 
 ### 1.7 The Moment of Release: Every Waiter Rushes at Once
 
-TTAS makes the hold quiet, but the release is still chaotic. Once the lock is freed, all 3 waiters read `false` and go back to the first line to `exchange` almost at once. Only the first one succeeds and the other 2 fail, yet every `exchange` pulls the line over, failed ones included. The more waiters, the longer this burst of RMWs; if the new owner's critical section is short, its releasing store has to queue behind the burst. So each handover takes time roughly linear in the number of waiting cores $N$:
+TTAS makes the hold quiet, but the release is still chaotic. Once the lock is freed, all 3 waiters read `false` and go back to the first line to `exchange` almost at once. Only the first one succeeds and the other 2 fail, yet every `exchange` pulls the line over, failed ones included. The more waiters, the longer this burst of RMWs; if the new owner holds the lock only briefly, its releasing store has to queue behind the burst. So each handover takes time roughly linear in the number of waiting cores $N$:
 
 $$t_{\text{handover}} \approx N \times t_{\text{line}}, \qquad t_{\text{line}} \approx 20\text{–}100\ \text{ns}$$
 
-With 4 cores waiting, one handover takes about 80–400 ns, longer than the critical section itself.
+With 4 cores waiting, one handover takes about 80–400 ns, longer than holding the lock once.
 
 One remedy is to step back after losing:
 
