@@ -45,7 +45,7 @@ private:
 };
 ```
 
-没人争的时候，`lock()` 只做一次 CAS（compare-and-swap，比较并交换：值等于 0 才改成 1），`unlock()` 只做一次 `exchange`。两次都在用户态，各约 2–6 ns（[速查 2.1](/zh/ref/cpu-memory/#latency)），这时它和自旋锁一样便宜。
+没人争，指 `lock()` 时状态是 0（没锁），持锁期间也没有别的线程来抢：状态只在 0 和 1 之间变，到不了 2。这时 `lock()` 只做一次 CAS（compare-and-swap，比较并交换：值等于 0 才改成 1），`unlock()` 只做一次 `exchange`，把 1 改回 0。两次都在用户态，各约 2–6 ns（[速查 2.1](/zh/ref/cpu-memory/#latency)），这时它和自旋锁一样便宜。
 
 抢不到时才分岔。`lock()` 先把状态改成 2，表示“有人要睡了”，再调 `wait`。C++20 的 `atomic::wait` 在 Linux 上落到 futex（fast userspace mutex）系统调用：内核核对这个整数还是 2，就把线程挂到这个地址的等待队列上，切去跑别的线程。放锁的一方从 `exchange` 拿到的旧值是 2，就用 `notify_one`（还是 futex）叫醒一个。被叫醒的线程要等调度器把它放回某个核，才能接着执行 `exchange` 去抢。`std::mutex` 底下的 glibc 互斥锁用的也是这三个状态。
 
