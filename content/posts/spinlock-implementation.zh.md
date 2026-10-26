@@ -2,16 +2,16 @@
 title: "交易系统笔记 #16：自旋锁"
 date: 2026-10-21
 slug: "spinlock-implementation"
-description: "锁只持几十到一两百 ns 时，std::mutex 抢不到锁就进内核睡（futex），一睡一醒要几 µs。自旋锁不睡，但只在持锁的线程一直在跑时才划算。最简单的 CAS 循环每试一次都要独占锁所在的缓存行，等锁的核把行抢来抢去，持锁的核放锁也要排队；先读后抢（TTAS）让等的核各读各的副本；循环里加 PAUSE，锁放开那一刻不用冲刷流水线；放锁时一群核同时冲，用指数退避错开。"
+description: "锁只持几十到一两百 ns 时，std::mutex 抢不到锁就进内核睡（futex），一睡一醒要几 µs。自旋锁不睡，但只在持锁的线程一直在跑时才划算。最简单的 CAS 循环每试一次都要独占锁所在的缓存行，等锁的核把行抢来抢去，持锁的核放锁也要排队；先读后抢（TTAS）让等的核各读各的副本；循环里加 PAUSE，锁放开那一刻不用冲刷流水线；放锁时一群核同时冲，用指数退避错开。第 2 部分：票据锁按先来后到排队，MCS 锁让每个核盯自己的那条行，放锁只惊动下一个；读写锁读得短时不比互斥锁快；umonitor / umwait 和 WFE 让等的核停下来，等那条行被写了再醒。"
 summary: "自旋锁快不快，看等锁的核在干什么：每次都读改写，就把锁所在的行抢来抢去；先读后抢、循环里加 PAUSE、抢输了退一步，等的时候才几乎不打扰持锁的核。"
 chapter: 1
 categories: [Systems]
-tags: [cpp, spinlock, atomics, futex, mesi, pause, hft, low-latency]
+tags: [cpp, spinlock, atomics, futex, mesi, pause, ticket-lock, mcs-lock, rwlock, umwait, hft, low-latency]
 toc: true
 math: true
 ---
 
-改订单簿的一档、拷一份行情快照，这类代码要加锁保护，叫临界区（`lock()` 和 `unlock()` 之间的那一段），持锁时间只有几十到一两百 ns。用 `std::mutex` 护着临界区，用 `std::mutex` 护着临界区，没抢到锁的线程会被挂起，锁放开后再被叫醒，一睡一醒要几 µs，是持锁时间的 10 倍到上百倍。自旋锁（spinlock）的办法是不睡：抢不到就留在原地反复看，锁一放开立刻接手。
+改订单簿的一档、拷一份行情快照，这类代码要加锁保护，叫临界区（`lock()` 和 `unlock()` 之间的那一段），持锁时间只有几十到一两百 ns。用 `std::mutex` 护着临界区，没抢到锁的线程会被挂起，锁放开后再被叫醒，一睡一醒要几 µs，是持锁时间的 10 倍到上百倍。自旋锁（spinlock）的办法是不睡：抢不到就留在原地反复看，锁一放开立刻接手。
 
 “反复看”怎么看，决定了这把锁快不快。看的方式不对，等锁的核会把锁所在的那条缓存行抢来抢去，连正拿着锁的核都被拖慢；锁放开时，它们又一窝蜂同时去抢。把这些问题一个个去掉，就是一把能用的自旋锁。不过动手之前要先弄清楚，睡到底贵在哪里，什么时候转比睡划算。
 
@@ -201,7 +201,182 @@ private:
 
 每输一次，下次多歇一倍（指数退避），各个核回来的时间就错开了，同时冲的少了。歇着多半不添延迟：输了，说明锁刚被别的核拿走，它要持锁一整段；后面要是还有别的核在等，自己轮到之前本来就要等好几段。歇的时间不超过这段反正要等的时间，自己并不更晚，只是少挤了一次抢行。输得越多，说明抢的核越多、前面要等得越久，歇的就该越长，所以翻倍。实际的实现还会给歇的长度加一点随机，免得几个核步调一致，又撞在一起。歇过了头才真添延迟：锁放开时自己还在歇，锁空在那里没人拿，或者被后来的核拿走。只有一两个核在抢时，前面本来没几段要等，退避省下的抢行少，添的延迟却实打实，上限要设得小。上限也要按时间想：64 次 `pause` 约 3 µs，换到 `pause` 只有十来个周期的老机器上只剩约 0.2 µs。退避还让锁更偏心：输得多的核歇得久，下次更难赢；刚来的核从歇 1 次开始，反应最快。运气差的核可能一直输下去，这叫饿死（starvation）。上限保证它每隔一段总会回来抢，但不保证抢得到。
 
-等的核一多，退避也只是缓解。根本的办法是让每个等的核在自己的那条行上转、按先来后到一个一个交接，放锁时只惊动下一个，排队锁（票据锁、MCS 锁）就是这么做的。不过在交易系统里，一把锁经常有好几个核在抢，本身就说明设计该改了：改成只有一个线程写，别的线程把要改的东西通过队列交给它（[#4](/zh/posts/lock-free-queue-logger-micro-batching/)、[#5](/zh/posts/spmc-shared-memory-broadcast-ring/)），比把锁写得再好都管用。
+等的核一多，退避也只是缓解。根本的办法是排队：按先来后到一个一个交接（票据锁，2.1），再让每个等的核在自己的那条行上转，放锁时只惊动下一个（MCS 锁，2.2）。不过在交易系统里，一把锁经常有好几个核在抢，本身就说明设计该改了：改成只有一个线程写，别的线程把要改的东西通过队列交给它（[#4](/zh/posts/lock-free-queue-logger-micro-batching/)、[#5](/zh/posts/spmc-shared-memory-broadcast-ring/)），比把锁写得再好都管用。
+
+## 2. 很多核一起等：票据锁、MCS 锁、读写锁和地址监控等待
+
+### 2.1 票据锁（ticket lock）：取号排队
+
+1.7 留下两个问题：放锁时等的核一起冲，交接时间随等的核数线性增长；谁抢到全凭运气，运气差的核会饿死。两个问题出在同一处：锁只有“空”和“占”两种状态，放锁时所有等的核看到的是同一件事“空了”，只能一起去抢。票据锁让每个等的核等的是不同的事：
+
+```cpp
+class TicketSpinLock {
+public:
+    void lock() {
+        unsigned my = next_.fetch_add(1, std::memory_order_relaxed);  // 取号
+        while (serving_.load(std::memory_order_acquire) != my) cpu_relax();  // 等叫到自己
+    }
+    void unlock() {
+        // 只有持锁的线程会改 serving_，读出来加 1 再写回去就行，不用读改写
+        serving_.store(serving_.load(std::memory_order_relaxed) + 1, std::memory_order_release);
+    }
+
+private:
+    alignas(64) std::atomic<unsigned> next_{0};     // 取号机：每来一个线程加 1
+    alignas(64) std::atomic<unsigned> serving_{0};  // 叫号屏：等的线程都在读它
+};
+```
+
+像银行叫号。来一个线程，先在 `next_` 上 `fetch_add` 取一个号：这是一次读改写，返回加之前的值，所以每个线程拿到的号都不同。然后它盯着 `serving_`，等叫到自己的号。放锁就是把 `serving_` 加 1，叫下一个号。`serving_` 只有持锁的线程会改，没人和它抢，读出来加 1 再写回去就行，x86 上是一条普通的 `mov`；用 `fetch_add` 也对，但那是一次带 `lock` 前缀的读改写，多花约 2–6 ns。`next_` 和 `serving_` 各占一条行：放在一起的话，每来一个线程取号，`fetch_add` 都要把这条行独占过去，正在读 `serving_` 的核手里的副本跟着作废，持锁期间也不得安静。
+
+放锁时，所有等的核还是都要重读 `serving_`：这条行被写了，它们的副本都作废，各自再读一次，N 个核就是 N 次读不命中。但读到新值以后，只有号对上的那一个核出循环，别的核接着读、接着等，没有人去抢。1.7 的 TTAS 放锁后是一串读改写，每次都要把行独占过去，新主人放锁也得排在后面；这里只剩一串读，读的核各拿一份共享副本，不用把行抢走。号是先来先拿的，所以严格先来后到，没有人会饿死。
+
+剩下的代价在那 N 次读：叫到号的核也在里面，它的读不一定先被满足，最坏要等前面 N−1 次读走完，所以交接仍然随 N 变长，只是每一步从读改写换成了读。等的核知道自己前面还有几个人（`my - serving_`），可以按人数歇：前面有 5 个人，就先歇约 5 段持锁时间再来看，这叫按比例退避（proportional backoff），比 1.7 的指数退避准。
+
+票据锁的软肋在先来后到本身：轮到的那个线程必须马上接手。它要是被换下了 CPU（没绑核、被抢占），锁明明空着，后面所有人都得等它回来，一等就是一个调度周期，ms 级。TTAS 不排队，锁空了谁都能拿，反而不怕这个。所以排队锁把 1.2 的前提收得更紧：不光持锁的线程，等锁的线程也得一直在跑。
+
+### 2.2 MCS 锁：每个核在自己的那条行上等
+
+票据锁放锁时 N 个核都要重读，是因为大家盯的是同一条行。要让放锁只惊动下一个，就得让每个等的核盯不同的行：每个核带一个自己的节点，排成链表，各自盯自己节点里的一个标志，前一任放锁时只写下一个节点的标志。这就是 MCS 锁，名字取自两位作者 Mellor-Crummey 和 Scott：
+
+```cpp
+class McsSpinLock {
+public:
+    struct alignas(64) Node {  // 每个等锁的线程带一个，各占一条缓存行
+        std::atomic<Node*> next{nullptr};
+        std::atomic<bool> granted{false};  // 前一任交接时写 true
+    };
+
+    void lock(Node* me) {
+        me->next.store(nullptr, std::memory_order_relaxed);
+        me->granted.store(false, std::memory_order_relaxed);
+        Node* prev = tail_.exchange(me, std::memory_order_acq_rel);  // 排到队尾，拿到原来的队尾
+        if (prev == nullptr) return;                                 // 队是空的：直接拿到锁
+        prev->next.store(me, std::memory_order_release);             // 挂到前一个后面
+        while (!me->granted.load(std::memory_order_acquire)) cpu_relax();  // 只盯自己的节点
+    }
+
+    void unlock(Node* me) {
+        Node* next = me->next.load(std::memory_order_acquire);
+        if (next == nullptr) {
+            Node* expected = me;
+            if (tail_.compare_exchange_strong(expected, nullptr, std::memory_order_release,
+                                              std::memory_order_relaxed))
+                return;  // 后面确实没人：队清空
+            // 有人已经排到队尾、还没来得及挂上来：等它挂好
+            while ((next = me->next.load(std::memory_order_acquire)) == nullptr) cpu_relax();
+        }
+        next->granted.store(true, std::memory_order_release);  // 只叫醒下一个
+    }
+
+private:
+    alignas(64) std::atomic<Node*> tail_{nullptr};
+};
+```
+
+`lock()` 先把自己的节点清干净，再用 `tail_.exchange(me)` 一步把自己设成队尾，同时拿回原来的队尾 `prev`。`prev` 是空的，说明没人拿着锁，直接返回；不是空的，就把自己挂到 `prev->next` 上，然后只盯自己的 `granted`。
+
+`unlock()` 要看后面有没有人。`next` 不为空，就把它的 `granted` 写成 `true`，交接完成。`next` 为空有两种可能：真的没人在等；或者有人已经做完 `exchange` 排到了队尾，还没来得及执行 `prev->next.store(me)` 挂上来。这两种情况光看 `next` 分不清，所以用 CAS 试着把队尾从自己改回空：成功说明队尾还是自己，后面确实没人；失败说明队尾已经换成了别人，那个线程马上就会挂上来，等它挂好再交接。这里不能直接把 `tail_` 写成空，那样就把刚排进来的线程丢了，它永远等不到有人写它的 `granted`。
+
+好处在放锁那一下。每个等的核只在第一次读自己的 `granted` 时取一次行，之后一直命中自己的 L1，持锁期间这几条行上没有任何流量。放锁写的是下一个节点的那条行，只有下一个核手里有它的副本，失效只发给这一个核，它重读一次就拿到 `true`。交接永远是一次搬行（约 20–100 ns），等的核再多也不变。节点要各占一条行（`alignas(64)`），否则两个核的节点挤在一条行上，写一个节点会把另一个核的副本也作废，又回到大家盯同一条行。
+
+内存序要配对，理由各不相同：
+
+- `tail_.exchange` 用 `acq_rel`。队是空的那条路上，线程直接拿到锁，没有经过 `granted`，只能靠这次 `exchange` 的 acquire 接上一任放锁时那次 CAS 的 release，才看得到上一任在临界区里的写。release 那一半是因为它把节点交了出去，后来的线程会拿着这个指针往节点的 `next` 里写，节点的初始化要先于这些写。
+- `prev->next.store` 用 release，`unlock()` 里读 `next` 用 acquire。前一任拿到我的指针后要往我的 `granted` 里写 `true`，我在 `lock()` 开头把 `granted` 清成 `false` 的那次写必须先发生，不然我的 `false` 可能盖掉前一任的 `true`，我就永远等下去。
+- 交接时 `granted` 的 release 写和 acquire 读，就是 1.3 的配对：临界区里的写跟着锁交给下一任。
+
+代价有三处。接口要多传一个节点，节点要活到 `unlock()` 为止，通常放在调用方的栈上，`lock` 和 `unlock` 在同一个作用域里。没人争时，`lock()` 是一次 `exchange`，和 TTAS 一样，`unlock()` 却要一次读加一次 CAS，比 TTAS 放锁的一次普通写多一次读改写。它和票据锁一样是排队锁，轮到的线程被换下 CPU，整条队都卡住。Linux 内核的自旋锁（qspinlock）把两头的好处拼在了一起：没人争时只改一个 4 字节的字，有人排队才用 MCS 节点，节点每个核预先备好，调用方不用传。
+
+### 2.3 三种锁放在一起比
+
+| | TTAS + 退避 | 票据锁 | MCS 锁 |
+|---|---|---|---|
+| 放锁时惊动几个核 | N 个：都重读，再一串读改写 | N 个：都重读，只有 1 个出来 | 1 个 |
+| 一次交接 | 约 N × 20–100 ns | 1 轮失效 + 最多 N 次读 | 约 20–100 ns，和 N 无关 |
+| 先来后到 | 不保证，会饿死 | 保证 | 保证 |
+| 没人争时 | 加锁 1 次 `exchange`，放锁 1 次普通写 | 加锁 1 次 `fetch_add` + 1 次读，放锁 1 次普通写 | 加锁 1 次 `exchange`，放锁 1 次读 + 1 次 CAS |
+| 等的线程被换下 CPU | 别的核照样能拿 | 轮到它时整条队卡住 | 同票据锁 |
+
+2–4 个绑了核的线程偶尔抢一下，TTAS 加退避就够：没人争时最便宜，也不怕谁被换下。很多核长时间抢同一把锁，MCS 交接最稳。不过 1.7 结尾那句仍然成立：交易系统的热路径上，好几个核抢一把锁本身就该改设计，改成只有一个线程写，别的线程通过队列把要改的东西交给它。
+
+### 2.4 读写锁：读的一方一起进，但都要改同一个计数
+
+行情快照这类数据，读的线程多，写的线程只有一个，偶尔写一次。互斥锁让读的一方也一个一个进，可读和读之间并不冲突。读写锁（`std::shared_mutex`）分两种拿法：读的一方用 `lock_shared()`，好几个可以同时在里面；写的一方用 `lock()`，要等里面一个读的都没有，进去以后别人都进不来。最简单的写法是用一个整数记状态：
+
+```cpp
+class RwSpinLock {  // state_：-1 = 写的一方拿着，0 = 空，n > 0 = n 个读的一方在里面
+public:
+    void lock_shared() {
+        for (;;) {
+            int n = state_.load(std::memory_order_relaxed);
+            if (n >= 0 && state_.compare_exchange_weak(n, n + 1, std::memory_order_acquire,
+                                                       std::memory_order_relaxed))
+                return;
+            cpu_relax();
+        }
+    }
+    void unlock_shared() { state_.fetch_sub(1, std::memory_order_release); }
+
+    void lock() {
+        for (;;) {
+            int expected = 0;
+            if (state_.load(std::memory_order_relaxed) == 0 &&
+                state_.compare_exchange_weak(expected, -1, std::memory_order_acquire,
+                                             std::memory_order_relaxed))
+                return;
+            cpu_relax();
+        }
+    }
+    void unlock() { state_.store(0, std::memory_order_release); }
+
+private:
+    alignas(64) std::atomic<int> state_{0};
+};
+```
+
+读的一方进来时，只要状态不是 −1（没有写的一方在里面），就用 CAS 加 1，出去时减 1；写的一方要把状态从 0 改成 −1，出去时写回 0。
+
+它比互斥锁好，要两个条件同时满足：读的一方在锁里待得久（µs 级，比如遍历一整张表），读远多于写。这时几个读的一方的临界区真能叠在一起跑。
+
+读得短时它不比互斥锁快，因为读的一方也在写。`lock_shared()` 和 `unlock_shared()` 都是对 `state_` 的读改写，每次都要把这条行独占过去。4 个核各读一档盘口，临界区约 20 ns，可每读一次要搬两次行（约 2 × 20–100 ns），行在 4 个核之间来回搬，读的一方其实一个接一个地排在这条行上，和互斥锁一样串行，状态更复杂，还更慢。1.4 讲的“等的核把锁所在的行抢来抢去”，在读写锁上连已经拿到锁的读的一方都躲不开。
+
+写得多时它也不行。上面这份写法偏向读的一方：只要一直有读的一方进进出出，状态就到不了 0，写的一方一直进不去，饿死的是写的一方。偏向写的一方的写法反过来：有写的一方在等，新来的读的一方就不让进，读的一方要排队。glibc 的 `pthread_rwlock`（Linux 上 `std::shared_mutex` 底下就是它）默认偏向读的一方。写多时，读写锁只是一把记账更贵的互斥锁。
+
+读多写少、又读得短，交易系统里的办法是让读的一方完全不写：版本号（seqlock）和双数组（[#14](/zh/posts/prefetch-warmup-double-buffer/)）。读的一方只读一个版本号或下标，对不上就重读，写的一方从不等读的一方。代价是只能有一个写的一方，读的一方偶尔要重读。
+
+### 2.5 地址监控等待：`umonitor` / `umwait`、`WFE`
+
+到这里有两种等法。自旋加 `pause`，核一直在跑，耗电，开着超线程时还占着兄弟线程的执行资源；futex 进内核睡，核让出来了，可从放锁到真正醒来要 2–10 µs。地址监控等待在两者之间：告诉硬件“盯着这条行，有人写它就叫醒我”，然后核进轻度睡眠。叫醒靠的就是缓存一致性：别的核要写这条行，先得发失效请求把这个核的副本作废，失效请求一到，硬件顺带把核叫醒。不用系统调用，也不用一直转。在[硬件地图](/zh/ref/cpu-memory/)上，这件事发生在核和 L1D 之间。
+
+x86 上这是 WAITPKG 扩展里的指令，Intel 从 Tremont、Alder Lake、Sapphire Rapids 起才有，用之前要查 CPUID；AMD 上对应的是 `monitorx` / `mwaitx`。
+
+```cpp
+#include <atomic>
+#include <cstdint>
+#include <immintrin.h>  // 编译加 -mwaitpkg；运行前先用 CPUID 确认这颗 CPU 支持 WAITPKG
+#include <x86intrin.h>  // __rdtsc
+
+inline void wait_until_set(std::atomic<uint32_t>& flag) {
+    while (flag.load(std::memory_order_acquire) == 0) {
+        _umonitor(&flag);                                      // 1. 登记要盯的这条行
+        if (flag.load(std::memory_order_acquire) != 0) break;  // 2. 登记完再看一次
+        _umwait(1, __rdtsc() + 100000);  // 3. 进 C0.1 等：这条行被写、到点、来中断都会醒
+    }
+}
+
+inline void signal(std::atomic<uint32_t>& flag) {
+    flag.store(1, std::memory_order_release);  // 普通的写就行
+}
+```
+
+`_umonitor(addr)` 登记 `addr` 所在的那条行。`_umwait(ctrl, deadline)` 让核停下来，直到这条行被写、TSC（时间戳计数器）走到 `deadline`、来了中断，或者到了操作系统设的上限（Linux 默认约 10 万个 TSC 周期，几十 µs），才醒。`ctrl` 选睡多深：1 是 C0.1，醒得快；0 是 C0.2，更省电，醒得慢一些。两种都还在 C0 里，没进 C1、C6 这些要停时钟的状态，所以醒来比从内核叫醒快得多，又比 `pause` 转着慢一点。醒了不代表条件成立，也可能是到点或者来了中断，所以外面要套循环再看一次。
+
+三步的顺序不能换：先登记，再看一次，最后睡。要是先看、再登记，在“看到是 0”和“登记”之间别人把它写成了 1，这次写发生在登记之前，硬件不会因此叫醒，核要一直睡到 `deadline`。登记完再看一次，写要是发生在登记之前，第 2 步就能看到；发生在登记之后，第 3 步会被它叫醒。`deadline` 是一个绝对的 TSC 值，不是时长，要写成 `__rdtsc() + 等多久`；写 0 等于一个早就过去的时刻，`umwait` 马上返回，循环就成了空转。
+
+ARM 上对应的是 `WFE`（wait for event）。先用独占读 `ldaxr` 读这个地址，硬件会记住这条行（独占监视器，exclusive monitor）；然后 `WFE` 睡下。别的核写这条行，监视器被清掉，这本身就算一个事件，核被叫醒，写的一方不用再发 `SEV`。Linux 在 ARM64 上等一个变量变值（`smp_cond_load_acquire`）就是这么写的。`WFE` 也可能无故醒来，同样要在循环里再看。
+
+交易系统里，热路径上绑核的线程还是 `pause` 转着等，几十 ns 都不想多付。`umwait` 适合不在热路径上、又不想睡进内核的等待，比如日志线程等队列来数据：核省下来，开着超线程时兄弟线程能用上整个核。它也能和排队锁配：MCS 的每个等锁的核本来就只盯自己的那条行，`umonitor` 这条行再 `umwait`，前一任交接的那次写正好把它叫醒。很多交易机在 BIOS 里关掉了深的 C-state，C0.1、C0.2 不受影响；操作系统也可以单独关掉 C0.2（`IA32_UMWAIT_CONTROL`），那时 `ctrl = 0` 也只进 C0.1。
 
 ## 应用 {#in-practice}
 

@@ -184,7 +184,7 @@
   <text x="1080" y="538" class="tag">#2 伪共享（两个核抢同一行）</text>
   <text x="1080" y="556" class="tag">#4 缓存游标 · #5 读者越多写越贵</text>
   <text x="1080" y="574" class="tag">#6 alignas(64) 让对象独占一行</text>
-  <text x="1080" y="592" class="tag">#16 自旋锁：先读后抢（TTAS）</text>
+  <text x="1080" y="592" class="tag">#16 自旋锁：TTAS、排队锁、umwait</text>
   <rect x="1080" y="605" width="460" height="64" rx="6" class="cache"/>
   <text x="1094" y="630" class="t">每个核各有自己的 L1、L2</text>
   <text x="1094" y="652" class="s">（TLB、store buffer 也各有一份）</text>

@@ -184,7 +184,7 @@
   <text x="1080" y="538" class="tag">#2 false sharing (two cores fight over a line)</text>
   <text x="1080" y="556" class="tag">#4 cached cursor · #5 more readers, costlier writes</text>
   <text x="1080" y="574" class="tag">#6 alignas(64) gives an object its own line</text>
-  <text x="1080" y="592" class="tag">#16 spinlocks: read before you grab (TTAS)</text>
+  <text x="1080" y="592" class="tag">#16 spinlocks: TTAS, queue locks, umwait</text>
   <rect x="1080" y="605" width="460" height="64" rx="6" class="cache"/>
   <text x="1094" y="630" class="t">Every core has its own L1 and L2</text>
   <text x="1094" y="652" class="s">(and its own TLB and store buffer)</text>

@@ -2,16 +2,16 @@
 title: "Trading System Notes #16: Spinlocks"
 date: 2026-10-21
 slug: "spinlock-implementation"
-description: "When a lock is held for tens to a couple of hundred nanoseconds, std::mutex goes to sleep in the kernel (futex) as soon as the lock is taken, and a sleep plus a wake-up costs microseconds. A spinlock never sleeps, but it only pays while the lock holder keeps running. The simplest CAS loop takes the lock's cache line exclusively on every attempt, so waiters fight over the line and even the holder has to queue to release it; test-and-test-and-set lets each waiter read its own copy; PAUSE in the loop avoids a pipeline flush the moment the lock is freed; and exponential backoff spreads out the rush when it is released."
+description: "When a lock is held for tens to a couple of hundred nanoseconds, std::mutex goes to sleep in the kernel (futex) as soon as the lock is taken, and a sleep plus a wake-up costs microseconds. A spinlock never sleeps, but it only pays while the lock holder keeps running. The simplest CAS loop takes the lock's cache line exclusively on every attempt, so waiters fight over the line and even the holder has to queue to release it; test-and-test-and-set lets each waiter read its own copy; PAUSE in the loop avoids a pipeline flush the moment the lock is freed; and exponential backoff spreads out the rush when it is released. Part 2: a ticket lock queues waiters in arrival order, and an MCS lock has each core watch its own line so a release disturbs only the next one; a reader-writer lock is no faster than a mutex for short reads; umonitor / umwait and WFE let a waiting core stop until the line is written."
 summary: "Whether a spinlock is fast depends on what its waiters do: if every attempt is a read-modify-write, they drag the lock's line back and forth. Read before you grab, put PAUSE in the loop, back off after losing, and waiting costs the holder almost nothing."
 chapter: 1
 categories: [Systems]
-tags: [cpp, spinlock, atomics, futex, mesi, pause, hft, low-latency]
+tags: [cpp, spinlock, atomics, futex, mesi, pause, ticket-lock, mcs-lock, rwlock, umwait, hft, low-latency]
 toc: true
 math: true
 ---
 
-Code such as updating one level of an order book or copying a market data snapshot has to be guarded by a lock; it is called a critical section (the stretch between `lock()` and `unlock()`), and the lock is held for only tens to a couple of hundred nanoseconds. Guard the critical section withGuard the critical section with `std::mutex`, and a thread that finds the lock taken gets suspended and woken again once the lock is free. That sleep and wake-up costs microseconds, 10 to a hundred or more times the time the lock is held. A spinlock simply doesn't sleep: a thread that can't get the lock stays where it is and keeps looking, and takes over the moment the lock is released.
+Code such as updating one level of an order book or copying a market data snapshot has to be guarded by a lock; it is called a critical section (the stretch between `lock()` and `unlock()`), and the lock is held for only tens to a couple of hundred nanoseconds. Guard the critical section with `std::mutex`, and a thread that finds the lock taken gets suspended and woken again once the lock is free. That sleep and wake-up costs microseconds, 10 to a hundred or more times the time the lock is held. A spinlock simply doesn't sleep: a thread that can't get the lock stays where it is and keeps looking, and takes over the moment the lock is released.
 
 How it keeps looking decides whether the lock is fast. Look the wrong way and the waiting cores drag the lock's cache line back and forth, slowing down even the core that holds the lock; when the lock is freed, they all rush at it together. Remove these problems one by one and you have a usable spinlock. Before writing any of it, though, it helps to see where the cost of sleeping comes from, and when spinning beats sleeping.
 
@@ -201,7 +201,182 @@ private:
 
 Every loss doubles the next rest (exponential backoff), so the cores come back at different times and fewer of them rush together. Resting mostly adds no delay: losing means another core just took the lock and will hold it for a whole hold time, and if other cores are waiting too, your turn was several hold times away anyway. A rest no longer than that unavoidable wait doesn't make you later; it only removes one grab of the line. The more you lose, the more cores are competing and the longer the wait ahead, so the rest should grow, hence the doubling. Real implementations also add a little randomness to the rest, so that cores in lockstep don't collide again. Resting too long is what adds delay: the lock is freed while you are still resting, and it sits idle or goes to a core that arrived later. With only one or two cores competing there are few hold times to wait through anyway, so backoff saves few grabs and adds real delay; keep the cap small. The cap should be thought of in time too: 64 `pause`s take about 3 µs, and only about 0.2 µs on an older machine where `pause` is about 10 cycles. Backoff also makes the lock less fair: a core that has lost often rests longer and is even less likely to win next time, while a newcomer starts at one rest and reacts fastest. An unlucky core can keep losing, which is called starvation. The cap guarantees it comes back to try every so often, but not that it ever wins.
 
-With many waiters, backoff only eases the problem. The real fix is to let each waiter spin on a line of its own and hand the lock over in arrival order, so a release disturbs only the next in line; that is what queue locks (ticket locks, MCS locks) do. In a trading system, though, a lock that several cores keep fighting over is itself a sign that the design should change: have a single thread do the writing, and let the others hand it their changes through a queue ([#4](/posts/lock-free-queue-logger-micro-batching/), [#5](/posts/spmc-shared-memory-broadcast-ring/)). That helps more than any better lock.
+With many waiters, backoff only eases the problem. The real fix is a queue: hand the lock over in arrival order (the ticket lock, 2.1), and let each waiter spin on a line of its own so a release disturbs only the next in line (the MCS lock, 2.2). In a trading system, though, a lock that several cores keep fighting over is itself a sign that the design should change: have a single thread do the writing, and let the others hand it their changes through a queue ([#4](/posts/lock-free-queue-logger-micro-batching/), [#5](/posts/spmc-shared-memory-broadcast-ring/)). That helps more than any better lock.
+
+## 2. Many Cores Waiting: Ticket Locks, MCS Locks, Reader-Writer Locks and Address-Monitor Waits
+
+### 2.1 Ticket Lock: Take a Number
+
+1.7 left two problems. When the lock is released, the waiting cores all charge at once, so a handoff takes longer the more cores are waiting; and who wins is pure luck, so an unlucky core can starve. Both come from the same place: the lock has only two states, free and taken, so on release every waiting core sees the same event, "it's free", and all they can do is grab at once. A ticket lock gives each waiting core a different thing to wait for:
+
+```cpp
+class TicketSpinLock {
+public:
+    void lock() {
+        unsigned my = next_.fetch_add(1, std::memory_order_relaxed);  // take a number
+        while (serving_.load(std::memory_order_acquire) != my) cpu_relax();  // wait to be called
+    }
+    void unlock() {
+        // only the holder changes serving_, so read it, add 1 and write it back: no read-modify-write needed
+        serving_.store(serving_.load(std::memory_order_relaxed) + 1, std::memory_order_release);
+    }
+
+private:
+    alignas(64) std::atomic<unsigned> next_{0};     // ticket dispenser: +1 for each arriving thread
+    alignas(64) std::atomic<unsigned> serving_{0};  // "now serving" display: every waiter reads it
+};
+```
+
+It works like the number queue at a bank. An arriving thread first takes a number with `fetch_add` on `next_`: a read-modify-write that returns the value before the increment, so every thread gets a different number. Then it watches `serving_` until its own number comes up. Releasing the lock means adding 1 to `serving_` to call the next number. Only the holder ever changes `serving_`, so nobody competes for it: reading it, adding 1 and writing it back is enough, a plain `mov` on x86. `fetch_add` would also be correct, but that is a `lock`-prefixed read-modify-write and costs about 2–6 ns more. `next_` and `serving_` get a line each: if they shared one, every arriving thread's `fetch_add` would take that line exclusive and invalidate the copies of every core reading `serving_`, so even the time the lock is held would not be quiet.
+
+On release, every waiting core still has to re-read `serving_`: the line was written, all their copies are invalidated, and each reads it again, so N cores mean N read misses. But after reading the new value, only the core whose number matches leaves the loop; the others keep reading and waiting, and nobody grabs. In 1.7, a TTAS release was followed by a burst of read-modify-writes, each taking the line exclusive, with the new owner's release queued behind them. Here only reads are left, and readers each get a shared copy without taking the line away. Numbers are handed out in arrival order, so the lock is strictly first come, first served, and nobody starves.
+
+The remaining cost is in those N reads. The core whose number was called is one of them, and its read is not necessarily served first; in the worst case it waits for the other N−1 reads, so a handoff still grows with N, only now each step is a read instead of a read-modify-write. A waiting core knows how many are ahead of it (`my - serving_`), so it can rest in proportion: with 5 ahead, rest for about 5 hold times before looking again. This is proportional backoff, and it is more accurate than the exponential backoff of 1.7.
+
+The ticket lock's weak spot is first come, first served itself: the thread whose number comes up has to take over immediately. If it has been taken off the CPU (not pinned, preempted), the lock sits free while everyone behind it waits for it to come back, for a scheduling period, milliseconds. TTAS doesn't queue: whoever is there can take a free lock, so it doesn't have this problem. A queue lock therefore tightens the condition from 1.2: not only the holder but also the waiting threads have to keep running.
+
+### 2.2 MCS Lock: Each Core Waits on Its Own Line
+
+On a ticket-lock release N cores re-read because they all watch the same line. For a release to disturb only the next waiter, each waiting core has to watch a different line: each brings its own node, the nodes form a linked list, each core watches a flag in its own node, and a release writes only the next node's flag. That is the MCS lock, named after its authors Mellor-Crummey and Scott:
+
+```cpp
+class McsSpinLock {
+public:
+    struct alignas(64) Node {  // one per waiting thread, each on its own cache line
+        std::atomic<Node*> next{nullptr};
+        std::atomic<bool> granted{false};  // set to true by the previous holder on handoff
+    };
+
+    void lock(Node* me) {
+        me->next.store(nullptr, std::memory_order_relaxed);
+        me->granted.store(false, std::memory_order_relaxed);
+        Node* prev = tail_.exchange(me, std::memory_order_acq_rel);  // join the tail, get the old tail
+        if (prev == nullptr) return;                                 // queue was empty: lock acquired
+        prev->next.store(me, std::memory_order_release);             // link in behind the previous node
+        while (!me->granted.load(std::memory_order_acquire)) cpu_relax();  // watch only my own node
+    }
+
+    void unlock(Node* me) {
+        Node* next = me->next.load(std::memory_order_acquire);
+        if (next == nullptr) {
+            Node* expected = me;
+            if (tail_.compare_exchange_strong(expected, nullptr, std::memory_order_release,
+                                              std::memory_order_relaxed))
+                return;  // really nobody behind: queue emptied
+            // someone has joined the tail but not linked in yet: wait for the link
+            while ((next = me->next.load(std::memory_order_acquire)) == nullptr) cpu_relax();
+        }
+        next->granted.store(true, std::memory_order_release);  // wake only the next one
+    }
+
+private:
+    alignas(64) std::atomic<Node*> tail_{nullptr};
+};
+```
+
+`lock()` first clears its node, then with one `tail_.exchange(me)` makes itself the tail and gets the old tail `prev` back. If `prev` is null, nobody holds the lock and it returns; otherwise it links itself into `prev->next` and from then on watches only its own `granted`.
+
+`unlock()` has to check whether anyone is behind it. If `next` isn't null, it sets that node's `granted` to `true` and the handoff is done. A null `next` can mean two things: nobody is waiting, or someone has already done the `exchange` and joined the tail but hasn't yet run `prev->next.store(me)` to link in. Looking at `next` alone can't tell them apart, so it tries a CAS to change the tail from itself back to null. Success means the tail was still itself, so nobody is really behind it. Failure means the tail is now someone else, who is about to link in; it waits for the link and then hands over. Simply writing null into `tail_` would lose the thread that just joined: nobody would ever set its `granted`.
+
+The payoff is at release. Each waiting core fetches the line only on its first read of its own `granted`, then keeps hitting its own L1, so these lines carry no traffic while the lock is held. A release writes the next node's line, which only the next core holds a copy of, so the invalidation goes to that one core, and one re-read gets it `true`. A handoff is always one line transfer (about 20–100 ns), no matter how many cores are waiting. Nodes need a line each (`alignas(64)`); if two cores' nodes shared a line, writing one node would invalidate the other core's copy too, and we would be back to everyone watching the same line.
+
+The memory orders pair up, each for its own reason:
+
+- `tail_.exchange` uses `acq_rel`. On the empty-queue path the thread gets the lock without going through `granted`, so only the acquire of this `exchange`, pairing with the release of the previous holder's CAS, lets it see the previous holder's writes from the critical section. The release half is there because the exchange hands the node out: a later thread will use this pointer to write the node's `next`, and the node's initialisation has to come before those writes.
+- `prev->next.store` uses release, and `unlock()` reads `next` with acquire. After getting my pointer, the previous holder will write `true` into my `granted`, so my write clearing `granted` to `false` at the top of `lock()` must come first; otherwise my `false` could overwrite its `true`, and I would wait forever.
+- The release write and acquire read of `granted` at handoff are the pairing from 1.3: the critical section's writes are handed to the next holder along with the lock.
+
+The cost shows up in three places. The interface takes a node, and the node must live until `unlock()`, usually on the caller's stack with `lock` and `unlock` in the same scope. With nobody competing, `lock()` is one `exchange`, same as TTAS, but `unlock()` is a load plus a CAS, one read-modify-write more than TTAS's plain store. And like the ticket lock it is a queue lock: if the thread whose turn it is gets taken off the CPU, the whole queue stalls. The Linux kernel's spinlock (qspinlock) combines the best of both: with nobody competing it only changes a 4-byte word, the MCS nodes come in only when threads queue up, and every CPU has its nodes ready in advance, so callers don't pass one.
+
+### 2.3 The Three Locks Side by Side
+
+| | TTAS + backoff | Ticket lock | MCS lock |
+|---|---|---|---|
+| Cores disturbed by a release | N: all re-read, then a burst of read-modify-writes | N: all re-read, only 1 gets in | 1 |
+| One handoff | about N × 20–100 ns | 1 round of invalidations + up to N reads | about 20–100 ns, independent of N |
+| First come, first served | No, can starve | Yes | Yes |
+| With nobody competing | Lock: 1 `exchange`; unlock: 1 plain store | Lock: 1 `fetch_add` + 1 load; unlock: 1 plain store | Lock: 1 `exchange`; unlock: 1 load + 1 CAS |
+| A waiting thread is taken off the CPU | Other cores can still take the lock | The queue stalls when its turn comes | Same as the ticket lock |
+
+For 2–4 pinned threads that occasionally compete, TTAS with backoff is enough: it is the cheapest with nobody competing and doesn't care who gets taken off the CPU. When many cores fight over the same lock for long stretches, MCS gives the steadiest handoff. The closing point of 1.7 still stands, though: on a trading system's hot path, several cores fighting over one lock is itself a sign the design should change, to a single thread that writes while the others hand it their changes through a queue.
+
+### 2.4 Reader-Writer Locks: Readers Get In Together, but All Update One Counter
+
+Data like a market data snapshot has many reading threads and a single writer that writes now and then. A mutex makes readers go in one at a time too, even though reads don't conflict with each other. A reader-writer lock (`std::shared_mutex`) has two ways in: readers call `lock_shared()`, and several can be inside at once; a writer calls `lock()`, waits until no reader is inside, and once in keeps everyone else out. The simplest version keeps the state in one integer:
+
+```cpp
+class RwSpinLock {  // state_: -1 = a writer holds it, 0 = free, n > 0 = n readers inside
+public:
+    void lock_shared() {
+        for (;;) {
+            int n = state_.load(std::memory_order_relaxed);
+            if (n >= 0 && state_.compare_exchange_weak(n, n + 1, std::memory_order_acquire,
+                                                       std::memory_order_relaxed))
+                return;
+            cpu_relax();
+        }
+    }
+    void unlock_shared() { state_.fetch_sub(1, std::memory_order_release); }
+
+    void lock() {
+        for (;;) {
+            int expected = 0;
+            if (state_.load(std::memory_order_relaxed) == 0 &&
+                state_.compare_exchange_weak(expected, -1, std::memory_order_acquire,
+                                             std::memory_order_relaxed))
+                return;
+            cpu_relax();
+        }
+    }
+    void unlock() { state_.store(0, std::memory_order_release); }
+
+private:
+    alignas(64) std::atomic<int> state_{0};
+};
+```
+
+A reader coming in adds 1 with a CAS as long as the state isn't −1 (no writer inside) and subtracts 1 on the way out; a writer has to change the state from 0 to −1 and writes 0 back on the way out.
+
+It beats a mutex only when two conditions hold together: readers stay inside for a long time (microseconds, say walking a whole table), and reads far outnumber writes. Then the readers' critical sections really do overlap.
+
+With short reads it is no faster than a mutex, because readers write too. `lock_shared()` and `unlock_shared()` are both read-modify-writes on `state_`, and each takes the line exclusive. Four cores each reading one order book level spend about 20 ns in the critical section, but every read moves the line twice (about 2 × 20–100 ns). The line bounces between the four cores and the readers actually line up on it one after another, as serial as with a mutex, with more complex state and slower. The bouncing line from 1.4, "waiting cores fight over the lock's line", reaches even readers that already hold the lock.
+
+With many writes it doesn't work either. The version above favours readers: as long as readers keep coming and going, the state never reaches 0, and the writer never gets in; it is the writer that starves. A writer-preferring version does the opposite: once a writer is waiting, new readers are kept out, so readers queue. glibc's `pthread_rwlock` (what `std::shared_mutex` uses on Linux) favours readers by default. With many writes, a reader-writer lock is just a mutex with more expensive bookkeeping.
+
+For data that is read often, written rarely and read briefly, trading systems make readers write nothing at all: a version number (seqlock) or double buffering ([#14](/posts/prefetch-warmup-double-buffer/)). Readers only read a version number or an index and re-read on a mismatch, and the writer never waits for readers. The cost is a single writer and an occasional re-read.
+
+### 2.5 Address-Monitor Waits: `umonitor` / `umwait`, `WFE`
+
+So far there are two ways to wait. Spinning with `pause` keeps the core running, burns power, and with SMT still takes execution resources from the sibling thread. A futex sleep in the kernel frees the core, but it takes 2–10 µs from release to actually waking up. Address-monitor waiting sits in between: tell the hardware "watch this line and wake me when someone writes it", then put the core into a light sleep. The wake-up comes from cache coherence: before another core can write the line it has to send an invalidation to drop this core's copy, and when the invalidation arrives the hardware also wakes the core. No system call, and no spinning. On the [hardware map](/ref/cpu-memory/) this happens between the core and L1D.
+
+On x86 these instructions are part of the WAITPKG extension, available on Intel from Tremont, Alder Lake and Sapphire Rapids on, so check CPUID before using them; AMD's counterpart is `monitorx` / `mwaitx`.
+
+```cpp
+#include <atomic>
+#include <cstdint>
+#include <immintrin.h>  // compile with -mwaitpkg; check CPUID for WAITPKG before running
+#include <x86intrin.h>  // __rdtsc
+
+inline void wait_until_set(std::atomic<uint32_t>& flag) {
+    while (flag.load(std::memory_order_acquire) == 0) {
+        _umonitor(&flag);                                      // 1. arm the monitor on this line
+        if (flag.load(std::memory_order_acquire) != 0) break;  // 2. look once more after arming
+        _umwait(1, __rdtsc() + 100000);  // 3. wait in C0.1: a write to the line, the deadline or an interrupt wakes it
+    }
+}
+
+inline void signal(std::atomic<uint32_t>& flag) {
+    flag.store(1, std::memory_order_release);  // a plain store is enough
+}
+```
+
+`_umonitor(addr)` arms the monitor on the line containing `addr`. `_umwait(ctrl, deadline)` stops the core until the line is written, the TSC (time stamp counter) reaches `deadline`, an interrupt arrives, or the operating system's cap is hit (on Linux about 100,000 TSC cycles by default, tens of microseconds). `ctrl` picks how deep to sleep: 1 is C0.1, which wakes faster; 0 is C0.2, which saves more power and wakes a little slower. Both stay in C0, short of C1, C6 and the other states that stop the clock, so waking is much faster than a wake-up from the kernel and a bit slower than spinning with `pause`. Waking doesn't mean the condition holds (it may be the deadline or an interrupt), so the call sits in a loop that checks again.
+
+The three steps can't be reordered: arm, look again, then sleep. If you look first and arm afterwards, someone may write 1 between "saw 0" and arming; that write happened before the monitor was armed, so it doesn't wake the core, and the core sleeps until `deadline`. Looking again after arming covers both cases: a write before arming is seen in step 2, and a write after arming wakes step 3. `deadline` is an absolute TSC value, not a duration, so write it as `__rdtsc() + how long`; 0 is a moment long past, so `umwait` returns immediately and the loop turns into plain spinning.
+
+On ARM the counterpart is `WFE` (wait for event). First read the address with an exclusive load, `ldaxr`, and the hardware remembers the line (the exclusive monitor); then `WFE` sleeps. When another core writes the line the monitor is cleared, which itself counts as an event, and the core wakes up; the writer doesn't need to send `SEV`. This is how Linux waits for a variable to change on ARM64 (`smp_cond_load_acquire`). `WFE` can also wake for no reason, so it too checks again in a loop.
+
+In a trading system, pinned threads on the hot path still spin with `pause`; they don't want to pay even tens of extra nanoseconds. `umwait` suits waits off the hot path that shouldn't go to sleep in the kernel, such as a logging thread waiting for its queue to fill: the core is freed, and with SMT the sibling gets the whole core. It also pairs well with queue locks: each waiting core in MCS already watches only its own line, so it can `umonitor` that line and `umwait`, and the previous holder's handoff write is exactly what wakes it. Many trading machines turn off the deep C-states in the BIOS, which doesn't affect C0.1 and C0.2; the operating system can also turn off C0.2 on its own (`IA32_UMWAIT_CONTROL`), and then `ctrl = 0` only reaches C0.1.
 
 ## In Practice {#in-practice}
 
