@@ -12,9 +12,9 @@ toc: true
 
 A strategy thread hands persistence requests to an archiving thread, several strategy threads hand orders to one gateway thread, a market-data thread hands updates to several strategies: almost every thread in a trading system is connected to the next by a queue. The SPSC ring in [#4](/posts/lock-free-queue-logger-micro-batching/) needs no lock because each index has exactly one writer: the producer only changes the write index and the consumer only changes the read index. In the three cases above, some threads should sleep when they have nothing to do and some queues have several producers, and that premise no longer holds. What follows starts from the plainest version, one mutex, works up to a multi-producer lock-free ring, and ends with what to do when a queue is full.
 
-## 1. From One Mutex to Many Producers
+## 1. A Blocking Queue with a Mutex
 
-### 1.1 A Blocking Queue: One Mutex, Two Condition Variables
+### 1.1 The Structure: One Mutex, Two Condition Variables
 
 Start with the first case: the archiving thread has nothing to do most of the time, and its queue is empty. If it spins while it waits ([#16](/posts/spinlock-implementation/)), it ties up a whole core for nothing; what it wants is to sleep when there is nothing to do and be woken when something arrives. With a capacity limit the reverse holds too: when the queue is full the producer sleeps, and it is woken when a slot frees up.
 
@@ -130,7 +130,9 @@ After closing, `push` returns `false`. `pop` first drains what is left and retur
 
 So **a blocking queue wins on CPU use and on being easy to get right, not on speed**. It suits paths that can afford a few microseconds, such as persistence, reconciliation and admin commands; hot paths like market data to strategy use lock-free rings with busy waiting ([#4](/posts/lock-free-queue-logger-micro-batching/), [#5](/posts/spmc-shared-memory-broadcast-ring/)), on pinned threads that never sleep.
 
-### 1.6 Multiple Producers: Claim a Slot First, Then Publish in Order
+## 2. Lock-Free Rings for Multiple Producers: rte_ring and Disruptor
+
+### 2.1 rte_ring: Claim a Slot First, Then Publish in Order
 
 When several strategy threads send orders to one gateway thread (multi-producer, single-consumer, MPSC), the write index has several writers and has to be claimed with CAS. After claiming a slot the producer still has to write the data, so there is a gap between "claimed" and "written", and the consumer must not read a slot that has been claimed but not yet written. rte_ring (DPDK's lock-free ring) handles this with two indices per side:
 
@@ -194,7 +196,7 @@ The indices are `uint32_t` and only ever increase; they are stored unmasked and 
 
 When an index reaches $2^{32} - 1$ and is incremented, it wraps to 0, and the checks still work. Unsigned subtraction is modulo $2^{32}$, so as long as the real difference is at most N, `head - tail` gives the real difference. N is a power of two and divides $2^{32}$, so the slots also line up across the wrap: $2^{32} - 1$ lands in slot N − 1 and the next index, 0, lands in slot 0. **With indices that only increase and a power-of-two N, wraparound needs no special handling.** The test below starts the indices at $2^{32} - 1001$, so they wrap past 0 during the run, and the results are still correct.
 
-### 1.7 Publishing in Order: One Number Can Only Say "Everything Before Is Done"
+### 2.2 Publishing in Order: One Number Can Only Say "Everything Before Is Done"
 
 The wait in step ③ is the heart of this design. `prod_tail_` is just one number, and consumers read it as "every slot below here has been written". Say A claims 5 and B claims 6, and B finishes writing first. If B set `prod_tail_` to 7 straight away, a consumer would go and read 5, which A hasn't written yet. So B has to wait until `prod_tail_` becomes 6 (A has published) before setting it to 7: **publishing has to happen in the same order as claiming.**
 
@@ -204,12 +206,12 @@ The price: if A is descheduled between ① and ④, B, C and everyone after them
 
 The consumer side is fully symmetric: consumers claim from `cons_head_` with CAS, advance `cons_tail_` in order once they have read, and producers check `cons_tail_` to see whether they may overwrite.
 
-### 1.8 Disruptor: Every Slot Marks Itself "Written"
+### 2.3 Disruptor: Every Slot Marks Itself "Written"
 
 The Disruptor is the ring buffer LMAX (a foreign-exchange trading venue) built for its matching engine. It keeps track differently, so that producers never wait for each other:
 
 - **Sequence numbers instead of indices**: 64-bit signed sequence numbers that only increase and in practice never run out; a slot's position is `seq & (N - 1)`.
-- **Claiming with `fetch_add`**: each producer gets its number with one `fetch_add(1)`, which cannot fail and never retries. It still has to wait when the ring is full; see 1.9.
+- **Claiming with `fetch_add`**: each producer gets its number with one `fetch_add(1)`, which cannot fail and never retries. It still has to wait when the ring is full; see 2.4.
 - **An availability flag per slot**: when a producer has written its slot, it writes the lap (`seq / N`) into that slot's flag, regardless of whether earlier numbers are done.
 
 ```cpp
@@ -257,7 +259,7 @@ A producer writes one element in three steps: `claim()` for a number, write into
 
 Compare with rte_ring: A claims 5, B claims 6, B finishes first, calls `publish(6)` and returns. The consumer reaches 5, sees the flag isn't set, and stops. When A finishes and calls `publish(5)`, the consumer goes on to read 5 and 6. **Delivering in order means a gap can't be avoided; the two designs differ only in who waits**: rte_ring makes the later producers spin, Disruptor makes the consumer stop at the gap while the other producers keep writing until the ring is full. If A stays stalled, neither design can deliver anything past 5; Disruptor just stops tying up the other producers' threads as well.
 
-### 1.9 Backpressure and Wait Strategies: When Full, Wait for the Slowest Consumer; When Empty, Choose How to Wait
+### 2.4 Backpressure and Wait Strategies: When Full, Wait for the Slowest Consumer; When Empty, Choose How to Wait
 
 **When full.** A producer holding number `seq` is about to write a slot whose previous occupant was `seq - N`; it may only overwrite once the consumer has read `seq - N`, so `claim()` waits until `consumed_ >= seq - N`. A slow consumer slows the producer down and no data is lost; this is called **backpressure**.
 
@@ -272,7 +274,7 @@ With several consumers, the Disruptor has every consumer read every event (a bro
 
 Blocking is exactly the situation in 1.3: the sequence is an atomic that isn't changed under the mutex, so the producer has to take the mutex once before notifying. A throughput test with one producer pouring data in shows the four strategies almost identical (about 30 ms for 5 million events each), because the consumer hardly ever waits; **wait strategies differ in the latency of the first event after an idle period, which a throughput test can't measure.**
 
-### 1.10 When the Queue Is Full: Block, Drop, or Overwrite
+## 3. When the Queue Is Full: Block, Drop, or Overwrite
 
 A bounded queue that is full has only three options:
 
