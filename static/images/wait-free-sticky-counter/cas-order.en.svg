@@ -7,7 +7,7 @@
 </style></defs>
 <rect x="0" y="0" width="1100" height="500" fill="#ffffff"/>
 <text x="24" y="36" class="h" text-anchor="start">A failed CAS: no retry, just &quot;I come after it&quot;</text>
-<text x="24" y="62" class="s" text-anchor="start">Each bar is one call, from invocation to return; the dot is the step where it touches memory.</text>
+<text x="24" y="62" class="s" text-anchor="start">Bars run from call to return; dots touch memory; a diamond is the chosen point where the call counts as done, and diamonds order the calls.</text>
 <line x1="330" y1="96" x2="330" y2="290" stroke="#d0d7de" stroke-dasharray="4 4"/>
 <line x1="560" y1="96" x2="560" y2="290" stroke="#d0d7de" stroke-dasharray="4 4"/>
 <line x1="790" y1="96" x2="790" y2="290" stroke="#d0d7de" stroke-dasharray="4 4"/>
@@ -24,8 +24,8 @@
 <circle cx="560" cy="230" r="6" fill="#1a7f37"/>
 <path d="M560,200 l9,9 l-9,9 l-9,-9 z" fill="#fb8f44" stroke="#bc4c00"/>
 <path d="M790,120 l9,9 l-9,9 l-9,-9 z" fill="#fb8f44" stroke="#bc4c00"/>
-<text x="804" y="129" class="pt" text-anchor="start">ordered here</text>
-<text x="574" y="209" class="pt" text-anchor="start">ordered here</text>
+<text x="804" y="129" class="pt" text-anchor="start">chosen point</text>
+<text x="574" y="209" class="pt" text-anchor="start">chosen point</text>
 <text x="140" y="320" class="lane" text-anchor="end">value in memory</text>
 <rect x="258" y="290" width="144" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
 <text x="330" y="311" class="op" text-anchor="middle">T1 fetch_sub</text>
