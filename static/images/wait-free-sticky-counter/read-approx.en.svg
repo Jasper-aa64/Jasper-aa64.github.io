@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 660" width="1240" height="660" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>
+.h{font-size:20px;font-weight:700;fill:#1f2328}.s{font-size:13px;fill:#57606a}.lane{font-size:15px;font-weight:700;fill:#1f2328}
+.bar{font-size:13px;font-weight:600;fill:#1f2328}.op{font-size:12.5px;font-weight:600;fill:#1f2328}.val{font-size:12.5px;fill:#57606a}
+.num{font-size:13px;font-weight:700;fill:#ffffff}.chip{font-size:13.5px;font-weight:600;fill:#1f2328}.bad{font-size:13.5px;font-weight:600;fill:#cf222e}
+.k{font-size:13px;fill:#57606a}.t{font-size:15px;font-weight:700;fill:#1f2328}.pt{font-size:12.5px;font-weight:600;fill:#bc4c00}
+</style></defs>
+<rect x="0" y="0" width="1240" height="660" fill="#ffffff"/>
+<text x="24" y="36" class="h" text-anchor="start">read()&#x27;s non-zero value fits no order</text>
+<text x="24" y="62" class="s" text-anchor="start">Count starts at 1. ①–⑥ are the six steps listed in 1.7; each dot is the step where a call touches memory.</text>
+<line x1="240" y1="104" x2="240" y2="345" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="400" y1="104" x2="400" y2="345" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="560" y1="104" x2="560" y2="345" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="720" y1="104" x2="720" y2="345" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="880" y1="104" x2="880" y2="345" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="1040" y1="104" x2="1040" y2="345" stroke="#d0d7de" stroke-dasharray="4 4"/>
+<line x1="160" y1="92" x2="1210" y2="92" stroke="#8c959f" stroke-width="1.2" marker-end="url(#a)"/>
+<text x="1210" y="84" class="k" text-anchor="end">time →</text>
+<circle cx="240" cy="92" r="11" fill="#57606a"/>
+<text x="240" y="97" class="num" text-anchor="middle">1</text>
+<circle cx="400" cy="92" r="11" fill="#57606a"/>
+<text x="400" y="97" class="num" text-anchor="middle">2</text>
+<circle cx="560" cy="92" r="11" fill="#57606a"/>
+<text x="560" y="97" class="num" text-anchor="middle">3</text>
+<circle cx="720" cy="92" r="11" fill="#57606a"/>
+<text x="720" y="97" class="num" text-anchor="middle">4</text>
+<circle cx="880" cy="92" r="11" fill="#57606a"/>
+<text x="880" y="97" class="num" text-anchor="middle">5</text>
+<circle cx="1040" cy="92" r="11" fill="#57606a"/>
+<text x="1040" y="97" class="num" text-anchor="middle">6</text>
+<text x="140" y="155" class="lane" text-anchor="end">T1</text>
+<text x="140" y="230" class="lane" text-anchor="end">T2</text>
+<text x="140" y="305" class="lane" text-anchor="end">T3</text>
+<rect x="170" y="133" width="780" height="34" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+<text x="172" y="125" class="bar" text-anchor="start">decrement → true</text>
+<circle cx="240" cy="150" r="6" fill="#cf222e"/>
+<circle cx="880" cy="150" r="6" fill="#cf222e"/>
+<rect x="330" y="208" width="144" height="34" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+<text x="332" y="200" class="bar" text-anchor="start">increment → true</text>
+<circle cx="400" cy="225" r="6" fill="#1a7f37"/>
+<rect x="650" y="208" width="460" height="34" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+<text x="652" y="200" class="bar" text-anchor="start">decrement → false</text>
+<circle cx="720" cy="225" r="6" fill="#cf222e"/>
+<circle cx="1040" cy="225" r="6" fill="#cf222e"/>
+<rect x="486" y="283" width="152" height="34" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+<text x="488" y="275" class="bar" text-anchor="start">read → 1</text>
+<circle cx="560" cy="300" r="6" fill="#0969da"/>
+<text x="140" y="375" class="lane" text-anchor="end">value in memory</text>
+<rect x="168" y="345" width="144" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="240" y="366" class="op" text-anchor="middle">① T1 fetch_sub</text>
+<text x="240" y="386" class="val" text-anchor="middle">1 → 0</text>
+<rect x="328" y="345" width="144" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="400" y="366" class="op" text-anchor="middle">② T2 fetch_add</text>
+<text x="400" y="386" class="val" text-anchor="middle">0 → 1</text>
+<rect x="488" y="345" width="144" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="560" y="366" class="op" text-anchor="middle">③ T3 load</text>
+<text x="560" y="386" class="val" text-anchor="middle">reads 1</text>
+<rect x="648" y="345" width="144" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="720" y="366" class="op" text-anchor="middle">④ T2 fetch_sub</text>
+<text x="720" y="386" class="val" text-anchor="middle">1 → 0</text>
+<rect x="808" y="345" width="144" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="880" y="366" class="op" text-anchor="middle">⑤ T1 CAS wins</text>
+<text x="880" y="386" class="val" text-anchor="middle">0 → is_zero</text>
+<rect x="968" y="345" width="144" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="1040" y="366" class="op" text-anchor="middle">⑥ T2 CAS fails</text>
+<text x="1040" y="386" class="val" text-anchor="middle">no helped</text>
+<text x="24" y="450" class="t" text-anchor="start">Return values and timing together allow exactly one order</text>
+<text x="24" y="478" class="k" text-anchor="start">Return values fix the adds and subs: T1 returned true, so it took the count to 0 last, after T2&#x27;s sub; T2&#x27;s add succeeded, so it precedes zero.</text>
+<text x="24" y="502" class="k" text-anchor="start">Timing fixes the read: T2&#x27;s add ended before read began, and read ended before T2&#x27;s sub began, so read sits between them.</text>
+<rect x="24" y="528" width="80" height="40" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.2"/>
+<text x="64.0" y="553" class="chip" text-anchor="middle">start 1</text>
+<line x1="108" y1="548" x2="134" y2="548" stroke="#57606a" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="138" y="528" width="120" height="40" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.2"/>
+<text x="198.0" y="553" class="chip" text-anchor="middle">T2 add → 2</text>
+<line x1="262" y1="548" x2="288" y2="548" stroke="#57606a" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="292" y="528" width="230" height="40" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="2"/>
+<text x="407.0" y="553" class="bad" text-anchor="middle">T3 read: should be 2, got 1</text>
+<line x1="526" y1="548" x2="552" y2="548" stroke="#57606a" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="556" y="528" width="150" height="40" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.2"/>
+<text x="631.0" y="553" class="chip" text-anchor="middle">T2 sub → 1, false</text>
+<line x1="710" y1="548" x2="736" y2="548" stroke="#57606a" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="740" y="528" width="150" height="40" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="1.2"/>
+<text x="815.0" y="553" class="chip" text-anchor="middle">T1 sub → 0, true</text>
+<text x="24" y="614" class="bad" text-anchor="start">Zero or not always fits an order; the exact non-zero value does not, so treat it as approximate.</text>
+</svg>

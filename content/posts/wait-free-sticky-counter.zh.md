@@ -131,9 +131,11 @@ struct WaitFreeStickyCounter {
 
 ### 1.7 线性一致性：用排先后代替重试
 
-线性一致性（linearizability）的意思是：每个操作看起来都在它调用和返回之间的某一个瞬间一次做完，所有操作的结果能排成一个先后顺序，和单线程依次执行得到的结果一样，而且先结束的操作排在后开始的操作前面。
+线性一致性（linearizability）说的是：每个操作从调用到返回占一段时间，要能在这段时间里各挑一个点，当作它一次做完的时刻；所有操作按这些点排成先后，在单线程里依次执行，每个操作的返回值都要和实际一样。点必须落在自己那段时间里，所以先结束的操作一定排在后开始的操作前面。
 
-lock-free 版遇到冲突就重试，直到自己的操作能干净地插进去。wait-free 版不重试，而是给冲突一个解释：`decrement()` 的 CAS 因为 `increment` 把 0 加回了 1 而失败，就把这次减排在那次加之后，那一刻计数是 2，减完是 1，没减到零，返回 `false` 自洽。**CAS 失败不再意味着“再来一次”，而是“我排在它后面”**，所以不需要循环。
+lock-free 版遇到冲突就重试，直到自己的操作能干净地插进去。wait-free 版不重试，而是给冲突一个解释。下图里，T1 的 `decrement()` 用 `fetch_sub` 把 1 减到 0，还没来得及钉零，T2 的 `increment()` 就把 0 加回了 1，T1 的 CAS 因此失败。把 T1 的点选在 CAS 那一刻（还在 T1 自己那段时间里），它就排在 T2 的加后面：1 加成 2，再减成 1，没减到零，返回 `false` 自洽。**CAS 失败不再意味着“再来一次”，而是“我排在它后面”**，所以不需要循环。
+
+<a href="/images/wait-free-sticky-counter/cas-order.zh.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/cas-order.zh.svg" alt="两条横条：T1 的 decrement 从调用到返回很长，中间先 fetch_sub 把 1 减到 0，后来 CAS 失败；T2 的 increment 夹在中间，把 0 加回 1。T1 的点选在 CAS 那一刻，排在 T2 的加后面：初始 1，T2 加成 2，T1 减成 1，没到零，返回 false 对得上。" loading="lazy" decoding="async"></a>
 
 这个解释有边界：`increment`、`decrement` 的返回值和“是不是零”都能这样排通，`read()` 返回的非零数值不一定能。最小的例子（初始计数 1）：
 
@@ -144,7 +146,9 @@ lock-free 版遇到冲突就重试，直到自己的操作能干净地插进去�
 5. T1 的 CAS 把 0 改成 `is_zero`，返回 `true`。
 6. T2 的 CAS 失败，值里没有 `helped`，返回 `false`。
 
-T1 拿到了“最后一个”的 `true`，按先后它得排在 T2 的减之后；T2 的加在 `read` 之前就结束了，T2 的减在 `read` 之后才开始。所以 `read` 那一刻逻辑上的计数应该是 2，它返回的却是内存里的 1。**是不是零是可靠的，具体的非零数值只能当近似值**，和 `shared_ptr::use_count()` 在多线程下只是近似值一个道理。
+<a href="/images/wait-free-sticky-counter/read-approx.zh.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/read-approx.zh.svg" alt="六步的时间线：T1 的 decrement 横跨第 1 到第 5 步，返回 true；T2 先 increment（第 2 步），再 decrement（第 4 到第 6 步，返回 false）；T3 的 read 在第 3 步读到 1。返回值定下加减的先后：T2 加、T2 减、T1 减；时间定下 read 夹在 T2 的加和减中间，那一刻计数应是 2，read 却返回 1。" loading="lazy" decoding="async"></a>
+
+要排出一个先后，得同时对上返回值和时间。先看返回值：T1 返回 `true`，说明它是最后一个把计数减到 0 的，要排在 T2 的减后面；T2 的加成功了，要排在计数归零之前。所以三次加减只有一种排法：T2 加、T2 减、T1 减。再看时间：T2 的加在 `read` 开始之前就结束了，`read` 在 T2 的减开始之前就结束了，所以 `read` 只能夹在 T2 的加和 T2 的减之间。那一刻计数是 2，`read` 返回的却是内存里的 1，怎么排都对不上。**是不是零是可靠的，具体的非零数值只能当近似值**，和 `shared_ptr::use_count()` 在多线程下只是近似值一个道理。
 
 ### 1.8 代价和前提：有上界不等于更快
 

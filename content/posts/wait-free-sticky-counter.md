@@ -131,9 +131,11 @@ In step ③ of `decrement()`, seeing `helped` isn't enough to return `true`, bec
 
 ### 1.7 Linearizability: Ordering Instead of Retrying
 
-Linearizability means: every operation appears to happen all at once at some instant between its call and its return, the results of all operations can be put in one order that matches running them one by one on a single thread, and an operation that finished before another started comes first in that order.
+Linearizability means: every operation occupies a span of time from its call to its return, and you must be able to pick one point inside each span as the instant it happens all at once; ordering all operations by those points and running them one by one on a single thread must give every operation the return value it actually got. A point has to lie inside its own span, so an operation that finished before another started comes first.
 
-The lock-free version retries on conflict until its operation slots in cleanly. The wait-free version doesn't retry; it explains the conflict instead. If `decrement()`'s CAS fails because an `increment` added the 0 back to 1, this decrement is ordered after that increment: at that moment the count was 2, the decrement left it at 1, it didn't reach zero, and returning `false` is consistent. **A failed CAS no longer means "try again" but "I come after it"**, so no loop is needed.
+The lock-free version retries on conflict until its operation slots in cleanly. The wait-free version doesn't retry; it explains the conflict instead. In the figure below, T1's `decrement()` takes 1 to 0 with `fetch_sub`, and before it can pin the zero, T2's `increment()` adds the 0 back to 1, so T1's CAS fails. Put T1's point at the CAS (still inside T1's own span) and it comes after T2's increment: 1 becomes 2, then 1 again, it didn't reach zero, and returning `false` is consistent. **A failed CAS no longer means "try again" but "I come after it"**, so no loop is needed.
+
+<a href="/images/wait-free-sticky-counter/cas-order.en.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/cas-order.en.svg" alt="Two bars: T1's decrement spans a long time, doing fetch_sub 1 to 0 and later a failed CAS; T2's increment sits in between and adds the 0 back to 1. T1's point is at the CAS, after T2's add: start 1, T2 makes it 2, T1 makes it 1, not zero, so returning false is consistent." loading="lazy" decoding="async"></a>
 
 This explanation has limits: the return values of `increment` and `decrement` and "is it zero" can all be ordered this way, but a non-zero number returned by `read()` can't always. The smallest example (initial count 1):
 
@@ -144,7 +146,9 @@ This explanation has limits: the return values of `increment` and `decrement` an
 5. T1's CAS changes 0 to `is_zero` and returns `true`.
 6. T2's CAS fails, the value has no `helped`, and it returns `false`.
 
-T1 got the "last one" `true`, so in the order it must come after T2's decrement; T2's increment finished before the `read`, and T2's decrement started after it. So the logical count at the moment of the `read` should be 2, yet it returned the 1 in memory. **Whether it is zero is reliable; the exact non-zero value is only an approximation**, for the same reason `shared_ptr::use_count()` is only approximate with several threads.
+<a href="/images/wait-free-sticky-counter/read-approx.en.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/read-approx.en.svg" alt="A six-step timeline: T1's decrement spans steps 1 to 5 and returns true; T2 increments at step 2, then decrements over steps 4 to 6 and returns false; T3's read at step 3 reads 1. Return values fix the order of the adds and subs: T2 add, T2 sub, T1 sub; timing puts the read between T2's add and sub, where the count should be 2, yet read returned 1." loading="lazy" decoding="async"></a>
+
+An order has to match both the return values and the timing. Start with the return values: T1 returned `true`, so it was the last to take the count to 0 and comes after T2's decrement; T2's increment succeeded, so it comes before the count reached zero. That leaves one order for the adds and subs: T2's add, T2's sub, T1's sub. Then the timing: T2's add finished before the `read` started, and the `read` finished before T2's sub started, so the `read` has to sit between T2's add and T2's sub. The count there is 2, but the `read` returned the 1 in memory, and no order fixes that. **Whether it is zero is reliable; the exact non-zero value is only an approximation**, for the same reason `shared_ptr::use_count()` is only approximate with several threads.
 
 ### 1.8 Costs and Preconditions: A Bound Is Not Speed
 
