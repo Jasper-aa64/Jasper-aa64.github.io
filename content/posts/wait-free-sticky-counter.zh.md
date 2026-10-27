@@ -48,14 +48,17 @@ struct LockFreeStickyCounter {
     bool increment_if_not_zero() {
         uint64_t cur = n.load(std::memory_order_relaxed);
         while (cur != 0) {
-            if (n.compare_exchange_weak(cur, cur + 1, std::memory_order_acq_rel,
-                                        std::memory_order_relaxed))
+            if (n.compare_exchange_weak(cur, cur + 1, std::memory_order_relaxed))
                 return true;  // 失败时 cur 被改成最新值，再判断一次
         }
         return false;
     }
-    bool decrement() { return n.fetch_sub(1, std::memory_order_acq_rel) == 1; }
-    uint64_t read() { return n.load(std::memory_order_acquire); }
+    bool decrement() {
+        if (n.fetch_sub(1, std::memory_order_release) != 1) return false;
+        std::atomic_thread_fence(std::memory_order_acquire);  // 要销毁的一方才 acquire
+        return true;
+    }
+    uint64_t read() { return n.load(std::memory_order_relaxed); }
 };
 ```
 
@@ -75,25 +78,29 @@ struct WaitFreeStickyCounter {
 
     bool increment_if_not_zero() {
         // 先加，再看加之前有没有 is_zero：没有才算加上了
-        return (counter.fetch_add(1, std::memory_order_acq_rel) & is_zero) == 0;
+        return (counter.fetch_add(1, std::memory_order_relaxed) & is_zero) == 0;
     }
 
     bool decrement() {
-        if (counter.fetch_sub(1, std::memory_order_acq_rel) == 1) {  // ① 是我把它减到了 0
+        if (counter.fetch_sub(1, std::memory_order_release) == 1) {  // ① 是我把它减到了 0
             uint64_t expect = 0;
-            if (counter.compare_exchange_strong(expect, is_zero, std::memory_order_acq_rel))
+            if (counter.compare_exchange_strong(expect, is_zero, std::memory_order_relaxed)) {
+                std::atomic_thread_fence(std::memory_order_acquire);  // 认领成功才 acquire
                 return true;                                           // ② 我自己钉成零
+            }
             if ((expect & helped) &&
-                (counter.exchange(is_zero, std::memory_order_acq_rel) & helped))
+                (counter.exchange(is_zero, std::memory_order_relaxed) & helped)) {
+                std::atomic_thread_fence(std::memory_order_acquire);  // 认领成功才 acquire
                 return true;                                           // ③ 读的一方替我钉了，我来认领
+            }
         }
         return false;  // 没减到 0，或者被别人加回去了
     }
 
     uint64_t read() {
-        uint64_t val = counter.load(std::memory_order_acquire);
+        uint64_t val = counter.load(std::memory_order_relaxed);
         if (val == 0 && counter.compare_exchange_strong(val, is_zero | helped,
-                                                        std::memory_order_acq_rel))
+                                                        std::memory_order_relaxed))
             return 0;  // 读到窗口里的 0：不等，帮忙钉成零
         return (val & is_zero) ? 0 : (val & ~(is_zero | helped));
     }
@@ -147,7 +154,16 @@ T1 拿到了“最后一个”的 `true`，按先后它得排在 T2 的减之后
 
 **“没有循环”还要靠硬件。** x86 上 `fetch_add`、`exchange`、`compare_exchange_strong` 各是一条带 `lock` 的指令，不会失败重试。ARM 在 ARMv8.1 的 LSE（大型系统扩展）之前没有这些单指令原子操作，编译器会把它们编成“独占读、独占写、失败就重来”的循环，这时严格说只是 lock-free。
 
-内存序：上面的代码全写 `acq_rel`，是够用的保守写法。按引用计数的需要，减 1 至少要 release（我对对象的使用要先于别人销毁它），拿到 `true`、要去销毁的那一方要 acquire；加 1 只要原子就行，Boost 的文档和 libc++ 的 `shared_ptr` 加引用都用 `relaxed`。
+内存序：计数本身对不对（恰好一个 `true`）只靠 RMW 的原子性，同一个字上的 RMW 自然排成一条队，和内存序无关。内存序保护的是计数以外的东西，也就是对象本身，代码里只有两处要求顺序：
+
+- 减 1 用 release：我放手之前对对象的读写，要先于这次减 1 被别人看到，否则可能对象已经销毁了，我的写才落地。
+- 认领成功（返回 `true`）以后加一道 acquire 栅栏：析构和 `delete` 不能提到它前面，而且能看到所有人放手之前的读写。栅栏只在拿到 `true` 的路径上，别的线程不付这份钱。
+
+其余的加 1、钉零、`read()` 都用 `relaxed`：它们做完以后都不碰对象，没有东西要传给别人。Boost 和 libc++ 的 `shared_ptr` 加引用也用 `relaxed`。
+
+有两处细节。**acquire 要跟在决定认领的那次读后面，不能紧跟 `fetch_sub`。**窗口里计数可能被别人加回去、用一下对象、再减回 0：1.7 那个例子里，T1 在第 5 步认领，它要看到 T2 用对象时写的东西，把它和 T2 第 4 步那次 release 减 1 连起来的是 CAS 读到的值，不是 `fetch_sub` 读到的 1。钉零的 CAS 和 `exchange` 用 `relaxed`，也不会断开这条线：一次 release 写之后，同一个变量上的 RMW 不论用什么内存序，都接在它的 release sequence（释放序列）上。这个计数的所有修改都是 RMW，所以认领者读到最后的值，就和之前每一次 release 减 1 都同步了。
+
+在 x86 上这些都不多花指令：带 `lock` 的 RMW 本身就是全屏障，acquire 栅栏只约束编译器，全写 `acq_rel` 和写成最弱的内存序生成的是同一份机器码。差别在 ARM 上：`ldaddal` 变成 `ldaddl`，只有认领者多一条 `dmb ishld`。
 
 ### 1.9 等不到时怎么办：自旋、让出、睡，还是失败返回
 

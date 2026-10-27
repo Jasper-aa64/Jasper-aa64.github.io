@@ -48,14 +48,17 @@ struct LockFreeStickyCounter {
     bool increment_if_not_zero() {
         uint64_t cur = n.load(std::memory_order_relaxed);
         while (cur != 0) {
-            if (n.compare_exchange_weak(cur, cur + 1, std::memory_order_acq_rel,
-                                        std::memory_order_relaxed))
+            if (n.compare_exchange_weak(cur, cur + 1, std::memory_order_relaxed))
                 return true;  // on failure cur is updated to the latest value; check again
         }
         return false;
     }
-    bool decrement() { return n.fetch_sub(1, std::memory_order_acq_rel) == 1; }
-    uint64_t read() { return n.load(std::memory_order_acquire); }
+    bool decrement() {
+        if (n.fetch_sub(1, std::memory_order_release) != 1) return false;
+        std::atomic_thread_fence(std::memory_order_acquire);  // only the thread that destroys pays for acquire
+        return true;
+    }
+    uint64_t read() { return n.load(std::memory_order_relaxed); }
 };
 ```
 
@@ -75,25 +78,29 @@ struct WaitFreeStickyCounter {
 
     bool increment_if_not_zero() {
         // add first, then check whether the old value had is_zero: only without it does the add count
-        return (counter.fetch_add(1, std::memory_order_acq_rel) & is_zero) == 0;
+        return (counter.fetch_add(1, std::memory_order_relaxed) & is_zero) == 0;
     }
 
     bool decrement() {
-        if (counter.fetch_sub(1, std::memory_order_acq_rel) == 1) {  // ① I took it to 0
+        if (counter.fetch_sub(1, std::memory_order_release) == 1) {  // ① I took it to 0
             uint64_t expect = 0;
-            if (counter.compare_exchange_strong(expect, is_zero, std::memory_order_acq_rel))
+            if (counter.compare_exchange_strong(expect, is_zero, std::memory_order_relaxed)) {
+                std::atomic_thread_fence(std::memory_order_acquire);  // acquire only once the claim is mine
                 return true;                                           // ② I pin it at zero myself
+            }
             if ((expect & helped) &&
-                (counter.exchange(is_zero, std::memory_order_acq_rel) & helped))
+                (counter.exchange(is_zero, std::memory_order_relaxed) & helped)) {
+                std::atomic_thread_fence(std::memory_order_acquire);  // acquire only once the claim is mine
                 return true;                                           // ③ a reader pinned it for me; I claim it
+            }
         }
         return false;  // didn't reach 0, or someone added it back
     }
 
     uint64_t read() {
-        uint64_t val = counter.load(std::memory_order_acquire);
+        uint64_t val = counter.load(std::memory_order_relaxed);
         if (val == 0 && counter.compare_exchange_strong(val, is_zero | helped,
-                                                        std::memory_order_acq_rel))
+                                                        std::memory_order_relaxed))
             return 0;  // saw the 0 inside the window: don't wait, help pin it
         return (val & is_zero) ? 0 : (val & ~(is_zero | helped));
     }
@@ -147,7 +154,16 @@ T1 got the "last one" `true`, so in the order it must come after T2's decrement;
 
 **"No loop" also depends on the hardware.** On x86, `fetch_add`, `exchange` and `compare_exchange_strong` are each a single `lock`-prefixed instruction that can't fail and retry. ARM before the LSE (Large System Extensions) of ARMv8.1 has no single-instruction atomics of this kind, and the compiler turns them into "exclusive load, exclusive store, start over on failure" loops; strictly speaking that is only lock-free.
 
-Memory order: the code above uses `acq_rel` everywhere, a safe and conservative choice. What a reference count needs is release on decrement (my use of the object has to come before someone destroys it), and acquire for the thread that gets `true` and destroys; the increment only needs to be atomic, and both the Boost documentation and libc++'s `shared_ptr` use `relaxed` for adding a reference.
+Memory order: whether the count itself is right (exactly one `true`) depends only on the atomicity of RMWs; RMWs on one word line up in a single order whatever their memory order. Memory order protects what lies outside the count, the object itself, and the code asks for ordering in only two places:
+
+- The decrement uses release: my reads and writes of the object before I let go must be visible before this decrement is, or my write could land after the object has been destroyed.
+- A successful claim (returning `true`) is followed by an acquire fence: destruction and `delete` cannot move ahead of it, and they see every holder's accesses from before it let go. The fence is only on the `true` path, so no other thread pays for it.
+
+Everything else (the increment, pinning, `read()`) uses `relaxed`: none of them touch the object afterwards, so there is nothing to pass on. Boost and libc++'s `shared_ptr` also use `relaxed` to add a reference.
+
+Two details. **The acquire goes after the read that decides the claim, not right after `fetch_sub`.** Inside the window the count can be added back, the object used, and the count taken to 0 again: in the 1.7 example T1 claims at step 5 and has to see what T2 wrote while holding the object, and what links T1 to T2's release decrement at step 4 is the value T1's CAS reads, not the 1 its `fetch_sub` read. The relaxed pinning CAS and `exchange` don't break that link either: after a release write, every RMW on the same variable, whatever its memory order, extends that write's release sequence. Every modification of this counter is an RMW, so a claimer that reads the final value synchronizes with every earlier release decrement.
+
+On x86 none of this costs an instruction: a `lock`-prefixed RMW is already a full barrier and the acquire fence only constrains the compiler, so `acq_rel` everywhere and the weakest orders compile to the same machine code. The difference shows on ARM: `ldaddal` becomes `ldaddl`, and only the claimer adds a `dmb ishld`.
 
 ### 1.9 When You Can't Proceed: Spin, Yield, Sleep, or Return a Failure
 
