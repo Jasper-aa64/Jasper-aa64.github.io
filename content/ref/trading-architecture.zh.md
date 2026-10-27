@@ -2,7 +2,7 @@
 title: "交易系统架构：地图、时间、怎么切"
 description: "一条行情从网卡进来，到变成一笔报单、拿回成交，经过哪些线程和数据结构；每一段大概多久；工业级系统怎么分线程、在哪里放队列、哪里必须汇合。"
 date: 2026-10-20
-lastmod: 2026-10-20
+lastmod: 2026-10-27
 slug: "trading-architecture"
 weight: 15
 toc: true
@@ -59,6 +59,7 @@ toc: true
 | 热路径不现分配内存（订单、消息对象） | [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/) |
 | 分片队列（SPSC）、异步日志 | [#4 无锁队列与 Micro-Batching](/zh/posts/lock-free-queue-logger-micro-batching/) |
 | 广播环、落盘读者被套圈、重启续读、什么时候不用广播环 | [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) |
+| 几个线程的订单汇到一个网关（多生产者队列）、旁路的阻塞队列、队列满了阻塞还是丢 | [#18 线程安全队列](/zh/posts/thread-safe-queue/) |
 | 分片线程里一条行情的计算 | [缓存案例：一次行情重算 64 个期权](/zh/posts/low-latency-cache-case-study/) |
 | 开盘前预热、账户快照的双缓冲 | [#14 预取、预热与双缓冲](/zh/posts/prefetch-warmup-double-buffer/) |
 | 汇合、策略、风控、订单管理、下单网关 | 本页第 3 部分；以后的文章再补 |

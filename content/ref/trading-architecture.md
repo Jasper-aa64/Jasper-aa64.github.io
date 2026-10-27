@@ -2,7 +2,7 @@
 title: "Trading System Architecture: Map, Times, How to Split"
 description: "Which threads and data structures a market data message passes through on its way from the NIC to an order and back as a fill; roughly how long each stage takes; and how industrial systems split threads, where they put queues, and where they must join."
 date: 2026-10-20
-lastmod: 2026-10-20
+lastmod: 2026-10-27
 slug: "trading-architecture"
 weight: 15
 toc: true
@@ -59,6 +59,7 @@ Recording, logging, monitoring and client push are side paths: a hot thread writ
 | No allocation on the hot path (orders, message objects) | [#3 Memory Pools and Allocators](/posts/hot-path-memory-allocators/) |
 | Shard queues (SPSC), async logging | [#4 Lock-Free Queues and Micro-Batching](/posts/lock-free-queue-logger-micro-batching/) |
 | Broadcast ring, lapped recorders, resuming after a restart, when not to use a broadcast ring | [#5 An SPMC Broadcast Ring in Shared Memory](/posts/spmc-shared-memory-broadcast-ring/) |
+| Several threads' orders converging on one gateway (multi-producer queues), blocking queues on side paths, whether a full queue blocks or drops | [#18 Thread-Safe Queues](/posts/thread-safe-queue/) |
 | The computation for one message in a shard thread | [A Cache Case Study: Repricing 64 Options per Tick](/posts/low-latency-cache-case-study/) |
 | Warming up before the open, double-buffered account snapshots | [#14 Prefetching, Cache Warming, and Double Buffering](/posts/prefetch-warmup-double-buffer/) |
 | Join, strategy, risk, order manager, order gateway | Part 3 of this page; later posts will add more |
