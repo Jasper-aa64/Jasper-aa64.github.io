@@ -141,6 +141,8 @@ cv.notify_all();
 - `prod_tail_`：生产者写完、消费者能读到哪；
 - 消费者一边对称：`cons_head_` 是消费者抢到哪了，`cons_tail_` 是消费者读完、生产者能覆盖到哪。
 
+rte_ring 本身是多生产者多消费者（MPMC）的，下面的代码也是完整的 MPMC 版，消费者一边按多个写。**只有一个消费者时，`cons_head_` 和 `cons_tail_` 总是相等**，2.2 末尾会说怎么简化。
+
 ```cpp
 template <class T, uint32_t N>             // N 是 2 的幂
 class MpmcRing {
@@ -205,7 +207,7 @@ private:
 
 代价是：A 如果在 ① 和 ④ 之间被换下 CPU，B、C……全都卡在 ③ 转圈，一直转到 A 回来。这和 [#16](/zh/posts/spinlock-implementation/) 2.1 票据锁里“轮到号的线程被换下、整条队跟着停”是同一个问题。所以严格说它不是 lock-free：**一个停住的生产者能让其他所有生产者都停住。**DPDK 敢这么用，是因为它的线程都绑核独占，不会被换下；普通线程会被抢占，用这种环最坏要停几 ms。
 
-消费者一侧完全对称：几个消费者用 CAS 抢 `cons_head_`，读完按顺序推进 `cons_tail_`，生产者看 `cons_tail_` 判断能不能覆盖。
+消费者一侧完全对称：几个消费者用 CAS 抢 `cons_head_`，读完按顺序推进 `cons_tail_`，生产者看 `cons_tail_` 判断能不能覆盖。订单网关这种只有一个消费者的情况（MPSC），没人跟它抢，前面也没人要等，CAS 和第 ③ 步那样的等待都可以省掉：读完直接用 release 写 `cons_tail_`，两个下标合成一个就行。rte_ring 的单消费者模式就是这么做的。
 
 ### 2.3 Disruptor：每一格自己标“写好了”
 

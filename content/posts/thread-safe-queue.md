@@ -141,6 +141,8 @@ When several strategy threads send orders to one gateway thread (multi-producer,
 - `prod_tail_`: how far producers have finished writing, i.e. how far consumers may read;
 - the consumer side mirrors it: `cons_head_` is how far consumers have claimed, `cons_tail_` how far they have finished reading, i.e. how far producers may overwrite.
 
+rte_ring itself is multi-producer, multi-consumer (MPMC), and the code below is the full MPMC version, with the consumer side written for several consumers. **With a single consumer, `cons_head_` and `cons_tail_` are always equal**; the end of 2.2 shows how that simplifies.
+
 ```cpp
 template <class T, uint32_t N>             // N is a power of two
 class MpmcRing {
@@ -205,7 +207,7 @@ The load in step ③ has to be acquire. A publishes `prod_tail_ = 6` with a rele
 
 The price: if A is descheduled between ① and ④, B, C and everyone after them spin at ③ until A comes back. This is the same problem as the ticket lock in [#16](/posts/spinlock-implementation/) 2.1, where the thread whose turn it is gets descheduled and the whole queue stops. So strictly speaking this is not lock-free: **one stalled producer can stall every other producer.** DPDK can get away with it because its threads are pinned to dedicated cores and never descheduled; with ordinary, preemptible threads, the worst case for this ring is a stall of several milliseconds.
 
-The consumer side is fully symmetric: consumers claim from `cons_head_` with CAS, advance `cons_tail_` in order once they have read, and producers check `cons_tail_` to see whether they may overwrite.
+The consumer side is fully symmetric: consumers claim from `cons_head_` with CAS, advance `cons_tail_` in order once they have read, and producers check `cons_tail_` to see whether they may overwrite. With a single consumer, as for the order gateway (MPSC), nobody competes with it and nobody ahead of it needs waiting for, so the CAS and a step-③-style wait both go away: after reading it simply stores `cons_tail_` with release, and the two indices collapse into one. rte_ring's single-consumer mode does exactly this.
 
 ### 2.3 Disruptor: Every Slot Marks Itself "Written"
 
