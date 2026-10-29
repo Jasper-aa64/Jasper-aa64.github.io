@@ -47,6 +47,7 @@ emptyFilter: "Nothing in this series yet."
 # reference pages (living look-up pages, not posts)
 secRef: "Reference"
 refUpdated: "Updated {{ . }}"
+algoEntry: "Algorithms"
 
 # post
 prevPost: "Previous"

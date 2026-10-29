@@ -46,6 +46,7 @@ emptyFilter: "这个系列还没有文章。"
 # reference pages (living look-up pages, not posts)
 secRef: "速查"
 refUpdated: "更新于 {{ . }}"
+algoEntry: "算法"
 
 # post
 prevPost: "上一篇"

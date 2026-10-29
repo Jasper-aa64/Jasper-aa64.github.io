@@ -982,6 +982,12 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .ref-entry:hover { color: var(--ink); border-color: var(--rule-strong); }
 .ref-entry:hover span { transform: translateX(3px); }
 .page-body { padding-bottom: 12px; }
+/* Reference page: the quiet link to the algorithms hub, bottom left. */
+.algo-entry { margin: 40px 0 0; font-size: 13px; }
+.algo-entry a { color: var(--faint); text-decoration: none; border-bottom: 1px dotted var(--rule-strong); transition: color .2s; }
+.algo-entry a:hover { color: var(--muted); }
+.algo-entry span { display: inline-block; margin-left: 4px; transition: transform .25s var(--ease); }
+.algo-entry a:hover span { transform: translateX(3px); }
 
 .filter {
   position: sticky;

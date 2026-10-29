@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Algorithm Map</title>
+<link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
+<style>
+:root { --bg:#f6f7f9; --card:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --accent:#0969da; --hl:#bf3989; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#1c1a19; --card:#26231f; --fg:#ece6df; --muted:#b3aaa0; --line:#463f38; --accent:#e9a0b4; --hl:#ff7bb0; } }
+:root[data-theme="dark"] { --bg:#1c1a19; --card:#26231f; --fg:#ece6df; --muted:#b3aaa0; --line:#463f38; --accent:#e9a0b4; --hl:#ff7bb0; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font: 15px/1.6 PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif; -webkit-tap-highlight-color: transparent; }
+header { padding: 14px 16px 10px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:baseline; }
+h1 { font-size: 22px; margin: 0; }
+header .lead { flex: 1 1 420px; margin:0; color:var(--muted); font-size:14px; }
+header nav { display:flex; gap:12px; font-size:14px; }
+a { color: var(--accent); }
+.tours { display:flex; flex-wrap:wrap; gap:8px; padding: 0 16px 10px; }
+.tours button, .stepbar button { font: inherit; font-size:14px; padding: 5px 12px; border-radius: 999px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+.tours button[aria-pressed="true"] { border-color: var(--hl); color: var(--hl); }
+.tours .zoom { margin-left: auto; }
+.map.full svg { width: 1600px; max-width: none; }
+.layout { display:grid; grid-template-columns: minmax(0,1fr) 340px; gap: 12px; padding: 0 16px 16px; align-items:start; }
+.map { background:#ffffff; border:1px solid var(--line); border-radius:10px; overflow:auto; max-height: calc(100vh - 140px); }
+.map svg { display:block; width:100%; height:auto; min-width: 1000px; }
+.side { position: sticky; top: 12px; display:flex; flex-direction:column; gap:12px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding: 12px 14px; }
+.card h2 { font-size:17px; margin:0 0 6px; }
+.card p { margin: 4px 0; color: var(--muted); font-size:14px; }
+.card h3 { font-size:13px; margin:10px 0 4px; color:var(--muted); font-weight:600; }
+.card ul { margin:0; padding-left: 18px; font-size:14px; }
+.stepbar { display:none; }
+.stepbar.on { display:block; }
+.stepbar .count { font-size:13px; color:var(--muted); }
+.stepbar .cap { margin: 6px 0 10px; font-size:15px; color:var(--fg); }
+.stepbar .btns { display:flex; gap:8px; }
+.node { cursor:pointer; outline:none; }
+.node:hover > rect:first-of-type, .node:focus-visible > rect:first-of-type { stroke:#bf3989; stroke-width:2.5; }
+.node.sel > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
+svg .tag a tspan { text-decoration: underline; text-decoration-color: rgba(9,105,218,.35); }
+svg .tag a:hover tspan { fill:#bf3989; }
+svg.dim .node, svg.dim .edge { opacity:.18; transition: opacity .25s; }
+svg.dim .node.on, svg.dim .edge.on { opacity:1; }
+svg .edge.on { stroke:#bf3989; stroke-width:3; }
+svg.dim .node.on > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .side { position: static; order: -1; }
+  .map { max-height: 70vh; }
+}
+@media (prefers-reduced-motion: reduce) { svg.dim .node, svg.dim .edge { transition:none; } }
+</style>
+</head>
+<body>
+<header>
+<h1>Algorithm Map</h1>
+<p class="lead">Click a box to see what it solves and when to reach for it. Pick a route to step through what to learn first. Blue labels open the notes.</p>
+<nav><a href="algo-map.zh.html">中文</a><a href="/algo/">Algorithms</a><a href="/images/algo/algo-map.en.svg">Static image</a></nav>
+</header>
+<div class="tours"><button type="button" data-k="interview" aria-pressed="false">Interview route</button><button type="button" data-k="nt" aria-pressed="false">Number theory line</button><button type="button" data-k="comb" aria-pressed="false">Counting line</button><button type="button" data-k="la" aria-pressed="false">Linear algebra line</button><button type="button" data-k="signals" aria-pressed="false">Contest signals</button><button type="button" class="zoom" aria-pressed="false">Actual size</button></div>
+<div class="layout">
+<div class="map">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1420" width="1600" height="1420" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .labr{ font-size: 11.5px; fill: #cf222e; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .ext  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .hot  { fill: #eefbf1; stroke: #1a7f37; stroke-width: 1.4; }
+      .data { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .sync { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .note { fill: #fbfbfc; stroke: #8c959f; stroke-width: 1; stroke-dasharray: 3 3; }
+      .cold { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; stroke-dasharray: 5 3; }
+      .sock { fill: #fbfbfc; stroke: #1f2328; stroke-width: 2; }
+      .line { stroke: #555; stroke-width: 1.6; fill: none; }
+      .ret  { stroke: #cf222e; stroke-width: 1.6; fill: none; }
+      .side { stroke: #6e7781; stroke-width: 1.4; fill: none; stroke-dasharray: 5 3; }
+      .lane-t { font-size: 15px; font-weight: 700; fill: #0550ae; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1420" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">Algorithm map: what to write in interviews, what to skim, what to master for contests</text>
+  <text x="20" y="64" class="s">Green = interview core, write it right and fast; grey = skim, know what it solves and when to reach for it; blue = main line of the contest focus, top to bottom; yellow = side branch, picked up when the main line reaches its arrow.</text>
+  <text x="20" y="84" class="s">Blue labels = notes already on this site: NT = Number Theory, C = Combinatorics, M = Matrix. Prerequisites across lanes are in the box details.</text>
+  <rect x="24" y="124" width="1552" height="218" rx="10" fill="#f4fbf5" stroke="#4ac26b" stroke-dasharray="6 4"/>
+  <text x="36" y="150" class="lane-h" style="fill:#1a7f37">Interview core: write it right and fast (HFT / tech interviews, easy contest problems)</text>
+  <rect x="24" y="356" width="1552" height="218" rx="10" fill="#ffffff" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="36" y="382" class="lane-h" style="fill:#57606a">Skim: what it solves, what it costs, when to reach for it</text>
+  <rect x="24" y="588" width="1552" height="768" rx="10" class="sock"/>
+  <text x="36" y="616" class="h">Contest focus: mathematics. Derive the formula and state the idea under contest pressure</text>
+  <text x="36" y="646" class="lane-t">Number theory</text>
+  <line x1="538" y1="632" x2="538" y2="1344" stroke="#d0d7de" stroke-width="1"/>
+  <text x="558" y="646" class="lane-t">Counting</text>
+  <line x1="1060" y1="632" x2="1060" y2="1344" stroke="#d0d7de" stroke-width="1"/>
+  <text x="1080" y="646" class="lane-t">Linear algebra (matrices)</text>
+  <g id="a_cx" class="node" tabindex="0" role="button" aria-label="Complexity · STL">
+  <rect x="36" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="48" y="188" class="t">Complexity · STL</text>
+  <text x="48" y="206" class="s">Limits pick the bound</text>
+  <text x="48" y="224" class="s">Know container costs</text>
+  </g>
+  <g id="a_bs" class="node" tabindex="0" role="button" aria-label="Binary search">
+  <rect x="228" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="240" y="188" class="t">Binary search</text>
+  <text x="240" y="206" class="s">Boundaries in sorted data</text>
+  <text x="240" y="224" class="s">Search on the answer</text>
+  </g>
+  <g id="a_tp" class="node" tabindex="0" role="button" aria-label="Two pointers">
+  <rect x="420" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="432" y="188" class="t">Two pointers</text>
+  <text x="432" y="206" class="s">Both ends only move right</text>
+  <text x="432" y="224" class="s">O(n) in total</text>
+  </g>
+  <g id="a_ps" class="node" tabindex="0" role="button" aria-label="Prefix sums">
+  <rect x="612" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="624" y="188" class="t">Prefix sums</text>
+  <text x="624" y="206" class="s">O(1) range sum</text>
+  <text x="624" y="224" class="s">O(1) range add</text>
+  </g>
+  <g id="a_st" class="node" tabindex="0" role="button" aria-label="Monotonic stack">
+  <rect x="804" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="816" y="188" class="t">Monotonic stack</text>
+  <text x="816" y="206" class="s">Next greater element</text>
+  <text x="816" y="224" class="s">Deque: window max</text>
+  </g>
+  <g id="a_hp" class="node" tabindex="0" role="button" aria-label="Heap · hash map">
+  <rect x="996" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="1008" y="188" class="t">Heap · hash map</text>
+  <text x="1008" y="206" class="s">Top-K, running max</text>
+  <text x="1008" y="224" class="s">Membership and counts</text>
+  </g>
+  <g id="a_gr" class="node" tabindex="0" role="button" aria-label="Sorting · greedy">
+  <rect x="1188" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="1200" y="188" class="t">Sorting · greedy</text>
+  <text x="1200" y="206" class="s">Sort, then pick locally</text>
+  <text x="1200" y="224" class="s">Prove by exchange</text>
+  </g>
+  <g id="a_bit" class="node" tabindex="0" role="button" aria-label="Bit tricks">
+  <rect x="1380" y="164" width="180" height="76" rx="6" class="hot"/>
+  <text x="1392" y="188" class="t">Bit tricks</text>
+  <text x="1392" y="206" class="s">lowbit, subset loops</text>
+  <text x="1392" y="224" class="s">XOR identities</text>
+  </g>
+  <g id="a_srch" class="node" tabindex="0" role="button" aria-label="Search">
+  <rect x="36" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="48" y="276" class="t">Search</text>
+  <text x="48" y="294" class="s">BFS: fewest steps</text>
+  <text x="48" y="312" class="s">DFS: enumerate + prune</text>
+  </g>
+  <g id="a_tree" class="node" tabindex="0" role="button" aria-label="Trees">
+  <rect x="228" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="240" y="276" class="t">Trees</text>
+  <text x="240" y="294" class="s">Traversal, diameter, LCA</text>
+  <text x="240" y="312" class="s">Design the return value</text>
+  </g>
+  <g id="a_graph" class="node" tabindex="0" role="button" aria-label="Shortest paths">
+  <rect x="420" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="432" y="276" class="t">Shortest paths</text>
+  <text x="432" y="294" class="s">Dijkstra, topological sort</text>
+  <text x="432" y="312" class="s">Negative: Bellman-Ford</text>
+  </g>
+  <g id="a_dsu" class="node" tabindex="0" role="button" aria-label="Union-find">
+  <rect x="612" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="624" y="276" class="t">Union-find</text>
+  <text x="624" y="294" class="s">Online connectivity</text>
+  <text x="624" y="312" class="s">Kruskal&#x27;s MST</text>
+  </g>
+  <g id="a_dp1" class="node" tabindex="0" role="button" aria-label="DP: linear, knapsack">
+  <rect x="804" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="816" y="276" class="t">DP: linear, knapsack</text>
+  <text x="816" y="294" class="s">Define the state first</text>
+  <text x="816" y="312" class="s">Then transitions, bases</text>
+  </g>
+  <g id="a_dp2" class="node" tabindex="0" role="button" aria-label="DP: tree, bitmask">
+  <rect x="996" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="1008" y="276" class="t">DP: tree, bitmask</text>
+  <text x="1008" y="294" class="s">Interval, subtree, set</text>
+  <text x="1008" y="312" class="s">Bitmask: n up to ~20</text>
+  </g>
+  <g id="a_str" class="node" tabindex="0" role="button" aria-label="Strings">
+  <rect x="1188" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="1200" y="276" class="t">Strings</text>
+  <text x="1200" y="294" class="s">KMP, hashing, trie</text>
+  <text x="1200" y="312" class="s">0/1 trie: max XOR</text>
+  </g>
+  <g id="a_design" class="node" tabindex="0" role="button" aria-label="Design">
+  <rect x="1380" y="252" width="180" height="76" rx="6" class="hot"/>
+  <text x="1392" y="276" class="t">Design</text>
+  <text x="1392" y="294" class="s">LRU, order book, limiter</text>
+  <text x="1392" y="312" class="s">Choosing the structure</text>
+  </g>
+  <g id="b_seg" class="node" tabindex="0" role="button" aria-label="Segment trees">
+  <rect x="36" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="48" y="420" class="t">Segment trees</text>
+  <text x="48" y="438" class="s">Fenwick and segment tree</text>
+  <text x="48" y="456" class="s">Range ops in O(log n)</text>
+  </g>
+  <g id="b_bst" class="node" tabindex="0" role="button" aria-label="Balanced BST">
+  <rect x="228" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="240" y="420" class="t">Balanced BST</text>
+  <text x="240" y="438" class="s">k-th element, rank</text>
+  <text x="240" y="456" class="s">Prefer pb_ds in contests</text>
+  </g>
+  <g id="b_tree" class="node" tabindex="0" role="button" aria-label="Advanced trees">
+  <rect x="420" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="432" y="420" class="t">Advanced trees</text>
+  <text x="432" y="438" class="s">HLD, rerooting, centroid</text>
+  <text x="432" y="456" class="s">Path ops, every root</text>
+  </g>
+  <g id="b_conn" class="node" tabindex="0" role="button" aria-label="Connectivity">
+  <rect x="612" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="624" y="420" class="t">Connectivity</text>
+  <text x="624" y="438" class="s">Tarjan, condensation</text>
+  <text x="624" y="456" class="s">2-SAT: pick-one rules</text>
+  </g>
+  <g id="b_flow" class="node" tabindex="0" role="button" aria-label="Flows · matching">
+  <rect x="804" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="816" y="420" class="t">Flows · matching</text>
+  <text x="816" y="438" class="s">Max flow, min-cost flow</text>
+  <text x="816" y="456" class="s">Modelling is the hard part</text>
+  </g>
+  <g id="b_str" class="node" tabindex="0" role="button" aria-label="Advanced strings">
+  <rect x="996" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="1008" y="420" class="t">Advanced strings</text>
+  <text x="1008" y="438" class="s">Aho-Corasick, SAM</text>
+  <text x="1008" y="456" class="s">Manacher: palindromes</text>
+  </g>
+  <g id="b_geo" class="node" tabindex="0" role="button" aria-label="Geometry">
+  <rect x="1188" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="1200" y="420" class="t">Geometry</text>
+  <text x="1200" y="438" class="s">Cross product, hull</text>
+  <text x="1200" y="456" class="s">Half-planes, precision</text>
+  </g>
+  <g id="b_game" class="node" tabindex="0" role="button" aria-label="Games">
+  <rect x="1380" y="396" width="180" height="76" rx="6" class="cold"/>
+  <text x="1392" y="420" class="t">Games</text>
+  <text x="1392" y="438" class="s">Nim, Sprague-Grundy</text>
+  <text x="1392" y="456" class="s">Brute force for a pattern</text>
+  </g>
+  <g id="b_dc" class="node" tabindex="0" role="button" aria-label="Divide and conquer">
+  <rect x="36" y="484" width="180" height="76" rx="6" class="cold"/>
+  <text x="48" y="508" class="t">Divide and conquer</text>
+  <text x="48" y="526" class="s">CDQ, parallel bin. search</text>
+  <text x="48" y="544" class="s">Offline, drop a dimension</text>
+  </g>
+  <g id="b_off" class="node" tabindex="0" role="button" aria-label="Offline tricks">
+  <rect x="228" y="484" width="180" height="76" rx="6" class="cold"/>
+  <text x="240" y="508" class="t">Offline tricks</text>
+  <text x="240" y="526" class="s">Mo&#x27;s algorithm, sweep</text>
+  <text x="240" y="544" class="s">Reorder the queries</text>
+  </g>
+  <g id="b_lichao" class="node" tabindex="0" role="button" aria-label="Li Chao · Cartesian">
+  <rect x="420" y="484" width="180" height="76" rx="6" class="cold"/>
+  <text x="432" y="508" class="t">Li Chao · Cartesian</text>
+  <text x="432" y="526" class="s">Convex hull trick DP</text>
+  <text x="432" y="544" class="s">Range min as a tree</text>
+  </g>
+  <g id="b_rand" class="node" tabindex="0" role="button" aria-label="Stress testing">
+  <rect x="612" y="484" width="180" height="76" rx="6" class="cold"/>
+  <text x="624" y="508" class="t">Stress testing</text>
+  <text x="624" y="526" class="s">Check against brute force</text>
+  <text x="624" y="544" class="s">Randomised hashing</text>
+  </g>
+  <g id="c_pow" class="node" tabindex="0" role="button" aria-label="Fast power · gcd · exgcd">
+  <rect x="36" y="658" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="682" class="t">Fast power · gcd · exgcd</text>
+  <text x="48" y="700" class="s">Where modular work starts</text>
+  <text x="48" y="718" class="tag"><a href="/posts/number-theory-1-elementary/" target="_blank" rel="noopener"><tspan>NT #1 GCD · CRT</tspan></a></text>
+  </g>
+  <g id="c_inv" class="node" tabindex="0" role="button" aria-label="Inverses · CRT · Euler">
+  <rect x="36" y="776" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="800" class="t">Inverses · CRT · Euler</text>
+  <text x="48" y="818" class="s">Division mod p; merging</text>
+  <text x="48" y="836" class="tag"><a href="/posts/number-theory-1-elementary/" target="_blank" rel="noopener"><tspan>NT #1 GCD · CRT</tspan></a></text>
+  </g>
+  <g id="c_sieve" class="node" tabindex="0" role="button" aria-label="Sieves">
+  <rect x="36" y="894" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="918" class="t">Sieves</text>
+  <text x="48" y="936" class="s">Linear sieve, plus φ, μ, d</text>
+  <text x="48" y="954" class="tag"><a href="/posts/number-theory-3-sieve-mobius-inclusion-exclusion/" target="_blank" rel="noopener"><tspan>NT #3 sieve → Möbius</tspan></a></text>
+  </g>
+  <g id="c_mult" class="node" tabindex="0" role="button" aria-label="Multiplicative · Dirichlet">
+  <rect x="36" y="1012" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="1036" class="t">Multiplicative · Dirichlet</text>
+  <text x="48" y="1054" class="s">How φ, μ, d, σ relate</text>
+  <text x="48" y="1072" class="tag"><a href="/posts/number-theory-2-multiplicative-functions/" target="_blank" rel="noopener"><tspan>NT #2 multiplicative</tspan></a></text>
+  </g>
+  <g id="c_mob" class="node" tabindex="0" role="button" aria-label="Möbius · floor blocks">
+  <rect x="36" y="1130" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="1154" class="t">Möbius · floor blocks</text>
+  <text x="48" y="1172" class="s">The route for sums over gcd</text>
+  <text x="48" y="1190" class="tag"><a href="/posts/number-theory-2-ex-mobius-techniques/" target="_blank" rel="noopener"><tspan>NT #2-ex Möbius</tspan></a></text>
+  <text x="48" y="1208" class="tag"><a href="/posts/number-theory-1-1-divisibility-blocking/" target="_blank" rel="noopener"><tspan>NT #1.1 floor blocks</tspan></a></text>
+  </g>
+  <g id="c_dujiao" class="node" tabindex="0" role="button" aria-label="Du&#x27;s sieve · Min_25">
+  <rect x="36" y="1248" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="1272" class="t">Du&#x27;s sieve · Min_25</text>
+  <text x="48" y="1290" class="s">Prefix sums up to 1e10</text>
+  <text x="48" y="1308" class="tag"><a href="/posts/number-theory-4-min25-du-jiao-sieve/" target="_blank" rel="noopener"><tspan>NT #4 Min_25 · Du</tspan></a></text>
+  </g>
+  <g id="c_root" class="node" tabindex="0" role="button" aria-label="Primitive roots · BSGS">
+  <rect x="283" y="776" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="800" class="t">Primitive roots · BSGS</text>
+  <text x="295" y="818" class="s">Discrete log; NTT moduli</text>
+  <text x="295" y="836" class="tag"><a href="/posts/combinatorics-2-2-primitive-roots-ntt/" target="_blank" rel="noopener"><tspan>C #2.2 roots · NTT</tspan></a></text>
+  </g>
+  <g id="c_mr" class="node" tabindex="0" role="button" aria-label="Miller-Rabin · rho">
+  <rect x="283" y="894" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="918" class="t">Miller-Rabin · rho</text>
+  <text x="295" y="936" class="s">Primality, factoring to 1e18</text>
+  <text x="295" y="954" class="tag"><a href="/posts/number-theory-4-primality-factorisation-residues/" target="_blank" rel="noopener"><tspan>NT #4 Miller-Rabin · rho</tspan></a></text>
+  </g>
+  <g id="c_qr" class="node" tabindex="0" role="button" aria-label="Square roots · Lucas">
+  <rect x="283" y="1012" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="1036" class="t">Square roots · Lucas</text>
+  <text x="295" y="1054" class="s">√ mod p; big binomials</text>
+  <text x="295" y="1072" class="tag"><a href="/posts/number-theory-4-primality-factorisation-residues/" target="_blank" rel="noopener"><tspan>NT #4 Miller-Rabin · rho</tspan></a></text>
+  </g>
+  <g id="c_ntfact" class="node" tabindex="0" role="button" aria-label="Handy facts">
+  <rect x="283" y="1130" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="1154" class="t">Handy facts</text>
+  <text x="295" y="1172" class="s">Legendre&#x27;s formula; divisors</text>
+  <text x="295" y="1190" class="tag"><a href="/posts/number-theory-0-common-formulae/" target="_blank" rel="noopener"><tspan>NT #0 common formulae</tspan></a></text>
+  </g>
+  <g id="c_cnt" class="node" tabindex="0" role="button" aria-label="Binomials mod p">
+  <rect x="558" y="658" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="682" class="t">Binomials mod p</text>
+  <text x="570" y="700" class="s">Precompute factorials</text>
+  <text x="570" y="718" class="tag"><a href="/posts/combinatorics-1-1-permutations-combinations/" target="_blank" rel="noopener"><tspan>C #1.1 binomials</tspan></a></text>
+  <text x="570" y="736" class="tag"><a href="/posts/combinatorics-0-common-formulae-conclusions/" target="_blank" rel="noopener"><tspan>C #0 formulae</tspan></a></text>
+  </g>
+  <g id="c_ie" class="node" tabindex="0" role="button" aria-label="Inclusion-exclusion">
+  <rect x="558" y="776" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="800" class="t">Inclusion-exclusion</text>
+  <text x="570" y="818" class="s">Trade &quot;at least&quot; for &quot;exactly&quot;</text>
+  <text x="570" y="836" class="tag"><a href="/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/" target="_blank" rel="noopener"><tspan>C #1.2 inclusion-exclusion</tspan></a></text>
+  </g>
+  <g id="c_binv" class="node" tabindex="0" role="button" aria-label="Binomial inversion">
+  <rect x="558" y="894" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="918" class="t">Binomial inversion</text>
+  <text x="570" y="936" class="s">Exactly k ↔ at least k</text>
+  </g>
+  <g id="c_gf" class="node" tabindex="0" role="button" aria-label="Generating functions">
+  <rect x="558" y="1012" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="1036" class="t">Generating functions</text>
+  <text x="570" y="1054" class="s">OGF: choose; EGF: arrange</text>
+  <text x="570" y="1072" class="tag"><a href="/posts/combinatorics-3-1-ordinary-generating-functions/" target="_blank" rel="noopener"><tspan>C #3.1 OGF</tspan></a></text>
+  </g>
+  <g id="c_ntt" class="node" tabindex="0" role="button" aria-label="FFT · NTT">
+  <rect x="558" y="1130" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="1154" class="t">FFT · NTT</text>
+  <text x="570" y="1172" class="s">Convolution in O(n log n)</text>
+  <text x="570" y="1190" class="tag"><a href="/posts/combinatorics-2-1-fft-lagrange-interpolation/" target="_blank" rel="noopener"><tspan>C #2.1 FFT</tspan></a></text>
+  <text x="570" y="1208" class="tag"><a href="/posts/combinatorics-2-2-primitive-roots-ntt/" target="_blank" rel="noopener"><tspan>C #2.2 roots · NTT</tspan></a></text>
+  </g>
+  <g id="c_poly" class="node" tabindex="0" role="button" aria-label="Polynomial toolkit">
+  <rect x="558" y="1248" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="1272" class="t">Polynomial toolkit</text>
+  <text x="570" y="1290" class="s">Inverse, ln, exp, D&amp;C NTT</text>
+  <text x="570" y="1308" class="tag"><a href="/posts/combinatorics-3-2-more-operations-on-formal-power-series/" target="_blank" rel="noopener"><tspan>C #3.2 power series</tspan></a></text>
+  </g>
+  <g id="c_model" class="node" tabindex="0" role="button" aria-label="Balls into boxes">
+  <rect x="805" y="658" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="682" class="t">Balls into boxes</text>
+  <text x="817" y="700" class="s">Stirling, Catalan, partitions</text>
+  </g>
+  <g id="c_polya" class="node" tabindex="0" role="button" aria-label="Pólya · Burnside">
+  <rect x="805" y="776" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="800" class="t">Pólya · Burnside</text>
+  <text x="817" y="818" class="s">Counting up to symmetry</text>
+  </g>
+  <g id="c_prob" class="node" tabindex="0" role="button" aria-label="Probability · expectation">
+  <rect x="805" y="894" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="918" class="t">Probability · expectation</text>
+  <text x="817" y="936" class="s">Linearity; work backwards</text>
+  </g>
+  <g id="c_fwt" class="node" tabindex="0" role="button" aria-label="FWT · SOS">
+  <rect x="805" y="1012" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="1036" class="t">FWT · SOS</text>
+  <text x="817" y="1054" class="s">AND / OR / XOR convolutions</text>
+  </g>
+  <g id="c_mpow" class="node" tabindex="0" role="button" aria-label="Matrix fast power">
+  <rect x="1080" y="658" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="682" class="t">Matrix fast power</text>
+  <text x="1092" y="700" class="s">Recurrences in O(k³ log n)</text>
+  <text x="1092" y="718" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
+  </g>
+  <g id="c_semi" class="node" tabindex="0" role="button" aria-label="DP semirings">
+  <rect x="1080" y="776" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="800" class="t">DP semirings</text>
+  <text x="1092" y="818" class="s">(min, +): exactly k steps</text>
+  <text x="1092" y="836" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
+  </g>
+  <g id="c_gauss" class="node" tabindex="0" role="button" aria-label="Gaussian elimination">
+  <rect x="1080" y="894" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="918" class="t">Gaussian elimination</text>
+  <text x="1092" y="936" class="s">Reals, mod p, and XOR</text>
+  <text x="1092" y="954" class="tag"><a href="/posts/matrix-2-gaussian-elimination/" target="_blank" rel="noopener"><tspan>M #2 Gaussian elimination</tspan></a></text>
+  </g>
+  <g id="c_det" class="node" tabindex="0" role="button" aria-label="Determinants">
+  <rect x="1080" y="1012" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="1036" class="t">Determinants</text>
+  <text x="1092" y="1054" class="s">Triangularise; Euclid for any mod</text>
+  </g>
+  <g id="c_mtt" class="node" tabindex="0" role="button" aria-label="Matrix-tree · LGV">
+  <rect x="1080" y="1130" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="1154" class="t">Matrix-tree · LGV</text>
+  <text x="1092" y="1172" class="s">Spanning trees; disjoint paths</text>
+  </g>
+  <g id="c_bm" class="node" tabindex="0" role="button" aria-label="BM · Kitamasa">
+  <rect x="1327" y="658" width="235" height="92" rx="6" class="sync"/>
+  <text x="1339" y="682" class="t">BM · Kitamasa</text>
+  <text x="1339" y="700" class="s">Recover the recurrence</text>
+  <text x="1339" y="718" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
+  </g>
+  <g id="c_mprob" class="node" tabindex="0" role="button" aria-label="Matrix problems">
+  <rect x="1327" y="776" width="235" height="92" rx="6" class="sync"/>
+  <text x="1339" y="800" class="t">Matrix problems</text>
+  <text x="1339" y="818" class="s">Matrices in segment trees</text>
+  <text x="1339" y="836" class="tag"><a href="/posts/matrix-4-problems/" target="_blank" rel="noopener"><tspan>M #4 problems</tspan></a></text>
+  </g>
+  <g id="c_basis" class="node" tabindex="0" role="button" aria-label="Linear basis">
+  <rect x="1327" y="894" width="235" height="92" rx="6" class="sync"/>
+  <text x="1339" y="918" class="t">Linear basis</text>
+  <text x="1339" y="936" class="s">Max XOR, k-th XOR</text>
+  <text x="1339" y="954" class="tag"><a href="/posts/matrix-3-linear-basis/" target="_blank" rel="noopener"><tspan>M #3 linear basis</tspan></a></text>
+  </g>
+  <path d="M76,750 L76,774" class="line edge" id="e_c_pow_c_inv" marker-end="url(#arr)"/>
+  <path d="M76,868 L76,892" class="line edge" id="e_c_inv_c_sieve" marker-end="url(#arr)"/>
+  <path d="M76,986 L76,1010" class="line edge" id="e_c_sieve_c_mult" marker-end="url(#arr)"/>
+  <path d="M76,1104 L76,1128" class="line edge" id="e_c_mult_c_mob" marker-end="url(#arr)"/>
+  <path d="M76,1222 L76,1246" class="line edge" id="e_c_mob_c_dujiao" marker-end="url(#arr)"/>
+  <path d="M598,750 L598,774" class="line edge" id="e_c_cnt_c_ie" marker-end="url(#arr)"/>
+  <path d="M598,868 L598,892" class="line edge" id="e_c_ie_c_binv" marker-end="url(#arr)"/>
+  <path d="M598,986 L598,1010" class="line edge" id="e_c_binv_c_gf" marker-end="url(#arr)"/>
+  <path d="M598,1104 L598,1128" class="line edge" id="e_c_gf_c_ntt" marker-end="url(#arr)"/>
+  <path d="M598,1222 L598,1246" class="line edge" id="e_c_ntt_c_poly" marker-end="url(#arr)"/>
+  <path d="M1120,750 L1120,774" class="line edge" id="e_c_mpow_c_semi" marker-end="url(#arr)"/>
+  <path d="M1120,868 L1120,892" class="line edge" id="e_c_semi_c_gauss" marker-end="url(#arr)"/>
+  <path d="M1120,986 L1120,1010" class="line edge" id="e_c_gauss_c_det" marker-end="url(#arr)"/>
+  <path d="M1120,1104 L1120,1128" class="line edge" id="e_c_det_c_mtt" marker-end="url(#arr)"/>
+  <path d="M271,806 L281,806" class="line edge" id="e_c_inv_c_root" marker-end="url(#arr)"/>
+  <path d="M793,688 L803,688" class="line edge" id="e_c_cnt_c_model" marker-end="url(#arr)"/>
+  <path d="M1315,688 L1325,688" class="line edge" id="e_c_mpow_c_bm" marker-end="url(#arr)"/>
+  <path d="M1315,924 L1325,924" class="line edge" id="e_c_gauss_c_basis" marker-end="url(#arr)"/>
+  <text x="20" y="1394" class="s">The map grows with the study: boxes gain links to posts as they are covered.</text>
+</svg>
+</div>
+<aside class="side">
+<div class="card stepbar" id="stepbar"><div class="count"></div><div class="cap"></div><div class="btns"><button type="button" class="prev">Back</button><button type="button" class="next">Next</button><button type="button" class="exit">Exit</button></div></div>
+<div class="card" id="panel"><p>Click any box in the map.</p></div>
+</aside>
+</div>
+<script>
+const DATA = {"nodes": {"a_cx": {"title": "Complexity · STL", "lines": ["Read the limits first: n up to 1e5 needs O(n log n), 1e6 needs O(n), around 20 allows exponential.", "This is the first step in interviews and contests alike; know the costs of vector, map, priority_queue and unordered_map."], "tags": []}, "a_bs": {"title": "Binary search", "lines": ["If feasibility is monotone in the answer, binary-search the answer and turn optimisation into a yes/no check.", "Stick to one style (half-open) so the boundaries never go wrong."], "tags": []}, "a_tp": {"title": "Two pointers", "lines": ["When validity is monotone in the right end, the left end only moves right as well: O(n) in total.", "Longest substring without repeats and shortest subarray with sum at least k are this pattern."], "tags": []}, "a_ps": {"title": "Prefix sums", "lines": ["Prefix sums give range sums, difference arrays give range adds, in 2D as well.", "\"How many subarrays sum to k\" is prefix sums plus a hash map."], "tags": []}, "a_st": {"title": "Monotonic stack", "lines": ["A monotonic stack finds the nearest greater or smaller element on each side; a monotonic deque gives sliding-window maxima; both amortised O(n).", "Bracket matching and expression evaluation use a plain stack."], "tags": []}, "a_hp": {"title": "Heap · hash map", "lines": ["A heap gives the running min or max, a size-K heap gives top-K; a hash map answers membership and counts.", "HFT interviews use these for de-duplicating market data and best bid/ask."], "tags": []}, "a_gr": {"title": "Sorting · greedy", "lines": ["Greedy usually starts with a sort, and an exchange argument shows that swapping never helps. Interval scheduling and merging intervals come up a lot.", "Be able to write quicksort and merge sort by hand; merge sort also counts inversions."], "tags": []}, "a_bit": {"title": "Bit tricks", "lines": ["x & -x isolates the lowest set bit; loop over the subsets of m with s = (s - 1) & m.", "XOR cancels itself, which finds the element that appears once. Bitmask DP builds on these."], "tags": []}, "a_srch": {"title": "Search", "lines": ["BFS gives shortest paths on unweighted graphs; DFS with backtracking enumerates permutations, combinations and subsets, and pruning decides whether it passes.", "Grid problems and counting islands come up a lot."], "tags": []}, "a_tree": {"title": "Trees", "lines": ["Write pre-, in-, post-order and level-order traversals without recursion too; the diameter takes two DFS passes; LCA uses binary lifting.", "Most interview tree problems come down to what the recursive function returns."], "tags": []}, "a_graph": {"title": "Shortest paths", "lines": ["Dijkstra with a heap for non-negative weights (O(m log n)), Bellman-Ford with negative ones; on a DAG, sort topologically and then DP.", "Course schedules and task dependencies are topological sorts."], "tags": []}, "a_dsu": {"title": "Union-find", "lines": ["With path compression and union by rank, each operation is almost constant time.", "Use it for connectivity as edges are added, and for Kruskal's minimum spanning tree."], "tags": []}, "a_dp1": {"title": "DP: linear, knapsack", "lines": ["Fix what a state means first, then the transitions and the base cases.", "LIS, edit distance, 0/1 and unbounded knapsack are must-know templates; compress knapsack to one dimension."], "tags": []}, "a_dp2": {"title": "DP: tree, bitmask", "lines": ["Interval DP goes by increasing length; tree DP merges subtrees on the way back up the DFS; bitmask DP encodes a set as an integer, for n up to about 20."], "tags": []}, "a_str": {"title": "Strings", "lines": ["KMP matches with the prefix function; string hashing compares substrings in O(1); a trie stores prefixes, and a bitwise 0/1 trie finds the maximum XOR."], "tags": []}, "a_design": {"title": "Design", "lines": ["Common in HFT interviews: an LRU cache (hash map + doubly linked list, O(1)), an order book (a price-ordered map with a queue per level), a sliding-window rate limiter.", "What is tested is which structure you pick and the cost of each operation."], "tags": []}, "b_seg": {"title": "Segment trees", "lines": ["Point update with range query: Fenwick tree; range update with range query, or richer information: segment tree with lazy tags.", "Think of it whenever a problem mixes many updates with many range queries."], "tags": []}, "b_bst": {"title": "Balanced BST", "lines": ["For a dynamic k-th smallest or rank, use the pb_ds tree or a hand-written treap; prefer the library in contests."], "tags": []}, "b_tree": {"title": "Advanced trees", "lines": ["Path updates and queries: heavy-light decomposition over a segment tree; an answer for every root: rerooting DP; counting paths: centroid decomposition."], "tags": []}, "b_conn": {"title": "Connectivity", "lines": ["Condense strongly connected components into a DAG and DP on it; find cut vertices and bridges; a set of either-or constraints is 2-SAT."], "tags": []}, "b_flow": {"title": "Flows · matching", "lines": ["Assignment, matching and min-cut problems become flow networks; keep one Dinic template ready. The hard part is building the graph."], "tags": []}, "b_str": {"title": "Advanced strings", "lines": ["Many patterns at once: Aho-Corasick; counting distinct substrings: the suffix automaton; longest palindromes: Manacher."], "tags": []}, "b_geo": {"title": "Geometry", "lines": ["Everything starts from the cross product: convex hull, rotating calipers, half-plane intersection. Use eps, or integers when possible."], "tags": []}, "b_game": {"title": "Games", "lines": ["Impartial games: Nim is decided by the XOR of the piles; a sum of independent games has the XOR of their Grundy values. Tabulate small cases first."], "tags": []}, "b_dc": {"title": "Divide and conquer", "lines": ["CDQ divide and conquer removes one dimension from 3D dominance counting; parallel binary search answers many binary searches together."], "tags": []}, "b_off": {"title": "Offline tricks", "lines": ["If queries can be reordered, go offline: Mo's algorithm for range queries, a sweep line with a Fenwick tree for 2D counting and rectangle union."], "tags": []}, "b_lichao": {"title": "Li Chao · Cartesian", "lines": ["A Li Chao tree (insert lines, query the max at a point) is the general tool for convex-hull-trick DP; a Cartesian tree turns range-min problems into tree problems."], "tags": []}, "b_rand": {"title": "Stress testing", "lines": ["After a hard problem, stress-test it against a brute force; it beats reading the code. Random hashing and shuffling defeat adversarial tests."], "tags": []}, "c_pow": {"title": "Fast power · gcd · exgcd", "lines": ["Fast power is O(log n); extended Euclid solves ax + by = gcd(a, b), which gives inverses and solves linear congruences.", "Be able to write them in a minute."], "tags": [[["NT #1 GCD · CRT", "/posts/number-theory-1-elementary/"]]]}, "c_inv": {"title": "Inverses · CRT · Euler", "lines": ["Mod a prime, Fermat's little theorem gives the inverse; otherwise exgcd. All inverses of 1..n come out in linear time.", "CRT merges congruences (generalised CRT when moduli share factors); the extended Euler theorem reduces huge exponents."], "tags": [[["NT #1 GCD · CRT", "/posts/number-theory-1-elementary/"]]]}, "c_sieve": {"title": "Sieves", "lines": ["The linear sieve finds primes in O(n) and computes multiplicative functions such as φ, μ and the divisor count on the way; it covers precomputation up to about 1e7."], "tags": [[["NT #3 sieve → Möbius", "/posts/number-theory-3-sieve-mobius-inclusion-exclusion/"]]]}, "c_mult": {"title": "Multiplicative · Dirichlet", "lines": ["Dirichlet convolution ties these functions together: μ * 1 = ε, φ * 1 = id, 1 * 1 = d. Derivations substitute with these identities."], "tags": [[["NT #2 multiplicative", "/posts/number-theory-2-multiplicative-functions/"]]]}, "c_mob": {"title": "Möbius · floor blocks", "lines": ["For ∑∑[gcd(i, j) = 1] or ∑ gcd(i, j), replace the condition with [n = 1] = ∑_{d | n} μ(d) and swap the order of summation.", "What remains, ⌊n / d⌋, takes only O(√n) values, so sum block by block. It is inclusion-exclusion over divisors (see the counting lane)."], "tags": [[["NT #2-ex Möbius", "/posts/number-theory-2-ex-mobius-techniques/"]], [["NT #1.1 floor blocks", "/posts/number-theory-1-1-divisibility-blocking/"]]]}, "c_dujiao": {"title": "Du's sieve · Min_25", "lines": ["A linear sieve stops around 1e7. Beyond that, Du's sieve recurses on prefix sums through a Dirichlet convolution in O(n^{2/3}); Min_25 handles multiplicative functions that are easy at primes."], "tags": [[["NT #4 Min_25 · Du", "/posts/number-theory-4-min25-du-jiao-sieve/"]]]}, "c_root": {"title": "Primitive roots · BSGS", "lines": ["A primitive root turns multiplication into addition of exponents; baby-step giant-step solves a^x ≡ b (mod p) in O(√p).", "The primitive root 3 of 998244353 is the one NTT uses."], "tags": [[["C #2.2 roots · NTT", "/posts/combinatorics-2-2-primitive-roots-ntt/"]]]}, "c_mr": {"title": "Miller-Rabin · rho", "lines": ["Miller-Rabin tests numbers up to 1e18 (a fixed set of 7 bases makes it deterministic) and Pollard rho factors them; use __int128 for the products."], "tags": [[["NT #4 Miller-Rabin · rho", "/posts/number-theory-4-primality-factorisation-residues/"]]]}, "c_qr": {"title": "Square roots · Lucas", "lines": ["Cipolla solves x² ≡ a (mod p); Lucas's theorem computes binomials mod a small prime when n is huge, and the generalised version handles composite moduli."], "tags": [[["NT #4 Miller-Rabin · rho", "/posts/number-theory-4-primality-factorisation-residues/"]]]}, "c_ntfact": {"title": "Handy facts", "lines": ["Legendre's formula gives the power of p in n!; numbers below 1e9 have at most 1344 divisors and below 1e18 about 1e5, which decides whether enumerating divisors is feasible."], "tags": [[["NT #0 common formulae", "/posts/number-theory-0-common-formulae/"]]]}, "c_cnt": {"title": "Binomials mod p", "lines": ["Precompute n! and its inverse for O(1) binomials. Needs: inverses (number theory lane).", "Recognise stars and bars, multiset permutations and derangements at a glance."], "tags": [[["C #1.1 binomials", "/posts/combinatorics-1-1-permutations-combinations/"]], [["C #0 formulae", "/posts/combinatorics-0-common-formulae-conclusions/"]]]}, "c_ie": {"title": "Inclusion-exclusion", "lines": ["For counts with many restrictions, count without them and add or subtract by the set of restrictions violated.", "Bounded solutions of linear equations and derangements are the template problems."], "tags": [[["C #1.2 inclusion-exclusion", "/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/"]]]}, "c_binv": {"title": "Binomial inversion", "lines": ["The algebraic form of inclusion-exclusion: from g(k) = ∑ C(i, k) f(i) you can solve back for f.", "Min-max inversion gives the expected time until everything has appeared."], "tags": []}, "c_gf": {"title": "Generating functions", "lines": ["Put a counting sequence into a power series: choosing from several kinds of items multiplies their generating functions.", "Unlabelled objects use ordinary generating functions; labelled ones (arrangements) use exponential ones."], "tags": [[["C #3.1 OGF", "/posts/combinatorics-3-1-ordinary-generating-functions/"]]]}, "c_ntt": {"title": "FFT · NTT", "lines": ["Polynomial multiplication drops from O(n²) to O(n log n). Mod 998244353 use NTT, which is exact; for arbitrary moduli use three-modulus NTT or split FFT.", "Needs: primitive roots (number theory lane)."], "tags": [[["C #2.1 FFT", "/posts/combinatorics-2-1-fft-lagrange-interpolation/"]], [["C #2.2 roots · NTT", "/posts/combinatorics-2-2-primitive-roots-ntt/"]]]}, "c_poly": {"title": "Polynomial toolkit", "lines": ["With NTT, division, logarithm and exponential of power series are all O(n log n). Use templates in contests; the skill is reducing the problem to \"the n-th coefficient of some generating function\"."], "tags": [[["C #3.2 power series", "/posts/combinatorics-3-2-more-operations-on-formal-power-series/"]]]}, "c_model": {"title": "Balls into boxes", "lines": ["Whether balls and boxes are distinguishable and whether boxes may be empty gives twelve cases, each with its formula (binomials, Stirling numbers, partitions).", "Catalan numbers count bracket sequences, stack orders and binary trees."], "tags": []}, "c_polya": {"title": "Pólya · Burnside", "lines": ["When colourings equal under rotation or reflection count once, Burnside averages the fixed points over the group. Necklace counting is the template."], "tags": []}, "c_prob": {"title": "Probability · expectation", "lines": ["Split an expectation into a sum by linearity; expectation DP usually runs backwards from the end. Fractions are printed modulo p with inverses."], "tags": []}, "c_fwt": {"title": "FWT · SOS", "lines": ["Convolutions where indices combine by a bitwise operation use FWT; sums over all subsets (high-dimensional prefix sums) use SOS DP in O(n·2^n)."], "tags": []}, "c_mpow": {"title": "Matrix fast power", "lines": ["A recurrence where each term depends on the previous k (Fibonacci, counting DPs with a short memory) becomes a k × k matrix raised to the n-th power, for n up to 1e18."], "tags": [[["M #1 fast power · Kitamasa", "/posts/matrix-1-fast-exponentiation/"]]]}, "c_semi": {"title": "DP semirings", "lines": ["Swap multiplication for addition and addition for min, and matrix power computes shortest walks of exactly k steps; boolean matrices give reachability."], "tags": [[["M #1 fast power · Kitamasa", "/posts/matrix-1-fast-exponentiation/"]]]}, "c_gauss": {"title": "Gaussian elimination", "lines": ["Solves linear systems in O(n³); mod p, division becomes multiplication by an inverse; XOR systems speed up with bitset.", "Detect inconsistency and count free variables: the number of solutions is p to that power."], "tags": [[["M #2 Gaussian elimination", "/posts/matrix-2-gaussian-elimination/"]]]}, "c_det": {"title": "Determinants", "lines": ["The determinant is the product of the diagonal after elimination to triangular form; for a composite modulus, eliminate with a Euclid-style exchange between rows."], "tags": []}, "c_mtt": {"title": "Matrix-tree · LGV", "lines": ["The number of spanning trees is a cofactor of the Laplacian; the LGV lemma turns counting non-intersecting path systems into a determinant."], "tags": []}, "c_bm": {"title": "BM · Kitamasa", "lines": ["When the recurrence is unknown, Berlekamp-Massey recovers it from the first 2k terms; for large k, the characteristic polynomial (Kitamasa) cuts O(k³ log n) to O(k² log n), and NTT goes further."], "tags": [[["M #1 fast power · Kitamasa", "/posts/matrix-1-fast-exponentiation/"]]]}, "c_mprob": {"title": "Matrix problems", "lines": ["Range add with range Fibonacci sums: each segment-tree node stores a matrix, and so does the lazy tag."], "tags": [[["M #4 problems", "/posts/matrix-4-problems/"]]]}, "c_basis": {"title": "Linear basis", "lines": ["The XORs of all subsets form a vector space; a linear basis (at most 64 numbers) answers the maximum XOR, whether x is reachable, and the k-th smallest."], "tags": [[["M #3 linear basis", "/posts/matrix-3-linear-basis/"]]]}}, "ui": {"page_title": "Algorithm Map", "lead": "Click a box to see what it solves and when to reach for it. Pick a route to step through what to learn first. Blue labels open the notes.", "other_lang": ["中文", "algo-map.zh.html"], "static": ["Static image", "/images/algo/algo-map.en.svg"], "ref": ["Algorithms", "/algo/"], "prev": "Back", "next": "Next", "exit": "Exit", "step": "Step {i} of {n}", "panel_empty": "Click any box in the map.", "zoom": ["Actual size", "Fit width"], "panel_links": "Notes on this site", "tours": {"interview": ["Interview route", [[["a_cx"], "Start with \"read the limits, pick the complexity\", and learn the costs of the STL containers. Every problem starts here."], [["a_bs", "a_tp", "a_ps"], "The array trio: binary search, two pointers, prefix sums. Most interview problems combine them."], [["a_st", "a_hp", "a_gr", "a_bit"], "Stacks, heaps, hash maps, sorting and greedy, bit tricks: pick the right container and the complexity follows."], [["a_srch", "a_tree", "a_graph", "a_dsu"], "Search, trees, graphs, union-find: make recursion and BFS automatic, and decide what a recursive call returns."], [["a_dp1", "a_dp2"], "DP: write down what a state means before anything else; the transition follows."], [["a_str", "a_design"], "Finish with strings and design. HFT interviews often end on design: LRU, order book, rate limiter."]]], "nt": ["Number theory line", [[["c_pow"], "Start with fast power, gcd and exgcd: every later box uses them."], [["e_c_pow_c_inv", "c_inv"], "Inverses and CRT: division and merging congruences mod m. Primitive roots hang off here."], [["e_c_inv_c_sieve", "c_sieve"], "The linear sieve: primes in O(n), multiplicative functions on the way."], [["e_c_sieve_c_mult", "c_mult"], "Multiplicative functions and Dirichlet convolution: the identities used in derivations."], [["e_c_mult_c_mob", "c_mob"], "Möbius inversion with floor blocks: the standard contest route for sums over gcd; derive it on the spot."], [["e_c_mob_c_dujiao", "c_dujiao"], "n up to 1e10: Du's sieve and Min_25."]]], "comb": ["Counting line", [[["c_cnt"], "Binomials mod p: precompute factorials and inverse factorials. Classic models (balls into boxes, Catalan) hang off here."], [["e_c_cnt_c_ie", "c_ie"], "Inclusion-exclusion: add and subtract by the set of violated restrictions."], [["e_c_ie_c_binv", "c_binv"], "Binomial inversion: trade \"exactly k\" for \"at least k\"."], [["e_c_binv_c_gf", "c_gf"], "Generating functions: \"pick some of each to reach a total\" becomes a product of polynomials."], [["e_c_gf_c_ntt", "c_ntt"], "NTT makes that product O(n log n)."], [["e_c_ntt_c_poly", "c_poly"], "The polynomial toolkit: inverse, ln, exp. The skill is reducing to \"the n-th coefficient\"."]]], "la": ["Linear algebra line", [[["c_mpow"], "Matrix fast power: linear recurrences for n up to 1e18. If the recurrence is unknown, BM recovers it."], [["e_c_mpow_c_semi", "c_semi"], "DP semirings: swap (+, ×) for (min, +) to get shortest walks of exactly k steps."], [["e_c_semi_c_gauss", "c_gauss"], "Gaussian elimination over reals, mod p and XOR; XOR systems lead to the linear basis."], [["e_c_gauss_c_det", "c_det"], "Determinants: eliminate to triangular form."], [["e_c_det_c_mtt", "c_mtt"], "Matrix-tree theorem and LGV: determinants in counting problems."]]], "signals": ["Contest signals", [[["c_mob", "c_dujiao"], "A sum over gcd or a [gcd = 1] condition: Möbius inversion removes it, floor blocks sum it; for n up to 1e10 add Du's sieve."], [["c_ie", "c_binv"], "Counting with \"none of them may...\": inclusion-exclusion; \"exactly k\": count \"at least k\", then invert."], [["c_gf", "c_ntt", "c_poly"], "\"Choose some of each kind to total n\", with n up to 1e5: multiply generating functions with NTT."], [["c_mpow", "c_bm"], "n up to 1e18 and each term depends on a few before it: matrix fast power; unknown recurrence: BM."], [["c_gauss", "c_basis"], "Switches, XOR, equations mod 2: Gaussian elimination or a linear basis."]]]}}};
+const svg = document.querySelector('.map svg');
+const panel = document.getElementById('panel');
+const bar = document.getElementById('stepbar');
+let tour = null, step = 0;
+function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function show(id){
+  svg.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+  const n = DATA.nodes[id]; if (!n) return;
+  document.getElementById(id).classList.add('sel');
+  let h = '<h2>' + esc(n.title) + '</h2>' + n.lines.map(l => '<p>' + esc(l) + '</p>').join('');
+  const links = [];
+  n.tags.forEach(line => line.forEach(([txt, url]) => { if (url) links.push('<li><a href="' + url + '" target="_blank" rel="noopener">' + esc(txt.replace(/^ · /, '')) + '</a></li>'); }));
+  if (links.length) h += '<h3>' + esc(DATA.ui.panel_links) + '</h3><ul>' + links.join('') + '</ul>';
+  panel.innerHTML = h;
+}
+svg.querySelectorAll('.node').forEach(g => {
+  g.addEventListener('click', e => { if (e.target.closest('a')) return; show(g.id); });
+  g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(g.id); } });
+});
+function render(){
+  svg.querySelectorAll('.on').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.tours button[data-k]').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === tour ? 'true' : 'false'));
+  if (!tour) { svg.classList.remove('dim'); bar.classList.remove('on'); return; }
+  const steps = DATA.ui.tours[tour][1];
+  svg.classList.add('dim'); bar.classList.add('on');
+  for (let i = 0; i <= step; i++) steps[i][0].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('on'); });
+  bar.querySelector('.count').textContent = DATA.ui.step.replace('{i}', step + 1).replace('{n}', steps.length);
+  bar.querySelector('.cap').textContent = steps[step][1];
+  bar.querySelector('.prev').disabled = step === 0;
+  bar.querySelector('.next').disabled = step === steps.length - 1;
+  const last = steps[step][0].map(id => document.getElementById(id)).filter(el => el && el.classList.contains('node')).pop();
+  if (last) { show(last.id); last.scrollIntoView({block:'nearest', inline:'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); }
+}
+document.querySelector('.tours .zoom').addEventListener('click', e => {
+  const on = document.querySelector('.map').classList.toggle('full');
+  e.currentTarget.setAttribute('aria-pressed', on ? 'true' : 'false');
+  e.currentTarget.textContent = on ? DATA.ui.zoom[1] : DATA.ui.zoom[0];
+});
+document.querySelectorAll('.tours button[data-k]').forEach(b => b.addEventListener('click', () => { tour = tour === b.dataset.k ? null : b.dataset.k; step = 0; render(); }));
+bar.querySelector('.prev').addEventListener('click', () => { step--; render(); });
+bar.querySelector('.next').addEventListener('click', () => { step++; render(); });
+bar.querySelector('.exit').addEventListener('click', () => { tour = null; render(); });
+document.addEventListener('keydown', e => {
+  if (!tour) return;
+  const n = DATA.ui.tours[tour][1].length;
+  if (e.key === 'ArrowRight' && step < n - 1) { step++; render(); }
+  if (e.key === 'ArrowLeft' && step > 0) { step--; render(); }
+  if (e.key === 'Escape') { tour = null; render(); }
+});
+const h = location.hash.slice(1);
+if (DATA.ui.tours[h]) { tour = h; step = 0; render(); }
+try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</body>
+</html>
