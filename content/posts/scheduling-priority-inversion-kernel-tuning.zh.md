@@ -171,9 +171,9 @@ void init_pp_mutex(pthread_mutex_t& m, int ceiling) {
 
 PREEMPT_RT 把剩下的这些窗口也拆掉，主要改了三处：
 
-- **自旋锁换成会睡的锁**：内核里大部分 `spinlock_t` 改成基于 rt_mutex 的锁，持有者可以被抢占，锁本身带优先级继承；只有 `raw_spinlock_t` 还真的自旋。
-- **中断处理放进线程**：硬中断的处理函数在内核线程（`irq/N-名字`，默认 `SCHED_FIFO` 50）里跑，优先级 80 的热线程不会被它们的处理过程打断，硬件进中断的那一下还在，但很短。普通内核加启动参数 `threadirqs` 也能做到这一条。
-- **软中断也放进线程**，`printk` 也改成了不会长时间关抢占的写法。
+- 自旋锁换成会睡的锁：内核里大部分 `spinlock_t` 改成基于 rt_mutex 的锁，持有者可以被抢占，锁本身带优先级继承；只有 `raw_spinlock_t` 还真的自旋。
+- 中断处理放进线程：硬中断的处理函数在内核线程（`irq/N-名字`，默认 `SCHED_FIFO` 50）里跑，优先级 80 的热线程不会被它们的处理过程打断，硬件进中断的那一下还在，但很短。普通内核加启动参数 `threadirqs` 也能做到这一条。
+- 软中断也放进线程，`printk` 也改成了不会长时间关抢占的写法。
 
 它在 6.12 合入主线，之前要用发行版的 `-rt` 内核。效果是最坏的唤醒延迟降到约 10–100 µs，代价是上下文切换更多、锁更重，吞吐下降几个百分点到 10% 以上。
 
@@ -187,52 +187,52 @@ PREEMPT_RT 把剩下的这些窗口也拆掉，主要改了三处：
 
 ### 4.1 BIOS 和电源：关掉为平均和峰值设计的机制
 
-- **C-state、P-state、超线程**：原理和取舍见 #1 第 2 部分。BIOS 里也要关，一些平台的调频由硬件自己做（如 Intel 的 HWP），只改操作系统一侧管不住。
-- **Turbo**：有取舍。关掉以后频率固定，每次执行时间一样；开着时单核能快约 10%–30%，但频率随活跃核数和温度变。追求确定性就关，也有团队留着 Turbo，同时把活跃核数和散热控制住。
-- **服务器 BIOS 的性能预设**：一般叫 power profile，选“性能”或“低延迟”，会把上面几项连同 uncore 频率、内存省电一起设好。
-- **HPET**：它平时不发中断，要紧的是时钟源。内核正常用 TSC 当时钟源，`clock_gettime` 在用户态读 TSC，约 20–30 ns；TSC 一旦被判成不可靠，内核退回 HPET，每次读都要访问芯片组，约 0.5–1.5 µs。用 `cat /sys/devices/system/clocksource/clocksource0/current_clocksource` 确认是 `tsc`。
-- **VT-x / AMD-V**：不跑虚拟机就关，属于“用不到的都关”。
+- C-state、P-state、超线程：原理和取舍见 #1 第 2 部分。BIOS 里也要关，一些平台的调频由硬件自己做（如 Intel 的 HWP），只改操作系统一侧管不住。
+- Turbo：有取舍。关掉以后频率固定，每次执行时间一样；开着时单核能快约 10%–30%，但频率随活跃核数和温度变。追求确定性就关，也有团队留着 Turbo，同时把活跃核数和散热控制住。
+- 服务器 BIOS 的性能预设：一般叫 power profile，选“性能”或“低延迟”，会把上面几项连同 uncore 频率、内存省电一起设好。
+- HPET：它平时不发中断，要紧的是时钟源。内核正常用 TSC 当时钟源，`clock_gettime` 在用户态读 TSC，约 20–30 ns；TSC 一旦被判成不可靠，内核退回 HPET，每次读都要访问芯片组，约 0.5–1.5 µs。用 `cat /sys/devices/system/clocksource/clocksource0/current_clocksource` 确认是 `tsc`。
+- VT-x / AMD-V：不跑虚拟机就关，属于“用不到的都关”。
 
 操作系统一侧对应的命令：`cpupower frequency-set -g performance` 把调频策略定在最高频；Intel 的 `intel_pstate` 驱动下关 Turbo 是 `echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo`（**写 1 才是关**），`acpi-cpufreq` 驱动下是 `echo 0 > /sys/devices/system/cpu/cpufreq/boost`；限制 C-state 可以打开 `/dev/cpu_dma_latency`、写入 0 并一直开着（#1 2.2）。
 
 ### 4.2 启动参数：隔离之外的几个
 
-- **`isolcpus`、`nohz_full`、`rcu_nocbs`、`irqaffinity`**：见 #1 1.2。
-- **`preempt=`**：见 3.1。
-- **`threadirqs`**：把中断处理函数放进内核线程（`irq/N-名字`），这样它们可以绑核、排优先级；代价是每次中断多一次线程切换。
-- **`nowatchdog`、`nmi_watchdog=0`**：soft lockup 检测线程每几秒醒一次，NMI watchdog 用一个性能计数器周期性地发 NMI。关掉少两类打断，代价是内核真卡死时没人报。
-- **`tsc=reliable`**：跳过内核对 TSC 的定期核对（时钟源看门狗拿别的时钟比），也就不会因为一次核对的抖动把 TSC 判成不可靠、退回 HPET。代价是 TSC 真有问题时也发现不了，较新的 CPU 上 TSC 频率恒定、跨核同步，风险小。
-- **`mitigations=off`**：关掉 Spectre、Meltdown 这类 CPU 漏洞的缓解措施。缓解的开销主要在进出内核：每次系统调用切换页表（KPTI）、返回用户态前清空缓冲区、间接跳转加防护，每次系统调用多约 0.1–0.5 µs。热路径不进内核时几乎不受影响，**代价是安全**，只用在专用、不跑外来代码的机器上。
-- **`transparent_hugepage=never`**：关掉透明大页。后台线程 `khugepaged` 合并页的时机不受控制，合并时还要改页表，触发 TLB shootdown（#3 2.2）。
-- **`audit=0`、`ipv6.disable=1`、`mce=off`**：关掉用不到的子系统。`mce=off` 关的是硬件错误上报，只在测试机上关。
+- `isolcpus`、`nohz_full`、`rcu_nocbs`、`irqaffinity`：见 #1 1.2。
+- `preempt=`：见 3.1。
+- `threadirqs`：把中断处理函数放进内核线程（`irq/N-名字`），这样它们可以绑核、排优先级；代价是每次中断多一次线程切换。
+- `nowatchdog`、`nmi_watchdog=0`：soft lockup 检测线程每几秒醒一次，NMI watchdog 用一个性能计数器周期性地发 NMI。关掉少两类打断，代价是内核真卡死时没人报。
+- `tsc=reliable`：跳过内核对 TSC 的定期核对（时钟源看门狗拿别的时钟比），也就不会因为一次核对的抖动把 TSC 判成不可靠、退回 HPET。代价是 TSC 真有问题时也发现不了，较新的 CPU 上 TSC 频率恒定、跨核同步，风险小。
+- `mitigations=off`：关掉 Spectre、Meltdown 这类 CPU 漏洞的缓解措施。缓解的开销主要在进出内核：每次系统调用切换页表（KPTI）、返回用户态前清空缓冲区、间接跳转加防护，每次系统调用多约 0.1–0.5 µs。热路径不进内核时几乎不受影响，**代价是安全**，只用在专用、不跑外来代码的机器上。
+- `transparent_hugepage=never`：关掉透明大页。后台线程 `khugepaged` 合并页的时机不受控制，合并时还要改页表，触发 TLB shootdown（#3 2.2）。
+- `audit=0`、`ipv6.disable=1`、`mce=off`：关掉用不到的子系统。`mce=off` 关的是硬件错误上报，只在测试机上关。
 
 ### 4.3 sysctl：网络
 
-- **`net.core.busy_read`、`net.core.busy_poll`**（单位 µs）：socket 读不到数据时，先在内核里轮询网卡队列最多这么久，而不是立刻睡下等中断。省掉“中断 → 软中断 → 唤醒线程”这一段，约 5–20 µs，代价是轮询期间占着 CPU。讲内核旁路时会接着说。
-- **`net.core.netdev_max_backlog`**：每个核上驱动交给协议栈的队列长度。突发流量把队列打满就丢包（`/proc/net/softnet_stat` 第 2 列在涨），调大可以防丢。
-- **`net.core.somaxconn`**：`listen` 的全连接队列上限，影响要接很多连接的服务端；交易客户端连接少、连得久，影响小。
-- **关 Nagle**：没有全局的 sysctl，要每个 socket 自己设 `setsockopt(TCP_NODELAY)`。`net.ipv4.tcp_low_latency` 从 4.14 起已经不起作用。
-- **BBR、`tcp_fastopen`**：BBR 是拥塞控制算法，影响长距离链路的吞吐和排队；fast open 在建连时省一个往返。交易连接在机房内、建好后长期不断，这两项影响都小。
+- `net.core.busy_read`、`net.core.busy_poll`（单位 µs）：socket 读不到数据时，先在内核里轮询网卡队列最多这么久，而不是立刻睡下等中断。省掉“中断 → 软中断 → 唤醒线程”这一段，约 5–20 µs，代价是轮询期间占着 CPU。讲内核旁路时会接着说。
+- `net.core.netdev_max_backlog`：每个核上驱动交给协议栈的队列长度。突发流量把队列打满就丢包（`/proc/net/softnet_stat` 第 2 列在涨），调大可以防丢。
+- `net.core.somaxconn`：`listen` 的全连接队列上限，影响要接很多连接的服务端；交易客户端连接少、连得久，影响小。
+- 关 Nagle：没有全局的 sysctl，要每个 socket 自己设 `setsockopt(TCP_NODELAY)`。`net.ipv4.tcp_low_latency` 从 4.14 起已经不起作用。
+- BBR、`tcp_fastopen`：BBR 是拥塞控制算法，影响长距离链路的吞吐和排队；fast open 在建连时省一个往返。交易连接在机房内、建好后长期不断，这两项影响都小。
 
 ### 4.4 sysctl：内存
 
-- **`vm.swappiness` 和 `mlockall`**：swappiness 调小只是让内核少换出，内存压力大时照样会换。真正保证热数据不被换出的是 `mlockall(MCL_CURRENT | MCL_FUTURE)`，它的漏洞见 #3 第 2 部分。进程要有 `CAP_IPC_LOCK`，或者足够大的 `RLIMIT_MEMLOCK`。
-- **`vm.dirty_ratio`、`vm.dirty_background_ratio`**：脏页占到内存的多少比例时开始后台写回、多少时让写的线程停下来等。调小以后小批量常写，不会一次攒几 GB 再写，写日志的线程就不会在 `write()` 里卡上几百 ms；代价是写盘次数多。
-- **`vm.zone_reclaim_mode=0`、`kernel.numa_balancing=0`**：本节点内存不够时直接用远端的，不先回收本地的页；不让内核自动搬页，搬页要改页表，同样会触发 TLB shootdown。NUMA 见 #1 第 3 部分。
-- **关 KSM**：KSM 在后台扫描、合并内容相同的页，主要服务虚拟机，合并和拆分都要改页表。
+- `vm.swappiness` 和 `mlockall`：swappiness 调小只是让内核少换出，内存压力大时照样会换。真正保证热数据不被换出的是 `mlockall(MCL_CURRENT | MCL_FUTURE)`，它的漏洞见 #3 第 2 部分。进程要有 `CAP_IPC_LOCK`，或者足够大的 `RLIMIT_MEMLOCK`。
+- `vm.dirty_ratio`、`vm.dirty_background_ratio`：脏页占到内存的多少比例时开始后台写回、多少时让写的线程停下来等。调小以后小批量常写，不会一次攒几 GB 再写，写日志的线程就不会在 `write()` 里卡上几百 ms；代价是写盘次数多。
+- `vm.zone_reclaim_mode=0`、`kernel.numa_balancing=0`：本节点内存不够时直接用远端的，不先回收本地的页；不让内核自动搬页，搬页要改页表，同样会触发 TLB shootdown。NUMA 见 #1 第 3 部分。
+- 关 KSM：KSM 在后台扫描、合并内容相同的页，主要服务虚拟机，合并和拆分都要改页表。
 
 ### 4.5 中断和后台工作
 
-- **停掉 irqbalance，把网卡中断绑到打杂核**：见 #1 1.2。irqbalance 不停，手动绑的中断会被它改回去。
-- **`echo 0-1 > /sys/devices/virtual/workqueue/cpumask`**：不绑核的内核工作队列只在 0、1 号打杂核上跑。绑在某个核上的工作不受它管。
-- **中断合并 `ethtool -C eth0 rx-usecs N`**：网卡攒够 N µs 或若干个包，才发一次中断。中断少了，CPU 也省了，但每个包最多多等 N µs。`rx-usecs 100` 是为吞吐配的，行情网卡要低延迟，就设成 0 并关掉 adaptive，或者干脆用 busy poll。
+- 停掉 irqbalance，把网卡中断绑到打杂核：见 #1 1.2。irqbalance 不停，手动绑的中断会被它改回去。
+- `echo 0-1 > /sys/devices/virtual/workqueue/cpumask`：不绑核的内核工作队列只在 0、1 号打杂核上跑。绑在某个核上的工作不受它管。
+- 中断合并 `ethtool -C eth0 rx-usecs N`：网卡攒够 N µs 或若干个包，才发一次中断。中断少了，CPU 也省了，但每个包最多多等 N µs。`rx-usecs 100` 是为吞吐配的，行情网卡要低延迟，就设成 0 并关掉 adaptive，或者干脆用 busy poll。
 
 ### 4.6 tuned：把清单存成一份配置
 
 上面这些开关一条条手敲，重启以后很容易漏一条，或者被别的工具改回去。tuned 是一个后台服务，按配置文件（profile）统一设置 sysctl、sysfs、调频策略、`/dev/cpu_dma_latency` 和启动参数，并一直维持着。常用的几个：
 
-- **`latency-performance`**：调频策略定在 performance，通过 `/dev/cpu_dma_latency` 限制 C-state，偏向性能的能耗设置，少换页；
-- **`network-latency`**：在它之上关掉透明大页和 NUMA 自动平衡，打开 `busy_read`、`busy_poll`；
-- **`cpu-partitioning`**：在 `/etc/tuned/cpu-partitioning-variables.conf` 里写 `isolated_cores=2-7`，它生成 `isolcpus`、`nohz_full`、`rcu_nocbs` 这些启动参数，并把内核线程和中断挪到打杂核上。
+- `latency-performance`：调频策略定在 performance，通过 `/dev/cpu_dma_latency` 限制 C-state，偏向性能的能耗设置，少换页；
+- `network-latency`：在它之上关掉透明大页和 NUMA 自动平衡，打开 `busy_read`、`busy_poll`；
+- `cpu-partitioning`：在 `/etc/tuned/cpu-partitioning-variables.conf` 里写 `isolated_cores=2-7`，它生成 `isolcpus`、`nohz_full`、`rcu_nocbs` 这些启动参数，并把内核线程和中断挪到打杂核上。
 
 自己的配置可以写成 `include=network-latency`，再加上自己的几行，整台机器的调优就成了一个能放进 git、能 diff 的文本文件。`tuned-adm active` 看当前用的是哪个，`tuned-adm verify` 检查设置有没有被改掉。要注意的是 tuned、手写的 sysctl 和 irqbalance 这类工具会互相覆盖，只能留一个来源。**调优的结果要能重现：写进 tuned 配置，而不是一条条手敲。**

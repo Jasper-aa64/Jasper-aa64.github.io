@@ -171,9 +171,9 @@ Even with `full`, the spinlock and interrupts-off regions remain. On a busy mach
 
 PREEMPT_RT takes the remaining windows apart, with three main changes:
 
-- **Spinlocks become sleeping locks**: most kernel `spinlock_t` locks become rt_mutex-based locks whose holder can be preempted, with priority inheritance built in; only `raw_spinlock_t` still really spins.
-- **Interrupt handlers run in threads**: hard-interrupt handlers run in kernel threads (`irq/N-name`, `SCHED_FIFO` 50 by default), so a hot thread at 80 is not interrupted by their processing; the hardware entry into the interrupt remains, but it is short. A normal kernel booted with `threadirqs` gets this one too.
-- **Softirqs run in threads as well**, and `printk` was rewritten so it no longer disables preemption for long.
+- Spinlocks become sleeping locks: most kernel `spinlock_t` locks become rt_mutex-based locks whose holder can be preempted, with priority inheritance built in; only `raw_spinlock_t` still really spins.
+- Interrupt handlers run in threads: hard-interrupt handlers run in kernel threads (`irq/N-name`, `SCHED_FIFO` 50 by default), so a hot thread at 80 is not interrupted by their processing; the hardware entry into the interrupt remains, but it is short. A normal kernel booted with `threadirqs` gets this one too.
+- Softirqs run in threads as well, and `printk` was rewritten so it no longer disables preemption for long.
 
 It was merged into mainline in 6.12; before that you needed a distribution's `-rt` kernel. The worst-case wake-up latency drops to about 10–100 µs, at the cost of more context switches, heavier locks, and a few percent to over 10% less throughput.
 
@@ -187,52 +187,52 @@ A real-time kernel lowers the worst-case time "from being woken to running". But
 
 ### 4.1 BIOS and Power: Turn Off Mechanisms Built for Averages and Peaks
 
-- **C-states, P-states, SMT**: mechanisms and trade-offs in #1 Part 2. Turn them off in the BIOS too: on some platforms the hardware does its own frequency control (such as Intel's HWP), and changing only the OS side does not stop it.
-- **Turbo**: a trade-off. Off, the frequency is fixed and every run takes the same time; on, a single core can be about 10%–30% faster, but the frequency moves with the number of active cores and the temperature. Turn it off for determinism; some teams keep Turbo and control the active core count and cooling instead.
-- **Server BIOS performance presets**: usually called the power profile; choosing "performance" or "low latency" sets the items above together with uncore frequency and memory power saving.
-- **HPET**: it does not normally send interrupts; what matters is the clock source. The kernel normally uses the TSC, and `clock_gettime` reads it in user space in about 20–30 ns; once the TSC is judged unreliable, the kernel falls back to HPET, and every read goes out to the chipset, about 0.5–1.5 µs. Check that `cat /sys/devices/system/clocksource/clocksource0/current_clocksource` says `tsc`.
-- **VT-x / AMD-V**: turn it off if you run no virtual machines; it falls under "turn off whatever you don't use".
+- C-states, P-states, SMT: mechanisms and trade-offs in #1 Part 2. Turn them off in the BIOS too: on some platforms the hardware does its own frequency control (such as Intel's HWP), and changing only the OS side does not stop it.
+- Turbo: a trade-off. Off, the frequency is fixed and every run takes the same time; on, a single core can be about 10%–30% faster, but the frequency moves with the number of active cores and the temperature. Turn it off for determinism; some teams keep Turbo and control the active core count and cooling instead.
+- Server BIOS performance presets: usually called the power profile; choosing "performance" or "low latency" sets the items above together with uncore frequency and memory power saving.
+- HPET: it does not normally send interrupts; what matters is the clock source. The kernel normally uses the TSC, and `clock_gettime` reads it in user space in about 20–30 ns; once the TSC is judged unreliable, the kernel falls back to HPET, and every read goes out to the chipset, about 0.5–1.5 µs. Check that `cat /sys/devices/system/clocksource/clocksource0/current_clocksource` says `tsc`.
+- VT-x / AMD-V: turn it off if you run no virtual machines; it falls under "turn off whatever you don't use".
 
 The OS-side commands: `cpupower frequency-set -g performance` pins the governor at the highest frequency; under Intel's `intel_pstate` driver, turning Turbo off is `echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo` (**writing 1 is what turns it off**), and under `acpi-cpufreq` it is `echo 0 > /sys/devices/system/cpu/cpufreq/boost`; to limit C-states, open `/dev/cpu_dma_latency`, write 0, and keep it open (#1 2.2).
 
 ### 4.2 Boot Parameters: a Few Beyond Isolation
 
-- **`isolcpus`, `nohz_full`, `rcu_nocbs`, `irqaffinity`**: see #1 1.2.
-- **`preempt=`**: see 3.1.
-- **`threadirqs`**: runs interrupt handlers in kernel threads (`irq/N-name`), so they can be pinned and prioritized; the cost is one extra thread switch per interrupt.
-- **`nowatchdog`, `nmi_watchdog=0`**: the soft-lockup detector thread wakes every few seconds, and the NMI watchdog uses a performance counter to fire NMIs periodically. Turning them off removes two kinds of interruption, at the cost of nobody reporting a real kernel hang.
-- **`tsc=reliable`**: skips the kernel's periodic checks of the TSC (the clocksource watchdog compares it against another clock), so one jittery check cannot mark the TSC unreliable and fall back to HPET. The cost is that a real TSC problem goes unnoticed; on newer CPUs the TSC runs at a constant rate and is synchronized across cores, so the risk is small.
-- **`mitigations=off`**: turns off the mitigations for CPU vulnerabilities such as Spectre and Meltdown. Their cost is mostly on entering and leaving the kernel: switching page tables on every system call (KPTI), clearing buffers before returning to user space, guarding indirect branches; each system call costs about 0.1–0.5 µs more. A hot path that stays out of the kernel is barely affected; **the cost is security**, so use it only on dedicated machines that run no outside code.
-- **`transparent_hugepage=never`**: turns off transparent huge pages. The background thread `khugepaged` merges pages at times you don't control, and merging changes page tables, which triggers TLB shootdowns (#3 2.2).
-- **`audit=0`, `ipv6.disable=1`, `mce=off`**: turn off unused subsystems. `mce=off` turns off hardware error reporting; only do it on test machines.
+- `isolcpus`, `nohz_full`, `rcu_nocbs`, `irqaffinity`: see #1 1.2.
+- `preempt=`: see 3.1.
+- `threadirqs`: runs interrupt handlers in kernel threads (`irq/N-name`), so they can be pinned and prioritized; the cost is one extra thread switch per interrupt.
+- `nowatchdog`, `nmi_watchdog=0`: the soft-lockup detector thread wakes every few seconds, and the NMI watchdog uses a performance counter to fire NMIs periodically. Turning them off removes two kinds of interruption, at the cost of nobody reporting a real kernel hang.
+- `tsc=reliable`: skips the kernel's periodic checks of the TSC (the clocksource watchdog compares it against another clock), so one jittery check cannot mark the TSC unreliable and fall back to HPET. The cost is that a real TSC problem goes unnoticed; on newer CPUs the TSC runs at a constant rate and is synchronized across cores, so the risk is small.
+- `mitigations=off`: turns off the mitigations for CPU vulnerabilities such as Spectre and Meltdown. Their cost is mostly on entering and leaving the kernel: switching page tables on every system call (KPTI), clearing buffers before returning to user space, guarding indirect branches; each system call costs about 0.1–0.5 µs more. A hot path that stays out of the kernel is barely affected; **the cost is security**, so use it only on dedicated machines that run no outside code.
+- `transparent_hugepage=never`: turns off transparent huge pages. The background thread `khugepaged` merges pages at times you don't control, and merging changes page tables, which triggers TLB shootdowns (#3 2.2).
+- `audit=0`, `ipv6.disable=1`, `mce=off`: turn off unused subsystems. `mce=off` turns off hardware error reporting; only do it on test machines.
 
 ### 4.3 sysctl: Network
 
-- **`net.core.busy_read`, `net.core.busy_poll`** (in µs): when a socket read finds no data, poll the NIC queue in the kernel for up to this long instead of sleeping until an interrupt. It saves the "interrupt → softirq → wake the thread" stretch, about 5–20 µs, at the cost of holding the CPU while polling. More on this with kernel bypass.
-- **`net.core.netdev_max_backlog`**: the length of the per-core queue from the driver to the protocol stack. A burst that fills it drops packets (the second column of `/proc/net/softnet_stat` grows); raise it to avoid drops.
-- **`net.core.somaxconn`**: the cap on `listen`'s accept queue, which matters for servers accepting many connections; trading clients have few, long-lived connections, so it matters little.
-- **Turning off Nagle**: there is no global sysctl; each socket sets `setsockopt(TCP_NODELAY)` itself. `net.ipv4.tcp_low_latency` has done nothing since 4.14.
-- **BBR, `tcp_fastopen`**: BBR is a congestion-control algorithm that affects throughput and queuing over long-distance links; fast open saves one round trip when connecting. Trading connections stay inside the data center and stay up once established, so both matter little.
+- `net.core.busy_read`, `net.core.busy_poll` (in µs): when a socket read finds no data, poll the NIC queue in the kernel for up to this long instead of sleeping until an interrupt. It saves the "interrupt → softirq → wake the thread" stretch, about 5–20 µs, at the cost of holding the CPU while polling. More on this with kernel bypass.
+- `net.core.netdev_max_backlog`: the length of the per-core queue from the driver to the protocol stack. A burst that fills it drops packets (the second column of `/proc/net/softnet_stat` grows); raise it to avoid drops.
+- `net.core.somaxconn`: the cap on `listen`'s accept queue, which matters for servers accepting many connections; trading clients have few, long-lived connections, so it matters little.
+- Turning off Nagle: there is no global sysctl; each socket sets `setsockopt(TCP_NODELAY)` itself. `net.ipv4.tcp_low_latency` has done nothing since 4.14.
+- BBR, `tcp_fastopen`: BBR is a congestion-control algorithm that affects throughput and queuing over long-distance links; fast open saves one round trip when connecting. Trading connections stay inside the data center and stay up once established, so both matter little.
 
 ### 4.4 sysctl: Memory
 
-- **`vm.swappiness` and `mlockall`**: a lower swappiness only makes the kernel swap less; under memory pressure it still swaps. What actually keeps hot data from being swapped out is `mlockall(MCL_CURRENT | MCL_FUTURE)`, whose loophole is in #3 Part 2. The process needs `CAP_IPC_LOCK` or a large enough `RLIMIT_MEMLOCK`.
-- **`vm.dirty_ratio`, `vm.dirty_background_ratio`**: the share of memory in dirty pages at which background writeback starts, and at which writing threads are made to wait. Lower values write in small, frequent batches instead of piling up several GB and writing at once, so a logging thread does not stall for hundreds of ms in `write()`; the cost is more disk writes.
-- **`vm.zone_reclaim_mode=0`, `kernel.numa_balancing=0`**: when the local node runs out of memory, use remote memory directly instead of reclaiming local pages first; and do not let the kernel migrate pages automatically, since migration changes page tables and also triggers TLB shootdowns. NUMA is in #1 Part 3.
-- **Turning off KSM**: KSM scans in the background and merges pages with identical contents, mostly for virtual machines; merging and splitting both change page tables.
+- `vm.swappiness` and `mlockall`: a lower swappiness only makes the kernel swap less; under memory pressure it still swaps. What actually keeps hot data from being swapped out is `mlockall(MCL_CURRENT | MCL_FUTURE)`, whose loophole is in #3 Part 2. The process needs `CAP_IPC_LOCK` or a large enough `RLIMIT_MEMLOCK`.
+- `vm.dirty_ratio`, `vm.dirty_background_ratio`: the share of memory in dirty pages at which background writeback starts, and at which writing threads are made to wait. Lower values write in small, frequent batches instead of piling up several GB and writing at once, so a logging thread does not stall for hundreds of ms in `write()`; the cost is more disk writes.
+- `vm.zone_reclaim_mode=0`, `kernel.numa_balancing=0`: when the local node runs out of memory, use remote memory directly instead of reclaiming local pages first; and do not let the kernel migrate pages automatically, since migration changes page tables and also triggers TLB shootdowns. NUMA is in #1 Part 3.
+- Turning off KSM: KSM scans in the background and merges pages with identical contents, mostly for virtual machines; merging and splitting both change page tables.
 
 ### 4.5 Interrupts and Background Work
 
-- **Stop irqbalance and bind NIC interrupts to housekeeping cores**: see #1 1.2. If irqbalance keeps running, it undoes your manual bindings.
-- **`echo 0-1 > /sys/devices/virtual/workqueue/cpumask`**: unbound kernel workqueues run only on housekeeping cores 0 and 1. Work bound to a specific core is not affected.
-- **Interrupt coalescing, `ethtool -C eth0 rx-usecs N`**: the NIC waits for N µs or a number of packets before raising an interrupt. Fewer interrupts save CPU, but each packet can wait up to N µs longer. `rx-usecs 100` is a throughput setting; for a low-latency market-data NIC set it to 0 and turn adaptive off, or use busy polling instead.
+- Stop irqbalance and bind NIC interrupts to housekeeping cores: see #1 1.2. If irqbalance keeps running, it undoes your manual bindings.
+- `echo 0-1 > /sys/devices/virtual/workqueue/cpumask`: unbound kernel workqueues run only on housekeeping cores 0 and 1. Work bound to a specific core is not affected.
+- Interrupt coalescing, `ethtool -C eth0 rx-usecs N`: the NIC waits for N µs or a number of packets before raising an interrupt. Fewer interrupts save CPU, but each packet can wait up to N µs longer. `rx-usecs 100` is a throughput setting; for a low-latency market-data NIC set it to 0 and turn adaptive off, or use busy polling instead.
 
 ### 4.6 tuned: Saving the Checklist as a Configuration
 
 Typing these knobs one by one, it is easy to miss one after a reboot, or to have another tool set it back. tuned is a background service that applies a configuration file (a profile) covering sysctl, sysfs, the frequency governor, `/dev/cpu_dma_latency` and boot parameters, and keeps them applied. The common ones:
 
-- **`latency-performance`**: performance governor, C-states limited through `/dev/cpu_dma_latency`, performance-leaning energy settings, less swapping;
-- **`network-latency`**: on top of that, turns off transparent huge pages and automatic NUMA balancing and turns on `busy_read` and `busy_poll`;
-- **`cpu-partitioning`**: write `isolated_cores=2-7` in `/etc/tuned/cpu-partitioning-variables.conf`, and it generates the `isolcpus`, `nohz_full` and `rcu_nocbs` boot parameters and moves kernel threads and interrupts to the housekeeping cores.
+- `latency-performance`: performance governor, C-states limited through `/dev/cpu_dma_latency`, performance-leaning energy settings, less swapping;
+- `network-latency`: on top of that, turns off transparent huge pages and automatic NUMA balancing and turns on `busy_read` and `busy_poll`;
+- `cpu-partitioning`: write `isolated_cores=2-7` in `/etc/tuned/cpu-partitioning-variables.conf`, and it generates the `isolcpus`, `nohz_full` and `rcu_nocbs` boot parameters and moves kernel threads and interrupts to the housekeeping cores.
 
 Your own profile can say `include=network-latency` and add a few lines of its own, and the whole machine's tuning becomes a text file you can keep in git and diff. `tuned-adm active` shows which profile is in use, and `tuned-adm verify` checks whether any setting has been changed. Note that tuned, hand-written sysctl files and tools like irqbalance overwrite each other, so keep exactly one source. **Tuning should be reproducible: write it into a tuned profile instead of typing it one knob at a time.**
