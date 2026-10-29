@@ -8,6 +8,7 @@ chapter: 3
 categories: [Systems]
 tags: [cpp, concurrency, condition-variable, lock-free, mpmc, disruptor, ring-buffer, hft, low-latency]
 toc: true
+math: true
 ---
 
 A strategy thread hands persistence requests to an archiving thread, several strategy threads hand orders to one gateway thread, a market-data thread hands updates to several strategies: almost every thread in a trading system is connected to the next by a queue. The SPSC ring in [#4](/posts/lock-free-queue-logger-micro-batching/) needs no lock because each index has exactly one writer: the producer only changes the write index and the consumer only changes the read index. In the three cases above, some threads should sleep when they have nothing to do and some queues have several producers, and that premise no longer holds. What follows starts from the plainest version, one mutex, works up to a multi-producer lock-free ring, and ends with what to do when a queue is full.

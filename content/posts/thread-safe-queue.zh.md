@@ -8,6 +8,7 @@ chapter: 3
 categories: [Systems]
 tags: [cpp, concurrency, condition-variable, lock-free, mpmc, disruptor, ring-buffer, hft, low-latency]
 toc: true
+math: true
 ---
 
 策略线程把落盘请求交给存档线程，几个策略线程把订单交给同一个网关线程，行情线程把更新交给好几个策略：交易系统里的线程几乎都靠队列连起来。[#4](/zh/posts/lock-free-queue-logger-micro-batching/) 的 SPSC 环不用锁，靠的是每个下标只有一个写者，生产者只改写下标，消费者只改读下标。可上面三个场景里，有的要让没活干的线程睡下，有的有好几个生产者，这个前提都不成立了。下面从最朴素的一把锁开始，一路走到多生产者的无锁环，最后看队列满了该怎么办。
