@@ -92,10 +92,10 @@ A condition variable stores no state: a notify sent while nobody waits is simply
 
 `wait` can be relied on because of one atomicity: from checking the condition until falling asleep the consumer holds the lock, and "unlock" and "sleep" are a single step. That only helps if the producer changes the condition while holding the same lock. Then the producer either changes it before the consumer checks (the consumer sees it and doesn't sleep), or gets the lock only after the consumer is asleep (and the notify that follows is sure to wake it).
 
-If the condition is not changed under that lock, wakeups get lost. The usual setting is a blocking wait added on top of a lock-free ring: the producer publishes a sequence number with an atomic and then notifies; the consumer checks the sequence under the lock and sleeps if it is too low.
+If the producer changes the condition without taking that lock, wakeups get lost. **The usual way to get this wrong is adding a blocking wait to a lock-free ring**: the producer publishes a sequence number with an atomic only, without the lock, then notifies; the consumer checks the sequence under the lock and sleeps if it is too low. The code below is that broken version:
 
 ```cpp
-// producer
+// producer (wrong: changes cursor without holding m)
 cursor.store(seq, std::memory_order_release);
 cv.notify_all();
 
