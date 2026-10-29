@@ -211,7 +211,7 @@ The consumer side is fully symmetric: consumers claim from `cons_head_` with CAS
 
 ### 2.3 Disruptor: Every Slot Marks Itself "Written"
 
-The Disruptor is the ring buffer LMAX (a foreign-exchange trading venue) built for its matching engine. It keeps track differently, so that producers never wait for each other:
+The Disruptor is the ring buffer LMAX (a foreign-exchange trading venue) built for its matching engine. It is a separate design from rte_ring, and the code below is a separate class too (a trimmed C++ sketch of the idea, with multiple producers and one consumer). It keeps track differently, so that producers never wait for each other:
 
 - **Sequence numbers instead of indices**: 64-bit signed sequence numbers that only increase and in practice never run out; a slot's position is `seq & (N - 1)`.
 - **Claiming with `fetch_add`**: each producer gets its number with one `fetch_add(1)`, which cannot fail and never retries. It still has to wait when the ring is full; see 2.4.
