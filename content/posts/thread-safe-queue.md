@@ -141,7 +141,7 @@ When several strategy threads send orders to one gateway thread (multi-producer,
 - `prod_tail_`: how far producers have finished writing, i.e. how far consumers may read;
 - the consumer side mirrors it: `cons_head_` is how far consumers have claimed, `cons_tail_` how far they have finished reading, i.e. how far producers may overwrite.
 
-rte_ring itself is multi-producer, multi-consumer (MPMC), and the code below is the full MPMC version, with the consumer side written for several consumers. **With a single consumer, `cons_head_` and `cons_tail_` are always equal**; the end of 2.2 shows how that simplifies.
+rte_ring itself is multi-producer, multi-consumer (MPMC), and the code below is the full MPMC version, with the consumer side written for several consumers. **With a single consumer, `cons_head_` is at most 1 ahead of `cons_tail_`** (the extra one is the slot it is reading right now), and only that consumer cares about the difference; the end of 2.2 shows how that simplifies.
 
 ```cpp
 template <class T, uint32_t N>             // N is a power of two
