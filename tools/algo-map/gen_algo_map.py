@@ -36,7 +36,7 @@ def post(slug):
 X0 = 24                      # left edge of the bands
 BAND_W = W - 2 * X0
 GRID_W, GRID_GAP = 180, 12   # bands A and B: 8 columns
-GRID_H, GRID_ROW_GAP = 76, 12
+GRID_H, GRID_ROW_GAP = 94, 12
 LANE_GAP = 16                # band C: three lanes, two columns each
 LANE_W = (BAND_W - 2 * LANE_GAP) // 3
 COL_W, COL_PAD = (LANE_W - 36) // 2, 12
@@ -166,6 +166,17 @@ A = [
 ]
 for nid, col, row, zh, en in A:
     node(nid, grid_box(Y_A, col, row), 'hot', zh, en)
+
+
+def algo_post(nid, round_id, slug, section):
+    """Link a box to the study post of the round that covers it (posts in content/algo/, both languages)."""
+    NODES[nid]['zh']['tags'] = NODES[nid]['zh']['tags'] + [[('%s 第 %d 节' % (round_id, section), '/zh/algo/%s/' % slug)]]
+    NODES[nid]['en']['tags'] = NODES[nid]['en']['tags'] + [[('%s §%d' % (round_id, section), '/algo/%s/' % slug)]]
+
+
+A1 = 'a1-complexity-binary-search-two-pointers-prefix-sums'
+for nid, sec in (('a_cx', 1), ('a_bs', 2), ('a_tp', 3), ('a_ps', 4)):
+    algo_post(nid, 'A1', A1, sec)
 
 # ---------------------------------------------------------------- band B: quick pass (know what it solves)
 B = [
@@ -414,7 +425,7 @@ TEXT = {
     'zh': dict(
         title='算法地图：面试要写的、快速过的、赛场主攻的',
         legend=['绿框 = 面试常考，要能写对写快；灰框 = 快速过，知道它解决什么、什么时候想到它；蓝框 = 主攻的主线，按箭头从上往下学；黄框 = 主攻的支线，主线学到箭头那一格时挂上去。',
-                '蓝字 = 站内已有的笔记（英文）：NT = Number Theory，C = Combinatorics，M = Matrix。框之间跨列的先修关系写在点开后的说明里。'],
+                '蓝字 = 站内的笔记：A1、B1……是这条线每轮的讲义；NT = Number Theory，C = Combinatorics，M = Matrix 是以前的英文笔记。跨列的先修关系写在点开后的说明里。'],
         r_a='面试常考：要能写对、写快（HFT / 互联网面试和比赛签到题）',
         r_b='快速过：知道它解决什么、复杂度多少、什么时候想到它',
         r_c='赛场主攻：数学。要能推式子，赛场上说得出思路',
@@ -423,7 +434,7 @@ TEXT = {
     'en': dict(
         title='Algorithm map: what to write in interviews, what to skim, what to master for contests',
         legend=['Green = interview core, write it right and fast; grey = skim, know what it solves and when to reach for it; blue = main line of the contest focus, top to bottom; yellow = side branch, picked up when the main line reaches its arrow.',
-                'Blue labels = notes already on this site: NT = Number Theory, C = Combinatorics, M = Matrix. Prerequisites across lanes are in the box details.'],
+                'Blue labels = notes on this site: A1, B1, ... are the posts of this track; NT = Number Theory, C = Combinatorics, M = Matrix are earlier notes. Prerequisites across lanes are in the box details.'],
         r_a='Interview core: write it right and fast (HFT / tech interviews, easy contest problems)',
         r_b='Skim: what it solves, what it costs, when to reach for it',
         r_c='Contest focus: mathematics. Derive the formula and state the idea under contest pressure',

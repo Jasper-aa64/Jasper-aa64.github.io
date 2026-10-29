@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1420" width="1600" height="1420" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1492" width="1600" height="1492" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
@@ -24,370 +24,374 @@
       .lane-t { font-size: 15px; font-weight: 700; fill: #0550ae; }
     </style>
   </defs>
-  <rect x="0" y="0" width="1600" height="1420" fill="#ffffff"/>
+  <rect x="0" y="0" width="1600" height="1492" fill="#ffffff"/>
   <text x="20" y="38" class="h" style="font-size:23px">算法地图：面试要写的、快速过的、赛场主攻的</text>
   <text x="20" y="64" class="s">绿框 = 面试常考，要能写对写快；灰框 = 快速过，知道它解决什么、什么时候想到它；蓝框 = 主攻的主线，按箭头从上往下学；黄框 = 主攻的支线，主线学到箭头那一格时挂上去。</text>
-  <text x="20" y="84" class="s">蓝字 = 站内已有的笔记（英文）：NT = Number Theory，C = Combinatorics，M = Matrix。框之间跨列的先修关系写在点开后的说明里。</text>
-  <rect x="24" y="124" width="1552" height="218" rx="10" fill="#f4fbf5" stroke="#4ac26b" stroke-dasharray="6 4"/>
+  <text x="20" y="84" class="s">蓝字 = 站内的笔记：A1、B1……是这条线每轮的讲义；NT = Number Theory，C = Combinatorics，M = Matrix 是以前的英文笔记。跨列的先修关系写在点开后的说明里。</text>
+  <rect x="24" y="124" width="1552" height="254" rx="10" fill="#f4fbf5" stroke="#4ac26b" stroke-dasharray="6 4"/>
   <text x="36" y="150" class="lane-h" style="fill:#1a7f37">面试常考：要能写对、写快（HFT / 互联网面试和比赛签到题）</text>
-  <rect x="24" y="356" width="1552" height="218" rx="10" fill="#ffffff" stroke="#8c959f" stroke-dasharray="6 4"/>
-  <text x="36" y="382" class="lane-h" style="fill:#57606a">快速过：知道它解决什么、复杂度多少、什么时候想到它</text>
-  <rect x="24" y="588" width="1552" height="768" rx="10" class="sock"/>
-  <text x="36" y="616" class="h">赛场主攻：数学。要能推式子，赛场上说得出思路</text>
-  <text x="36" y="646" class="lane-t">数论</text>
-  <line x1="538" y1="632" x2="538" y2="1344" stroke="#d0d7de" stroke-width="1"/>
-  <text x="558" y="646" class="lane-t">组合计数</text>
-  <line x1="1060" y1="632" x2="1060" y2="1344" stroke="#d0d7de" stroke-width="1"/>
-  <text x="1080" y="646" class="lane-t">线性代数（矩阵）</text>
+  <rect x="24" y="392" width="1552" height="254" rx="10" fill="#ffffff" stroke="#8c959f" stroke-dasharray="6 4"/>
+  <text x="36" y="418" class="lane-h" style="fill:#57606a">快速过：知道它解决什么、复杂度多少、什么时候想到它</text>
+  <rect x="24" y="660" width="1552" height="768" rx="10" class="sock"/>
+  <text x="36" y="688" class="h">赛场主攻：数学。要能推式子，赛场上说得出思路</text>
+  <text x="36" y="718" class="lane-t">数论</text>
+  <line x1="538" y1="704" x2="538" y2="1416" stroke="#d0d7de" stroke-width="1"/>
+  <text x="558" y="718" class="lane-t">组合计数</text>
+  <line x1="1060" y1="704" x2="1060" y2="1416" stroke="#d0d7de" stroke-width="1"/>
+  <text x="1080" y="718" class="lane-t">线性代数（矩阵）</text>
   <g id="a_cx">
-  <rect x="36" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="36" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="48" y="188" class="t">复杂度 · STL</text>
   <text x="48" y="206" class="s">看数据范围定复杂度</text>
   <text x="48" y="224" class="s">容器的复杂度要背熟</text>
+  <text x="48" y="242" class="tag"><a href="/zh/algo/a1-complexity-binary-search-two-pointers-prefix-sums/" target="_blank" rel="noopener"><tspan>A1 第 1 节</tspan></a></text>
   </g>
   <g id="a_bs">
-  <rect x="228" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="228" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="240" y="188" class="t">二分</text>
   <text x="240" y="206" class="s">有序里找边界</text>
   <text x="240" y="224" class="s">答案单调就二分答案</text>
+  <text x="240" y="242" class="tag"><a href="/zh/algo/a1-complexity-binary-search-two-pointers-prefix-sums/" target="_blank" rel="noopener"><tspan>A1 第 2 节</tspan></a></text>
   </g>
   <g id="a_tp">
-  <rect x="420" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="420" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="432" y="188" class="t">双指针 · 滑窗</text>
   <text x="432" y="206" class="s">两端都只往右走</text>
   <text x="432" y="224" class="s">总共 O(n)</text>
+  <text x="432" y="242" class="tag"><a href="/zh/algo/a1-complexity-binary-search-two-pointers-prefix-sums/" target="_blank" rel="noopener"><tspan>A1 第 3 节</tspan></a></text>
   </g>
   <g id="a_ps">
-  <rect x="612" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="612" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="624" y="188" class="t">前缀和 · 差分</text>
   <text x="624" y="206" class="s">区间和 O(1)</text>
   <text x="624" y="224" class="s">区间加 O(1)</text>
+  <text x="624" y="242" class="tag"><a href="/zh/algo/a1-complexity-binary-search-two-pointers-prefix-sums/" target="_blank" rel="noopener"><tspan>A1 第 4 节</tspan></a></text>
   </g>
   <g id="a_st">
-  <rect x="804" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="804" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="816" y="188" class="t">栈 · 单调栈</text>
   <text x="816" y="206" class="s">下一个更大的数</text>
   <text x="816" y="224" class="s">单调队列：滑窗最值</text>
   </g>
   <g id="a_hp">
-  <rect x="996" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="996" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="1008" y="188" class="t">堆 · 哈希表</text>
   <text x="1008" y="206" class="s">Top-K；动态取最值</text>
   <text x="1008" y="224" class="s">查有没有、数几次</text>
   </g>
   <g id="a_gr">
-  <rect x="1188" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="1188" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="1200" y="188" class="t">排序 · 贪心</text>
   <text x="1200" y="206" class="s">排序后取局部最优</text>
   <text x="1200" y="224" class="s">交换论证说明对</text>
   </g>
   <g id="a_bit">
-  <rect x="1380" y="164" width="180" height="76" rx="6" class="hot"/>
+  <rect x="1380" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="1392" y="188" class="t">位运算</text>
   <text x="1392" y="206" class="s">lowbit；枚举子集</text>
   <text x="1392" y="224" class="s">异或的性质</text>
   </g>
   <g id="a_srch">
-  <rect x="36" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="48" y="276" class="t">搜索 · 回溯</text>
-  <text x="48" y="294" class="s">BFS：最少步数</text>
-  <text x="48" y="312" class="s">DFS：枚举 + 剪枝</text>
+  <rect x="36" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="48" y="294" class="t">搜索 · 回溯</text>
+  <text x="48" y="312" class="s">BFS：最少步数</text>
+  <text x="48" y="330" class="s">DFS：枚举 + 剪枝</text>
   </g>
   <g id="a_tree">
-  <rect x="228" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="240" y="276" class="t">树</text>
-  <text x="240" y="294" class="s">遍历 · 直径 · LCA</text>
-  <text x="240" y="312" class="s">递归返回值的设计</text>
+  <rect x="228" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="240" y="294" class="t">树</text>
+  <text x="240" y="312" class="s">遍历 · 直径 · LCA</text>
+  <text x="240" y="330" class="s">递归返回值的设计</text>
   </g>
   <g id="a_graph">
-  <rect x="420" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="432" y="276" class="t">图 · 最短路</text>
-  <text x="432" y="294" class="s">Dijkstra · 拓扑排序</text>
-  <text x="432" y="312" class="s">有负权：Bellman-Ford</text>
+  <rect x="420" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="432" y="294" class="t">图 · 最短路</text>
+  <text x="432" y="312" class="s">Dijkstra · 拓扑排序</text>
+  <text x="432" y="330" class="s">有负权：Bellman-Ford</text>
   </g>
   <g id="a_dsu">
-  <rect x="612" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="624" y="276" class="t">并查集</text>
-  <text x="624" y="294" class="s">动态加边问连通</text>
-  <text x="624" y="312" class="s">Kruskal 最小生成树</text>
+  <rect x="612" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="624" y="294" class="t">并查集</text>
+  <text x="624" y="312" class="s">动态加边问连通</text>
+  <text x="624" y="330" class="s">Kruskal 最小生成树</text>
   </g>
   <g id="a_dp1">
-  <rect x="804" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="816" y="276" class="t">DP：线性 · 背包</text>
-  <text x="816" y="294" class="s">先定状态的含义</text>
-  <text x="816" y="312" class="s">再写转移和边界</text>
+  <rect x="804" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="816" y="294" class="t">DP：线性 · 背包</text>
+  <text x="816" y="312" class="s">先定状态的含义</text>
+  <text x="816" y="330" class="s">再写转移和边界</text>
   </g>
   <g id="a_dp2">
-  <rect x="996" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="1008" y="276" class="t">DP：区间 · 树 · 状压</text>
-  <text x="1008" y="294" class="s">按长度、子树、集合</text>
-  <text x="1008" y="312" class="s">状压：n 到 20 左右</text>
+  <rect x="996" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="1008" y="294" class="t">DP：区间 · 树 · 状压</text>
+  <text x="1008" y="312" class="s">按长度、子树、集合</text>
+  <text x="1008" y="330" class="s">状压：n 到 20 左右</text>
   </g>
   <g id="a_str">
-  <rect x="1188" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="1200" y="276" class="t">字符串</text>
-  <text x="1200" y="294" class="s">KMP · 哈希 · Trie</text>
-  <text x="1200" y="312" class="s">01-Trie：最大异或</text>
+  <rect x="1188" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="1200" y="294" class="t">字符串</text>
+  <text x="1200" y="312" class="s">KMP · 哈希 · Trie</text>
+  <text x="1200" y="330" class="s">01-Trie：最大异或</text>
   </g>
   <g id="a_design">
-  <rect x="1380" y="252" width="180" height="76" rx="6" class="hot"/>
-  <text x="1392" y="276" class="t">设计题</text>
-  <text x="1392" y="294" class="s">LRU · 订单簿 · 限流</text>
-  <text x="1392" y="312" class="s">考数据结构选型</text>
+  <rect x="1380" y="270" width="180" height="94" rx="6" class="hot"/>
+  <text x="1392" y="294" class="t">设计题</text>
+  <text x="1392" y="312" class="s">LRU · 订单簿 · 限流</text>
+  <text x="1392" y="330" class="s">考数据结构选型</text>
   </g>
   <g id="b_seg">
-  <rect x="36" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="48" y="420" class="t">树状数组 · 线段树</text>
-  <text x="48" y="438" class="s">区间查、区间改</text>
-  <text x="48" y="456" class="s">都是 O(log n)</text>
+  <rect x="36" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="48" y="456" class="t">树状数组 · 线段树</text>
+  <text x="48" y="474" class="s">区间查、区间改</text>
+  <text x="48" y="492" class="s">都是 O(log n)</text>
   </g>
   <g id="b_bst">
-  <rect x="228" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="240" y="420" class="t">平衡树 · pb_ds</text>
-  <text x="240" y="438" class="s">动态第 k 小、排名</text>
-  <text x="240" y="456" class="s">比赛优先用库</text>
+  <rect x="228" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="240" y="456" class="t">平衡树 · pb_ds</text>
+  <text x="240" y="474" class="s">动态第 k 小、排名</text>
+  <text x="240" y="492" class="s">比赛优先用库</text>
   </g>
   <g id="b_tree">
-  <rect x="420" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="432" y="420" class="t">树上进阶</text>
-  <text x="432" y="438" class="s">树剖 · 换根 · 点分治</text>
-  <text x="432" y="456" class="s">路径改查、全根统计</text>
+  <rect x="420" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="432" y="456" class="t">树上进阶</text>
+  <text x="432" y="474" class="s">树剖 · 换根 · 点分治</text>
+  <text x="432" y="492" class="s">路径改查、全根统计</text>
   </g>
   <g id="b_conn">
-  <rect x="612" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="624" y="420" class="t">连通性</text>
-  <text x="624" y="438" class="s">Tarjan · 缩点</text>
-  <text x="624" y="456" class="s">2-SAT：二选一约束</text>
+  <rect x="612" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="624" y="456" class="t">连通性</text>
+  <text x="624" y="474" class="s">Tarjan · 缩点</text>
+  <text x="624" y="492" class="s">2-SAT：二选一约束</text>
   </g>
   <g id="b_flow">
-  <rect x="804" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="816" y="420" class="t">网络流 · 二分图</text>
-  <text x="816" y="438" class="s">最大流 · 匹配 · 费用流</text>
-  <text x="816" y="456" class="s">难在建图</text>
+  <rect x="804" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="816" y="456" class="t">网络流 · 二分图</text>
+  <text x="816" y="474" class="s">最大流 · 匹配 · 费用流</text>
+  <text x="816" y="492" class="s">难在建图</text>
   </g>
   <g id="b_str">
-  <rect x="996" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="1008" y="420" class="t">字符串进阶</text>
-  <text x="1008" y="438" class="s">AC 自动机 · SAM</text>
-  <text x="1008" y="456" class="s">Manacher：回文</text>
+  <rect x="996" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="1008" y="456" class="t">字符串进阶</text>
+  <text x="1008" y="474" class="s">AC 自动机 · SAM</text>
+  <text x="1008" y="492" class="s">Manacher：回文</text>
   </g>
   <g id="b_geo">
-  <rect x="1188" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="1200" y="420" class="t">计算几何</text>
-  <text x="1200" y="438" class="s">叉积 · 凸包</text>
-  <text x="1200" y="456" class="s">半平面交 · 精度</text>
+  <rect x="1188" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="1200" y="456" class="t">计算几何</text>
+  <text x="1200" y="474" class="s">叉积 · 凸包</text>
+  <text x="1200" y="492" class="s">半平面交 · 精度</text>
   </g>
   <g id="b_game">
-  <rect x="1380" y="396" width="180" height="76" rx="6" class="cold"/>
-  <text x="1392" y="420" class="t">博弈</text>
-  <text x="1392" y="438" class="s">Nim · SG 函数</text>
-  <text x="1392" y="456" class="s">先打表找规律</text>
+  <rect x="1380" y="432" width="180" height="94" rx="6" class="cold"/>
+  <text x="1392" y="456" class="t">博弈</text>
+  <text x="1392" y="474" class="s">Nim · SG 函数</text>
+  <text x="1392" y="492" class="s">先打表找规律</text>
   </g>
   <g id="b_dc">
-  <rect x="36" y="484" width="180" height="76" rx="6" class="cold"/>
-  <text x="48" y="508" class="t">分治</text>
-  <text x="48" y="526" class="s">CDQ · 整体二分</text>
-  <text x="48" y="544" class="s">离线降一维</text>
+  <rect x="36" y="538" width="180" height="94" rx="6" class="cold"/>
+  <text x="48" y="562" class="t">分治</text>
+  <text x="48" y="580" class="s">CDQ · 整体二分</text>
+  <text x="48" y="598" class="s">离线降一维</text>
   </g>
   <g id="b_off">
-  <rect x="228" y="484" width="180" height="76" rx="6" class="cold"/>
-  <text x="240" y="508" class="t">离线技巧</text>
-  <text x="240" y="526" class="s">莫队 · 扫描线</text>
-  <text x="240" y="544" class="s">询问能重排就离线</text>
+  <rect x="228" y="538" width="180" height="94" rx="6" class="cold"/>
+  <text x="240" y="562" class="t">离线技巧</text>
+  <text x="240" y="580" class="s">莫队 · 扫描线</text>
+  <text x="240" y="598" class="s">询问能重排就离线</text>
   </g>
   <g id="b_lichao">
-  <rect x="420" y="484" width="180" height="76" rx="6" class="cold"/>
-  <text x="432" y="508" class="t">李超树 · 笛卡尔树</text>
-  <text x="432" y="526" class="s">斜率优化 DP</text>
-  <text x="432" y="544" class="s">区间最值变成树</text>
+  <rect x="420" y="538" width="180" height="94" rx="6" class="cold"/>
+  <text x="432" y="562" class="t">李超树 · 笛卡尔树</text>
+  <text x="432" y="580" class="s">斜率优化 DP</text>
+  <text x="432" y="598" class="s">区间最值变成树</text>
   </g>
   <g id="b_rand">
-  <rect x="612" y="484" width="180" height="76" rx="6" class="cold"/>
-  <text x="624" y="508" class="t">对拍 · 随机化</text>
-  <text x="624" y="526" class="s">暴力对拍查错</text>
-  <text x="624" y="544" class="s">随机哈希防卡</text>
+  <rect x="612" y="538" width="180" height="94" rx="6" class="cold"/>
+  <text x="624" y="562" class="t">对拍 · 随机化</text>
+  <text x="624" y="580" class="s">暴力对拍查错</text>
+  <text x="624" y="598" class="s">随机哈希防卡</text>
   </g>
   <g id="c_pow">
-  <rect x="36" y="658" width="235" height="92" rx="6" class="data"/>
-  <text x="48" y="682" class="t">快速幂 · gcd · exgcd</text>
-  <text x="48" y="700" class="s">所有模运算的起点</text>
-  <text x="48" y="718" class="tag"><a href="/posts/number-theory-1-elementary/" target="_blank" rel="noopener"><tspan>NT #1 GCD · CRT</tspan></a></text>
+  <rect x="36" y="730" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="754" class="t">快速幂 · gcd · exgcd</text>
+  <text x="48" y="772" class="s">所有模运算的起点</text>
+  <text x="48" y="790" class="tag"><a href="/posts/number-theory-1-elementary/" target="_blank" rel="noopener"><tspan>NT #1 GCD · CRT</tspan></a></text>
   </g>
   <g id="c_inv">
-  <rect x="36" y="776" width="235" height="92" rx="6" class="data"/>
-  <text x="48" y="800" class="t">逆元 · CRT · 欧拉定理</text>
-  <text x="48" y="818" class="s">模意义除法；合并同余</text>
-  <text x="48" y="836" class="tag"><a href="/posts/number-theory-1-elementary/" target="_blank" rel="noopener"><tspan>NT #1 GCD · CRT</tspan></a></text>
+  <rect x="36" y="848" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="872" class="t">逆元 · CRT · 欧拉定理</text>
+  <text x="48" y="890" class="s">模意义除法；合并同余</text>
+  <text x="48" y="908" class="tag"><a href="/posts/number-theory-1-elementary/" target="_blank" rel="noopener"><tspan>NT #1 GCD · CRT</tspan></a></text>
   </g>
   <g id="c_sieve">
-  <rect x="36" y="894" width="235" height="92" rx="6" class="data"/>
-  <text x="48" y="918" class="t">筛法</text>
-  <text x="48" y="936" class="s">线性筛顺带筛积性函数</text>
-  <text x="48" y="954" class="tag"><a href="/posts/number-theory-3-sieve-mobius-inclusion-exclusion/" target="_blank" rel="noopener"><tspan>NT #3 sieve → Möbius</tspan></a></text>
+  <rect x="36" y="966" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="990" class="t">筛法</text>
+  <text x="48" y="1008" class="s">线性筛顺带筛积性函数</text>
+  <text x="48" y="1026" class="tag"><a href="/posts/number-theory-3-sieve-mobius-inclusion-exclusion/" target="_blank" rel="noopener"><tspan>NT #3 sieve → Möbius</tspan></a></text>
   </g>
   <g id="c_mult">
-  <rect x="36" y="1012" width="235" height="92" rx="6" class="data"/>
-  <text x="48" y="1036" class="t">积性函数 · 狄利克雷卷积</text>
-  <text x="48" y="1054" class="s">φ、μ、d、σ 之间的关系</text>
-  <text x="48" y="1072" class="tag"><a href="/posts/number-theory-2-multiplicative-functions/" target="_blank" rel="noopener"><tspan>NT #2 multiplicative</tspan></a></text>
+  <rect x="36" y="1084" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="1108" class="t">积性函数 · 狄利克雷卷积</text>
+  <text x="48" y="1126" class="s">φ、μ、d、σ 之间的关系</text>
+  <text x="48" y="1144" class="tag"><a href="/posts/number-theory-2-multiplicative-functions/" target="_blank" rel="noopener"><tspan>NT #2 multiplicative</tspan></a></text>
   </g>
   <g id="c_mob">
-  <rect x="36" y="1130" width="235" height="92" rx="6" class="data"/>
-  <text x="48" y="1154" class="t">莫比乌斯反演 · 数论分块</text>
-  <text x="48" y="1172" class="s">∑ gcd 类式子的标准路线</text>
-  <text x="48" y="1190" class="tag"><a href="/posts/number-theory-2-ex-mobius-techniques/" target="_blank" rel="noopener"><tspan>NT #2-ex Möbius</tspan></a></text>
-  <text x="48" y="1208" class="tag"><a href="/posts/number-theory-1-1-divisibility-blocking/" target="_blank" rel="noopener"><tspan>NT #1.1 floor blocks</tspan></a></text>
+  <rect x="36" y="1202" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="1226" class="t">莫比乌斯反演 · 数论分块</text>
+  <text x="48" y="1244" class="s">∑ gcd 类式子的标准路线</text>
+  <text x="48" y="1262" class="tag"><a href="/posts/number-theory-2-ex-mobius-techniques/" target="_blank" rel="noopener"><tspan>NT #2-ex Möbius</tspan></a></text>
+  <text x="48" y="1280" class="tag"><a href="/posts/number-theory-1-1-divisibility-blocking/" target="_blank" rel="noopener"><tspan>NT #1.1 floor blocks</tspan></a></text>
   </g>
   <g id="c_dujiao">
-  <rect x="36" y="1248" width="235" height="92" rx="6" class="data"/>
-  <text x="48" y="1272" class="t">杜教筛 · min_25</text>
-  <text x="48" y="1290" class="s">n 到 1e10 的前缀和</text>
-  <text x="48" y="1308" class="tag"><a href="/posts/number-theory-4-min25-du-jiao-sieve/" target="_blank" rel="noopener"><tspan>NT #4 Min_25 · Du</tspan></a></text>
+  <rect x="36" y="1320" width="235" height="92" rx="6" class="data"/>
+  <text x="48" y="1344" class="t">杜教筛 · min_25</text>
+  <text x="48" y="1362" class="s">n 到 1e10 的前缀和</text>
+  <text x="48" y="1380" class="tag"><a href="/posts/number-theory-4-min25-du-jiao-sieve/" target="_blank" rel="noopener"><tspan>NT #4 Min_25 · Du</tspan></a></text>
   </g>
   <g id="c_root">
-  <rect x="283" y="776" width="235" height="92" rx="6" class="sync"/>
-  <text x="295" y="800" class="t">原根 · BSGS</text>
-  <text x="295" y="818" class="s">离散对数；NTT 的模数</text>
-  <text x="295" y="836" class="tag"><a href="/posts/combinatorics-2-2-primitive-roots-ntt/" target="_blank" rel="noopener"><tspan>C #2.2 roots · NTT</tspan></a></text>
+  <rect x="283" y="848" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="872" class="t">原根 · BSGS</text>
+  <text x="295" y="890" class="s">离散对数；NTT 的模数</text>
+  <text x="295" y="908" class="tag"><a href="/posts/combinatorics-2-2-primitive-roots-ntt/" target="_blank" rel="noopener"><tspan>C #2.2 roots · NTT</tspan></a></text>
   </g>
   <g id="c_mr">
-  <rect x="283" y="894" width="235" height="92" rx="6" class="sync"/>
-  <text x="295" y="918" class="t">Miller-Rabin · rho</text>
-  <text x="295" y="936" class="s">1e18 级的判素和分解</text>
-  <text x="295" y="954" class="tag"><a href="/posts/number-theory-4-primality-factorisation-residues/" target="_blank" rel="noopener"><tspan>NT #4 Miller-Rabin · rho</tspan></a></text>
+  <rect x="283" y="966" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="990" class="t">Miller-Rabin · rho</text>
+  <text x="295" y="1008" class="s">1e18 级的判素和分解</text>
+  <text x="295" y="1026" class="tag"><a href="/posts/number-theory-4-primality-factorisation-residues/" target="_blank" rel="noopener"><tspan>NT #4 Miller-Rabin · rho</tspan></a></text>
   </g>
   <g id="c_qr">
-  <rect x="283" y="1012" width="235" height="92" rx="6" class="sync"/>
-  <text x="295" y="1036" class="t">二次剩余 · Lucas</text>
-  <text x="295" y="1054" class="s">模 p 开方；大组合数取模</text>
-  <text x="295" y="1072" class="tag"><a href="/posts/number-theory-4-primality-factorisation-residues/" target="_blank" rel="noopener"><tspan>NT #4 Miller-Rabin · rho</tspan></a></text>
+  <rect x="283" y="1084" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="1108" class="t">二次剩余 · Lucas</text>
+  <text x="295" y="1126" class="s">模 p 开方；大组合数取模</text>
+  <text x="295" y="1144" class="tag"><a href="/posts/number-theory-4-primality-factorisation-residues/" target="_blank" rel="noopener"><tspan>NT #4 Miller-Rabin · rho</tspan></a></text>
   </g>
   <g id="c_ntfact">
-  <rect x="283" y="1130" width="235" height="92" rx="6" class="sync"/>
-  <text x="295" y="1154" class="t">常用结论</text>
-  <text x="295" y="1172" class="s">勒让德公式；约数个数上界</text>
-  <text x="295" y="1190" class="tag"><a href="/posts/number-theory-0-common-formulae/" target="_blank" rel="noopener"><tspan>NT #0 common formulae</tspan></a></text>
+  <rect x="283" y="1202" width="235" height="92" rx="6" class="sync"/>
+  <text x="295" y="1226" class="t">常用结论</text>
+  <text x="295" y="1244" class="s">勒让德公式；约数个数上界</text>
+  <text x="295" y="1262" class="tag"><a href="/posts/number-theory-0-common-formulae/" target="_blank" rel="noopener"><tspan>NT #0 common formulae</tspan></a></text>
   </g>
   <g id="c_cnt">
-  <rect x="558" y="658" width="235" height="92" rx="6" class="data"/>
-  <text x="570" y="682" class="t">排列组合 · 组合数取模</text>
-  <text x="570" y="700" class="s">预处理阶乘和逆阶乘</text>
-  <text x="570" y="718" class="tag"><a href="/posts/combinatorics-1-1-permutations-combinations/" target="_blank" rel="noopener"><tspan>C #1.1 binomials</tspan></a></text>
-  <text x="570" y="736" class="tag"><a href="/posts/combinatorics-0-common-formulae-conclusions/" target="_blank" rel="noopener"><tspan>C #0 formulae</tspan></a></text>
+  <rect x="558" y="730" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="754" class="t">排列组合 · 组合数取模</text>
+  <text x="570" y="772" class="s">预处理阶乘和逆阶乘</text>
+  <text x="570" y="790" class="tag"><a href="/posts/combinatorics-1-1-permutations-combinations/" target="_blank" rel="noopener"><tspan>C #1.1 binomials</tspan></a></text>
+  <text x="570" y="808" class="tag"><a href="/posts/combinatorics-0-common-formulae-conclusions/" target="_blank" rel="noopener"><tspan>C #0 formulae</tspan></a></text>
   </g>
   <g id="c_ie">
-  <rect x="558" y="776" width="235" height="92" rx="6" class="data"/>
-  <text x="570" y="800" class="t">容斥 · 错排 · 不定方程</text>
-  <text x="570" y="818" class="s">“至少”和“恰好”互相换</text>
-  <text x="570" y="836" class="tag"><a href="/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/" target="_blank" rel="noopener"><tspan>C #1.2 inclusion-exclusion</tspan></a></text>
+  <rect x="558" y="848" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="872" class="t">容斥 · 错排 · 不定方程</text>
+  <text x="570" y="890" class="s">“至少”和“恰好”互相换</text>
+  <text x="570" y="908" class="tag"><a href="/posts/combinatorics-1-2-inclusion-exclusion-diophantine-derangements/" target="_blank" rel="noopener"><tspan>C #1.2 inclusion-exclusion</tspan></a></text>
   </g>
   <g id="c_binv">
-  <rect x="558" y="894" width="235" height="92" rx="6" class="data"/>
-  <text x="570" y="918" class="t">二项式反演 · min-max 反演</text>
-  <text x="570" y="936" class="s">恰好 k 个 ↔ 至少 k 个</text>
+  <rect x="558" y="966" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="990" class="t">二项式反演 · min-max 反演</text>
+  <text x="570" y="1008" class="s">恰好 k 个 ↔ 至少 k 个</text>
   </g>
   <g id="c_gf">
-  <rect x="558" y="1012" width="235" height="92" rx="6" class="data"/>
-  <text x="570" y="1036" class="t">生成函数</text>
-  <text x="570" y="1054" class="s">OGF 管组合；EGF 管排列</text>
-  <text x="570" y="1072" class="tag"><a href="/posts/combinatorics-3-1-ordinary-generating-functions/" target="_blank" rel="noopener"><tspan>C #3.1 OGF</tspan></a></text>
+  <rect x="558" y="1084" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="1108" class="t">生成函数</text>
+  <text x="570" y="1126" class="s">OGF 管组合；EGF 管排列</text>
+  <text x="570" y="1144" class="tag"><a href="/posts/combinatorics-3-1-ordinary-generating-functions/" target="_blank" rel="noopener"><tspan>C #3.1 OGF</tspan></a></text>
   </g>
   <g id="c_ntt">
-  <rect x="558" y="1130" width="235" height="92" rx="6" class="data"/>
-  <text x="570" y="1154" class="t">FFT · NTT</text>
-  <text x="570" y="1172" class="s">O(n log n) 的卷积</text>
-  <text x="570" y="1190" class="tag"><a href="/posts/combinatorics-2-1-fft-lagrange-interpolation/" target="_blank" rel="noopener"><tspan>C #2.1 FFT</tspan></a></text>
-  <text x="570" y="1208" class="tag"><a href="/posts/combinatorics-2-2-primitive-roots-ntt/" target="_blank" rel="noopener"><tspan>C #2.2 roots · NTT</tspan></a></text>
+  <rect x="558" y="1202" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="1226" class="t">FFT · NTT</text>
+  <text x="570" y="1244" class="s">O(n log n) 的卷积</text>
+  <text x="570" y="1262" class="tag"><a href="/posts/combinatorics-2-1-fft-lagrange-interpolation/" target="_blank" rel="noopener"><tspan>C #2.1 FFT</tspan></a></text>
+  <text x="570" y="1280" class="tag"><a href="/posts/combinatorics-2-2-primitive-roots-ntt/" target="_blank" rel="noopener"><tspan>C #2.2 roots · NTT</tspan></a></text>
   </g>
   <g id="c_poly">
-  <rect x="558" y="1248" width="235" height="92" rx="6" class="data"/>
-  <text x="570" y="1272" class="t">多项式全家桶</text>
-  <text x="570" y="1290" class="s">求逆 · ln · exp · 分治 NTT</text>
-  <text x="570" y="1308" class="tag"><a href="/posts/combinatorics-3-2-more-operations-on-formal-power-series/" target="_blank" rel="noopener"><tspan>C #3.2 power series</tspan></a></text>
+  <rect x="558" y="1320" width="235" height="92" rx="6" class="data"/>
+  <text x="570" y="1344" class="t">多项式全家桶</text>
+  <text x="570" y="1362" class="s">求逆 · ln · exp · 分治 NTT</text>
+  <text x="570" y="1380" class="tag"><a href="/posts/combinatorics-3-2-more-operations-on-formal-power-series/" target="_blank" rel="noopener"><tspan>C #3.2 power series</tspan></a></text>
   </g>
   <g id="c_model">
-  <rect x="805" y="658" width="235" height="92" rx="6" class="sync"/>
-  <text x="817" y="682" class="t">球盒 · 斯特林 · 卡特兰</text>
-  <text x="817" y="700" class="s">经典分配模型</text>
+  <rect x="805" y="730" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="754" class="t">球盒 · 斯特林 · 卡特兰</text>
+  <text x="817" y="772" class="s">经典分配模型</text>
   </g>
   <g id="c_polya">
-  <rect x="805" y="776" width="235" height="92" rx="6" class="sync"/>
-  <text x="817" y="800" class="t">Polya · Burnside</text>
-  <text x="817" y="818" class="s">旋转、翻转下的不同方案</text>
+  <rect x="805" y="848" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="872" class="t">Polya · Burnside</text>
+  <text x="817" y="890" class="s">旋转、翻转下的不同方案</text>
   </g>
   <g id="c_prob">
-  <rect x="805" y="894" width="235" height="92" rx="6" class="sync"/>
-  <text x="817" y="918" class="t">概率 · 期望 DP</text>
-  <text x="817" y="936" class="s">期望的线性性；倒推</text>
+  <rect x="805" y="966" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="990" class="t">概率 · 期望 DP</text>
+  <text x="817" y="1008" class="s">期望的线性性；倒推</text>
   </g>
   <g id="c_fwt">
-  <rect x="805" y="1012" width="235" height="92" rx="6" class="sync"/>
-  <text x="817" y="1036" class="t">FWT · 子集卷积 · SOS</text>
-  <text x="817" y="1054" class="s">按位与 / 或 / 异或的卷积</text>
+  <rect x="805" y="1084" width="235" height="92" rx="6" class="sync"/>
+  <text x="817" y="1108" class="t">FWT · 子集卷积 · SOS</text>
+  <text x="817" y="1126" class="s">按位与 / 或 / 异或的卷积</text>
   </g>
   <g id="c_mpow">
-  <rect x="1080" y="658" width="235" height="92" rx="6" class="data"/>
-  <text x="1092" y="682" class="t">矩阵乘法 · 快速幂</text>
-  <text x="1092" y="700" class="s">O(k³ log n) 算线性递推</text>
-  <text x="1092" y="718" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
+  <rect x="1080" y="730" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="754" class="t">矩阵乘法 · 快速幂</text>
+  <text x="1092" y="772" class="s">O(k³ log n) 算线性递推</text>
+  <text x="1092" y="790" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
   </g>
   <g id="c_semi">
-  <rect x="1080" y="776" width="235" height="92" rx="6" class="data"/>
-  <text x="1092" y="800" class="t">DP 半环</text>
-  <text x="1092" y="818" class="s">(min, +) 矩阵：恰好走 k 步</text>
-  <text x="1092" y="836" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
+  <rect x="1080" y="848" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="872" class="t">DP 半环</text>
+  <text x="1092" y="890" class="s">(min, +) 矩阵：恰好走 k 步</text>
+  <text x="1092" y="908" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
   </g>
   <g id="c_gauss">
-  <rect x="1080" y="894" width="235" height="92" rx="6" class="data"/>
-  <text x="1092" y="918" class="t">高斯消元</text>
-  <text x="1092" y="936" class="s">实数 · 模 p · 异或方程组</text>
-  <text x="1092" y="954" class="tag"><a href="/posts/matrix-2-gaussian-elimination/" target="_blank" rel="noopener"><tspan>M #2 Gaussian elimination</tspan></a></text>
+  <rect x="1080" y="966" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="990" class="t">高斯消元</text>
+  <text x="1092" y="1008" class="s">实数 · 模 p · 异或方程组</text>
+  <text x="1092" y="1026" class="tag"><a href="/posts/matrix-2-gaussian-elimination/" target="_blank" rel="noopener"><tspan>M #2 Gaussian elimination</tspan></a></text>
   </g>
   <g id="c_det">
-  <rect x="1080" y="1012" width="235" height="92" rx="6" class="data"/>
-  <text x="1092" y="1036" class="t">行列式</text>
-  <text x="1092" y="1054" class="s">消成上三角；任意模数辗转相除</text>
+  <rect x="1080" y="1084" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="1108" class="t">行列式</text>
+  <text x="1092" y="1126" class="s">消成上三角；任意模数辗转相除</text>
   </g>
   <g id="c_mtt">
-  <rect x="1080" y="1130" width="235" height="92" rx="6" class="data"/>
-  <text x="1092" y="1154" class="t">矩阵树定理 · LGV</text>
-  <text x="1092" y="1172" class="s">生成树计数；不相交路径</text>
+  <rect x="1080" y="1202" width="235" height="92" rx="6" class="data"/>
+  <text x="1092" y="1226" class="t">矩阵树定理 · LGV</text>
+  <text x="1092" y="1244" class="s">生成树计数；不相交路径</text>
   </g>
   <g id="c_bm">
-  <rect x="1327" y="658" width="235" height="92" rx="6" class="sync"/>
-  <text x="1339" y="682" class="t">BM · 特征多项式</text>
-  <text x="1339" y="700" class="s">从前几项求递推；Kitamasa</text>
-  <text x="1339" y="718" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
+  <rect x="1327" y="730" width="235" height="92" rx="6" class="sync"/>
+  <text x="1339" y="754" class="t">BM · 特征多项式</text>
+  <text x="1339" y="772" class="s">从前几项求递推；Kitamasa</text>
+  <text x="1339" y="790" class="tag"><a href="/posts/matrix-1-fast-exponentiation/" target="_blank" rel="noopener"><tspan>M #1 fast power · Kitamasa</tspan></a></text>
   </g>
   <g id="c_mprob">
-  <rect x="1327" y="776" width="235" height="92" rx="6" class="sync"/>
-  <text x="1339" y="800" class="t">矩阵题型</text>
-  <text x="1339" y="818" class="s">线段树的节点存矩阵</text>
-  <text x="1339" y="836" class="tag"><a href="/posts/matrix-4-problems/" target="_blank" rel="noopener"><tspan>M #4 problems</tspan></a></text>
+  <rect x="1327" y="848" width="235" height="92" rx="6" class="sync"/>
+  <text x="1339" y="872" class="t">矩阵题型</text>
+  <text x="1339" y="890" class="s">线段树的节点存矩阵</text>
+  <text x="1339" y="908" class="tag"><a href="/posts/matrix-4-problems/" target="_blank" rel="noopener"><tspan>M #4 problems</tspan></a></text>
   </g>
   <g id="c_basis">
-  <rect x="1327" y="894" width="235" height="92" rx="6" class="sync"/>
-  <text x="1339" y="918" class="t">线性基</text>
-  <text x="1339" y="936" class="s">最大异或；第 k 小异或</text>
-  <text x="1339" y="954" class="tag"><a href="/posts/matrix-3-linear-basis/" target="_blank" rel="noopener"><tspan>M #3 linear basis</tspan></a></text>
+  <rect x="1327" y="966" width="235" height="92" rx="6" class="sync"/>
+  <text x="1339" y="990" class="t">线性基</text>
+  <text x="1339" y="1008" class="s">最大异或；第 k 小异或</text>
+  <text x="1339" y="1026" class="tag"><a href="/posts/matrix-3-linear-basis/" target="_blank" rel="noopener"><tspan>M #3 linear basis</tspan></a></text>
   </g>
-  <path d="M76,750 L76,774" class="line edge" id="e_c_pow_c_inv" marker-end="url(#arr)"/>
-  <path d="M76,868 L76,892" class="line edge" id="e_c_inv_c_sieve" marker-end="url(#arr)"/>
-  <path d="M76,986 L76,1010" class="line edge" id="e_c_sieve_c_mult" marker-end="url(#arr)"/>
-  <path d="M76,1104 L76,1128" class="line edge" id="e_c_mult_c_mob" marker-end="url(#arr)"/>
-  <path d="M76,1222 L76,1246" class="line edge" id="e_c_mob_c_dujiao" marker-end="url(#arr)"/>
-  <path d="M598,750 L598,774" class="line edge" id="e_c_cnt_c_ie" marker-end="url(#arr)"/>
-  <path d="M598,868 L598,892" class="line edge" id="e_c_ie_c_binv" marker-end="url(#arr)"/>
-  <path d="M598,986 L598,1010" class="line edge" id="e_c_binv_c_gf" marker-end="url(#arr)"/>
-  <path d="M598,1104 L598,1128" class="line edge" id="e_c_gf_c_ntt" marker-end="url(#arr)"/>
-  <path d="M598,1222 L598,1246" class="line edge" id="e_c_ntt_c_poly" marker-end="url(#arr)"/>
-  <path d="M1120,750 L1120,774" class="line edge" id="e_c_mpow_c_semi" marker-end="url(#arr)"/>
-  <path d="M1120,868 L1120,892" class="line edge" id="e_c_semi_c_gauss" marker-end="url(#arr)"/>
-  <path d="M1120,986 L1120,1010" class="line edge" id="e_c_gauss_c_det" marker-end="url(#arr)"/>
-  <path d="M1120,1104 L1120,1128" class="line edge" id="e_c_det_c_mtt" marker-end="url(#arr)"/>
-  <path d="M271,806 L281,806" class="line edge" id="e_c_inv_c_root" marker-end="url(#arr)"/>
-  <path d="M793,688 L803,688" class="line edge" id="e_c_cnt_c_model" marker-end="url(#arr)"/>
-  <path d="M1315,688 L1325,688" class="line edge" id="e_c_mpow_c_bm" marker-end="url(#arr)"/>
-  <path d="M1315,924 L1325,924" class="line edge" id="e_c_gauss_c_basis" marker-end="url(#arr)"/>
-  <text x="20" y="1394" class="s">图跟着学习进度更新：讲过的框补上对应的文章。</text>
+  <path d="M76,822 L76,846" class="line edge" id="e_c_pow_c_inv" marker-end="url(#arr)"/>
+  <path d="M76,940 L76,964" class="line edge" id="e_c_inv_c_sieve" marker-end="url(#arr)"/>
+  <path d="M76,1058 L76,1082" class="line edge" id="e_c_sieve_c_mult" marker-end="url(#arr)"/>
+  <path d="M76,1176 L76,1200" class="line edge" id="e_c_mult_c_mob" marker-end="url(#arr)"/>
+  <path d="M76,1294 L76,1318" class="line edge" id="e_c_mob_c_dujiao" marker-end="url(#arr)"/>
+  <path d="M598,822 L598,846" class="line edge" id="e_c_cnt_c_ie" marker-end="url(#arr)"/>
+  <path d="M598,940 L598,964" class="line edge" id="e_c_ie_c_binv" marker-end="url(#arr)"/>
+  <path d="M598,1058 L598,1082" class="line edge" id="e_c_binv_c_gf" marker-end="url(#arr)"/>
+  <path d="M598,1176 L598,1200" class="line edge" id="e_c_gf_c_ntt" marker-end="url(#arr)"/>
+  <path d="M598,1294 L598,1318" class="line edge" id="e_c_ntt_c_poly" marker-end="url(#arr)"/>
+  <path d="M1120,822 L1120,846" class="line edge" id="e_c_mpow_c_semi" marker-end="url(#arr)"/>
+  <path d="M1120,940 L1120,964" class="line edge" id="e_c_semi_c_gauss" marker-end="url(#arr)"/>
+  <path d="M1120,1058 L1120,1082" class="line edge" id="e_c_gauss_c_det" marker-end="url(#arr)"/>
+  <path d="M1120,1176 L1120,1200" class="line edge" id="e_c_det_c_mtt" marker-end="url(#arr)"/>
+  <path d="M271,878 L281,878" class="line edge" id="e_c_inv_c_root" marker-end="url(#arr)"/>
+  <path d="M793,760 L803,760" class="line edge" id="e_c_cnt_c_model" marker-end="url(#arr)"/>
+  <path d="M1315,760 L1325,760" class="line edge" id="e_c_mpow_c_bm" marker-end="url(#arr)"/>
+  <path d="M1315,996 L1325,996" class="line edge" id="e_c_gauss_c_basis" marker-end="url(#arr)"/>
+  <text x="20" y="1466" class="s">图跟着学习进度更新：讲过的框补上对应的文章。</text>
 </svg>
