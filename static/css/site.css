@@ -988,6 +988,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .algo-entry a:hover { color: var(--muted); }
 .algo-entry span { display: inline-block; margin-left: 4px; transition: transform .25s var(--ease); }
 .algo-entry a:hover span { transform: translateX(3px); }
+.algo-entry a + a { margin-left: 22px; }
 
 .filter {
   position: sticky;

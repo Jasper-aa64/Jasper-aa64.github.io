@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" width="1000" height="640" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="640" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">Three processes, four outside services, one database: live work in the request, slow work in the worker</text>
+<rect x="20" y="64" width="270" height="300" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="155" y="90" class="t" text-anchor="middle">Browser: single-page app</text>
+<text x="36" y="122" class="s" text-anchor="start">Records (MediaRecorder)</text>
+<text x="36" y="152" class="s" text-anchor="start">Browser dictation gives a transcript</text>
+<text x="36" y="182" class="s" text-anchor="start">Plays examiner audio (howler.js)</text>
+<text x="36" y="212" class="s" text-anchor="start">Optional: WASM audio preprocessing</text>
+<text x="36" y="242" class="s" text-anchor="start">  (VAD, silence trim, resample)</text>
+<text x="36" y="272" class="s" text-anchor="start">Optional: live 16 kHz PCM uplink</text>
+<text x="36" y="302" class="s" text-anchor="start">Polls the scoring task every 2.5 s</text>
+<rect x="360" y="64" width="300" height="210" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="510" y="90" class="t" text-anchor="middle">Django process (ASGI)</text>
+<text x="376" y="120" class="s" text-anchor="start">Start: draw questions, create turns</text>
+<text x="376" y="147" class="s" text-anchor="start">Receive audio, complete a turn</text>
+<text x="376" y="174" class="s" text-anchor="start">Streamed follow-up: SSE token by token</text>
+<text x="376" y="201" class="s" text-anchor="start">Examiner voice: synthesise, cache, warm up</text>
+<text x="376" y="228" class="s" text-anchor="start">Reports, corpus, writing, billing APIs</text>
+<text x="376" y="255" class="s" text-anchor="start">WebSocket: PCM uplink → live ASR</text>
+<rect x="420" y="300" width="240" height="110" rx="10" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="540" y="326" class="t" text-anchor="middle">AI worker process</text>
+<text x="434" y="352" class="s" text-anchor="start">Scans the task table every 1–2.5 s</text>
+<text x="434" y="374" class="s" text-anchor="start">Claim → call model → write report</text>
+<text x="434" y="396" class="s" text-anchor="start">Re-queues tasks stuck over 900 s</text>
+<rect x="730" y="64" width="250" height="346" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 4"/>
+<text x="855" y="90" class="t" text-anchor="middle">Outside services</text>
+<rect x="746" y="104" width="218" height="62" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="855" y="129" class="b" text-anchor="middle">Speech synthesis</text>
+<text x="855" y="150" class="k" text-anchor="middle">examiner and model-answer voice</text>
+<rect x="746" y="179" width="218" height="62" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="855" y="204" class="b" text-anchor="middle">Speech recognition</text>
+<text x="855" y="225" class="k" text-anchor="middle">backup transcript, live ASR</text>
+<rect x="746" y="254" width="218" height="62" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="855" y="279" class="b" text-anchor="middle">LLM over streaming HTTP</text>
+<text x="855" y="300" class="k" text-anchor="middle">first choice for follow-ups, scores</text>
+<rect x="746" y="329" width="218" height="62" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="855" y="354" class="b" text-anchor="middle">Local command-line coding agent</text>
+<text x="855" y="375" class="k" text-anchor="middle">fallback when HTTP fails; slow</text>
+<path d="M290,130 L360,130" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="325" y="122" class="k" text-anchor="middle">HTTP / SSE</text>
+<path d="M290,250 L360,250" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="325" y="242" class="k" text-anchor="middle">WS (optional)</text>
+<path d="M660,135 L746,135" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M660,190 L746,210" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M660,250 L746,279" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="690" y="246" class="k" text-anchor="start">follow-up</text>
+<path d="M660,330 L746,295" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M660,370 L746,360" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="672" y="392" class="k" text-anchor="start">section score</text>
+<rect x="20" y="450" width="960" height="172" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="36" y="476" class="t" text-anchor="start">Data</text>
+<rect x="340" y="490" width="340" height="116" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="354" y="514" class="b" text-anchor="start">SQLite (main tables)</text>
+<text x="354" y="540" class="s" text-anchor="start">Attempt → Turn → Report</text>
+<text x="354" y="562" class="s" text-anchor="start">AITask: status, retries, provenance</text>
+<text x="354" y="584" class="s" text-anchor="start">Wallet, holds, ledger; corpus, spelling</text>
+<rect x="36" y="490" width="284" height="116" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="50" y="514" class="b" text-anchor="start">Files</text>
+<text x="50" y="540" class="s" text-anchor="start">Candidate recordings, synthesised audio</text>
+<text x="50" y="562" class="s" text-anchor="start">Tables store only the path</text>
+<rect x="700" y="490" width="264" height="116" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="714" y="514" class="b" text-anchor="start">Question bank JSON</text>
+<text x="714" y="540" class="s" text-anchor="start">Speaking by season, writing by source</text>
+<text x="714" y="562" class="s" text-anchor="start">Imported at start-up</text>
+<path d="M385,274 L385,490" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<path d="M480,410 L480,490" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<path d="M600,410 L600,490" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="608" y="452" class="k" text-anchor="start">polls tasks</text>
+</svg>

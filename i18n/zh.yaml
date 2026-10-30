@@ -47,6 +47,8 @@ emptyFilter: "这个系列还没有文章。"
 secRef: "速查"
 refUpdated: "更新于 {{ . }}"
 algoEntry: "算法"
+projectsEntry: "项目"
+secProjects: "项目"
 
 # post
 prevPost: "上一篇"

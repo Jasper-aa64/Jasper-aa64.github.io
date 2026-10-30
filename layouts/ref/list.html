@@ -26,7 +26,8 @@
       </article>
     {{ end }}
   </div>
-  {{/* Quiet entry to the algorithms hub (/algo/), deliberately low-key: bottom left, small and muted. */}}
-  <p class="algo-entry"><a href="{{ "algo/" | relLangURL }}">{{ i18n "algoEntry" }} <span aria-hidden="true">→</span></a></p>
+  {{/* Quiet entries to the algorithms hub (/algo/) and the projects hub (/projects/), deliberately low-key:
+       bottom left, small and muted. */}}
+  <p class="algo-entry"><a href="{{ "algo/" | relLangURL }}">{{ i18n "algoEntry" }} <span aria-hidden="true">→</span></a><a href="{{ "projects/" | relLangURL }}">{{ i18n "projectsEntry" }} <span aria-hidden="true">→</span></a></p>
 </section>
 {{ end }}

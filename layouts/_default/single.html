@@ -20,6 +20,11 @@
       <h1 class="post-head__title reveal">{{ .Title }}</h1>
       {{ with .Description }}<p class="post-head__dek reveal">{{ . }}</p>{{ end }}
       <div class="post-head__meta reveal"><time datetime="{{ .Lastmod.Format `2006-01-02` }}">{{ i18n "refUpdated" (.Lastmod.Format (i18n "dateLong")) }}</time></div>
+    {{ else if eq .Section "projects" }}
+      <a class="eyebrow post-head__kicker reveal" href="{{ "projects/" | relLangURL }}">{{ i18n "secProjects" }}</a>
+      <h1 class="post-head__title reveal">{{ .Title }}</h1>
+      {{ with .Description }}{{ if le (countrunes .) 230 }}<p class="post-head__dek reveal">{{ . }}</p>{{ end }}{{ end }}
+      <div class="post-head__meta reveal"><time datetime="{{ .Date.Format `2006-01-02` }}">{{ .Date.Format (i18n "dateLong") }}</time></div>
     {{ else }}
       {{ if eq .Section "life" }}<p class="eyebrow reveal">{{ i18n "secLife" }}</p>{{ end }}
       <h1 class="post-head__title reveal">{{ .Title }}</h1>

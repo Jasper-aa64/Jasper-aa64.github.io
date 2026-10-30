@@ -1,0 +1,14 @@
+{{ define "main" }}
+{{/* Projects hub: code-structure and retrospective posts of my own projects. Entered only from a small
+     link at the bottom of the reference page, next to the algorithms one, so it stays out of the menu, the Blog list and the homepage. */}}
+<section class="page-head wrap">
+  <h1 class="page-head__title reveal">{{ .Title }}</h1>
+  {{ with .Description }}<p class="page-head__lede reveal">{{ . }}</p>{{ end }}
+</section>
+<section class="wrap page-body">
+  <div class="post-body prose">{{ .Content }}</div>
+  {{ with .Pages.ByWeight }}
+    <div class="card-list">{{ range . }}{{ partial "post-card.html" . }}{{ end }}</div>
+  {{ end }}
+</section>
+{{ end }}

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 690" width="1000" height="690" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="690" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">一轮问答：停说之后先逐字出追问，问句完整就开始合成语音</text>
+<rect x="20" y="52" width="960" height="90" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="36" y="102" class="lane" text-anchor="start">浏览器</text>
+<rect x="20" y="150" width="960" height="90" rx="8" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="36" y="200" class="lane" text-anchor="start">Django</text>
+<rect x="20" y="248" width="960" height="90" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="36" y="298" class="lane" text-anchor="start">外部服务</text>
+<rect x="120" y="70.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="195.0" y="92.0" class="b" text-anchor="middle">① 播考官语音</text>
+<text x="195.0" y="111.0" class="k" text-anchor="middle">第一题是固定音频</text>
+<rect x="290" y="70.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="365.0" y="92.0" class="b" text-anchor="middle">② 录音 + 听写</text>
+<text x="365.0" y="111.0" class="k" text-anchor="middle">边说边出转写</text>
+<rect x="460" y="70.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="535.0" y="92.0" class="b" text-anchor="middle">③ 停说</text>
+<text x="535.0" y="111.0" class="k" text-anchor="middle">传录音、提交本轮</text>
+<rect x="650" y="70.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="725.0" y="92.0" class="b" text-anchor="middle">⑥ 逐字显示追问</text>
+<rect x="820" y="70.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="895.0" y="92.0" class="b" text-anchor="middle">⑦ 播追问语音</text>
+<text x="895.0" y="111.0" class="k" text-anchor="middle">然后进下一轮</text>
+<rect x="460" y="168.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="535.0" y="190.0" class="b" text-anchor="middle">④ 流式追问 SSE</text>
+<text x="535.0" y="209.0" class="k" text-anchor="middle">读转写，拼提示词</text>
+<rect x="650" y="168.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="725.0" y="190.0" class="b" text-anchor="middle">⑤ 问句完整</text>
+<text x="725.0" y="209.0" class="k" text-anchor="middle">后台线程合成语音</text>
+<rect x="460" y="266.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="535.0" y="288.0" class="b" text-anchor="middle">大模型流式出字</text>
+<text x="535.0" y="307.0" class="k" text-anchor="middle">失败→命令行→兜底</text>
+<rect x="820" y="266.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="895.0" y="288.0" class="b" text-anchor="middle">语音合成</text>
+<text x="895.0" y="307.0" class="k" text-anchor="middle">就绪发 tts_ready</text>
+<path d="M270,97.0 L290,97.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M440,97.0 L460,97.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M535,124.0 L535,168.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M535,222.0 L535,266.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<path d="M610,195.0 L650,195.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M600,168.0 L660,124.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="636" y="156.0" class="k" text-anchor="start">chunk</text>
+<path d="M800,195.0 Q860,195.0 880,266.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M940,266.0 L940,124.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="934" y="199.0" class="k" text-anchor="end">tts_ready</text>
+<path d="M800,97.0 L820,97.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="20" y="384" class="h" text-anchor="start">整节评分：一分钟级、会失败要重试、要计费，所以进任务表交给 worker</text>
+<rect x="20" y="402" width="960" height="90" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="36" y="452" class="lane" text-anchor="start">浏览器</text>
+<rect x="20" y="500" width="960" height="90" rx="8" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="36" y="550" class="lane" text-anchor="start">Django</text>
+<rect x="20" y="598" width="960" height="90" rx="8" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="36" y="648" class="lane" text-anchor="start">AI worker</text>
+<rect x="120" y="420.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="195.0" y="442.0" class="b" text-anchor="middle">⑧ 一节结束</text>
+<text x="195.0" y="461.0" class="k" text-anchor="middle">提交评分</text>
+<rect x="460" y="420.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="535.0" y="442.0" class="b" text-anchor="middle">⑩ 每 2.5 秒查任务</text>
+<text x="535.0" y="461.0" class="k" text-anchor="middle">终态就停</text>
+<rect x="820" y="420.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="895.0" y="442.0" class="b" text-anchor="middle">显示报告</text>
+<rect x="290" y="518.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="365.0" y="540.0" class="b" text-anchor="middle">建 AITask</text>
+<text x="365.0" y="559.0" class="k" text-anchor="middle">状态 pending</text>
+<rect x="650" y="518.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="725.0" y="540.0" class="b" text-anchor="middle">任务到终态</text>
+<text x="725.0" y="559.0" class="k" text-anchor="middle">成功 / 失败 / 兜底</text>
+<rect x="290" y="616.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="365.0" y="638.0" class="b" text-anchor="middle">⑨ 认领</text>
+<text x="365.0" y="657.0" class="k" text-anchor="middle">pending → running</text>
+<rect x="460" y="616.0" width="150" height="54" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="535.0" y="638.0" class="b" text-anchor="middle">调模型、写报告</text>
+<text x="535.0" y="657.0" class="k" text-anchor="middle">写回练习记录</text>
+<path d="M195,474.0 Q195,545.0 290,545.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M365,572.0 L365,616.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M440,643.0 L460,643.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M610,643.0 Q725,643.0 725,572.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M600,474.0 L680,518.0" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="648" y="490.0" class="k" text-anchor="start">查状态</text>
+<path d="M610,447.0 L820,447.0" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+</svg>

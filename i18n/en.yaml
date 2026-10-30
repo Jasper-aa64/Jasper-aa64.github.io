@@ -48,6 +48,8 @@ emptyFilter: "Nothing in this series yet."
 secRef: "Reference"
 refUpdated: "Updated {{ . }}"
 algoEntry: "Algorithms"
+projectsEntry: "Projects"
+secProjects: "Projects"
 
 # post
 prevPost: "Previous"
