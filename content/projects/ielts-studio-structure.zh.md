@@ -198,7 +198,7 @@ IELTS 命令行版（`src/ielts/`）复用了这里的 `RealtimeClient` 和音�
 
 <a href="/images/projects/ielts/ws-io-owner.zh.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/ws-io-owner.zh.svg" alt="改法：麦克风线程、播放线程、界面线程只往队列里投递，立刻返回；控制队列放文本查询和结束帧，优先发，音频队列有上限，满了丢最旧的并计数；只有 I/O 线程碰 ws_，同一时刻只有一个 async_write，async_read 循环把语音交给回调进播放队列；下面是按顺序执行的关闭：发结束会话，最多等 2 秒确认，发结束连接，async_close，总时限 5 秒。" loading="lazy" decoding="async"></a>
 
-- **只有 I/O 线程碰 `ws_`。** 读、写、关闭都在一个 I/O 线程（strand）上执行。别的线程调 `SendAudioData`、`SendTextQuery`、`Close`，只是把消息 post 过去，立刻返回，所以麦克风线程再也不会被网络卡住。
+- **只有 I/O 线程碰 `ws_`。** 读、写、关闭都在一个 I/O 线程上执行：只有它在跑这条连接的 `io_context`，所有回调天然一个接一个，不用加锁。别的线程调 `SendAudioData`、`SendTextQuery`、`Close`，只是把消息 post 过去，立刻返回，所以麦克风线程再也不会被网络卡住。
 - **两个发送队列。** 控制帧（文本查询、结束帧）优先发。音频队列有上限，积压超过 0.5 秒左右就丢掉最旧的帧，并且计数，不让延迟一直往上涨。
 - **同一时刻只有一个 `async_write` 在途。** `async_read` 循环把收到的消息交给回调，回调只做入队这一件事。
 - **关闭是投给 I/O 线程的一个任务**，按写死的顺序执行，并且有总时限。挂着的读会被正常取消，不再靠 `running_` 标志去碰运气。
