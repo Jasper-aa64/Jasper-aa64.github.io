@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 580" width="1000" height="580" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="580" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">现在的样子：桌面壳套网页，语音走网页和后端；C++ 原生语音都还没接进来</text>
+<rect x="20" y="60" width="440" height="290" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="84" class="t" text-anchor="start">Qt 桌面壳（desktop/，QtWebEngine）</text>
+<rect x="36" y="98" width="408" height="120" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="50" y="122" class="t" text-anchor="start">网页前端（web/static，单页）</text>
+<text x="50" y="144" class="s" text-anchor="start">IELTS 口语、写作；面试模式只在桌面版显示</text>
+<text x="50" y="164" class="s" text-anchor="start">录音：MediaRecorder；播放：howler.js</text>
+<text x="50" y="184" class="s" text-anchor="start">录音预处理：audio_core 编成的 WASM</text>
+<rect x="36" y="236" width="408" height="66" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="50" y="260" class="b" text-anchor="start">QWebChannel 桥 studioNative</text>
+<text x="50" y="282" class="s" text-anchor="start">只报能力：native_audio = false</text>
+<rect x="500" y="60" width="240" height="150" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="514" y="84" class="t" text-anchor="start">Django（ASGI）</text>
+<text x="514" y="106" class="s" text-anchor="start">speaking · writing · interview</text>
+<text x="514" y="126" class="s" text-anchor="start">ai · billing · accounts</text>
+<text x="514" y="146" class="s" text-anchor="start">追问：SSE 逐字下发</text>
+<text x="514" y="166" class="s" text-anchor="start">PCM WebSocket 中转（默认关）</text>
+<rect x="500" y="228" width="240" height="70" rx="10" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="514" y="252" class="t" text-anchor="start">AI worker</text>
+<text x="514" y="274" class="s" text-anchor="start">扫 AITask 表：整节评分、写作批改</text>
+<rect x="770" y="60" width="210" height="238" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 4"/>
+<text x="784" y="84" class="t" text-anchor="start">外部服务</text>
+<text x="784" y="106" class="s" text-anchor="start">大模型 HTTP（OpenAI 兼容）</text>
+<text x="784" y="126" class="s" text-anchor="start">Codex 命令行（兜底）</text>
+<text x="784" y="146" class="s" text-anchor="start">火山 TTS</text>
+<text x="784" y="166" class="s" text-anchor="start">火山 ASR（Python 重写的协议）</text>
+<rect x="500" y="314" width="480" height="36" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="740" y="337" class="s" text-anchor="middle">数据：SQLite · 录音和语音文件 · 题库 JSON</text>
+<path d="M444,150 L500,150" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="472" y="142" class="k" text-anchor="middle">HTTP / SSE</text>
+<path d="M740,130 L770,130" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M740,262 L770,240" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M620,210 L620,228" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<rect x="20" y="380" width="960" height="180" rx="10" fill="#ffebe9" stroke="#ff8182" stroke-dasharray="6 4"/>
+<text x="34" y="406" class="t" text-anchor="start" style="fill:#cf222e">C++ 原生语音：都没接进桌面壳</text>
+<rect x="36" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="50" y="448" class="b" text-anchor="start">旧实时原型（src/）</text>
+<text x="50" y="470" class="s" text-anchor="start">五个线程，连火山实时对话</text>
+<text x="50" y="490" class="s" text-anchor="start">唯一完整的原生链路</text>
+<text x="50" y="510" class="s" text-anchor="start">Qt Widgets 界面已不用</text>
+<rect x="276" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="290" y="448" class="b" text-anchor="start">IELTS 命令行</text>
+<text x="290" y="470" class="s" text-anchor="start">复用旧原型的识别那一半</text>
+<text x="290" y="490" class="s" text-anchor="start">考官语音收到后被丢掉</text>
+<rect x="516" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="530" y="448" class="b" text-anchor="start">native_voice（10-05 新写）</text>
+<text x="530" y="470" class="s" text-anchor="start">回调 + 预分配环形队列</text>
+<text x="530" y="490" class="s" text-anchor="start">目前只把麦克风原样回放</text>
+<text x="530" y="510" class="s" text-anchor="start">没有网络、识别、合成</text>
+<rect x="756" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="770" y="448" class="b" text-anchor="start">audio_core</text>
+<text x="770" y="470" class="s" text-anchor="start">音量、VAD、裁静音、重采样</text>
+<text x="770" y="490" class="s" text-anchor="start">编成 WASM 给网页用</text>
+<path d="M870,424 L870,364 L480,364 L480,195 L446,195" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="860" y="358" class="k" text-anchor="end">WASM</text>
+<path d="M630,424 L630,372 L452,372 L452,270 L446,270" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="622" y="400" class="k" text-anchor="end">计划：音频留在 C++，事件过桥</text>
+</svg>

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 580" width="1000" height="580" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="580" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">Today: a desktop shell around the web app; voice via web and backend; native C++ not wired in</text>
+<rect x="20" y="60" width="440" height="290" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="84" class="t" text-anchor="start">Qt desktop shell (desktop/, QtWebEngine)</text>
+<rect x="36" y="98" width="408" height="120" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="50" y="122" class="t" text-anchor="start">Web front end (web/static, SPA)</text>
+<text x="50" y="144" class="s" text-anchor="start">IELTS speaking, writing; interview mode in desktop only</text>
+<text x="50" y="164" class="s" text-anchor="start">Recording: MediaRecorder; playback: howler.js</text>
+<text x="50" y="184" class="s" text-anchor="start">Preprocessing: audio_core built to WASM</text>
+<rect x="36" y="236" width="408" height="66" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="50" y="260" class="b" text-anchor="start">QWebChannel bridge studioNative</text>
+<text x="50" y="282" class="s" text-anchor="start">capabilities only: native_audio = false</text>
+<rect x="500" y="60" width="240" height="150" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="514" y="84" class="t" text-anchor="start">Django (ASGI)</text>
+<text x="514" y="106" class="s" text-anchor="start">speaking · writing · interview</text>
+<text x="514" y="126" class="s" text-anchor="start">ai · billing · accounts</text>
+<text x="514" y="146" class="s" text-anchor="start">Follow-ups: streamed over SSE</text>
+<text x="514" y="166" class="s" text-anchor="start">PCM WebSocket relay (off by default)</text>
+<rect x="500" y="228" width="240" height="70" rx="10" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="514" y="252" class="t" text-anchor="start">AI worker</text>
+<text x="514" y="274" class="s" text-anchor="start">Scans AITask: section scores, writing</text>
+<rect x="770" y="60" width="210" height="238" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 4"/>
+<text x="784" y="84" class="t" text-anchor="start">Outside services</text>
+<text x="784" y="106" class="s" text-anchor="start">LLM over HTTP (OpenAI API)</text>
+<text x="784" y="126" class="s" text-anchor="start">Codex CLI (fallback)</text>
+<text x="784" y="146" class="s" text-anchor="start">Volcengine TTS</text>
+<text x="784" y="166" class="s" text-anchor="start">Volcengine ASR (Python)</text>
+<rect x="500" y="314" width="480" height="36" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="740" y="337" class="s" text-anchor="middle">Data: SQLite · audio files · question-bank JSON</text>
+<path d="M444,150 L500,150" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="472" y="142" class="k" text-anchor="middle">HTTP / SSE</text>
+<path d="M740,130 L770,130" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M740,262 L770,240" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M620,210 L620,228" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<rect x="20" y="380" width="960" height="180" rx="10" fill="#ffebe9" stroke="#ff8182" stroke-dasharray="6 4"/>
+<text x="34" y="406" class="t" text-anchor="start" style="fill:#cf222e">Native C++ voice: none of it wired into the desktop shell</text>
+<rect x="36" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="50" y="448" class="b" text-anchor="start">Old real-time prototype (src/)</text>
+<text x="50" y="470" class="s" text-anchor="start">Five threads, Volcengine dialogue</text>
+<text x="50" y="490" class="s" text-anchor="start">The only complete native path</text>
+<text x="50" y="510" class="s" text-anchor="start">Qt Widgets UI no longer used</text>
+<rect x="276" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="290" y="448" class="b" text-anchor="start">IELTS command line</text>
+<text x="290" y="470" class="s" text-anchor="start">Reuses the ASR half of it</text>
+<text x="290" y="490" class="s" text-anchor="start">Examiner audio arrives, dropped</text>
+<rect x="516" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="530" y="448" class="b" text-anchor="start">native_voice (new, 10-05)</text>
+<text x="530" y="470" class="s" text-anchor="start">Callbacks + preallocated rings</text>
+<text x="530" y="490" class="s" text-anchor="start">Only echoes the microphone</text>
+<text x="530" y="510" class="s" text-anchor="start">No network, ASR or TTS</text>
+<rect x="756" y="424" width="228" height="116" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="770" y="448" class="b" text-anchor="start">audio_core</text>
+<text x="770" y="470" class="s" text-anchor="start">Loudness, VAD, trim, resample</text>
+<text x="770" y="490" class="s" text-anchor="start">Built to WASM for the web</text>
+<path d="M870,424 L870,364 L480,364 L480,195 L446,195" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="860" y="358" class="k" text-anchor="end">WASM</text>
+<path d="M630,424 L630,372 L452,372 L452,270 L446,270" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="622" y="400" class="k" text-anchor="end">plan: events cross the bridge</text>
+</svg>

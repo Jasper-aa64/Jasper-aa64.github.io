@@ -2,128 +2,181 @@
 title: "IELTS: Code Structure"
 date: 2026-10-30
 slug: "ielts-studio-structure"
-description: "The project started in March as a C++/Qt job-interview simulator. The Qt version has the full real-time voice pipeline: five threads and one WebSocket to Volcengine's real-time dialogue service, with recognition, dialogue and synthesis all on the server. The May IELTS command-line version reuses only the recognition half; the examiner's voice and the real-time dialogue loop are not wired in yet. The product later moved to a Django site."
+description: "IELTS today has three parts: a Qt desktop shell around the web front end, a Django backend with an AI worker, and native C++ voice that is not wired into the product. Voice actually goes through the web and the backend; the only complete native real-time pipeline is the old March prototype, and the new native_voice is only at its first step. The last section lists the current problems."
 weight: 1
 toc: true
 ---
-The project began in March as a job-interview simulator written in C++/Qt. In May it became an IELTS speaking trainer, first as a C++ command-line program, and later the main line moved to a Django website. The code is on [GitHub](https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview).
+IELTS is a tool I built for practising IELTS speaking and writing, and it recently gained a mock-interview mode. The code is on [GitHub](https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview); the newest branch is `ui-polish`. This post takes the current code as the baseline and walks through three questions: who does the work and when, what the data looks like and where it lives, and why it is split this way. Section 5 lists the current problems; how they came about is in the [retrospective](../ielts-studio-retrospective/).
 
-This post is mostly about the C++ side, walked through with three questions: who does the work and when, what the data looks like and where it lives, and why it is split this way. The C++ side has three parts:
+## 1. The overall picture
 
-- **The Qt interview version**: the full real-time voice pipeline, listening and speaking as it goes.
-- **The IELTS command-line version**: reuses only the recognition half of that pipeline. The examiner's voice and the real-time dialogue loop are not wired in, and the Qt UI only has the interview mode, not IELTS.
-- **The audio core**: pulled out into pure functions and compiled to WASM for recording preprocessing on the website.
+<a href="/images/projects/ielts/overview.en.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/overview.en.svg" alt="Current overview: top left, the Qt desktop shell, which loads the web front end in QtWebEngine and has a QWebChannel bridge that only reports capabilities; in the middle, Django and the AI worker; on the right, outside services: LLM over HTTP, the Codex CLI, Volcengine TTS and ASR; below, in red, native C++ voice: the old real-time prototype, the IELTS command line, native_voice and audio_core; apart from audio_core, which is built to WASM for the web page, none of it is wired into the desktop shell." loading="lazy" decoding="async"></a>
 
-The website gets a short section at the end; what went wrong is in the [retrospective](../ielts-studio-retrospective/).
+IELTS today has three parts:
 
-## 1. The Qt interview version: overall picture
+- **A Qt shell around the web app**: `desktop/` is a QtWebEngine program whose window loads the `web/static` front end. The same pages work directly in a browser.
+- **A Django backend with an AI worker**: speaking, writing, interviews, AI calls and billing.
+- **Native C++ voice**: the March real-time prototype, the IELTS command-line version and `native_voice`, written in October. **None of them is wired into the desktop shell.** The only C++ in use is `audio_core`, built to WASM for recording preprocessing in the web page.
 
-<a href="/images/projects/ielts/cpp.en.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/cpp.en.svg" alt="Thread diagram of the Qt interview version: on the left the Qt UI thread and the session thread; in the middle three threads: the microphone thread reads 16 kHz audio and sends frames, the receive thread reads frames with Boost.Beast, puts audio in the playback queue and passes events to HandleEvent, and the playback thread writes 24 kHz audio to PortAudio and, when the queue is empty, handles the answer and sends the next line to the server to read out; on the right Volcengine's real-time dialogue service and an LLM over HTTP; at the bottom an eight-state state machine." loading="lazy" decoding="async"></a>
-
-In one sentence: **recognition, dialogue and synthesis all happen in Volcengine's real-time dialogue service; the client only moves audio and keeps state.** Generating questions, scoring answers and writing the final summary go through a separate LLM over HTTP (qwen3-8b in the config, called with libcurl).
+So voice in the desktop app goes through the web and the backend: the page records, uploads to the backend, and the backend calls Volcengine.
 
 ## 2. Who does the work, and when
 
-### 2.1 Five threads
+### 2.1 The desktop shell
 
-| Thread | Started by | Does |
-|---|---|---|
-| Qt UI thread | Qt | Shows the dialogue and state; only handles callbacks posted from other threads |
-| Session thread | the UI, on Start | Runs `DialogSession::Start`: connect, open the session, start the next two threads |
-| Microphone thread | session thread | Reads the microphone in a loop and sends each chunk as a frame |
-| Playback thread | session thread | Takes audio from the playback queue and writes it to the speaker; handles the candidate's answer when the queue is empty |
-| Receive thread | `RealtimeClient` | Reads the WebSocket in a loop, decodes frames, hands them to the callback |
+- Loads the backend's web pages in QtWebEngine; the backend address is a setting, defaulting to the local `127.0.0.1:8767`.
+- Keeps a single window and redirects `window.open` into it, shows a local error page when the backend is unreachable, keeps the login across restarts, and has Chinese menus.
+- A QWebChannel bridge, `studioNative`, connects the page and Qt. Today it has one method, `capabilities()`, which says "desktop, interview mode available, `native_audio = false`". The page uses it to decide whether to show the interview entry.
+- QtWebEngine exposes browser dictation (the Web Speech API) but ships no speech service, and calling it gets the renderer killed, so the shell hides it with a script at start-up.
 
-At the end of the interview one more thread is started and `detach`ed; it waits for the summary audio to finish and then stops the session.
+### 2.2 One IELTS turn: the user is waiting, so it runs in the request
 
-### 2.2 One turn
+1. The page plays the examiner's voice (howler.js). The first question is a fixed recording; later ones are synthesised by the backend with Volcengine TTS.
+2. The user answers and the page records with MediaRecorder. In an ordinary browser, browser dictation also produces a transcript; in the desktop app dictation is hidden, so the transcript has to wait for the backend.
+3. When the user stops, the page uploads the recording and completes the turn. Where there is no transcript, the backend fills one in from the whole recording with Volcengine ASR.
+4. The page opens an SSE connection for the follow-up. Django reads the question and transcript, builds the prompt, asks the LLM for a streamed answer and pushes it to the page as it arrives.
+5. As soon as there is a complete question the backend synthesises the voice on a thread and pushes `tts_ready`; the page plays it.
 
-1. **The interviewer talks.** The server sends `TTS_START`, then audio packets arrive. The receive thread puts them in the playback queue and the playback thread writes them to PortAudio. Meanwhile the microphone thread keeps reading the microphone, because otherwise PortAudio's input buffer would overflow, but it sends silence.
-2. **The candidate's turn.** The playback queue is empty and the server has sent `TTS_END` (the in-flight count `tts_cnt` is back to zero), so the playback thread switches the state to Idle and the microphone starts sending real audio.
-3. **The candidate talks.** The server detects speech and sends `USER_START_SPEAKING`; the state becomes Candidate speaking. Recognition results (`ASR_RESULT`) come as interim and final: interim ones are only logged, the final one goes into `pending_answer`, and the state becomes Interviewer thinking.
-4. **Handle the answer.** With the queue empty, the playback thread takes `pending_answer`, asks the LLM to score it and say whether to follow up, then decides whether the next line is a follow-up, the next question or the summary. This is a blocking libcurl call of a few seconds.
-5. **Read the next line out.** The next line goes to the server as a `CHAT_TEXT_QUERY` prefixed with "read the following text out directly:", so the dialogue model reads it verbatim. The server answers with `TTS_START` and we are back at step 1.
+### 2.3 Section scoring: slow, can fail, billed, so it goes to the worker
 
-When every question has been asked, the state becomes Ending and the summary is generated and read out; the detached thread waits for that audio to finish and stops the session.
+The page asks for a score and Django writes a row into the `AITask` table with status `pending`. The worker scans the table every 1 to 2.5 seconds, claims the task, calls the model, writes the report back and charges for actual usage. The page polls the task every 2.5 seconds and stops at a final state. Tasks running over 900 seconds are taken back by the worker, re-queued or marked failed.
+
+### 2.4 Interview mode: desktop only, not real time
+
+The backend's `apps/interview` handles interviews: a built-in question bank, or questions generated by the LLM from a CV and job description; then a session, one question at a time, one follow-up per question, and a report at the end. Each answer can be typed or recorded and uploaded, and the backend transcribes the whole recording with Volcengine ASR.
+
+Interview AI calls are recorded in `AITask` too, but the task is claimed and run on the spot when it is created, without the worker. The interview "AI assistant" calls the local Codex CLI.
+
+### 2.5 The March real-time prototype: complete, but not in the product
+
+<a href="/images/projects/ielts/cpp.en.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/cpp.en.svg" alt="Threads of the March real-time prototype: the Qt UI thread and the session thread; the microphone thread reads 16 kHz audio and sends frames; the receive thread reads frames with Boost.Beast, puts audio in the playback queue and passes events to HandleEvent; the playback thread writes 24 kHz audio to PortAudio and, when the queue is empty, handles the answer and sends the next line to the server to read out; on the right Volcengine's real-time dialogue service and an LLM over HTTP; at the bottom an eight-state state machine." loading="lazy" decoding="async"></a>
+
+The code under `src/` is the only complete native real-time pipeline. Recognition, dialogue and synthesis all happen in Volcengine's real-time dialogue service; the client moves audio and keeps state. Its Qt Widgets UI is no longer used, but the code still builds and runs.
+
+Five threads:
+
+| Thread | Does |
+|---|---|
+| Qt UI thread | Shows the dialogue and state; only handles callbacks posted from other threads |
+| Session thread | Runs `DialogSession::Start`: connect, open the session, start the microphone and playback threads |
+| Microphone thread | Blocking PortAudio reads of 3200 frames (200 ms at 16 kHz), sent as frames; sends silence while the interviewer talks |
+| Receive thread | Inside `RealtimeClient`, blocking Boost.Beast reads; audio into the playback queue, events to `HandleEvent` |
+| Playback thread | Writes 24 kHz float32 audio from the queue to PortAudio; when the queue is empty and the in-flight count `tts_cnt` is zero, handles the candidate's answer |
+
+One turn:
+
+1. The interviewer talks: audio packets enter the queue and the playback thread plays them.
+2. The queue drains, the state becomes Idle and the microphone starts sending real audio.
+3. The server's final recognition result goes into `pending_answer` and the state becomes Interviewer thinking.
+4. The playback thread asks the LLM to score the answer and decides whether the next line is a follow-up, the next question or the summary, then sends it with `CHAT_TEXT_QUERY`, prefixed with "read the following text out directly:", so the dialogue service reads it out.
+5. Back to step 1.
+
+The IELTS command-line version (`src/ielts/`) reuses `RealtimeClient` and the audio classes but only the recognition half: it opens the microphone for each answer, its callback takes only recognition results, and the examiner audio the server sends back is dropped.
+
+### 2.6 native_voice: a new device layer
+
+`native_voice/` is an independent C++17 project written on 5 October that **uses none of the prototype's code**. It has:
+
+- audio pushed in by device callbacks that take no locks, allocate nothing and never block;
+- preallocated single-producer single-consumer rings;
+- its own worker thread;
+- an epoch counter that invalidates queued audio;
+- Qt Multimedia and PortAudio adapters, 48 kHz float by default.
+
+Its worker currently does one thing: copy microphone data straight to playback. Network, recognition and synthesis are not written, it is not connected to the desktop shell, and its tests and benchmark use synthetic data.
 
 ## 3. What the data looks like and where it lives
 
-### 3.1 Protocol frames
+### 3.1 Backend
 
-There is one WebSocket to the server, carrying a custom binary framing; encoding and decoding live in `Protocol`:
+| Data | Where | Shape |
+|---|---|---|
+| Speaking practice | `SpeakingAttempt` → `SpeakingTurn` → `SpeakingReport` | part, questions, recording path, raw and cleaned transcript, follow-up provenance, scores and feedback |
+| Interviews | sessions, turns and reports in `apps/interview` | question source (bank, CV and JD), typed or voice, follow-ups, report |
+| AI tasks | `AITask` | status, attempts (at most 3), request and result, fallback reason, usage; a unique idempotency key |
+| Money | wallet, holds, ledger | balance checked first; charged by actual usage on success; not charged on failure or fallback |
+| Question bank | JSON under `data/ielts/` | speaking by test season, writing by source |
+| Recordings, synthesised audio | files | tables store only the path; examiner audio cached per sentence |
+
+### 3.2 The prototype's protocol frames
+
+One WebSocket to Volcengine carries a custom binary framing:
 
 | Part | Length | Content |
 |---|---|---|
-| Header | 4 bytes | Version, header size, message type, flags, serialisation and compression take 4 bits each; the last byte is reserved |
-| Event | 4 bytes, big-endian | e.g. 100 start session, 200 audio, 501 text query, 350/359 TTS start/end, 450/451/459 user started speaking / ASR result / stopped |
-| Session ID | 4-byte length + bytes | Omitted for the connection events (1, 2, 50–52) |
-| Payload | 4-byte length + bytes | JSON or raw audio, optionally gzip-compressed (zlib) |
+| Header | 4 bytes | Version, header size, message type, flags, serialisation and compression at 4 bits each; the last byte reserved |
+| Event | 4 bytes, big-endian | 100 start session, 200 audio, 501 text query, 350/359 TTS start/end, 450/451/459 user started speaking / ASR result / stopped |
+| Session ID | 4-byte length + bytes | omitted for the connection events |
+| Payload | 4-byte length + bytes | JSON or raw audio, optionally gzip |
 
-Server frames come in three kinds: full responses (event plus JSON), ACKs (carrying audio) and errors. `protocol_test.cpp` is 1,495 lines, the longest test in the project, and covers exactly this encoding.
-
-### 3.2 Audio
-
-- **Up**: 16 kHz, mono, int16, 3200 frames per chunk, i.e. 200 ms.
-- **Down**: 24 kHz float32, in packets placed in a `std::queue<std::vector<float>>` guarded by a mutex and a condition variable.
-
-### 3.3 State and interview content
-
-- **State**: `InterviewStateMachine` is a singleton with the current state in a `std::atomic`, eight states in all: Connecting, Interviewer speaking, Idle, Candidate speaking, Interviewer thinking, Ending, Completed, Error. Every change calls back to the UI.
-- **Interview content**: `InterviewSession` keeps the question list and, for each question, the answer, score and feedback. Questions come either from the CV, read from PDF into text with PoDoFo and given to the LLM, or from a job description. At the end everything is summarised into a report.
+The backend's `volcengine_asr.py` implements the same framing again in Python, and even reads the prototype's config file.
 
 ## 4. Why it is split this way
 
-**One thread per blocking thing.** Reading the microphone, reading the network and writing the speaker each get a thread and use blocking calls. Threads exchange data only through one queue with a condition variable and a few `atomic` flags, so the logic is simple and problems are easy to trace.
+**The desktop shell wraps the web app instead of rewriting the UI.** One set of pages serves both browser and desktop, so the UI changes in one place. The shell does only what a web page cannot; per the plan, native voice is one of those things.
 
-**Half duplex.** While the interviewer talks, the microphone sends silence and the user-started-speaking event is ignored, so the speaker's sound picked up by the microphone cannot make the server think the user is talking. The cost is that the user cannot interrupt.
+**Processes are split by whether the user is waiting.** The user waits for the follow-up, so it streams inside the request over SSE; section scoring is slow, can fail and is billed, so it goes to the task table and the worker. If the worker dies, follow-ups still work.
 
-**The end-to-end dialogue model as a reader.** Our own LLM decides what to say, and the real-time dialogue service is asked to read it out verbatim. One connection then provides both recognition and synthesis, with no separate speech-synthesis service to integrate.
+**Every model call goes through one entry point.** All go through `AIProvider`, with a fallback chain: an OpenAI-compatible HTTP API → the local Codex CLI → a rule-based fallback, and every result records which path produced it.
 
-**Pimpl.** `DialogSession`, `RealtimeClient` and `InterviewSession` all use Pimpl, so no header shows Boost or PortAudio. The Qt UI knows only the few public methods of `DialogSession`.
+**Planned: audio stays in C++, only events cross the bridge.** Once native voice is wired in, recording and playback happen in C++ and the page receives only events such as "state changed" and "here is the transcript"; audio never passes through the page.
 
-**The UI thread never touches the network.** The session runs on its own thread. When another thread needs to update the UI it posts the callback back with `QMetaObject::invokeMethod` and `Qt::QueuedConnection`, so the UI thread never blocks.
+**The prototype's trade-offs.** One thread per blocking thing; half duplex while the interviewer talks, to keep echo out; the end-to-end dialogue model as a reader, so one connection gives both recognition and synthesis. The cost of each is in the next section.
 
-## 5. The IELTS command-line version: only half wired in
+## 5. Current problems
 
-The IELTS version is laid out like this: `IELTSManager` runs `Part1Session`, `Part2Session` and `Part3Session` according to the exam mode; the question-bank JSON is loaded into `QuestionBank`; `Scorer` does the scoring. It shares `RealtimeClient`, the protocol and the audio classes with the interview version, but uses only part of them:
+### 5.1 Native voice is not in the product
 
-| Part | Qt interview version | IELTS command-line version |
+- The bridge only reports capabilities and hardcodes `native_audio` to `false`. `desktop/CMakeLists.txt` links only Qt Widgets, WebEngine and WebChannel, with no audio or network library.
+- Voice in the desktop app goes entirely through the web path, and because browser dictation is hidden there, the transcript has to wait for the upload and the backend, one step slower than in an ordinary browser.
+- Nothing in the product is a real-time conversation: IELTS is record-then-upload, and interviews are typed or record-then-upload.
+
+### 5.2 The same thing done several times
+
+- **Two C++ voice stacks with nothing in common.** The prototype runs the whole pipeline but has threading problems (5.3); `native_voice` has a clean device layer and nothing above it.
+- **Volcengine's protocol is implemented twice**: once as C++ `Protocol`, once in the backend's Python `volcengine_asr.py`.
+- **The IELTS command line reuses half**: the classes, not the threading model or state machine, and the examiner audio is dropped.
+
+### 5.3 Problems in the old real-time prototype
+
+**Correctness problems**, all fixable locally without changing the structure:
+
+| Problem | Where | Consequence |
 |---|---|---|
-| Connection and protocol | `RealtimeClient` + `Protocol` | reused |
-| Microphone | a long-lived microphone thread | opens PortAudio for each answer and closes it afterwards |
-| Recognition | state machine driven by server events | takes only `ASR_RESULT` and stops at the first final result, on Enter, or on timeout; without a connection the user types |
-| Examiner speaking | text query, audio played by the playback thread | the question is printed in the terminal. A text query is sent as well, but the callback takes only recognition results, so the audio the server sends back is dropped and never played |
-| Follow-up | LLM decides | rules for P1 and P2 (under 30 words, no "because" and similar); P3 generated by the Claude CLI |
-| Scoring | LLM over HTTP | `popen` to the Codex CLI, the OpenAI API or the Claude CLI, falling back to rules |
-| UI | Qt | terminal |
+| TLS certificates not verified | `realtime_client.cpp` sets `ssl::verify_none` | a man in the middle can impersonate the server |
+| Several threads write the same WebSocket | the microphone thread sends audio and the playback thread sends text queries, both straight to `ws_->write`, unlocked | frames can interleave and break the connection |
+| Marked connected before the session is confirmed | `connected_ = true` right after the handshake | data is sent before the session has started |
+| Unbounded playback queue | `std::queue<std::vector<float>>` | a burst from the server grows memory and latency together |
+| The detached thread at the end captures `this` | the wrap-up thread `detach`ed in `ProcessPendingAnswer`, which also reads the queue without the lock | freed memory if the session is destroyed first, plus a data race |
+| State callback invoked while holding the lock | `InterviewStateMachine` calls the callback under its mutex | a callback that changes state or unregisters itself deadlocks |
+| A full `Stop()` in the signal handler | the command-line entry's signal handler | allocation, locks and `join` in a signal handler are unsafe |
 
-Turning it into the full real-time version takes roughly three steps:
+**Structural problems**, which need architecture changes:
 
-1. Pull the content-independent part of `DialogSession` out into a "voice turn" layer: the long-lived microphone thread, the playback queue, the state machine and the read-it-out query. Interview and IELTS then only answer "what is the next line".
-2. Make the three IELTS parts drive this layer, so the examiner's lines are read out by the playback thread.
-3. Add an IELTS mode to the Qt UI, reusing the same session thread and callbacks.
+| Problem | How it is written | Consequence |
+|---|---|---|
+| 200 ms per read and write | 3200-frame input blocks (16 kHz) and 4800-frame output blocks (24 kHz), blocking I/O, plus a 10 ms sleep in the loop | buffering alone sets a floor of a few hundred ms |
+| LLM calls on the playback thread | with the queue empty, the playback thread makes blocking scoring and summary calls (libcurl) lasting seconds | audio waits in the queue meanwhile; Stop waits for the request; a result for a turn that is already void still gets read out |
+| Turn-taking mixed with interview content | `DialogSession` holds the threads, queue and state machine together with the introduction, scoring, follow-ups and summary | to reuse it, IELTS would have to copy the whole class |
+| Global singleton state machine | `InterviewStateMachine::Instance()` | an old and a new session overwrite each other's state; tests cannot run in parallel |
+| Half duplex | while the interviewer talks the microphone sends silence and "user started speaking" is ignored | no interruptions, early speech is lost, and the queue-clearing branch never runs |
+| Dialogue model as a reader | relies on the prompt "read the following text out directly…" | the client cannot tell whether it read verbatim or added something |
 
-## 6. The audio core as WASM
+### 5.4 native_voice is at its first step
 
-`audio_core` is a set of pure functions pulled out of the C++ side: loudness (RMS, peak), voice activity detection (reusing the open-source WebRTC VAD, i.e. libfvad), trimming silence at the ends, and resampling. It depends on neither PortAudio nor the network, so it builds into a native test (`audio_core_test`) and, with Emscripten, into WASM (`audio_core_wasm.cpp` is the export layer) for recording preprocessing on the website.
+The plan splits this line into six slices: 2A interfaces and baseline, 2B callback adapters and measurement, 2C connecting to the server, 2D continuous recording and interruption, 2E wiring into the desktop shell, 2F echo cancellation and long runs. Only the 2B code exists, with no measurement on real devices; the slices that do the real work, 2C to 2E, have not started.
 
-## 7. The website that came later
+### 5.5 Web and backend
 
-From mid-May the main line of the product became a website:
+- **The PCM WebSocket relay** (off by default) calls `accept()` immediately without checking for a logged-in user, and the queue to Volcengine, `queue.Queue()`, is unbounded.
+- **The scoring page**: both front-end polling deadlines are infinite, while the back-end "stuck" check lives only in the history list and report detail, not in the task endpoint. So when the worker is down, the waiting page spins forever.
+- **Front-end files are too big**: `app.js` is almost 18,000 lines and `styles.css` 47,000.
 
-<a href="/images/projects/ielts/structure.en.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/structure.en.svg" alt="Website structure: the browser single-page app, the Django process and the AI worker process; outside, an LLM over streaming HTTP, a local command-line coding agent, speech synthesis and speech recognition; data in SQLite, files and question-bank JSON." loading="lazy" decoding="async"></a>
+## 6. Where to start reading
 
-- **Three processes**: the single-page front end in the browser, Django (ASGI) and an AI worker.
-- **Follow-ups** run in the request, because the user is waiting: Django streams the LLM's output to the browser over SSE, and once the question is complete it asks Volcengine to synthesise the examiner's voice.
-- **Section scoring** takes about a minute, can fail and is billed, so it is written to the `AITask` table; the worker claims it, calls the model and writes the report back, and the browser polls every 2.5 seconds.
-- **Model calls** all go through one `AIProvider` interface with a fallback chain: an OpenAI-compatible HTTP API → the local Codex CLI → rule-based fallback, and every result records which path produced it.
-- **Live recognition** is an added path: the browser streams 16 kHz PCM over a WebSocket and the backend passes it to Volcengine; if it breaks, the flow falls back to record-then-upload.
-
-## 8. Where to start reading
-
-1. `src/interview/dialog_session.cpp`: the four functions `HandleEvent`, `MicrophoneThreadFunc`, `PlaybackThreadFunc` and `ProcessPendingAnswer` are one whole turn.
-2. `src/services/realtime_client.cpp` and `src/common/protocol.cpp`: connection, send/receive and the frame format; read them alongside `tests/protocol_test.cpp`.
-3. `src/services/audio_manager.cpp`: the PortAudio input and output streams.
-4. `src/ui/mainwindow.cpp`: how the session thread is started and how callbacks get back to the UI thread.
-5. `src/ielts/realtime_speech_capture.cpp` and `src/ielts/part1_session.cpp`: which half the IELTS version reuses.
-6. `src/ielts/audio_core.cpp`: the audio core; the WASM build is `scripts/build_audio_core_wasm.sh`.
+1. `desktop/src/`: `studio_page.cpp`, `studio_profile.cpp` (where dictation is hidden), `native_bridge.cpp`.
+2. `backend_django/config/urls.py`, then `start_attempt`, `complete_turn`, `stream_follow_up_sse_events` and `score_attempt` in `apps/speaking/services.py`.
+3. `backend_django/apps/ai/`: the task table in `models.py`, the worker loop in `worker.py`, the fallback chain in `provider_adapters.py`.
+4. `backend_django/apps/interview/engine.py`: interview sessions and turns.
+5. The prototype: `src/interview/dialog_session.cpp` (`HandleEvent`, `MicrophoneThreadFunc`, `PlaybackThreadFunc`, `ProcessPendingAnswer`), `src/services/realtime_client.cpp` and `src/common/protocol.cpp`, read alongside `tests/protocol_test.cpp`.
+6. `native_voice/`: the contract in `README.md` first, then `src/engine.cpp`.

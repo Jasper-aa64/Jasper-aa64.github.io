@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
 <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
 <rect x="0" y="0" width="1000" height="600" fill="#ffffff"/>
-<text x="20" y="34" class="h" text-anchor="start">Qt 面试版：五个线程、一条 WebSocket，识别、对话、合成都在服务端</text>
+<text x="20" y="34" class="h" text-anchor="start">3 月实时原型：五个线程、一条 WebSocket，识别、对话、合成都在服务端</text>
 <rect x="20" y="64" width="220" height="382" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
 <text x="34" y="88" class="t" text-anchor="start">Qt 界面线程</text>
 <text x="34" y="111" class="s" text-anchor="start">显示对话和当前状态</text>
