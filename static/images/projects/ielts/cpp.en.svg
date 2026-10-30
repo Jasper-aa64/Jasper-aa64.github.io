@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="600" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">Qt interview version: five threads, one WebSocket; ASR, dialogue and TTS run on the server</text>
+<rect x="20" y="64" width="220" height="382" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="88" class="t" text-anchor="start">Qt UI thread</text>
+<text x="34" y="111" class="s" text-anchor="start">Shows the dialogue and state</text>
+<text x="34" y="131" class="s" text-anchor="start">Callbacks from other threads</text>
+<text x="34" y="151" class="s" text-anchor="start">come back via QueuedConnection</text>
+<text x="34" y="171" class="s" text-anchor="start"></text>
+<text x="34" y="191" class="s" text-anchor="start">Session thread</text>
+<text x="34" y="211" class="s" text-anchor="start">DialogSession::Start: connect,</text>
+<text x="34" y="231" class="s" text-anchor="start">start the mic and playback threads</text>
+<rect x="270" y="64" width="360" height="100" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="284" y="88" class="t" text-anchor="start">Microphone thread</text>
+<text x="284" y="111" class="s" text-anchor="start">PortAudio reads 16 kHz int16, 3200 frames (200 ms)</text>
+<text x="284" y="131" class="s" text-anchor="start">Sends frames; sends silence while the AI talks</text>
+<rect x="270" y="184" width="360" height="120" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="284" y="208" class="t" text-anchor="start">Receive thread (inside RealtimeClient)</text>
+<text x="284" y="231" class="s" text-anchor="start">Boost.Beast blocking read, one frame at a time</text>
+<text x="284" y="251" class="s" text-anchor="start">Audio → playback queue; events → HandleEvent</text>
+<text x="284" y="271" class="s" text-anchor="start">Updates state, keeps the final transcript</text>
+<rect x="270" y="324" width="360" height="122" rx="10" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="284" y="348" class="t" text-anchor="start">Playback thread</text>
+<text x="284" y="371" class="s" text-anchor="start">Waits on queue → PortAudio writes 24 kHz float32</text>
+<text x="284" y="391" class="s" text-anchor="start">Queue empty, no audio due (tts_cnt = 0):</text>
+<text x="284" y="411" class="s" text-anchor="start">answer: LLM score → follow-up / next / summary</text>
+<text x="284" y="431" class="s" text-anchor="start">send the next line to the server to read out</text>
+<rect x="700" y="64" width="280" height="240" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 4"/>
+<text x="714" y="88" class="t" text-anchor="start">Volcengine realtime dialogue</text>
+<text x="714" y="111" class="s" text-anchor="start">End to end: ASR + dialogue + TTS</text>
+<text x="714" y="131" class="s" text-anchor="start">Up: audio frames, text queries</text>
+<text x="714" y="151" class="s" text-anchor="start">Down: events, synthesised audio</text>
+<text x="714" y="171" class="s" text-anchor="start">(custom binary frames, gzip)</text>
+<rect x="700" y="324" width="280" height="122" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="714" y="348" class="t" text-anchor="start">LLM over HTTP</text>
+<text x="714" y="371" class="s" text-anchor="start">Questions from the CV, answer scores,</text>
+<text x="714" y="391" class="s" text-anchor="start">whether to follow up, the summary</text>
+<text x="714" y="411" class="s" text-anchor="start">(blocking libcurl calls)</text>
+<path d="M630,112 L700,112" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="665" y="104" class="k" text-anchor="middle">audio</text>
+<path d="M700,244 L630,244" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="665" y="236" class="k" text-anchor="middle">events</text>
+<path d="M450,304 L450,324" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="460" y="318" class="k" text-anchor="start">enqueue audio</text>
+<path d="M630,345 Q680,335 715,304" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="626" y="318" class="k" text-anchor="end">“read out: …”</text>
+<path d="M630,425 L700,425" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="665" y="417" class="k" text-anchor="middle">scores</text>
+<path d="M270,244 L240,244" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="255" y="236" class="k" text-anchor="middle">calls</text>
+<path d="M270,400 L240,400" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<rect x="20" y="466" width="960" height="116" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="36" y="490" class="t" text-anchor="start">State machine (singleton, atomic)</text>
+<rect x="36" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="88.0" y="550" class="b" text-anchor="middle">Connecting</text>
+<rect x="154" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="206.0" y="550" class="b" text-anchor="middle">AI speaking</text>
+<path d="M140,545 L154,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="272" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="324.0" y="550" class="b" text-anchor="middle">Idle</text>
+<path d="M258,545 L272,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="390" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="442.0" y="550" class="b" text-anchor="middle">User speaking</text>
+<path d="M376,545 L390,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="508" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="560.0" y="550" class="b" text-anchor="middle">AI thinking</text>
+<path d="M494,545 L508,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="626" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="678.0" y="550" class="b" text-anchor="middle">Ending</text>
+<path d="M612,545 L626,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="744" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="796.0" y="550" class="b" text-anchor="middle">Completed</text>
+<path d="M730,545 L744,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="862" y="528" width="104" height="34" rx="17" fill="#ffebe9" stroke="#ff8182"/>
+<text x="914.0" y="550" class="b" text-anchor="middle">Error</text>
+<path d="M560.0,528 Q383.0,494 206.0,528" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="383.0" y="506" class="k" text-anchor="middle">next line</text>
+</svg>

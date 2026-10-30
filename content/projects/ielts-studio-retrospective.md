@@ -1,115 +1,114 @@
 ---
-title: "IELTS Speaking Studio: Retrospective"
+title: "IELTS: Retrospective"
 date: 2026-10-30
 slug: "ielts-studio-retrospective"
-description: "Four months and 587 commits, from a C++ desktop interview simulator to a website. Follow-ups went from over ten seconds to a first character in about 2 seconds by changing how the model is called, not the logic; examiner audio tearing was misdiagnosed twice and found only after adding logs; scoring stuck on “Analyzing” because two places were deciding when a task had failed."
+description: "Four months and 587 commits, from a C++/Qt interview simulator to an IELTS command-line version to a website. On the C++ side, the real-time pipeline is complete only in the interview version; the IELTS version reused the classes but not the threading model, so the examiner's audio is sent and never played. Half duplex and using the dialogue model as a reader saved work, at the cost of no interruptions and no check that it reads verbatim. On the web side, the slowness was the Codex CLI cold start, audio tearing was misdiagnosed twice, and scoring got stuck because two places decided failure."
 weight: 2
 toc: true
 ---
-This is the retrospective for the [IELTS Speaking Studio](../ielts-studio-structure/). The conclusions first:
+This is the retrospective for the [IELTS project](../ielts-studio-structure/): C++ first, then the website. The conclusions first:
 
-- **The slow part was the call path, not the logic.** Follow-ups went from over ten seconds to a first character in about 2 seconds without changing a line of what the follow-up asks; what changed was how the model is called.
-- **Get evidence before fixing a bug.** Examiner audio tearing was misdiagnosed twice, and both times code was changed to no effect; the third attempt only added logs and changed no logic, and that is what found the cause.
-- **Only one place may decide when something has failed.** The scoring page spun forever because a front-end timer and the back-end task status were each making their own call.
+- **Reuse the threading model, not just the classes.** The real-time pipeline is complete only in the Qt interview version. The IELTS command-line version reused `RealtimeClient` and the audio classes but not the microphone and playback threads or the state machine, and so the examiner's audio is sent and never played.
+- **Every shortcut has a cost; write it down.** Half duplex keeps echo out, at the cost of interruptions; using the end-to-end dialogue model as a reader saved a speech-synthesis integration, at the cost of having no way to check that it really reads verbatim.
+- **Three from the website**: the slow part was the call path, not the logic; get evidence before fixing a bug; only one place may decide that something has failed.
 
 ## 1. Four months, three shapes
 
 | When | Shape | What happened |
 |---|---|---|
-| March | C++ desktop app | Job-interview simulator: read a CV PDF, LLM-generated questions, a real-time voice dialogue service for the conversation; finished with a pass of cppcheck and ASan |
-| Early May | C++ command line | Became the three parts of IELTS speaking, with scoring that could use different models |
+| March | C++/Qt desktop app | Job-interview simulator: read a CV PDF, LLM-generated questions, Volcengine's real-time dialogue service for the conversation; finished with a pass of cppcheck and ASan |
+| Early May | C++ command line | Became the three parts of IELTS speaking, with scoring through Codex, the OpenAI API or Claude |
 | Mid May | Single-file Python site | Recording in the browser, reports, a wallet; scoring calibration and an unattended long-run audit |
 | Mid to late May | Django | Moved to Django and retired the old server; streamed HTTP follow-ups, WASM audio preprocessing, live recognition |
 | June | Features | Corpus, Takeaway, spaced spelling review, public-network speed-ups (compression, caching, thumbnails), onboarding |
 | July to September | Wrap-up | P3 bank progress, deployment docs, README |
 
-By month the commits were 13 in March, 406 in May, 143 in June and 25 across July to September. Most of the code was written the same way: I wrote a spec, a coding agent implemented it, and I accepted it or not. Section 7 is about that.
+By month the commits were 13 in March, 406 in May, 143 in June and 25 across July to September. From May on, most code came from the same loop: I wrote a spec, Codex or Claude Code implemented it, and I accepted it or not.
 
-## 2. Follow-up latency: the bottleneck was the call path
+## 2. The Qt interview version
 
-The experience that matters most in this product is an examiner who follows up on what you just said. A follow-up is a light job, one sentence, but at first every one started a command-line coding agent as a subprocess: a cold start plus reasoning, over ten seconds each time. Waiting that long after you finish speaking does not feel like an examiner.
+### 2.1 A Bluetooth headset took 600 ms to read one chunk
 
-The first thing was to be clear about where the time went. The follow-up logic and prompts were already written; the slowness was a cold start on every call. So this step changed only how the model was called, not what was asked:
+Each microphone read is 3200 frames, which at 16 kHz should block for 200 ms. With a Bluetooth headset (OPPO Enco X3), `Pa_ReadStream` blocked for 600 ms, so every pass of the microphone loop waited three times as long to get 200 ms of audio. The cause: the input stream was opened with `framesPerBuffer` also set to 3200, and with that setting macOS Core Audio scheduled its callbacks badly. Setting it to 0 (`paFramesPerBufferUnspecified`, letting PortAudio choose its internal buffer size) brought it back to 200 ms.
 
-1. **Call a streaming HTTP API directly.** Use a small, fast model with reasoning off. If HTTP fails, fall back to the command-line agent, then to a rule-based fallback that is clearly marked as such. At acceptance, HTTP succeeded 3 times out of 3 with a median of about 4.66 seconds and a best of 1.46 seconds; in the same comparison round the command-line agent failed.
-2. **Stream the output.** Before, the model finished the sentence, the voice was synthesised, and text and audio appeared together. Now the text is pushed to the browser as it is generated, and synthesis starts as soon as the question is complete. From the end of speech to the first character measured about 2.11 seconds.
+It showed up because the microphone loop always logged how many milliseconds the read and the send took (the first 10 passes, then every 50th). **Keep one timing log line in a real-time loop**; when the device changes, the problem is visible at once.
 
-Two caveats. The 4.66-second figure is only 3 samples, from a different API than the one used later, which was never re-measured; it is an order of magnitude, nothing more. And the spec's target was a first character within 1 second, which was not reached.
+### 2.2 Half duplex: keeps echo out, and turns off interruptions
 
-## 3. Examiner audio tearing: misdiagnosed twice
+While the interviewer talks, the microphone thread sends silence and `USER_START_SPEAKING` is ignored, so the speaker's sound picked up by the microphone cannot make the server think the candidate is talking.
 
-The symptom: in P1 the examiner's voice for the first question was smooth, but from the follow-ups on it tore, with a stretch missing in the middle.
+The cost is that the candidate cannot interrupt. The code still has a "candidate cuts in, clear the playback queue" branch, but that event is already ignored during playback, so the branch only runs when nothing is playing and in practice does nothing. **To support interruptions, solve echo first** (echo cancellation, or require headphones), then let the event through; half on each side does not work.
 
-The first two attempts guessed a cause and changed code straight away:
+### 2.3 Using the end-to-end dialogue model as a reader
 
-1. **A race in playback state.** Playback got IDs and transaction checks. No effect.
-2. **Starting too early, before enough was buffered.** The audio element started playing with only a little data buffered (`readyState` 3); the guess was that it caught up with the server, which streamed audio while still synthesising it. Playback was changed to wait for the whole clip (`readyState` 4). Still no effect.
+Our own LLM decides what to say, and the real-time dialogue service reads it out. The text sent is:
 
-The third attempt was different: add logs only, and change no playback logic. Every key media event on the audio element was logged with a timestamp, someone spoke into a real microphone until the tearing happened, and that stretch of log came back.
+> Read the following text out directly: … For the candidate's later answers, reply only "[OK, let's continue]", without picking up or commenting
 
-With the log the cause was clear: **the front end was playing the raw mp3 straight from the speech-synthesis service.** The backend already had a path that converted it into a format browsers play more reliably, but the front end had never been wired to it. Both earlier fixes were to the player; the problem was the source.
+The session configuration also gives it an interviewer persona and speaking style, such as "read the question word for word, do not shorten or rewrite it". The upside is one connection with both recognition and synthesis; the downside is that it rests entirely on prompts, and **the client has no idea whether it read verbatim or added something of its own.** The recognition results include the text it spoke, so next time that can be compared with the intended text and a mismatch logged.
 
-The final fix stopped patching the hand-written player. Playback moved to the open-source howler.js, the source became the converted URL only, and the old IDs, transactions and buffer polling were deleted. Playback state was cut down to four: ready, started, ended, failed.
+### 2.4 Slow calls on the playback thread
 
-Two lessons:
+Scoring an answer (`EvaluateAnswer`) and generating the summary (`GenerateSummary`) are blocking libcurl calls of a few seconds, and they run on the playback thread, because "handle the answer when the queue is empty" lives in the playback loop. During those seconds, any audio the server sends (such as that "OK, let's continue") just waits in the queue. **The playback thread should only play.** Answer handling belongs on its own thread or task queue, with the playback thread just signalling that it is time.
 
-- **The symptom was already pointing the way.** Only the first question did not tear, and the first question was a fixed recording while the rest were synthesised on the spot. The difference was in the source, not in the player's state.
-- **When patches start fighting each other, replace the thing instead of adding another.** By the end the hand-written player had several mechanisms working against each other. Switching to a mature library and deleting the old code cleanly was faster than patching on.
+### 2.5 The detached thread at the end captures `this`
 
-## 4. Reports stuck on "Analyzing": two places deciding one thing
+Wrapping up after the summary is a `detach`ed thread that captures `this`, polls until the audio is done and then calls `Stop()`. `Stop()` joins only the microphone and playback threads and cannot reach this one. If `DialogSession` is destroyed while it is still waiting, it touches freed memory. The thread should be owned by the session and joined on destruction, or the playback thread should check "summary finished" and stop the session itself.
 
-On 2026-06-19 a P1 report stayed on "Analyzing". Django and the tunnel were fine; the task was still `pending` and had never been claimed. The worker process had died when a terminal was closed, and the watchdog that should have restarted it was switched off. Nobody ran the task and the page just spun.
+### 2.6 cppcheck reported 541 issues; 47 were in my code
 
-It was fixed three times:
+The March cppcheck report had 541 entries, almost all from third-party headers installed by vcpkg (nlohmann/json, fmt, gtest). Only 47 were in my own code, all style or information level, such as a function that could be static or is unused. The ASan commit added 13 lines to CMake and two tests and recorded nothing about what it found. **Limit the scan to your own code and write down the conclusion**, or a long report is just a file.
 
-1. **22 June, the back end decides "stuck".** A task queued for more than 180 seconds, or running for more than 900 seconds with no report, counts as stuck. The history list shows it as "not scored" with a button to regenerate.
-2. **23 June, the front end gets deadlines.** The front end polled every 2.5 seconds with no deadline. Now it stopped after 90 seconds with nobody claiming the task or 240 seconds running, showed a failure, kept the recording and offered a re-run. The watchdog was switched back on, so a dead worker came back within minutes.
-3. **29 July, the front-end deadlines set to infinity.** The back-end state was to decide, and the front end would no longer keep its own time.
+## 3. The IELTS command-line version: half reused
 
-The trouble is that after step 3 the back-end "stuck" check lived only in the history list and the report detail, not in the task endpoint the front end polls. So today, when the worker is down, the page that is waiting still spins, and only a refresh shows "not scored". The deployment rule also changed so that the worker and the watchdog do not start automatically, so this case does happen. The fix is to put the stuck check into the task endpoint too and have the front end stop on it, keeping the decision in one place, the back end.
+The IELTS command-line version shares `RealtimeClient`, `Protocol` and the audio classes with the interview version, but for each answer it opens the microphone afresh, replaces the response callback with one that **takes only recognition results**, and stops at the first final result (or on Enter, or on timeout). The examiner's question is printed in the terminal; the code still sends the read-it-out text query, but the audio the server sends back is dropped by that callback, so in practice there is no sound. Follow-ups are rules for P1 and P2 (under 30 words, no "because" and similar) and generated by the Claude CLI for P3; scoring uses `popen` to the Codex CLI, the OpenAI API or the Claude CLI.
 
-Lessons:
+So the problem is not one missing playback function, it is the level of reuse: **the classes were reused, the threading model and state machine were not.** The hard part of the interview version is knowing when to speak and when to listen, and all of it sits in `DialogSession`, written together with the interview content so it cannot be lifted out. To build the full real-time version, first pull that out into a content-independent "voice turn" layer, with interview and IELTS each answering only "what is the next line", then give the Qt UI an IELTS mode. The steps are in [section 5 of the structure post](../ielts-studio-structure/#5-the-ielts-command-line-version-only-half-wired-in).
 
-- **Only one place may decide when something has failed.** With one deadline in the front end and another in the back end, changing one side left a gap on the other.
-- **Whether a background process is alive cannot depend on someone remembering.** Either something restarts it automatically, or the interface tells the user quickly that it is not there.
+## 4. After the move to the web
 
-## 5. Inflated scores: a check after the model that does not depend on the model
+### 4.1 Follow-up latency: the Codex CLI cold start
 
-The model scored too generously: fluent-sounding answers full of stock phrases easily got 6.5 or 7. It was clearest in a few patterns common among candidates in China: a P2 answer that is too short, a P3 answer with a single opinion, the same words used over and over.
+Early on, every follow-up on the website started a `codex exec` subprocess: a cold start plus reasoning, over ten seconds each time. The follow-up logic and prompts were already written, so this step changed only how the model was called, not what was asked:
 
-Two layers:
+1. **Call an OpenAI-compatible streaming HTTP API directly**, with a small, fast model and reasoning off. If it fails, fall back to the Codex CLI, then to a rule-based fallback that is marked as such. At acceptance HTTP succeeded 3 times out of 3, median about 4.66 seconds, best 1.46 seconds; in the same comparison round the Codex CLI failed.
+2. **Stream over SSE.** Text is pushed to the browser as it is generated, and Volcengine synthesis starts once the question is complete. From the end of speech to the first character measured about 2.11 seconds.
 
-1. **Tighter prompts.** Score strictly against the four official criteria, with an explicit rule that sounding fluent is not enough for 6.5 or 7.
-2. **A deterministic calibration after the model scores.** It looks at word count, whether the answer develops (reasons, examples, comparisons), how many stock phrases there are, how much vocabulary repeats and whether the sentences are too simple, with stricter requirements for P2 and P3.
+Two caveats: the 4.66-second figure is only 3 samples from a different API than the one used later, never re-measured; and the spec's target of a first character within 1 second was not reached.
 
-Also, **do not invent what was not measured.** Without a real pronunciation assessment the pronunciation score stays empty, nothing is guessed from the transcript, and the overall score has a conservative cap so the other three criteria cannot lift it. Each rule became a test, for example "a short, generic P2 cannot score high" and "a normal short P1 answer is not pushed down".
+### 4.2 Examiner audio tearing: misdiagnosed twice
 
-## 6. Files that kept growing
+The symptom: the examiner's voice on the first P1 question was smooth, but from the follow-ups on it tore, with a stretch missing. The first two attempts guessed and changed code: once a playback-state race (IDs and transaction checks), once starting at `readyState` 3 with too little buffered (wait for 4 instead). Neither helped. The third attempt only added logs: every key media event on the audio element, someone speaking into a real microphone until it tore, and the log brought back.
 
-The unattended audit on 2026-05-12 already said it: the front-end `app.js` at 1,149 lines, the stylesheet at 1,593 and the single back-end file at 3,229 were too big and should be split.
+The cause: **the front end was playing the raw mp3 straight from Volcengine TTS.** The backend already had a conversion path to a format browsers play more reliably, but the front end had never been wired to it. The fix moved playback to howler.js, used only the converted source, and deleted the old mechanisms. The symptom had been pointing the way: only the first question did not tear, and that one was a fixed recording. The problem was the source, not the player.
 
-The back end was split: after the move to Django it became six apps, and the speaking services were split into synthesis, reports, scoring, corpus and others. The front end never was. Today `app.js` is almost 18,000 lines and the stylesheet over 40,000. In the weeks when features were added fastest, it was always "add it now, split it later", and the later it got the harder it was to split.
+### 4.3 Reports stuck on "Analyzing": two places deciding failure
 
-**Split early, while features are still being added.** By the time things settle, it is too late to split.
+On 2026-06-19 the worker process died with a closed terminal while the watchdog was off; the task stayed `pending` and the page spun. It was fixed three times: on 22 June the back end got a "stuck" check (queued over 180 seconds, or running over 900 seconds with no report); on 23 June the front end got deadlines (90 seconds unclaimed, 240 seconds running) and the watchdog came back on; on 29 July the front-end deadlines were set to infinity so the back end would decide.
 
-## 7. Working with a coding agent
+The trouble is that the stuck check lives only in the history list and report detail, not in the task endpoint the front end polls. So today, when the worker is down, the waiting page still spins and only a refresh shows "not scored". The fix is to put the check into the task endpoint too, keeping the decision in one place, the back end.
 
-Most of the code came from the same loop: I wrote a spec, a coding agent implemented it, I accepted it or not. Every spec had the same parts: why we are doing it, what counts as done, what is explicitly out of scope, and the red lines.
+### 4.4 Inflated scores: a check after the model that does not depend on it
 
-What worked:
+The model scored generously; fluent stock answers easily got 6.5 or 7. Two layers fixed it: tighter prompts, then a deterministic calibration after the model scores, looking at word count, development, stock phrases and repeated vocabulary, stricter for P2 and P3. Without a real pronunciation assessment the pronunciation score stays empty rather than being guessed from the transcript, and the overall score has a conservative cap. Each rule became a test.
 
-- **Saying what not to do.** The latency spec, for example, said to change only the call path, not the prompts or the question logic, and not to touch the front end. That kept the change small and the acceptance easy.
-- **Writing the red lines down.** Keys only in environment variables, never in code, logs or the repository; fallbacks always marked, never passed off as success; nothing from other uncommitted work in the tree gets swept in.
+### 4.5 Files that kept growing
 
-What did not:
+At the audit on 2026-05-12, `app.js` was 1,149 lines and the back-end file 3,229, already flagged for splitting. The back end became six Django apps; the front end never got split, and `app.js` is now almost 18,000 lines with a stylesheet over 40,000. **Split while features are still being added**; once things settle it is too late.
 
-- **Asking it to fix a guessed cause.** With the tearing, the first two times it was given a suspected cause to fix, it did exactly that, and the problem stayed. For a diagnosis task the first step should be logs and evidence only.
-- **Acceptance that needs a person.** First-character latency, text appearing while speaking, whether audio tears: all of it needs someone talking into a microphone, and an unattended run can only mark those "not accepted".
+## 5. Working with Codex and Claude
 
-## 8. What I would do differently
+From May on, most code came from the same loop: I wrote a spec, Codex or Claude Code implemented it, I accepted it or not. Every spec had the same parts: why, what counts as done, what is explicitly out of scope, and the red lines.
 
-- Separate "the user is waiting" from "this can queue" on day one, and send slow work to a task table from the start.
-- Keep the failure decision in one place, the back end, with the front end only displaying it.
-- Split a file once it passes one or two thousand lines, not later.
+- **What worked**: saying what not to do (the latency work changed only the call path, not the prompts, and left the front end alone); writing the red lines down (keys only in environment variables; fallbacks always marked; nothing from other people's uncommitted work swept in).
+- **What did not**: handing it a guessed cause to fix. With the tearing it implemented both guesses faithfully and the problem stayed; for a diagnosis task the first step should be logs and evidence only. And it cannot do any acceptance that needs a person talking into a microphone.
+
+## 6. What I would do differently
+
+- For the C++ real-time pipeline: write a content-independent "voice turn" layer first (threads, queue, state machine), and let interview and IELTS fill in only "what is the next line".
+- Keep slow calls out of real-time threads, and keep a timing log line in them.
+- Write the cost of shortcuts like half duplex and read-it-out into the code comments and docs, and check what can be checked.
+- Keep the failure decision in the back end only, with the front end just displaying it.
+- Split a file once it passes one or two thousand lines.
 - When a bug looks strange, add logs and get evidence before touching the code.
-- For a stable public site, use a tunnel with a fixed domain or a real server. A temporary tunnel has no uptime guarantee, and its address changes every time it restarts.
+- For a stable public site, use a Cloudflare named tunnel with a fixed domain, or a real server; a quick tunnel has no uptime guarantee and its address changes on every restart.

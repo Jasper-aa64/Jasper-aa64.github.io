@@ -1,90 +1,129 @@
 ---
-title: "雅思口语练习站：代码结构"
+title: "IELTS：代码结构"
 date: 2026-10-30
 slug: "ielts-studio-structure"
-description: "一个练雅思口语和写作的网站：考官出题，对着麦克风回答，AI 贴着回答追问一句，最后出一份带分数和改写的报告。三个进程：浏览器单页、Django、AI worker。用户在等的追问在请求里流式做；一分钟级、会失败、要计费的整节评分进任务表，交给 worker。"
+description: "这个项目从 3 月 C++/Qt 写的求职面试模拟器开始。Qt 面试版有完整的实时语音链路：五个线程、一条到火山引擎实时语音对话服务的 WebSocket，识别、对话、合成都在服务端。5 月的 IELTS 命令行版只复用了其中语音识别那一半，考官的声音和实时对话那一套还没接上。后来产品主线换成 Django 网站。"
 weight: 1
 toc: true
 ---
-这是一个练雅思口语和写作的网站。口语部分像真考场：考官念题，你对着麦克风回答，考官贴着你的回答追问一句，一节结束后出一份报告，里面有分数、逐题讲评和 7 分示范回答。写作部分是题库、每日写作和段落级批改。代码在 [GitHub](https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview)。
+这个项目最早是 3 月用 C++/Qt 写的求职面试模拟器，5 月改成练雅思口语，先做了一个 C++ 命令行版，后来主线换成了 Django 网站。代码在 [GitHub](https://github.com/Jasper-aa64/AI-realtime_speech-for-IELTS-Job_Interview)。
 
-这篇按三个问题讲结构：谁在什么时候干活，数据长什么样、放在哪，为什么这样切。踩过的坑放在[复盘](../ielts-studio-retrospective/)里。
+这篇主要讲 C++ 部分，按三个问题讲：谁在什么时候干活，数据长什么样、放在哪，为什么这样切。C++ 部分有三块：
 
-## 1. 总图
+- **Qt 面试版**：完整的实时语音链路，边听边说。
+- **IELTS 命令行版**：只复用了实时链路里语音识别那一半。考官的声音、实时对话那一套还没接上，Qt 界面也只有面试模式，没有 IELTS。
+- **音频核心**：抽成纯函数，编成 WASM，给网站做录音预处理。
 
-<a href="/images/projects/ielts/structure.zh.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/structure.zh.svg" alt="总结构：左边浏览器单页负责录音、听写、播考官语音；中间 Django 进程负责开场、收录音、流式追问、合成考官语音和各类接口，下面是 AI worker 进程，轮询任务表、调模型、写回报告；右边是四类外部服务：大模型 HTTP 流式接口、本机命令行编码代理（兜底）、语音合成、语音识别；底部是数据：SQLite 主表、录音和语音文件、题库 JSON。" loading="lazy" decoding="async"></a>
+网站部分放在最后一节简单讲，踩过的坑放在[复盘](../ielts-studio-retrospective/)里。
 
-整个系统是三个进程：
+## 1. Qt 面试版：总图
 
-- **浏览器里的单页前端**：录音、显示转写、播考官语音、查评分进度。
-- **Django 进程**：所有 HTTP 接口，加一个可选的 WebSocket 通道，跑在 ASGI 上。
-- **AI worker 进程**：只做一件事，扫任务表，把排队的评分和批改做完。
+<a href="/images/projects/ielts/cpp.zh.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/cpp.zh.svg" alt="Qt 面试版的线程图：左边 Qt 界面线程和会话线程；中间三个线程，麦克风线程读 16 kHz 音频编帧发出，接收线程用 Boost.Beast 同步读帧、语音包进播放队列、事件交给 HandleEvent，播放线程从队列取 24 kHz 音频写给 PortAudio，队列空时处理回答并把下一句发给服务端去念；右边是火山引擎实时语音对话服务和大模型 HTTP 接口；下面是 8 个状态的状态机。" loading="lazy" decoding="async"></a>
 
-外部服务有四类：大模型（走 HTTP 流式接口）、本机的命令行编码代理（HTTP 失败时兜底）、语音合成、语音识别。数据都在一个 SQLite 里，录音和合成好的语音是文件，表里只存路径。
+一句话：**识别、对话、合成都在火山引擎的实时语音对话服务里做，客户端只管收发音频和维护状态。** 出题、给回答打分、最后的总结，另走一个大模型的 HTTP 接口（配置里是 qwen3-8b，用 libcurl 调）。
 
 ## 2. 谁在什么时候干活
 
-### 2.1 一轮问答：用户在等，所以在请求里做
+### 2.1 五个线程
 
-<a href="/images/projects/ielts/turn.zh.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/turn.zh.svg" alt="上半部分是一轮问答的时序：浏览器播考官语音，录音加听写，停说后上传录音、提交本轮；Django 开一个 SSE 流式追问，大模型逐字返回，浏览器逐字显示；问句完整时 Django 用后台线程合成语音，就绪后发 tts_ready，浏览器播放追问语音，进入下一轮。下半部分是整节评分：浏览器提交评分，Django 建一条 pending 的 AITask，worker 认领后调模型、写报告，浏览器每 2.5 秒查一次任务状态，到终态就显示报告。" loading="lazy" decoding="async"></a>
+| 线程 | 谁起的 | 干什么 |
+|---|---|---|
+| Qt 界面线程 | Qt | 显示对话和状态；只处理别的线程投递过来的回调 |
+| 会话线程 | 界面点开始时起 | 跑 `DialogSession::Start`：连服务、开会话、起下面两个线程 |
+| 麦克风线程 | 会话线程 | 循环读麦克风，每块编成一帧发出去 |
+| 播放线程 | 会话线程 | 从播放队列取语音写给扬声器；队列空时处理候选人的回答 |
+| 接收线程 | `RealtimeClient` | 循环读 WebSocket，解帧，交给回调 |
 
-一轮问答是用户盯着屏幕等的那段，按时间顺序：
+另外，面试结束时还会起一个分离的线程（`detach`），等总结的语音播完再停掉会话。
 
-1. 浏览器播考官语音。第一题是固定的录音，后面的题是现场合成的。
-2. 用户回答。浏览器一边录音，一边用浏览器自带的听写出转写。
-3. 停说后，浏览器上传录音，再提交这一轮。转写以浏览器听写为准；听写没拿到的，后端再用语音识别从录音补一份。
-4. 浏览器打开一个 SSE 连接要追问。Django 读这一轮的题目和转写，拼成提示词，向大模型要流式结果，每收到一小段就往下推一个 `chunk` 事件，浏览器逐字显示。
-5. 后端一看到完整问句（有问号或生成结束），先推 `question_complete`，同时开一个后台线程合成这句的语音；合成好了再推 `tts_ready`，浏览器拿到地址就播。
+### 2.2 一轮问答
 
-追问先出文字、后出语音，是为了让用户停说后尽快看到考官"开口"。从停说到追问出第一个字，实测大约 2 秒。
+1. **面试官说话。** 服务端先发 `TTS_START`，接着语音包一个个到。接收线程把它们放进播放队列，播放线程取出来写给 PortAudio。这期间麦克风线程照常读麦克风，不读的话 PortAudio 的输入缓冲会溢出，但发出去的是静音。
+2. **轮到候选人。** 播放队列空了，服务端也发完了 `TTS_END`（在途计数 `tts_cnt` 归零），播放线程把状态切到"空闲"，麦克风开始发真实音频。
+3. **候选人说话。** 服务端判断用户开始说话，发 `USER_START_SPEAKING`，状态切到"候选人说话"。识别结果 `ASR_RESULT` 分中间结果和最终结果：中间结果只打日志，最终结果存进 `pending_answer`，状态切到"面试官思考"。
+4. **处理回答。** 播放线程在队列空的时候取出 `pending_answer`，调大模型给这道题打分，同时判断要不要追问，然后决定下一句是追问、下一题，还是总结。这一步是同步的 libcurl 调用，要等几秒。
+5. **把下一句念出来。** 下一句用 `CHAT_TEXT_QUERY` 发给服务端，前面加一句"直接朗读下面文字："，让对话模型把这句话原样念出来。服务端回 `TTS_START`，回到第 1 步。
 
-### 2.2 整节评分：慢、会失败、要计费，所以交给 worker
-
-一节结束后要给整节打分、逐题讲评、写 7 分示范回答，一次要一分钟左右，中途可能失败要重试，还要扣费。这些都不适合放在请求线程里做，所以：
-
-1. 浏览器提交评分，Django 在任务表 `AITask` 里写一行，状态 `pending`。建之前先查钱包余额够不够。
-2. worker 每 1 到 2.5 秒扫一次表，按创建时间取排队的任务，认领后改成 `running`，调模型，把报告写回练习记录，任务改成 `succeeded`，按这次实际用掉的量扣费。
-3. 浏览器每 2.5 秒查一次这条任务，到了终态就停，显示报告或失败原因。失败时录音已经存下，可以直接重新分析，不用重录。
-
-worker 每一轮扫表时，还会把超过 900 秒还在 `running` 的任务收回来：没用完重试次数的重新排队，用完的标成失败，不扣费。
-
-### 2.3 实时识别：叠加的一条路，不替换主流程
-
-浏览器可以选择把录音转成 16 kHz PCM，通过 WebSocket 实时传给后端，后端转交语音识别服务，边说边出字。这条路出问题时，主流程照旧"录完上传"，录音不受影响。为了接 WebSocket，Django 从 WSGI 换到了 ASGI；换的时候，验收条件是现有 HTTP 接口的行为一个都不变、原有测试全部通过。
+所有题问完后，状态切到"结束中"，生成总结并念出来；那个分离的线程等语音播完，再停掉会话。
 
 ## 3. 数据长什么样、放在哪
 
-| 数据 | 放在哪 | 长什么样 |
+### 3.1 协议帧
+
+和服务端之间是一条 WebSocket，上面跑一套自定义的二进制帧，编解码都在 `Protocol` 里：
+
+| 部分 | 长度 | 内容 |
 |---|---|---|
-| 一次练习 | 表 `SpeakingAttempt` | 考哪个部分、抽到的题、状态 |
-| 每一轮 | 表 `SpeakingTurn` | 题目、录音路径、原始转写、清洗后的转写、追问是谁生成的 |
-| 报告 | 表 `SpeakingReport` | 分数、逐题讲评、示范回答 |
-| AI 任务 | 表 `AITask` | 状态、已试次数（上限 3）、何时可再试、哪个 worker 在做、请求和结果、兜底原因、关联的预留 |
-| 钱 | 钱包、预留、流水等几张表 | 开始前查余额，成功按实际用量扣，失败或走了兜底不扣，每笔都进流水 |
-| 题库 | `data/ielts/` 下的 JSON | 口语按考季分文件，写作按来源分文件，导入数据库 |
-| 录音、合成语音 | 文件 | 表里只存路径；考官语音按句缓存，同一句不重复合成 |
+| 头 | 4 字节 | 版本、头长度、消息类型、标志、序列化方式、压缩方式各占 4 位，最后 1 字节保留 |
+| 事件号 | 4 字节，大端 | 例如 100 开始会话、200 音频、501 文本查询、350/359 语音开始/结束、450/451/459 用户开始说话/识别结果/停止说话 |
+| 会话 ID | 4 字节长度 + 内容 | 建连接的几个事件（1、2、50–52）不带 |
+| 负载 | 4 字节长度 + 内容 | JSON 或原始音频，可以 gzip 压缩（zlib） |
 
-`AITask` 有两点要说明：
+服务端发回来的帧分三种：完整响应（带事件和 JSON）、ACK（里面装的是语音）、错误。`protocol_test.cpp` 有 1495 行，是所有测试里最长的，测的就是这套编解码。
 
-- **同一件事只建一个任务**。`AITask` 有唯一的幂等键，同一份报告重复提交，拿到的还是原来那个任务。
-- **结果都带来源**。任务结果里写明是哪条路生成的，HTTP、命令行代理，还是规则兜底，兜底的结果不会冒充 AI 成功。
+### 3.2 音频
 
-另外几样数据：语料库（自己准备的口语素材）、Takeaway（练习里攒下的表达）、拼写复习词，各占一张表，都挂在用户下面。
+- **上行**：16 kHz、单声道、int16，每块 3200 帧，也就是 200 ms。
+- **下行**：24 kHz、float32，按包放进 `std::queue<std::vector<float>>`，用一个互斥锁加一个条件变量保护。
+
+### 3.3 状态和面试内容
+
+- **状态**：`InterviewStateMachine` 是单例，当前状态存在 `std::atomic` 里，一共 8 个：连接中、面试官说话、空闲、候选人说话、面试官思考、结束中、完成、错误。状态一变就回调到界面。
+- **面试内容**：`InterviewSession` 存题目列表、每道题的回答、分数和反馈。题目有两种来源：一种是用 PoDoFo 把简历 PDF 读成文字，交给大模型出题；另一种是按岗位要求出题。最后汇总成一份报告。
 
 ## 4. 为什么这样切
 
-**按"用户在不在等"分进程。** 追问用户在等，放在请求里流式做；整节评分慢、会失败、要计费，放进任务表交给 worker。worker 掉了，追问照样能用，只是评分排着队。任务状态都在数据库里，所以刷新页面、重启 Django 都不会丢。
+**一个线程只管一个会阻塞的东西。** 读麦克风、读网络、写扬声器，各占一个线程，都用阻塞调用。线程之间只通过一个带条件变量的队列和几个 `atomic` 标志交换数据，逻辑简单，出问题也好查。
 
-**模型调用只走一个入口，后面挂一条降级链。** 所有模型调用都经过同一个 `AIProvider` 接口，后面按顺序试：HTTP 流式接口、本机命令行代理、规则兜底。走哪条由一个环境变量控制，可以只走 HTTP，也可以整条链都走。HTTP 慢了或失败了，不影响其他代码。
+**半双工。** 面试官说话时，麦克风发静音，用户开始说话的事件也直接忽略。这是为了防止扬声器的声音被麦克风录进去，让服务端以为用户在说话。代价是不能打断面试官。
 
-**前端不打包。** 页面是纯 JS，没有构建这一步，Django 直接把静态文件发出去，改完刷新就能看到。代价是主文件 `app.js` 长到了将近 1.8 万行，复盘里会讲这件事。
+**拿端到端对话模型当朗读器。** 说什么由我们自己的大模型决定，再"请"实时对话服务原样念出来。这样一条连接就同时有了识别和合成，不用再单独接一个语音合成服务。
 
-**C++ 留下来的部分编成 WASM。** 这个项目最早是一个 C++ 写的桌面面试程序。改成网站时，它的音频核心抽成了纯函数：算音量、检测有没有人说话（复用开源的 WebRTC VAD）、裁掉静音、重采样。这部分用 Emscripten 编成 WASM，在浏览器里做录音预处理。
+**Pimpl。** `DialogSession`、`RealtimeClient`、`InterviewSession` 都用 Pimpl，头文件里看不到 Boost、PortAudio 这些依赖。Qt 界面只认 `DialogSession` 的几个公开方法。
 
-## 5. 从哪开始读
+**界面线程不碰网络。** 会话放在单独的线程里跑。别的线程要更新界面时，用 `QMetaObject::invokeMethod` 加 `Qt::QueuedConnection` 把回调投递回界面线程，界面线程本身从不阻塞。
 
-1. `backend_django/config/urls.py`：100 多个接口都列在这里，先看口语的 `attempts/...` 这一组。
-2. `backend_django/apps/speaking/services.py`：`start_attempt`、`complete_turn`、`stream_follow_up_sse_events`、`score_attempt` 四个函数就是一次练习的全过程。
-3. `backend_django/apps/ai/`：`models.py` 里是任务表，`worker.py` 是 worker 循环，`services.py` 里的 `claim_ai_task` 负责认领，`provider_adapters.py` 是各条调用路和降级链。
-4. `web/static/app.js`：搜 `playExaminerTurn`、`startRecording`、`streamFollowUpForCompletedTurn`，就是前端一轮问答的三段。
-5. `src/ielts/audio_core.cpp`：音频核心，WASM 由 `scripts/build_audio_core_wasm.sh` 编出来。
+## 5. IELTS 命令行版：只接了一半
+
+IELTS 版的结构是：`IELTSManager` 按考试模式跑 `Part1Session`、`Part2Session`、`Part3Session`；题库 JSON 读进 `QuestionBank`；`Scorer` 负责打分。它和面试版共用同一个 `RealtimeClient`、同一套协议和音频类，但只用上了其中一部分：
+
+| 部分 | Qt 面试版 | IELTS 命令行版 |
+|---|---|---|
+| 连接和协议 | `RealtimeClient` + `Protocol` | 复用 |
+| 麦克风 | 常驻的麦克风线程 | 每答一题临时打开一次 PortAudio，录完就关 |
+| 识别 | 服务端事件驱动状态机 | 只收 `ASR_RESULT`，拿到第一个最终结果、按回车或者超时就停；没连上服务就让人打字 |
+| 考官说话 | 文本查询，播放线程把语音播出来 | 题目打印在终端。也发了文本查询，但回调只收识别结果，服务端送回来的语音包被丢掉了，没人播 |
+| 追问 | 大模型判断 | P1、P2 用规则（少于 30 个词、没有 because 之类的词）；P3 调 Claude 命令行生成 |
+| 打分 | 大模型 HTTP 接口 | 用 `popen` 调 Codex 命令行、OpenAI 接口或 Claude 命令行，都失败就用规则 |
+| 界面 | Qt | 终端 |
+
+要拼成完整的实时版，大致是三步：
+
+1. 把 `DialogSession` 里那套和面试内容无关的东西抽出来，做成一个"语音回合"层：常驻的麦克风线程、播放队列、状态机、"直接朗读"的发法。面试和 IELTS 各自只负责回答"下一句说什么"。
+2. IELTS 的三个 Part 改成驱动这一层，考官的话由播放线程念出来。
+3. Qt 界面加一个 IELTS 模式，复用同一个会话线程和同一套回调。
+
+## 6. 音频核心编成 WASM
+
+`audio_core` 是从 C++ 这边抽出来的一组纯函数：算音量（RMS、峰值）、检测有没有人说话（复用开源的 WebRTC VAD，也就是 libfvad）、裁掉首尾静音、重采样。它不依赖 PortAudio，也不依赖网络。所以它既能编进本地测试（`audio_core_test`），也能用 Emscripten 编成 WASM（`audio_core_wasm.cpp` 是导出层），放到网站里做录音预处理。
+
+## 7. 后来的网站版
+
+5 月中起，产品主线换成了网站：
+
+<a href="/images/projects/ielts/structure.zh.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/structure.zh.svg" alt="网站版总结构：浏览器单页、Django 进程、AI worker 进程，外部是大模型 HTTP 流式接口、本机命令行编码代理、语音合成、语音识别，数据在 SQLite、文件和题库 JSON 里。" loading="lazy" decoding="async"></a>
+
+- **三个进程**：浏览器单页前端、Django（ASGI）、AI worker。
+- **追问**：用户在等，所以在请求里做。Django 用 SSE 把大模型的输出逐字推给浏览器，问句一完整就调火山引擎合成考官语音。
+- **整节评分**：要一分钟左右，会失败，还要扣费，所以写进任务表 `AITask`，由 worker 认领、调模型、写回报告，浏览器每 2.5 秒查一次。
+- **模型调用**：都走同一个 `AIProvider` 接口，后面挂一条降级链：OpenAI 兼容的 HTTP 接口 → 本机 Codex 命令行 → 规则兜底，每个结果都标明是哪条路生成的。
+- **实时识别**：是叠加的一条路。浏览器把 16 kHz PCM 通过 WebSocket 传给后端，后端转给火山引擎做识别；这条路坏了，就退回"录完上传"。
+
+## 8. 从哪开始读
+
+1. `src/interview/dialog_session.cpp`：`HandleEvent`、`MicrophoneThreadFunc`、`PlaybackThreadFunc`、`ProcessPendingAnswer` 四个函数，就是一轮问答的全过程。
+2. `src/services/realtime_client.cpp` 和 `src/common/protocol.cpp`：连接、收发和帧格式；配着 `tests/protocol_test.cpp` 一起看。
+3. `src/services/audio_manager.cpp`：PortAudio 的输入输出流。
+4. `src/ui/mainwindow.cpp`：会话线程怎么起，回调怎么回到界面线程。
+5. `src/ielts/realtime_speech_capture.cpp` 和 `src/ielts/part1_session.cpp`：IELTS 版复用了哪一半。
+6. `src/ielts/audio_core.cpp`：音频核心；WASM 用 `scripts/build_audio_core_wasm.sh` 编出来。

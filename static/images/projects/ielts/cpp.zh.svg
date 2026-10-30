@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="600" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">Qt 面试版：五个线程、一条 WebSocket，识别、对话、合成都在服务端</text>
+<rect x="20" y="64" width="220" height="382" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="88" class="t" text-anchor="start">Qt 界面线程</text>
+<text x="34" y="111" class="s" text-anchor="start">显示对话和当前状态</text>
+<text x="34" y="131" class="s" text-anchor="start">其他线程的回调都用</text>
+<text x="34" y="151" class="s" text-anchor="start">QueuedConnection 切回来</text>
+<text x="34" y="171" class="s" text-anchor="start"></text>
+<text x="34" y="191" class="s" text-anchor="start">会话线程</text>
+<text x="34" y="211" class="s" text-anchor="start">DialogSession::Start：连服务、</text>
+<text x="34" y="231" class="s" text-anchor="start">起麦克风和播放两个线程</text>
+<rect x="270" y="64" width="360" height="100" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="284" y="88" class="t" text-anchor="start">麦克风线程</text>
+<text x="284" y="111" class="s" text-anchor="start">PortAudio 读 16 kHz int16，每块 3200 帧（200 ms）</text>
+<text x="284" y="131" class="s" text-anchor="start">编成音频帧发出去；面试官说话时改发静音</text>
+<rect x="270" y="184" width="360" height="120" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="284" y="208" class="t" text-anchor="start">接收线程（RealtimeClient 里）</text>
+<text x="284" y="231" class="s" text-anchor="start">Boost.Beast 同步 read，一帧一帧解</text>
+<text x="284" y="251" class="s" text-anchor="start">语音包 → 播放队列；事件 → HandleEvent</text>
+<text x="284" y="271" class="s" text-anchor="start">改状态，存下最终识别结果</text>
+<rect x="270" y="324" width="360" height="122" rx="10" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="284" y="348" class="t" text-anchor="start">播放线程</text>
+<text x="284" y="371" class="s" text-anchor="start">等队列（条件变量）→ PortAudio 写 24 kHz float32</text>
+<text x="284" y="391" class="s" text-anchor="start">队列空、也没有在途语音（tts_cnt = 0）时：</text>
+<text x="284" y="411" class="s" text-anchor="start">处理回答：调大模型打分，定追问 / 下一题 / 总结</text>
+<text x="284" y="431" class="s" text-anchor="start">把下一句发给服务端去念</text>
+<rect x="700" y="64" width="280" height="240" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 4"/>
+<text x="714" y="88" class="t" text-anchor="start">火山引擎实时语音对话</text>
+<text x="714" y="111" class="s" text-anchor="start">端到端：识别 + 对话 + 合成</text>
+<text x="714" y="131" class="s" text-anchor="start">上行：音频帧、文本查询</text>
+<text x="714" y="151" class="s" text-anchor="start">下行：事件、合成好的语音</text>
+<text x="714" y="171" class="s" text-anchor="start">（自定义二进制帧，gzip）</text>
+<rect x="700" y="324" width="280" height="122" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="714" y="348" class="t" text-anchor="start">大模型 HTTP 接口</text>
+<text x="714" y="371" class="s" text-anchor="start">读简历出题、给回答打分、</text>
+<text x="714" y="391" class="s" text-anchor="start">要不要追问、最后总结</text>
+<text x="714" y="411" class="s" text-anchor="start">（libcurl 同步调用）</text>
+<path d="M630,112 L700,112" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="665" y="104" class="k" text-anchor="middle">音频帧</text>
+<path d="M700,244 L630,244" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="665" y="236" class="k" text-anchor="middle">事件、语音</text>
+<path d="M450,304 L450,324" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="460" y="318" class="k" text-anchor="start">语音入队</text>
+<path d="M630,345 Q680,335 715,304" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="626" y="318" class="k" text-anchor="end">「直接朗读：…」</text>
+<path d="M630,425 L700,425" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="665" y="417" class="k" text-anchor="middle">打分、追问</text>
+<path d="M270,244 L240,244" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="255" y="236" class="k" text-anchor="middle">回调</text>
+<path d="M270,400 L240,400" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<rect x="20" y="466" width="960" height="116" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="36" y="490" class="t" text-anchor="start">状态机（单例，atomic）</text>
+<rect x="36" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="88.0" y="550" class="b" text-anchor="middle">连接中</text>
+<rect x="154" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="206.0" y="550" class="b" text-anchor="middle">面试官说话</text>
+<path d="M140,545 L154,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="272" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="324.0" y="550" class="b" text-anchor="middle">空闲</text>
+<path d="M258,545 L272,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="390" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="442.0" y="550" class="b" text-anchor="middle">候选人说话</text>
+<path d="M376,545 L390,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="508" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="560.0" y="550" class="b" text-anchor="middle">面试官思考</text>
+<path d="M494,545 L508,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="626" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="678.0" y="550" class="b" text-anchor="middle">结束中</text>
+<path d="M612,545 L626,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="744" y="528" width="104" height="34" rx="17" fill="#ffffff" stroke="#d0d7de"/>
+<text x="796.0" y="550" class="b" text-anchor="middle">完成</text>
+<path d="M730,545 L744,545" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="862" y="528" width="104" height="34" rx="17" fill="#ffebe9" stroke="#ff8182"/>
+<text x="914.0" y="550" class="b" text-anchor="middle">错误</text>
+<path d="M560.0,528 Q383.0,494 206.0,528" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="383.0" y="506" class="k" text-anchor="middle">下一句</text>
+</svg>
