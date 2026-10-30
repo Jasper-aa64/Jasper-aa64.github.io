@@ -209,9 +209,17 @@ Tests use a fake WebSocket server, under TSan:
 - two threads sending flat out, and every frame the server receives is whole;
 - a silent server, and `Close()` returns within its limit;
 - a server that stops reading, and `SendAudioData` never blocks while the drop count rises;
-- connect and close quickly dozens of times without a crash.
+- connect, send and close on the same object 20 times in a row without a crash.
 
 Step one can be done any time. Step two comes before splitting `DialogSession`: the connection is the bottom layer, and if it drops at random, turn-taking bugs above it cannot be told apart from transport bugs. Since step two keeps the interface, the layers above need no changes.
+
+**Progress (October 30): step two is done**, on the `realtime-client-io-owner` branch.
+
+- All four tests above are in, plus certificate checking, the order of the end frames, the server ending the session first, and cleanup when the connection fails: 10 in all;
+- release, ASan+UBSan and TSan builds all pass on Linux (gcc); not yet compiled on the Mac;
+- checking against Volcengine's API document turned up `dialog.extra.model`, marked required in StartSession and never sent by the old code; it is sent now.
+
+Not yet tested against the real service.
 
 ### 5.5 native_voice is at its first step
 

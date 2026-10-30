@@ -74,6 +74,8 @@ The audit concluded "keep the voice engine in C++, keep the old prototype as a r
 
 In hindsight the cost of starting over is that **everything the prototype already had (protocol, recognition, reading out, turn-taking) has to be rewritten, and until it is, the product has no real-time voice at all.** Most of the prototype's problems are local fixes (structure post 5.3); only a few need the structure changed. So the plan for next is the other way round: on the old prototype, fix correctness first, then shrink the buffers and measure, then give the connection a single owning thread (structure post 5.4), then split `DialogSession` and wire it into the desktop shell. If measurement shows blocking I/O is too jittery, bring over `native_voice`'s device layer then.
 
+On October 30 the connection step was done first (see the progress note at the end of structure post 5.4); the other steps have not started.
+
 ## 5. The website
 
 ### 5.1 Follow-up latency: the Codex CLI cold start
