@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" width="1000" height="560" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="560" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">现在：四个线程直接用同一个 ws_，没有一把锁管它</text>
+<rect x="20" y="64" width="320" height="72" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="34" y="88" class="t" text-anchor="start">麦克风线程</text>
+<text x="34" y="111" class="s" text-anchor="start">每 200 ms 一次：ws_-&gt;write(音频帧)</text>
+<text x="326" y="129" class="k" text-anchor="end">:161</text>
+<rect x="20" y="150" width="320" height="72" rx="10" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="34" y="174" class="t" text-anchor="start">播放线程</text>
+<text x="34" y="197" class="s" text-anchor="start">每轮一次：ws_-&gt;write(文本查询)</text>
+<text x="326" y="215" class="k" text-anchor="end">:190</text>
+<rect x="20" y="236" width="320" height="72" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="34" y="260" class="t" text-anchor="start">接收线程</text>
+<text x="34" y="283" class="s" text-anchor="start">一直阻塞在 ws_-&gt;read</text>
+<text x="326" y="301" class="k" text-anchor="end">:205</text>
+<rect x="20" y="322" width="320" height="72" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="346" class="t" text-anchor="start">调 Stop 的线程（关窗口时是界面线程）</text>
+<text x="34" y="369" class="s" text-anchor="start">Close()：写结束帧、ws_-&gt;close、join</text>
+<text x="326" y="387" class="k" text-anchor="end">:282–329</text>
+<rect x="400" y="64" width="330" height="330" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="565" y="90" class="t" text-anchor="middle">一个对象 ws_（:495）</text>
+<rect x="416" y="108" width="298" height="80" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="565" y="140" class="b" text-anchor="middle">websocket::stream</text>
+<text x="565" y="164" class="s" text-anchor="middle">拼帧头、写缓冲、帧状态</text>
+<rect x="416" y="202" width="298" height="80" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="565" y="234" class="b" text-anchor="middle">ssl_stream</text>
+<text x="565" y="258" class="s" text-anchor="middle">OpenSSL 会话：加密状态、记录序号</text>
+<rect x="416" y="296" width="298" height="80" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="565" y="328" class="b" text-anchor="middle">tcp::socket</text>
+<text x="565" y="352" class="s" text-anchor="middle">内核发送缓冲</text>
+<path d="M340,100 L416,140" fill="none" stroke="#cf222e" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M340,186 L416,150" fill="none" stroke="#cf222e" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M416,250 L340,272" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<path d="M340,358 L416,260" fill="none" stroke="#cf222e" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="790" y="64" width="190" height="330" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 4"/>
+<text x="885" y="200" class="s" text-anchor="middle">火山实时对话服务</text>
+<text x="885" y="224" class="s" text-anchor="middle">只看到一串字节</text>
+<text x="885" y="248" class="s" text-anchor="middle">分不出来自哪个线程</text>
+<path d="M730,230 L790,230" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<rect x="20" y="418" width="475" height="122" rx="10" fill="#ffebe9" stroke="#ff8182"/>
+<text x="36" y="446" class="t" text-anchor="start" style="fill:#cf222e">撞车 1：麦克风写 + 播放写</text>
+<text x="36" y="474" class="s" text-anchor="start">两帧的字节交错，或 TLS 状态被同时改</text>
+<text x="36" y="498" class="s" text-anchor="start">→ 服务端判协议错误或 TLS 错误，断线</text>
+<rect x="505" y="418" width="475" height="122" rx="10" fill="#ffebe9" stroke="#ff8182"/>
+<text x="521" y="446" class="t" text-anchor="start" style="fill:#cf222e">撞车 2：Close 写 + 接收线程读</text>
+<text x="521" y="474" class="s" text-anchor="start">同一个 TLS 会话被两个线程同时用</text>
+<text x="521" y="498" class="s" text-anchor="start">读没有时限（idle_timeout = 0）→ join 等不到头，关窗口卡死</text>
+</svg>

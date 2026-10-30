@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 470" width="1000" height="470" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:19px;font-weight:700;fill:#1f2328}.t{font-size:15px;font-weight:700;fill:#1f2328}.b{font-size:13px;font-weight:600;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.k{font-size:12px;fill:#57606a}.lane{font-size:14px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1000" height="470" fill="#ffffff"/>
+<text x="20" y="34" class="h" text-anchor="start">改法：一个 I/O 线程独占连接，别的线程只投递，不碰 ws_</text>
+<rect x="20" y="64" width="250" height="76" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="92" class="t" text-anchor="start">麦克风线程</text>
+<text x="34" y="116" class="s" text-anchor="start">SendAudioData：post，立刻返回</text>
+<rect x="20" y="156" width="250" height="76" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="184" class="t" text-anchor="start">播放线程</text>
+<text x="34" y="208" class="s" text-anchor="start">SendTextQuery：post，立刻返回</text>
+<rect x="20" y="248" width="250" height="76" rx="10" fill="#ddf4ff" stroke="#54aeff"/>
+<text x="34" y="276" class="t" text-anchor="start">界面线程</text>
+<text x="34" y="300" class="s" text-anchor="start">Close：post，等 future（有总时限）</text>
+<rect x="320" y="64" width="200" height="100" rx="10" fill="#fff8c5" stroke="#d4a72c"/>
+<text x="334" y="90" class="t" text-anchor="start">控制队列</text>
+<text x="334" y="114" class="s" text-anchor="start">文本查询、结束帧</text>
+<text x="334" y="134" class="s" text-anchor="start">优先发</text>
+<rect x="320" y="180" width="200" height="100" rx="10" fill="#dafbe1" stroke="#4ac26b"/>
+<text x="334" y="206" class="t" text-anchor="start">音频队列</text>
+<text x="334" y="230" class="s" text-anchor="start">有上限（约 0.5 s）</text>
+<text x="334" y="250" class="s" text-anchor="start">满了丢最旧的并计数</text>
+<rect x="570" y="64" width="250" height="216" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+<text x="584" y="90" class="t" text-anchor="start">I/O 线程（strand）</text>
+<text x="584" y="114" class="s" text-anchor="start">只有它碰 ws_</text>
+<text x="584" y="134" class="s" text-anchor="start">同一时刻只有一个 async_write</text>
+<text x="584" y="154" class="s" text-anchor="start">async_read 循环 → 回调（只入队）</text>
+<text x="584" y="174" class="s" text-anchor="start">关闭也是这里的一个任务</text>
+<rect x="850" y="64" width="130" height="216" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 4"/>
+<text x="915" y="164" class="b" text-anchor="middle">火山实时</text>
+<text x="915" y="186" class="b" text-anchor="middle">对话服务</text>
+<path d="M270,102 L320,222" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M270,194 L320,114" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M270,286 L320,140" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="296" y="58" class="k" text-anchor="middle">post</text>
+<path d="M520,114 L570,140" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M520,230 L570,190" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M820,172 L850,172" fill="none" stroke="#57606a" stroke-width="1.8" marker-start="url(#a)" marker-end="url(#a)"/>
+<path d="M695,280 Q450,360 272,236" fill="none" stroke="#57606a" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="470" y="330" class="k" text-anchor="middle">回调：语音进播放队列</text>
+<rect x="20" y="340" width="960" height="112" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="36" y="366" class="t" text-anchor="start">关闭顺序（在 I/O 线程里按顺序执行）</text>
+<rect x="36" y="388" width="176" height="46" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="124.0" y="416" class="s" text-anchor="middle">① 发结束会话</text>
+<rect x="224" y="388" width="176" height="46" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="312.0" y="416" class="s" text-anchor="middle">② 等结束确认 ≤ 2 s</text>
+<path d="M212,411 L224,411" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="412" y="388" width="176" height="46" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="500.0" y="416" class="s" text-anchor="middle">③ 发结束连接</text>
+<path d="M400,411 L412,411" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="600" y="388" width="176" height="46" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="688.0" y="416" class="s" text-anchor="middle">④ async_close</text>
+<path d="M588,411 L600,411" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="788" y="388" width="176" height="46" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="876.0" y="416" class="s" text-anchor="middle">⑤ 总时限 5 s</text>
+<path d="M776,411 L788,411" fill="none" stroke="#57606a" stroke-width="1.8" marker-end="url(#a)"/>
+</svg>

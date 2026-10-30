@@ -162,11 +162,62 @@ The backend's `volcengine_asr.py` implements the same framing again in Python, a
 | Half duplex | while the interviewer talks the microphone sends silence and "user started speaking" is ignored | no interruptions, early speech is lost, and the queue-clearing branch never runs |
 | Dialogue model as a reader | relies on the prompt "read the following text out directly…" | the client cannot tell whether it read verbatim or added something |
 
-### 5.4 native_voice is at its first step
+### 5.4 The connection layer: four threads share one connection
+
+This section expands the "several threads write the same WebSocket" row of 5.3, and the shutdown problem, then gives the fix.
+
+<a href="/images/projects/ielts/ws-now.en.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/ws-now.en.svg" alt="The connection layer today: the microphone thread calls ws_->write every 200 ms, the playback thread once per turn, the receive thread is always blocked in ws_->read, and the thread calling Stop writes end frames, closes and joins in Close; all use the same object ws_, which nests websocket::stream, ssl_stream and tcp::socket; two red boxes below show the two collisions." loading="lazy" decoding="async"></a>
+
+The whole connection is one object, `ws_` at `realtime_client.cpp:495`, of type `websocket::stream<ssl_stream<tcp::socket>>`: WebSocket framing outside, TLS in the middle, TCP inside. The write buffer, frame state and the OpenSSL session's cipher state and record sequence numbers all live in this one object. Boost.Beast and Asio say: **one object may be used by only one thread at a time.** Today four threads use it directly, and nothing in `RealtimeClientImpl` locks `ws_`.
+
+**Collision 1: two threads write at once.** When the playback thread sends the next line (`SendNextPrompt` → `SendTextQuery`), the microphone thread is still sending a silent frame every 200 ms. If the two `write`s overlap, the bytes can interleave like this:
+
+<a href="/images/projects/ielts/ws-interleave.en.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/ws-interleave.en.svg" alt="The microphone thread sends header A plus 6400-odd bytes of audio, the playback thread header B plus a text query; on TCP it may become header A, first half of the audio, header B, the text query, second half of the audio; the server reads 6400-odd bytes after header A, takes the text query as audio, parses the rest of the audio as the next header, and closes with a protocol error." loading="lazy" decoding="async"></a>
+
+The server sees only bytes and cannot tell which thread sent which. Reading on after header A gives garbage, so it closes with a protocol error, or with a TLS error if the TLS state was changed twice. Volcengine allows audio and text frames in any order, as long as each frame is sent whole before the next; **the client has to guarantee that.** Each write takes a few milliseconds, so collisions are rare, which is exactly why it shows up as "occasional unexplained disconnects that will not reproduce".
+
+**Collision 2: on shutdown, one thread writes while another reads.** When the window closes, the UI thread calls `Stop()` from `~MainWindow`, which joins the microphone and playback threads and then calls `Close()`: end-session frame, end-connection frame, `ws_->close`, then join the receive thread. But the receive thread is still blocked in `ws_->read`. Three consequences:
+
+- **The end frames can be corrupted**, because one TLS session is in use by two threads.
+- **The window can hang.** Reads have no deadline (`idle_timeout = 0`, pings off), so if the server does not answer, the receive thread waits forever, `join` never returns, and the UI thread is stuck in the destructor.
+- **The end-connection frame is sometimes skipped.** When the server answers `SESSION_FINISHED`, the receive thread sets `connected_` to `false`, and `Close()` checks `connected_` before sending that frame: the two threads race.
+
+**One more: the microphone thread writes to the network itself.** When the network stalls and the TCP send buffer fills, it blocks in `write`, nobody reads PortAudio, the device's input buffer overflows and part of the candidate's speech is lost.
+
+**The fix, in two steps.**
+
+Step one stops the bleeding with a few dozen lines:
+
+- route all six `ws_->write` calls through one lock;
+- turn on a 10-second idle timeout and keep-alive pings, so shutdown hangs at most about ten seconds;
+- after the end-session frame, have `Close()` wait at most 2 seconds for the confirmation, then send end-connection, with no race on `connected_`.
+
+This stops write-write collisions, but read-write collisions remain and the microphone can still be blocked by the network.
+
+Step two is the real fix: one I/O thread owns the connection, with the public interface unchanged.
+
+<a href="/images/projects/ielts/ws-io-owner.en.svg" target="_blank" rel="noopener"><img src="/images/projects/ielts/ws-io-owner.en.svg" alt="The fix: the microphone, playback and UI threads only post into queues and return at once; a control queue for text queries and end frames goes first, a bounded audio queue drops the oldest frame and counts when full; only the I/O thread touches ws_, with one async_write in flight and an async_read loop handing audio to a callback into the playback queue; below, shutdown in order: end session, wait up to 2 s, end connection, async_close, 5 s overall cap." loading="lazy" decoding="async"></a>
+
+- **Only the I/O thread touches `ws_`.** Reads, writes and close all run on one I/O thread (a strand). Other threads calling `SendAudioData`, `SendTextQuery` or `Close` only post a message and return at once, so the microphone thread can no longer be blocked by the network.
+- **Two send queues.** Control frames (text queries, end frames) go first. The audio queue is bounded: past roughly 0.5 seconds of backlog it drops the oldest frame and counts it, so latency cannot keep growing.
+- **One `async_write` in flight at a time.** The `async_read` loop hands each message to the callback, which only enqueues.
+- **Closing is a task posted to the I/O thread**, run in a fixed order with an overall time limit. The pending read is cancelled cleanly instead of relying on a `running_` flag.
+- **Two fixes along the way**: "connected" means the session-started event has arrived, and TLS verifies certificates.
+
+Tests use a fake WebSocket server, under TSan:
+
+- two threads sending flat out, and every frame the server receives is whole;
+- a silent server, and `Close()` returns within its limit;
+- a server that stops reading, and `SendAudioData` never blocks while the drop count rises;
+- connect and close quickly dozens of times without a crash.
+
+Step one can be done any time. Step two comes before splitting `DialogSession`: the connection is the bottom layer, and if it drops at random, turn-taking bugs above it cannot be told apart from transport bugs. Since step two keeps the interface, the layers above need no changes.
+
+### 5.5 native_voice is at its first step
 
 The plan splits this line into six slices: 2A interfaces and baseline, 2B callback adapters and measurement, 2C connecting to the server, 2D continuous recording and interruption, 2E wiring into the desktop shell, 2F echo cancellation and long runs. Only the 2B code exists, with no measurement on real devices; the slices that do the real work, 2C to 2E, have not started.
 
-### 5.5 Web and backend
+### 5.6 Web and backend
 
 - **The PCM WebSocket relay** (off by default) calls `accept()` immediately without checking for a logged-in user, and the queue to Volcengine, `queue.Queue()`, is unbounded.
 - **The scoring page**: both front-end polling deadlines are infinite, while the back-end "stuck" check lives only in the history list and report detail, not in the task endpoint. So when the worker is down, the waiting page spins forever.
