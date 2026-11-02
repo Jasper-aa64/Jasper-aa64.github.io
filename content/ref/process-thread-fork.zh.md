@@ -6,7 +6,7 @@ description: "在 Linux 内核里，进程和线程都是一个 task_struct，�
 summary: "进程和线程在内核里是同一种东西，差别是共享多少：线程共用一份地址空间和一张 fd 表，只独占栈、寄存器和 TLS。fork 只复制页表，物理页等到有人写才复制，所以 fork 加 exec 很便宜；fork 之后两边的 fd 指着同一个打开的文件。进程退出后留下一条记录等父进程 wait，没人收就是僵尸；父进程先走，子进程交给 init 或最近的 subreaper 收。"
 toc: true
 group: cpplinux
-weight: 107
+weight: 114
 aliases: ["/posts/process-thread-fork/"]
 ---
 

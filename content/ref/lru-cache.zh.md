@@ -6,7 +6,7 @@ description: "容量满了先淘汰最久没用的那个，get 和 put 都要 O(
 summary: "LRU 要两样东西：按 key 一步找到，按使用先后排好队。哈希表给前一样，双向链表给后一样，哈希表的值存链表节点的位置把两者接上。命中时用 splice 把节点挪到头部，节点不动、位置不变，哈希表也不用改。"
 toc: true
 group: cpplinux
-weight: 111
+weight: 123
 ---
 
 缓存放不下所有东西，满了就得扔掉一个。扔哪个？LRU（least recently used，最近最少使用）的回答是：扔最久没被用过的那个，赌的是刚用过的东西很快还会再用。面试里的标准题是 [LeetCode 146](https://leetcode.cn/problems/lru-cache/)：实现 `get(key)` 和 `put(key, value)`，容量固定，两个操作都要 O(1)。

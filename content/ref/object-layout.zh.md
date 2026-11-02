@@ -6,7 +6,7 @@ description: "一个 C++ 对象在内存里就是一段连续的字节。成员�
 summary: "对象的大小 = 成员 + 为对齐补的填充，按从大到小排成员填充最少；空类做基类可以不占空间。有虚函数时对象只多一个 8 字节的 vptr，函数再多也只是表变长；vtable 每个类一张，放在重定位后变只读的 .data.rel.ro。多继承时第二个基类子对象有自己的 vptr，转换指针要加偏移，经它调用的虚函数要先过一个调整 this 的 thunk。"
 toc: true
 group: cpplinux
-weight: 105
+weight: 104
 aliases: ["/posts/object-layout/"]
 ---
 

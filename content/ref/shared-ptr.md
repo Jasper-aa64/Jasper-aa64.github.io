@@ -6,7 +6,7 @@ description: "A shared_ptr is the object plus a control block holding the count;
 summary: "The count lives in the control block and make_shared allocates once; to keep yourself alive from a member function, shared_from_this() shares the outside control block, while a second control block destroys the object twice."
 toc: true
 group: cpplinux
-weight: 104
+weight: 111
 aliases: ["/posts/shared-ptr/"]
 ---
 

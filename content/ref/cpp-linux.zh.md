@@ -205,14 +205,33 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 
 | 单页 | 讲什么 | 在哪张图上 |
 |---|---|---|
-| [new 一次走到哪](/zh/ref/new-malloc-page-fault/) | `operator new`、malloc、`brk` / `mmap`、第一次写时缺页 | 进程地图：堆、mmap 区 |
+| **C++ 语言** | | |
+| [移动语义](/zh/ref/move-semantics/) | 值类别、`std::move`、`noexcept` 移动、完美转发 | 进程地图：堆（谁拿走缓冲区） |
+| [构造、拷贝、析构和 RAII](/zh/ref/special-members-raii/) | 六个特殊成员、三/五/零法则、栈展开、异常安全 | 进程地图：栈 |
 | [虚函数](/zh/ref/virtual-functions/) | vptr、vtable、一次虚调用的代价、组合与继承 | 进程地图：`.rodata` 里的 vtable |
-| [const 和 constexpr](/zh/ref/const-constexpr/) | `const` / `constexpr` / `consteval` / `constinit`，编译期查找表 | 进程地图：`.rodata`、`.data` |
-| [shared_ptr](/zh/ref/shared-ptr/) | 控制块、复制的代价、`enable_shared_from_this` | 进程地图：堆 |
 | [对象布局](/zh/ref/object-layout/) | 对齐、填充、vptr 和 vtable、多重继承 | 进程地图：`.rodata` 里的 vtable |
+| [const 和 constexpr](/zh/ref/const-constexpr/) | `const` / `constexpr` / `consteval` / `constinit`，编译期查找表 | 进程地图：`.rodata`、`.data` |
+| [lambda 和 std::function](/zh/ref/lambda-function/) | 闭包对象、捕获、类型擦除和它的分配 | 进程地图：栈、堆 |
+| [四种 cast](/zh/ref/cpp-casts/) | 指针调整、`dynamic_cast` 查 typeinfo、严格别名 | 进程地图：`.rodata` |
+| **内存** | | |
+| [new 一次走到哪](/zh/ref/new-malloc-page-fault/) | `operator new`、malloc、`brk` / `mmap`、第一次写时缺页 | 进程地图：堆、mmap 区 |
 | [函数调用栈帧](/zh/ref/stack-frame/) | 返回地址、寄存器传参、RVO、栈溢出 | 进程地图：栈 |
+| [unique_ptr 和 weak_ptr](/zh/ref/unique-ptr-weak-ptr/) | 独占所有权、删除器、打破循环引用 | 进程地图：堆 |
+| [shared_ptr](/zh/ref/shared-ptr/) | 控制块、复制的代价、`enable_shared_from_this` | 进程地图：堆 |
+| **并发** | | |
+| [线程同步](/zh/ref/thread-sync/) | 互斥锁、条件变量、信号量、读写锁、死锁 | 进程地图：线程共享的段 |
+| [线程池和 future](/zh/ref/thread-pool-future/) | `std::thread`、promise、`async`、手写线程池 | 进程地图：每个线程的栈 |
+| **进程和文件** | | |
 | [进程和线程](/zh/ref/process-thread-fork/) | `fork`、写时复制、共享与独占、进程状态 | 进程地图、从源码到进程：`execve` |
 | [进程间通信](/zh/ref/ipc/) | 管道、共享内存、信号、Unix socket | 进程地图：mmap 区；IO 地图 |
+| [文件 IO](/zh/ref/file-io/) | fd 三层结构、重定向、stdio 缓冲、inode、fsync | IO 地图：写文件 |
 | [epoll](/zh/ref/epoll-internals/) | 红黑树、就绪链表、回调，LT 和 ET | IO 地图：epoll |
-| [TCP](/zh/ref/tcp-states/) | 三次握手、四次挥手、`TIME_WAIT` | IO 地图：TCP/IP 协议栈 |
+| **网络** | | |
+| [TCP 连接](/zh/ref/tcp-states/) | 三次握手、四次挥手、`TIME_WAIT`、握手丢包 | IO 地图：TCP/IP 协议栈 |
+| [TCP 可靠传输](/zh/ref/tcp-reliability/) | 重传、流量控制、拥塞控制、Nagle、粘包 | IO 地图：收一个包 |
+| [socket 编程](/zh/ref/socket-programming/) | 服务端和客户端的调用、回显服务器、Reactor | IO 地图：socket |
+| [HTTP 和 HTTPS](/zh/ref/http-basics/) | 一次请求的全过程、状态码、Cookie、TLS 握手 | IO 地图：TCP/IP 协议栈之上 |
+| **数据结构** | | |
+| [STL 容器](/zh/ref/stl-containers/) | vector 扩容、deque、红黑树 map、哈希桶 | 进程地图：堆 |
 | [LRU 缓存](/zh/ref/lru-cache/) | 哈希表加双向链表、`splice`、带哨兵的手写链表 | IO 地图：页缓存怎么淘汰 |
+| [跳表、红黑树、B+ 树](/zh/ref/skiplist-rbtree-bplustree/) | 三种有序结构的原理和用处（std::map、Redis、InnoDB） | — |

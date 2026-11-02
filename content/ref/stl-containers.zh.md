@@ -1,0 +1,317 @@
+---
+title: "STL 容器的底层：vector、deque、list、map、unordered_map"
+date: 2026-11-02
+slug: "stl-containers"
+description: "常用的 STL 容器在内存里是什么样：vector 是三个指针管着一块连续内存，容量用完就翻倍搬家；deque 是一串固定大小的块加一个中控数组；list 每个元素一个节点；map 是红黑树；unordered_map 是桶加链表，元素多了就 rehash。由此推出各自的复杂度、迭代器什么时候失效、怎么选，以及 priority_queue、string 的短字符串优化和 std::sort。数字都是 GCC 16.2 libstdc++ 上实测的。"
+summary: "容器的复杂度和迭代器失效规则都不用背，从它在内存里的样子就能推出来：连续内存的 vector 搬家时一切都失效，节点式的 list、map 只有被删的那个失效，unordered_map rehash 时迭代器失效、引用不失效。"
+toc: true
+math: true
+group: cpplinux
+weight: 122
+---
+
+STL 由六部分组成：容器、算法、迭代器、函数对象、适配器、分配器。算法不直接认识容器，只认迭代器，所以 `std::sort` 能排 `vector`，却排不了 `list`：前者的迭代器能随机跳，后者只能一步一步走。容器之间真正的差别在内存里的样子，复杂度、迭代器什么时候失效，都是从这里推出来的。下面的数字都在 GCC 16.2（libstdc++）上实测，`sizeof` 按 64 位算。
+
+## 1. vector：一块连续的内存
+
+### 1.1 三个指针 {#vector-layout}
+
+`sizeof(std::vector<int>)` 是 24：三个指针，分别指向数据开头（`begin`）、最后一个元素之后（`end`）、整块内存的末尾（`end_of_storage`）。`size()` 是 `end - begin`，`capacity()` 是 `end_of_storage - begin`。元素一个挨一个放在堆上，`v[i]` 就是“开头地址加 `i` 个元素”，一次计算一次读。
+
+连续还带来一个好处：顺序遍历时，CPU 一次从内存取回 64 字节的一整条缓存行，后面十几个 `int` 跟着就到了，硬件预取器还会提前去取下一条（见[硬件地图](/zh/ref/cpu-memory/)）。所以哪怕中间插入要挪元素，几千个元素以内的 `vector` 往往仍然比链表快。
+
+### 1.2 扩容：翻倍，均摊 O(1) {#vector-growth}
+
+容量用完以后，`push_back` 没法在原地把内存变大：后面的地址可能已经给了别人。它只能分配一块更大的新内存，把旧元素搬过去，再释放旧的。从空 `vector` 开始一个个 `push_back`，实测容量的变化是：
+
+```text
+1 2 4 8 16 32 64 128 256 512 1024 2048
+```
+
+libstdc++ 每次翻倍，MSVC 每次乘 1.5。**按倍数长，而不是每次多加固定几个，是均摊 O(1) 的关键**：攒到 $n$ 个元素，搬家搬过的元素一共是 $1 + 2 + 4 + \dots + n/2 < n$ 个，摊到每次 `push_back` 头上是常数；要是每次只多加 10 个，搬动次数就是 $n^2/20$ 量级。
+
+<svg viewBox="0 0 760 262" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="容量为 4 的旧缓冲区已满；push_back 第 5 个元素时分配容量为 8 的新缓冲区，把 4 个元素移过去，放入第 5 个，再释放旧缓冲区，begin、end、end_of_storage 三个指针都指向新内存" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .st0bg  { fill: #fbfaf7; }
+    .st0old { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .st0mv  { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
+    .st0new { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
+    .st0emp { fill: none; stroke: #b9c2cc; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    .st0ink { fill: #1c1b18; font-size: 13px; }
+    .st0mut { fill: #6b6558; font-size: 12px; }
+    .st0ttl { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .st0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .st0hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0old { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0mv { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0new { fill: #4a2f2c; stroke: #8f5a4c; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0emp { stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0ink, :root:is([data-theme="dark"], [data-theme="black"]) .st0ttl { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st0hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="st0a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="st0hd"/></marker></defs>
+  <rect class="st0bg" x="0" y="0" width="760" height="262" rx="10"/>
+  <text class="st0ttl" x="24" y="83">旧缓冲区（容量 4）</text>
+  <rect class="st0old" x="200" y="60" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="225" y="83" text-anchor="middle">1</text>
+  <rect class="st0old" x="252" y="60" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="277" y="83" text-anchor="middle">2</text>
+  <rect class="st0old" x="304" y="60" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="329" y="83" text-anchor="middle">3</text>
+  <rect class="st0old" x="356" y="60" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="381" y="83" text-anchor="middle">4</text>
+  <text class="st0mut" x="430" y="83">满了；搬完以后释放</text>
+  <text class="st0mut" x="200" y="114">↑ begin</text>
+  <text class="st0mut" x="400" y="114">↑ end = end_of_storage</text>
+  <path class="st0ln" d="M300,100 L300,146" marker-end="url(#st0a)"/>
+  <text class="st0mut" x="308" y="134">移过去</text>
+  <text class="st0ttl" x="24" y="173">新缓冲区（容量 8）</text>
+  <rect class="st0mv" x="200" y="150" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="225" y="173" text-anchor="middle">1</text>
+  <rect class="st0mv" x="252" y="150" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="277" y="173" text-anchor="middle">2</text>
+  <rect class="st0mv" x="304" y="150" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="329" y="173" text-anchor="middle">3</text>
+  <rect class="st0mv" x="356" y="150" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="381" y="173" text-anchor="middle">4</text>
+  <rect class="st0new" x="408" y="150" width="50" height="36" rx="4"/>
+  <text class="st0ink" x="433" y="173" text-anchor="middle">5</text>
+  <rect class="st0emp" x="460" y="150" width="50" height="36" rx="4"/>
+  <rect class="st0emp" x="512" y="150" width="50" height="36" rx="4"/>
+  <rect class="st0emp" x="564" y="150" width="50" height="36" rx="4"/>
+  <text class="st0mut" x="200" y="204">↑ begin</text>
+  <text class="st0mut" x="460" y="204">↑ end</text>
+  <text class="st0mut" x="616" y="204">↑ end_of_storage</text>
+  <text class="st0mut" x="24" y="232">容量用完没法原地变大：分配一块两倍大的新内存，把元素一个个移过去，放进新元素，再释放旧的。</text>
+  <text class="st0mut" x="24" y="250">之前拿到的指针、引用、迭代器都还指着旧内存，全部失效。</text>
+</svg>
+
+搬家时用移动还是拷贝，取决于元素的移动构造函数是不是 `noexcept`。`push_back` 要保证搬到一半抛异常时，原来的 `vector` 完好无损；移动过的元素已经被掏空，退不回去，所以只有确定移动不会抛，它才敢移动，否则老老实实拷贝（`std::move_if_noexcept`）。自己写的类，移动构造函数忘了标 `noexcept`，放进 `vector` 扩容时就会一个个深拷贝。
+
+事先知道大概要放多少个，就先 `reserve(n)`：实测 `reserve(1000)` 再 `push_back` 1000 次，容量一直是 1000，一次搬家都没有。
+
+### 1.3 迭代器失效：看内存有没有动 {#vector-invalidation}
+
+迭代器、指针、引用本质上都是元素的地址，元素一挪地方它们就失效。`vector` 上有两种情况会挪：扩容时整块搬家，所有的都失效；没扩容时，`insert` 和 `erase` 要把后面的元素往后或往前挪一格，插入、删除位置之后的全部失效，之前的不受影响。
+
+所以边遍历边删，要用 `erase` 的返回值接住下一个位置，而不是对已经失效的 `it` 做 `++`：
+
+```cpp
+std::vector<int> v{1, 2, 3, 4, 5, 6};
+for (auto it = v.begin(); it != v.end();) {
+    if (*it % 2 == 0) it = v.erase(it);   // erase 返回被删元素的下一个
+    else ++it;
+}
+// v = 1 3 5
+std::erase_if(v, [](int x) { return x % 2 == 0; });   // C++20 一句搞定
+```
+
+这种写法每删一个就把后面整体挪一次，删得多时是 O(n²)；`std::erase_if`（C++20 之前是 `remove_if` 加 `erase`）只把留下的元素往前挪一遍，O(n)。同样的循环写法对 `map`、`list` 也成立，实测删掉 `map` 里的偶数 key 后剩 `1 3`。
+
+### 1.4 clear 不还内存，shrink_to_fit 才还 {#vector-shrink}
+
+`clear()` 和 `resize(10)` 只是把 `end` 往回挪，容量不变，内存还占着。实测一个容量 1000 的 `vector`，`resize(10)` 以后容量仍是 1000，`shrink_to_fit()` 以后变成 10。标准只把 `shrink_to_fit` 定为“请求”，libstdc++ 的做法是分配一块刚好够的新内存、把元素搬过去。
+
+`std::vector<bool>` 是个例外：它把每个 `bool` 压成 1 位，`v[i]` 返回的是一个代理对象而不是 `bool&`，所以拿不到元素的地址，也不能当普通容器用在要求真引用的地方。
+
+## 2. deque、list、forward_list：不连续的几种
+
+### 2.1 deque：一串固定大小的块 {#deque}
+
+`deque` 想要两头都能 O(1) 插入，又保留下标访问。它把元素存在一个个固定大小的块里（libstdc++ 每块 512 字节，`int` 就是 128 个），再用一个中控数组（map）记各块的地址。`sizeof(std::deque<int>)` 是 80：中控数组的指针和大小，加上指向首尾的两个迭代器，每个迭代器自己要记 4 个指针。
+
+<svg viewBox="0 0 760 266" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="deque 的中控数组有 5 格，中间 3 格指向 3 个固定大小的块；第一块右边 3 格有元素，第二块满，第三块左边 5 格有元素；push_front 往第一块左边的空位放，push_back 往第三块右边的空位放" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .st1bg  { fill: #fbfaf7; }
+    .st1map { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .st1on  { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.2; }
+    .st1off { fill: none; stroke: #b9c2cc; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    .st1ink { fill: #1c1b18; font-size: 12.5px; }
+    .st1mut { fill: #6b6558; font-size: 12px; }
+    .st1ttl { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .st1ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .st1hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1map { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1on { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1off { stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1ink, :root:is([data-theme="dark"], [data-theme="black"]) .st1ttl { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="st1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="st1hd"/></marker></defs>
+  <rect class="st1bg" x="0" y="0" width="760" height="266" rx="10"/>
+  <text class="st1ttl" x="40" y="38">中控数组 map</text>
+  <text class="st1ttl" x="200" y="38">固定大小的块（libstdc++：512 字节一块）</text>
+  <rect class="st1map" x="40" y="56" width="90" height="30"/>
+  <text class="st1mut" x="85" y="76" text-anchor="middle">空</text>
+  <rect class="st1map" x="40" y="88" width="90" height="30"/>
+  <text class="st1ink" x="85" y="108" text-anchor="middle">块地址</text>
+  <rect class="st1map" x="40" y="120" width="90" height="30"/>
+  <text class="st1ink" x="85" y="140" text-anchor="middle">块地址</text>
+  <rect class="st1map" x="40" y="152" width="90" height="30"/>
+  <text class="st1ink" x="85" y="172" text-anchor="middle">块地址</text>
+  <rect class="st1map" x="40" y="184" width="90" height="30"/>
+  <text class="st1mut" x="85" y="204" text-anchor="middle">空</text>
+  <path class="st1ln" d="M130,103 L197,103" marker-end="url(#st1a)"/>
+  <path class="st1ln" d="M130,135 L197,135" marker-end="url(#st1a)"/>
+  <path class="st1ln" d="M130,167 L197,167" marker-end="url(#st1a)"/>
+  <rect class="st1off" x="200" y="90" width="34" height="26"/>
+  <rect class="st1off" x="236" y="90" width="34" height="26"/>
+  <rect class="st1off" x="272" y="90" width="34" height="26"/>
+  <rect class="st1off" x="308" y="90" width="34" height="26"/>
+  <rect class="st1off" x="344" y="90" width="34" height="26"/>
+  <rect class="st1on" x="380" y="90" width="34" height="26"/>
+  <rect class="st1on" x="416" y="90" width="34" height="26"/>
+  <rect class="st1on" x="452" y="90" width="34" height="26"/>
+  <rect class="st1on" x="200" y="122" width="34" height="26"/>
+  <rect class="st1on" x="236" y="122" width="34" height="26"/>
+  <rect class="st1on" x="272" y="122" width="34" height="26"/>
+  <rect class="st1on" x="308" y="122" width="34" height="26"/>
+  <rect class="st1on" x="344" y="122" width="34" height="26"/>
+  <rect class="st1on" x="380" y="122" width="34" height="26"/>
+  <rect class="st1on" x="416" y="122" width="34" height="26"/>
+  <rect class="st1on" x="452" y="122" width="34" height="26"/>
+  <rect class="st1on" x="200" y="154" width="34" height="26"/>
+  <rect class="st1on" x="236" y="154" width="34" height="26"/>
+  <rect class="st1on" x="272" y="154" width="34" height="26"/>
+  <rect class="st1on" x="308" y="154" width="34" height="26"/>
+  <rect class="st1on" x="344" y="154" width="34" height="26"/>
+  <rect class="st1off" x="380" y="154" width="34" height="26"/>
+  <rect class="st1off" x="416" y="154" width="34" height="26"/>
+  <rect class="st1off" x="452" y="154" width="34" height="26"/>
+  <text class="st1mut" x="504" y="107">push_front：放进这块左边的空位</text>
+  <text class="st1mut" x="504" y="171">push_back：放进这块右边的空位</text>
+  <text class="st1mut" x="40" y="236">块满了就再分配一块、在 map 里记一个地址，已有元素一个都不用搬，所以两端插入不让元素的引用失效。</text>
+  <text class="st1mut" x="40" y="254">map 自己满了才扩容，搬的也只是这些地址。下标访问要两步：先算在第几块，再算块内第几个。</text>
+</svg>
+
+块大小固定，下标 `i` 换算成“第几块、块内第几个”只要一次除法和取余，所以 `d[i]` 仍是 O(1)，只是比 `vector` 多一次间接读。两端插入不搬已有元素，所以指向元素的引用和指针都还有效，但迭代器会失效：迭代器里记着中控数组的位置，中控数组可能已经换了一块。在中间插入要把一侧的元素整体挪一格，O(n)。`std::stack` 和 `std::queue` 默认就建在 `deque` 上。
+
+### 2.2 list 和 forward_list：每个元素一个节点 {#list}
+
+`std::list` 是双向链表：每个元素单独 `new` 一个节点，节点里除了元素还有 `prev`、`next` 两个指针。`sizeof(std::list<int>)` 是 24：一个哨兵节点的两个指针，加上一个计数（C++11 起 `size()` 必须是 O(1)，所以把个数存了下来）。`forward_list` 是单向链表，`sizeof` 只有 8，连 `size()` 都不提供，为的就是比手写的单链表不多花一个字节。
+
+链表的长处是在已知位置插入、删除是 O(1)，而且不碰别的元素，所以除了被删的那个，迭代器永远有效；`splice` 能把节点从一个链表摘到另一个链表，不分配也不拷贝（[LRU 缓存](/zh/ref/lru-cache/)就靠它）。短处在内存：每个元素一次堆分配，节点散在堆上各处，顺序遍历时每走一步都可能是一次缓存未命中。`std::sort` 要随机访问迭代器，链表用不了，所以 `list` 自带一个成员函数 `sort()`，用归并排序。
+
+## 3. map 和 set：红黑树 {#map}
+
+`std::map`、`std::set` 是红黑树：每个元素一个节点，节点里有左、右、父三个指针和一个颜色。`sizeof(std::map<int,int>)` 是 48，放的是树头和元素个数。红黑树保证树高不超过 $2\log_2(n+1)$，所以查找、插入、删除都是 O(log n)，原理见[跳表、红黑树、B+ 树](/zh/ref/skiplist-rbtree-bplustree/)。
+
+**它比哈希表多给的是顺序**：中序遍历就是按 key 从小到大，`lower_bound`、`upper_bound` 能找“第一个不小于 x 的”，范围查询是 O(log n + k)。节点式结构插入、删除不挪别的节点，旋转改的只是指针，所以和 `list` 一样，除了被删的那个，迭代器都不失效。`multimap`、`multiset` 是同一棵树，只是允许 key 重复。
+
+## 4. unordered_map：哈希桶
+
+### 4.1 桶加链表 {#unordered-buckets}
+
+`unordered_map` 有一个桶数组，key 按 `hash(key) % 桶数` 落进某个桶，同一个桶里的元素用链表串起来（叫拉链法）。key 分散得好时每个桶只有零到几个元素，查找平均 O(1)。
+
+<svg viewBox="0 0 760 306" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="桶数为 13 的 unordered_map：key 按除以 13 的余数落进桶里；桶 0 串着 13 和 26，桶 1 是 1，桶 3 串着 3、16、29，桶 5 是 5，桶 2 和桶 4 空着" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .st2bg  { fill: #fbfaf7; }
+    .st2bk  { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .st2nd  { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
+    .st2ink { fill: #1c1b18; font-size: 12.5px; }
+    .st2mut { fill: #6b6558; font-size: 12px; }
+    .st2ttl { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .st2ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .st2hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st2bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st2bk { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st2nd { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st2ink, :root:is([data-theme="dark"], [data-theme="black"]) .st2ttl { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st2mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st2ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st2hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="st2a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="st2hd"/></marker></defs>
+  <rect class="st2bg" x="0" y="0" width="760" height="306" rx="10"/>
+  <text class="st2ttl" x="40" y="38">桶数组（13 个桶）</text>
+  <text class="st2ttl" x="200" y="38">每个桶里的元素串成链表：key % 13 相同的落在一起</text>
+  <rect class="st2bk" x="40" y="56" width="90" height="28"/>
+  <text class="st2ink" x="85" y="75" text-anchor="middle">桶 0</text>
+  <rect class="st2bk" x="40" y="86" width="90" height="28"/>
+  <text class="st2ink" x="85" y="105" text-anchor="middle">桶 1</text>
+  <rect class="st2bk" x="40" y="116" width="90" height="28"/>
+  <text class="st2mut" x="85" y="135" text-anchor="middle">桶 2（空）</text>
+  <rect class="st2bk" x="40" y="146" width="90" height="28"/>
+  <text class="st2ink" x="85" y="165" text-anchor="middle">桶 3</text>
+  <rect class="st2bk" x="40" y="176" width="90" height="28"/>
+  <text class="st2mut" x="85" y="195" text-anchor="middle">桶 4（空）</text>
+  <rect class="st2bk" x="40" y="206" width="90" height="28"/>
+  <text class="st2ink" x="85" y="225" text-anchor="middle">桶 5</text>
+  <text class="st2mut" x="85" y="252" text-anchor="middle">……</text>
+  <rect class="st2nd" x="200" y="58" width="70" height="24" rx="4"/>
+  <text class="st2ink" x="235" y="75" text-anchor="middle">13</text>
+  <rect class="st2nd" x="310" y="58" width="70" height="24" rx="4"/>
+  <text class="st2ink" x="345" y="75" text-anchor="middle">26</text>
+  <rect class="st2nd" x="200" y="88" width="70" height="24" rx="4"/>
+  <text class="st2ink" x="235" y="105" text-anchor="middle">1</text>
+  <rect class="st2nd" x="200" y="148" width="70" height="24" rx="4"/>
+  <text class="st2ink" x="235" y="165" text-anchor="middle">3</text>
+  <rect class="st2nd" x="310" y="148" width="70" height="24" rx="4"/>
+  <text class="st2ink" x="345" y="165" text-anchor="middle">16</text>
+  <rect class="st2nd" x="420" y="148" width="70" height="24" rx="4"/>
+  <text class="st2ink" x="455" y="165" text-anchor="middle">29</text>
+  <rect class="st2nd" x="200" y="208" width="70" height="24" rx="4"/>
+  <text class="st2ink" x="235" y="225" text-anchor="middle">5</text>
+  <path class="st2ln" d="M130,70 L197,70" marker-end="url(#st2a)"/>
+  <path class="st2ln" d="M270,70 L307,70" marker-end="url(#st2a)"/>
+  <path class="st2ln" d="M130,100 L197,100" marker-end="url(#st2a)"/>
+  <path class="st2ln" d="M130,160 L197,160" marker-end="url(#st2a)"/>
+  <path class="st2ln" d="M270,160 L307,160" marker-end="url(#st2a)"/>
+  <path class="st2ln" d="M380,160 L417,160" marker-end="url(#st2a)"/>
+  <path class="st2ln" d="M130,220 L197,220" marker-end="url(#st2a)"/>
+  <text class="st2mut" x="510" y="165">桶 3 有 3 个：查 29 要比较 3 次</text>
+  <text class="st2mut" x="40" y="280">元素个数超过 桶数 × max_load_factor（默认 1.0）就 rehash：换一个大约两倍大的桶数组，</text>
+  <text class="st2mut" x="40" y="298">每个节点按新桶数重新挂一遍。节点本身不动，所以引用和指针还有效，迭代器失效。</text>
+</svg>
+
+libstdc++ 的实际做法比图上多一层：所有节点串在同一条单链表上，同一个桶的节点在链上挨着，桶里存的是“指向本桶第一个节点的前一个节点”的指针。这样从头到尾遍历整个容器只是沿着这条链走，不用一个个桶去扫空桶。`sizeof(std::unordered_map<int,int>)` 是 56。
+
+### 4.2 负载因子和 rehash {#rehash}
+
+平均每个桶几个元素叫负载因子（load factor），超过上限 `max_load_factor`（默认 1.0）就 rehash。往一个空 `unordered_map` 里依次插 2000 个 key，实测桶数的变化是：
+
+```text
+1 → 13（第 1 个）→ 29（第 14 个）→ 59（第 30 个）→ 127（第 60 个）
+  → 257（第 128 个）→ 541（第 258 个）→ 1109（第 542 个）→ 2357（第 1110 个）
+```
+
+每次大约翻倍，而且都取质数，让 `% 桶数` 更均匀。rehash 要把所有节点重新挂一遍，是一次 O(n) 的停顿，和 `vector` 扩容一样靠倍增摊成均摊 O(1)。**rehash 只改指针、不搬节点，所以引用和指针不失效，迭代器失效**：实测插入 1000 个 key、经历多次 rehash 之前拿到的 `int& ref = u[1]`，之后读出来仍是原值。事先知道大小就 `reserve(n)`，一次把桶数开够。
+
+### 4.3 哈希不好，就退化成链表 {#bad-hash}
+
+平均 O(1) 的前提是 key 能均匀落进各个桶。libstdc++ 的 `std::hash<int>` 就是 key 本身，桶数取质数才不怕 key 有规律；可要是自定义的哈希函数把很多 key 算成同一个值，它们全挤在一个桶里，查找退化成 O(n)。故意构造冲突 key 让服务端哈希表退化，就是哈希洪泛攻击，所以对外的服务常用带随机种子的哈希。`std::pair` 没有默认的 `std::hash`，拿它当 key 要自己写哈希，常见做法是把两个成员的哈希值用乘法和异或混合起来，而不是简单相加（`(1,2)` 和 `(2,1)` 会撞）。
+
+## 5. 适配器、string 和 sort
+
+### 5.1 priority_queue：vector 上的二叉堆 {#priority-queue}
+
+`priority_queue` 不是独立的容器，而是在 `vector` 上维护一个二叉堆：下标 `i` 的子节点是 `2i+1`、`2i+2`，父节点的值总不小于子节点（默认大顶堆）。`top()` 是 O(1)，`push`、`pop` 各要沿树往上或往下调整一条路径，O(log n)。数据存在连续数组里，没有指针，这也是它比用 `set` 模拟优先队列快的原因。要小顶堆，第三个模板参数传 `std::greater<T>`。
+
+### 5.2 string 的短字符串优化 {#sso}
+
+libstdc++ 的 `sizeof(std::string)` 是 32：指针、长度，再加一块 16 字节的内部缓冲。不超过 15 个字符的字符串直接放在这块缓冲里，不碰堆，叫短字符串优化（SSO）；实测空字符串的 `capacity()` 就是 15。所以大量短字符串的创建、拷贝不会触发内存分配；代价是移动一个短字符串也得把这几个字节拷一遍，不能只交换指针。
+
+### 5.3 std::sort：内省排序 {#sort}
+
+`std::sort` 是内省排序（introsort）：主体是快速排序；递归太深（超过约 $2\log_2 n$ 层，说明枢轴一直选得很差）就改用堆排序，保证最坏也是 O(n log n)；区间小到 16 个元素以下，最后统一用插入排序收尾。它要求随机访问迭代器，而且不稳定，相等元素的先后可能变；要保持原顺序用 `std::stable_sort`（归并排序）。
+
+## 6. 怎么选 {#choose}
+
+| 容器 | 底层 | 按位置访问 | 查找 | 中间插入、删除 | 什么时候迭代器失效 |
+|---|---|---|---|---|---|
+| `vector` | 连续数组 | O(1) | O(n)，排好序可二分 | O(n) | 扩容时全部；否则插入、删除点之后的 |
+| `deque` | 中控数组加固定块 | O(1) | O(n) | 两端 O(1)，中间 O(n) | 任何插入；引用在两端插入时不失效 |
+| `list` | 双向链表 | O(n) | O(n) | 已知位置 O(1) | 只有被删的那个 |
+| `map` / `set` | 红黑树 | — | O(log n)，有序 | O(log n) | 只有被删的那个 |
+| `unordered_map` | 桶加链表 | — | 平均 O(1)，无序 | 平均 O(1) | rehash 时全部（引用不失效）；否则只有被删的 |
+
+**默认用 `vector`。** 连续内存对缓存最友好，几千个元素以内，中间插入要挪一半元素，也往往比链表“只改两个指针”还快，因为链表那 O(1) 之前先要 O(n) 地一个个节点走到插入位置。真正适合 `list` 的，是手里已经握着节点位置、要频繁在中间摘挂节点，并且需要别的迭代器不失效的场景，比如 LRU。
+
+`map` 和 `unordered_map` 之间看要不要顺序：要按 key 排序遍历、要找“比 x 大的第一个”、要范围查询，用 `map`；只按 key 查，用 `unordered_map`，平均 O(1)，但要付 rehash 的停顿和哈希函数的质量风险，而且每个节点也是一次堆分配。key 很少（几十个以内）时，排好序的 `vector` 加二分查找常常比两者都快。

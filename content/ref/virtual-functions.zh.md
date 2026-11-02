@@ -6,7 +6,7 @@ description: "虚函数让同一句 o->handle() 在运行时按对象的实际�
 summary: "虚调用 = 读对象开头的 vptr → 读这个类 vtable 里那一格 → 按读到的地址跳。最贵的通常不是这一跳，而是编译器没法内联；类型在编译期就能定时，可以改用静态多态。要复用一个类的实现，放成成员，不要继承它。"
 toc: true
 group: cpplinux
-weight: 102
+weight: 103
 aliases: ["/posts/virtual-functions/"]
 ---
 

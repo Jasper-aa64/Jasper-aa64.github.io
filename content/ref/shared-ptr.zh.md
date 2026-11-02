@@ -6,7 +6,7 @@ description: "shared_ptr 是对象加一块存计数的控制块；复制它是�
 summary: "shared_ptr 的计数在控制块里，make_shared 只分配一次；成员函数里要延长自己的寿命，用 shared_from_this() 共用外面那个控制块，自己另起一个会析构两次。"
 toc: true
 group: cpplinux
-weight: 104
+weight: 111
 aliases: ["/posts/shared-ptr/"]
 ---
 

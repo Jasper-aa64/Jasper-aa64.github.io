@@ -6,7 +6,7 @@ description: "A virtual function lets the same o->handle() call a different func
 summary: "A virtual call = load the vptr at the start of the object → load one slot of the class's vtable → jump to that address. The expensive part is usually not the jump but the lost inlining; when the type is known at compile time, static polymorphism avoids it. To reuse a class's implementation, make it a member, don't inherit from it."
 toc: true
 group: cpplinux
-weight: 102
+weight: 103
 aliases: ["/posts/virtual-functions/"]
 ---
 
