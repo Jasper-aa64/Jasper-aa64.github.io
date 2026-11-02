@@ -32,7 +32,7 @@
   </defs>
   <rect x="0" y="0" width="1600" height="1555" fill="#ffffff"/>
   <text x="20" y="38" class="h" style="font-size:23px">进程地图：一个 C++ 程序的虚拟地址空间</text>
-  <text x="20" y="62" class="s">左边是一个进程的虚拟地址空间，高地址在上（x86-64、4 级页表、开了 PIE；不按比例）。右边是这些地址怎么落到物理内存上，以及热路径怎么用它。</text>
+  <text x="20" y="62" class="s">左边是一个进程的虚拟地址空间，高地址在上（x86-64、4 级页表、开了 PIE；不按比例）。右边是这些地址怎么落到物理内存上，以及出了错落在哪一段。</text>
   <text x="20" y="82" class="s">蓝字 = 在哪里讲过（#N = 交易系统笔记 #N，速查 = 速查页的小节，硬件地图 = 打开硬件地图上对应的路径）。数字都是量级。</text>
   <text x="20" y="102" class="s">红线 = 缺页时内核往页表里填一项。</text>
   <text x="155" y="122" class="lab" text-anchor="end">高地址 ↑</text>
@@ -268,13 +268,14 @@
   <text x="812" y="736" class="s">地址不在任何映射里，或权限不对 → SIGSEGV</text>
   <text x="812" y="754" class="tag"><a href="/zh/posts/hot-path-memory-allocators/#32-预先缺页补上-mlock-在首次访问时留下的口子" target="_blank" rel="noopener"><tspan>#3 3.2 预先缺页 + mlock</tspan></a></text>
   </g>
-  <g id="hft">
+  <g id="errs">
   <rect x="800" y="860" width="780" height="150" rx="6" class="note"/>
-  <text x="812" y="884" class="t">低延迟系统怎么用这张图</text>
-  <text x="812" y="902" class="s">启动时把热路径要用的内存分好、每页写一遍（预先缺页），mlockall 锁住；热路径上不再 new，也不 munmap</text>
-  <text x="812" y="920" class="s">热数据放 2 MiB 大页，少些 TLB 未命中；热路径上不 mprotect、不 munmap，免得 TLB shootdown 打断别的核</text>
-  <text x="812" y="938" class="s">共享内存里存偏移，不存指针：同一批物理页在每个进程里的虚拟地址可能不一样</text>
-  <text x="812" y="956" class="tag"><a href="/zh/posts/hot-path-memory-allocators/" target="_blank" rel="noopener"><tspan>#3 内存池与分配器</tspan></a><a href="/zh/posts/hot-path-memory-allocators/#22-isolcpus-替你挡不住的税tlb-shootdown" target="_blank" rel="noopener"><tspan> · #3 2.2 TLB shootdown</tspan></a><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan> · #6 大页</tspan></a><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#22-同样的字节不同的地址" target="_blank" rel="noopener"><tspan> · #5 2.2 同样的字节，不同的地址</tspan></a></text>
+  <text x="812" y="884" class="t">出了错，落在图上哪里</text>
+  <text x="812" y="902" class="s">空指针解引用 → 最低 64 KiB 的不映射区：SIGSEGV</text>
+  <text x="812" y="920" class="s">递归太深、局部数组太大 → 越过栈底的保护页：SIGSEGV</text>
+  <text x="812" y="938" class="s">改字符串字面量 → 写只读的 .rodata：SIGSEGV</text>
+  <text x="812" y="956" class="s">越界、用已经释放的内存 → 多半还落在堆的映射里，不一定立刻崩，要用 ASan 查</text>
+  <text x="812" y="974" class="s">内存泄漏 → 堆或 mmap 区一直涨，RSS 跟着涨；double free → glibc 检查到后 abort</text>
   </g>
   <g id="see">
   <rect x="800" y="1030" width="780" height="150" rx="6" class="note"/>

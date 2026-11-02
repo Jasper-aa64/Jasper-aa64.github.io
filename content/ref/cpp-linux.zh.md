@@ -1,17 +1,18 @@
 ---
-title: "进程地图：一个 C++ 程序在内存里的样子"
-description: "一个进程的虚拟地址空间从高到低有哪几段，C++ 里写的全局变量、局部变量、new 出来的内存、线程栈各落在哪；这些虚拟地址怎么经页表落到物理内存上，为什么第一次碰一页要缺页；在自己机器上怎么看，低延迟系统怎么用。"
+title: "C++ 与 Linux：总图"
+description: "C++ 程序在 Linux 上最常翻的两张总图。进程地图：一个进程的虚拟地址空间有哪几段，C++ 里的变量、new 出来的内存、线程栈各落在哪，虚拟地址怎么经页表落到物理内存。IO 地图：读写文件、mmap、收发网络包时，数据在设备、内核和你的缓冲区之间怎么走，哪一步是 CPU 拷贝、哪一步是 DMA，IO 模型和零拷贝各省在哪。"
 date: 2026-11-02
-slug: "process-memory"
+slug: "cpp-linux"
+aliases: ["/zh/ref/process-memory/"]
 weight: 12
 toc: true
 ---
 
-这页是随时翻的总图，和[硬件地图](/zh/ref/cpu-memory/)是一对。硬件地图讲一次访存经过哪些硬件；这页讲访存之前的那一步：程序里的地址是从哪来的，指向哪一段，又怎么变成硬件地图上的物理地址。细分的知识点（fork、动态链接、IO）写在各自的文章里，这页只放总图和最常翻的几张表。
+这页放 C++ 程序在 Linux 上最常翻的总图，和[硬件地图](/zh/ref/cpu-memory/)是一对：硬件地图讲一次访存经过哪些硬件，这页讲在那之前，操作系统替程序做了什么。两张图：[进程地图](#map)讲一个进程的内存长什么样，[IO 地图](#io)讲数据怎么进出这个进程。细分的知识点（epoll、fork、动态链接……）写成 [C++ 与 Linux](/zh/categories/linux/) 分类下的单篇文章，这页只放总图和最常翻的表。
 
 ## 1. 进程地图：一个进程的虚拟地址空间 {#map}
 
-<a href="/maps/process-map.zh.html" target="_blank" rel="noopener"><img src="/images/ref/process-map.zh.svg" alt="进程地图：左边是 x86-64 上一个进程的虚拟地址空间，从高到低依次是内核空间、非规范地址空洞、主线程的栈、vDSO、mmap 区（共享库、大块 malloc、其他线程的栈和 TLS、文件映射和共享内存）、没映射的空地、堆、.bss、.data、.rodata、.text 和最低 64 KiB 的不映射区；右边是 C++ 变量各放在哪、线程共享什么、页表和缺页怎么把虚拟地址落到物理内存、在自己机器上怎么看、低延迟系统怎么用。" loading="lazy" decoding="async"></a>
+<a href="/maps/process-map.zh.html" target="_blank" rel="noopener"><img src="/images/ref/process-map.zh.svg" alt="进程地图：左边是 x86-64 上一个进程的虚拟地址空间，从高到低依次是内核空间、非规范地址空洞、主线程的栈、vDSO、mmap 区（共享库、大块 malloc、其他线程的栈和 TLS、文件映射和共享内存）、没映射的空地、堆、.bss、.data、.rodata、.text 和最低 64 KiB 的不映射区；右边是 C++ 变量各放在哪、线程共享什么、页表和缺页怎么把虚拟地址落到物理内存、在自己机器上怎么看、出了错落在哪一段。" loading="lazy" decoding="async"></a>
 
 左边一列是一个进程看到的全部地址，高地址在上，不按比例。右边是这些地址怎么经页表落到物理内存上。点图打开可交互的版本：点一个框看它放什么、在哪篇讲过；选“变量放在哪”“new 一块内存”这些路径，一步一步看。页表和物理内存两个框的蓝字会打开硬件地图，接着走一次 load 的路。
 
@@ -98,6 +99,44 @@ perf stat -e page-faults,dTLB-load-misses ./a.out
 
 `maps` 里程序文件自己的几行，权限依次是 `r--p`、`r-xp`、`r--p`、`rw-p`，就是 ELF 头、`.text`、`.rodata`、`.data` 加 `.bss`；`[heap]`、`[stack]`、`[vdso]` 有名字，`mmap` 来的匿名内存（那 1 MiB、线程栈）没有名字。开了 ASLR，每次运行地址都不一样，但顺序不变。
 
-### 1.5 低延迟系统怎么用 {#hft}
+## 2. IO 地图：数据怎么进出一个进程 {#io}
 
-热路径最怕“第一次”：第一次碰一页要缺页，第一次 `malloc` 一块大内存要进内核。所以启动时就把要用的内存全分好、每页写一遍，再 `mlockall` 锁住，运行时只在这些内存里分配（[#3](/zh/posts/hot-path-memory-allocators/)）。热数据放 2 MiB 大页，同样大小的数据占的 TLB 项少得多（[#6](/zh/posts/alignment-layout-cache-dram-geometry/)）。改页表（`munmap`、`mprotect`）会让内核给跑过这个进程的核都发中断、刷 TLB，热路径上一律不做（[#3 2.2](/zh/posts/hot-path-memory-allocators/#22-isolcpus-替你挡不住的税tlb-shootdown)）。共享内存的同一批物理页在每个进程里的虚拟地址可能不同，所以里面只存偏移、不存指针（[#5 2.2](/zh/posts/spmc-shared-memory-broadcast-ring/#22-同样的字节不同的地址)）。
+<a href="/maps/io-map.zh.html" target="_blank" rel="noopener"><img src="/images/ref/io-map.zh.svg" alt="IO 地图：上面是用户态的进程、用户缓冲区和 mmap 映射区，中间是内核里的 VFS、页缓存、回写线程、块设备层，以及 socket 缓冲区、epoll、TCP/IP 协议栈、网卡驱动，下面是磁盘、内存和网卡；橙线是 CPU 拷贝，蓝色虚线是 DMA，绿色虚线是映射；右边是 IO 模型和零拷贝两个说明框。" loading="lazy" decoding="async"></a>
+
+上面是用户态，中间是内核，下面是设备和内存；左边一列是文件，中间一列是网络。橙线是 CPU 在拷贝，蓝色虚线是设备用 DMA 直接读写内存，绿色虚线是映射、不拷贝。点图打开可交互的版本，选“读一个文件”“收一个包”“把文件发到网络”这些路径一步一步看。
+
+### 2.1 读写文件：中间隔着页缓存 {#file}
+
+`read` 不直接读磁盘，先查页缓存：内核把读过、写过的文件内容按页留在内存里。命中就把数据从页缓存拷进你的 `buf`，几百 ns 到几 µs；没命中才发请求给磁盘，NVMe 读一次约 10–100 µs，线程在这期间睡着，磁盘用 DMA 把数据写进页缓存后再叫醒它。
+
+`write` 也只写到页缓存，标成脏页就返回，回写线程过一会（默认脏了约 30 s）再写回磁盘。**`write` 返回不代表落盘**，要确定落盘得调 `fsync`，它等磁盘确认才返回，几百 µs 到几十 ms。`mmap` 则是把页缓存的页直接映射进进程的 mmap 区，读写不经过 `read`、`write`，也就没有那次拷贝（[进程地图](#segments)）。
+
+### 2.2 收发网络：socket 缓冲区和协议栈 {#net}
+
+收包时，网卡用 DMA 把包写进内存里的收包环，发中断；软中断里协议栈校验、去包头，按 IP 和端口找到 socket，把数据放进它的接收缓冲，唤醒等它的线程（被 epoll 关注的，回调把它挂上就绪链表，见 [epoll](/zh/posts/epoll-internals/)）。你调 `recv`，内核再把数据拷进 `buf`。
+
+发包反过来：`send` 把数据拷进 socket 的发送缓冲就返回，**返回只代表拷进去了，不代表对方收到**；TCP 分段发出去，数据留在发送缓冲里，直到对方确认，丢了重传。发送缓冲满了，`send` 阻塞，或者在非阻塞 socket 上返回 `EAGAIN`。
+
+### 2.3 零拷贝：sendfile 省的是哪几次 {#zero-copy}
+
+把一个文件原样发给客户端，用 `read` 加 `write` 要拷 4 次：磁盘到页缓存（DMA）、页缓存到 `buf`（CPU）、`buf` 到 socket 缓冲（CPU）、socket 缓冲到网卡（DMA），还有 4 次用户态、内核态切换。中间两次 CPU 拷贝，程序根本没看过这些数据。
+
+| 写法 | CPU 拷贝 | DMA 拷贝 | 态切换 |
+|---|---|---|---|
+| `read` + `write` | 2 | 2 | 4 |
+| `mmap` + `write` | 1 | 2 | 4 |
+| `sendfile` | 1 | 2 | 2 |
+| `sendfile`，网卡支持分散收集 DMA | 0 | 2 | 2 |
+
+`sendfile` 让数据不出内核；网卡支持分散收集（scatter-gather）DMA 时，socket 里只记页缓存里那些页的位置，网卡直接从页缓存读，CPU 一个字节都不拷。零拷贝省的是 CPU 拷贝和切换，DMA 那两次省不掉。
+
+### 2.4 IO 模型：阻塞、非阻塞、多路复用、异步 {#io-models}
+
+| 模型 | 数据没好时 | 谁把数据拷进 `buf` |
+|---|---|---|
+| 阻塞 | 线程睡在 `read` / `recv` 里 | 你的线程，在 `read` 里等着拷完 |
+| 非阻塞 | 立刻返回 `EAGAIN`，过会儿再试 | 你的线程 |
+| IO 多路复用（`select` / `poll` / `epoll`） | 线程睡在 `epoll_wait` 里，一次等很多 fd | 你的线程，醒来以后自己 `recv` |
+| 异步（io_uring） | 线程不用等，先去干别的 | 内核拷完再通知你 |
+
+阻塞和非阻塞问的是数据没好时等不等；同步和异步问的是拷贝这一步是不是你的线程在等。**前三种都是同步 IO**，只有最后一种是异步。
