@@ -183,7 +183,7 @@ Two shapes from the sections above are worth keeping as complete, reusable refer
 
 Zooming out, every section above is really the same question asked again at a different layer: *where does this storage actually come from, and who's managing it?*
 
-<svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From malloc/free's unpredictable latency, through Object Pool's v1 linear scan being superseded by v2's free list, through allocator-environment tuning, to the Arena's bump pointer, to the STL allocator and std::pmr — ending at memory strategy decoupled from container type" style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
+<svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From malloc/free's unpredictable latency, through Object Pool's v1 linear scan being superseded by v2's free list, through allocator-environment tuning, to the Arena's bump pointer, to the STL allocator and std::pmr — ending at memory strategy decoupled from container type" style="width:min(100%,640px);max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
   <style>
     .bg  { fill: #fbfaf7; }
     .ink { fill: #1c1b18; }

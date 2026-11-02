@@ -139,7 +139,7 @@ vec.emplace_back(1);  // 未定义行为
 
 往回看一眼,上面每一节其实都是在不同的层面上重新问同一个问题:*这块存储到底从哪来,谁在管它?*
 
-<svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="从 malloc/free 不可预测的延迟,到对象池 v1 的线性扫描被 v2 的空闲链表取代,到分配器环境调优,到 arena 的 bump 指针,再到 STL 分配器和 std::pmr——终点是内存策略与容器类型解耦" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+<svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="从 malloc/free 不可预测的延迟,到对象池 v1 的线性扫描被 v2 的空闲链表取代,到分配器环境调优,到 arena 的 bump 指针,再到 STL 分配器和 std::pmr——终点是内存策略与容器类型解耦" style="width:min(100%,640px);max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
     .bg  { fill: #fbfaf7; }
     .ink { fill: #1c1b18; }

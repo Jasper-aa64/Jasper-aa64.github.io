@@ -1641,9 +1641,10 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .prose a:has(> img) { display: block; text-decoration: none; }
 .prose a:has(> img) img { border: 1px solid var(--rule); transition: transform .5s var(--ease), box-shadow .5s var(--ease); }
 .prose a:has(> img):hover img { transform: translateY(-2px); box-shadow: var(--shadow); }
+/* Inline diagrams are drawn at 760 units wide: show them at that size, never stretched to the column. */
 .prose > svg, .prose p > svg {
   display: block;
-  width: 100%;
+  width: min(100%, 760px);
   height: auto;
   margin: 2.2em auto;
   border-radius: 12px;
@@ -2289,6 +2290,11 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 /* Diagrams are drawn light-only; in dark mode invert lightness but keep hues. */
 :root[data-theme="dark"] .prose img[src$=".svg"], :root[data-theme="black"] .prose img[src$=".svg"] {
+  filter: invert(.9) hue-rotate(180deg) saturate(1.15);
+  border-color: var(--rule-strong);
+}
+:root[data-theme="dark"] .prose > svg, :root[data-theme="dark"] .prose p > svg,
+:root[data-theme="black"] .prose > svg, :root[data-theme="black"] .prose p > svg {
   filter: invert(.9) hue-rotate(180deg) saturate(1.15);
   border-color: var(--rule-strong);
 }
