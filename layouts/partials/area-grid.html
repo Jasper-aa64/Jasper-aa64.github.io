@@ -1,11 +1,12 @@
-{{/* The four doors into the notes. Context: dict page, art (bool).
-     Home page: one row of four, text only. Categories page (art: true): 2 x 2 with illustrations. */}}
+{{/* The five doors into the notes. Context: dict page, art (bool).
+     Home page: one row of five, text only. Categories page (art: true): 2 x 2 with illustrations, "all" spanning the last row. */}}
 {{ $art := .art }}
 {{ $posts := partial "posts-all.html" .page }}
 {{ $ix := partial "class-index.html" .page }}
   <div class="area-grid{{ if $art }} area-grid--art{{ end }}">
     {{ range $i, $c := slice
       (dict "key" "lowlatency" "name" (i18n "catLowLatency") "blurb" (i18n "catLowLatencyBlurb") "href" (print ("posts/" | relLangURL) "#lowlatency"))
+      (dict "key" "cpplinux" "name" (i18n "catCppLinux") "blurb" (i18n "catCppLinuxBlurb") "href" (print ("posts/" | relLangURL) "#cpplinux"))
       (dict "key" "algorithms" "name" (i18n "catAlgorithms") "blurb" (i18n "catAlgorithmsBlurb") "href" (print ("posts/" | relLangURL) "#algorithms"))
       (dict "key" "ainative" "name" (i18n "catAINative") "blurb" (i18n "catAINativeBlurb") "href" (print ("posts/" | relLangURL) "#ainative"))
       (dict "key" "all" "name" (i18n "catAll") "blurb" (i18n "catAllBlurb") "href" ("posts/" | relLangURL)) }}

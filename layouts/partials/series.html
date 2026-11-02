@@ -1,5 +1,5 @@
 {{/* Where a post sits in the site's two-level classification.
-     key:  lowlatency | algorithms | ainative | other   (top level: Notes tabs, home cards, Categories page)
+     key:  lowlatency | cpplinux | algorithms | ainative | other   (top level: Notes tabs, home cards, Categories page)
      sub:  second level — "ch1", "ch2", … for low-latency (front matter `chapter:`, default 1),
            "combinatorics" / "number-theory" / "matrix" for algorithms, "" otherwise
      label: kicker shown on cards / post heads (chapter name, algorithm topic, "AI Native")
@@ -27,6 +27,8 @@
   {{ with findRESubmatch `^([A-Za-z ]+?)\s*(#[\w.\-]+|D\d+)?\s*[:：]\s*(.+)$` $t 1 }}
     {{ $m := index . 0 }}{{ $num = index $m 2 }}{{ $clean = index $m 3 }}
   {{ end }}
+{{ else if intersect $cats (slice "Linux") }}
+  {{ $key = "cpplinux" }}{{ $label = i18n "catCppLinux" }}
 {{ else if intersect $cats (slice "Engineering" "AI" "Workflow") }}
   {{ $key = "ainative" }}{{ $label = i18n "catAINative" }}
 {{ else }}

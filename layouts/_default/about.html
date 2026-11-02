@@ -7,7 +7,7 @@
 {{ $ix := partial "class-index.html" . }}
 {{ $tags := partial "tag-list.html" . }}
 {{ $zh := eq site.Language.Lang "zh" }}
-{{ $cats := 0 }}{{ range slice "lowlatency" "algorithms" "ainative" }}{{ if index $ix.count . }}{{ $cats = add $cats 1 }}{{ end }}{{ end }}
+{{ $cats := 0 }}{{ range slice "lowlatency" "cpplinux" "algorithms" "ainative" }}{{ if index $ix.count . }}{{ $cats = add $cats 1 }}{{ end }}{{ end }}
 
 <section class="about wrap">
   <!-- profile card -->
@@ -58,7 +58,7 @@
              Each subcategory is a shade of its parent's colour. */}}
         {{ $total := len $posts }}
         {{ $items := slice }}
-        {{ range slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
+        {{ range slice (slice "lowlatency" "catLowLatency") (slice "cpplinux" "catCppLinux") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
           {{ $k := index . 0 }}{{ $parent := i18n (index . 1) }}
           {{ $subs := index $ix.subs $k }}
           {{ if $subs }}

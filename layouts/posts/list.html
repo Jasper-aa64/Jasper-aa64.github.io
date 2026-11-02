@@ -16,7 +16,7 @@
   <div class="filter" aria-label="{{ i18n "filterLabel" }}">
     <div class="filter__row" role="toolbar">
       <button class="filter__btn is-active" type="button" data-filter="all" aria-pressed="true">{{ i18n "catAll" }} <sup>{{ len $posts }}</sup></button>
-      {{ range $def := slice (slice "lowlatency" "catLowLatency") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
+      {{ range $def := slice (slice "lowlatency" "catLowLatency") (slice "cpplinux" "catCppLinux") (slice "algorithms" "catAlgorithms") (slice "ainative" "catAINative") }}
         {{ with index $ix.count (index $def 0) }}
           <button class="filter__btn" type="button" data-filter="{{ index $def 0 }}" aria-pressed="false">{{ i18n (index $def 1) }} <sup>{{ . }}</sup></button>
         {{ end }}
