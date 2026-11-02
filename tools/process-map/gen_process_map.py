@@ -138,7 +138,7 @@ node('rodata', (177, 1212, 571, 90), 'img',
      zh=dict(title='.rodata：只读数据',
              lines=['字符串字面量、有常量初值的 const 全局变量、编译期算好的查找表',
                     'vtable 在 .data.rel.ro：启动时填好函数地址，再改成只读'],
-             tags=[[('速查 C++ 语法 1.2 vptr 和 vtable', ref('zh', 'cpp-syntax', 'virtual-vtable'))]],
+             tags=[[('虚函数 1.2 vptr 和 vtable', post('zh', 'virtual-functions', 'virtual-vtable'))]],
              panel=['字符串字面量（"hi"）、有常量初值的 const 全局变量、编译期算好的查找表放在 .rodata。这些页是只读的，写它会收到 SIGSEGV。',
                     'vtable 和 typeinfo 里存的是函数和对象的地址。开了 PIE 以后，这些地址要等加载基址定下来才能填，所以放在 .data.rel.ro：动态链接器启动时填好，再用 mprotect 改成只读（RELRO）。效果上和 .rodata 一样只读。',
                     '常说的“常量区”就是这一段。']))

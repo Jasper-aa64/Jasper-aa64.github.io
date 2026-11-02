@@ -97,7 +97,7 @@ run_crtp<BinanceFeed>:           run_virtual（程序里只有 OkxFeed 一个实
 - **虚函数**：GCC 在这里做了**推测性去虚化**（speculative devirtualization）：它看到整个程序只有 `OkxFeed` 一个实现，就先比较 vtable 那一格是不是 `OkxFeed::on_tick`，是的话走内联好的版本。即便如此，也还要多读 vptr、读 vtable、比较一次。程序里再加一个 `BybitFeed : IFeed`，`run_virtual` 就变回了开头那两条：`movq (%rdi), %rax` + `jmp *16(%rax)`，一次纯粹的间接跳转，`on_tick` 的函数体没法内联进来。
 - **对象大小**：`sizeof(BinanceFeed)` 是 4（只有一个 `int`，空基类不占空间），`sizeof(OkxFeed)` 是 16（vptr 8 字节 + `int` 4 字节 + 补齐 4 字节）。
 
-省下来的东西，就是[速查：虚函数的代价](/zh/ref/cpp-syntax/#virtual-cost)列的那几条：要猜的间接跳转、两次读内存、vptr 的 8 字节，以及最值钱的内联。
+省下来的东西，就是[虚函数：代价在哪](/zh/posts/virtual-functions/#virtual-cost)列的那几条：要猜的间接跳转、两次读内存、vptr 的 8 字节，以及最值钱的内联。
 
 **为什么说内联最值钱**：先看跳转本身贵不贵。同一处调用的目标如果总是同一个（一个 feed 对象收一整串行情，就是这样），间接目标预测器几乎每次都猜对，跳转加上 `call` / `ret` 只多几个周期，不到 1–2 ns。约 4–5 ns（15–20 个周期）是**猜错一次**的代价，不是每次都要付的。所以单看一次调用，虚函数没慢多少。
 
@@ -172,7 +172,7 @@ struct Price : EqualityOps<Price> {
 };
 ```
 
-`!=` 这个例子在 C++20 里已经不需要了：写了 `==`，编译器自动支持 `!=`。标准库里至今常用的同类例子是 `std::enable_shared_from_this<T>`：`class Session : public std::enable_shared_from_this<Session>`，子类什么都不写，就多了一个成员函数 `shared_from_this()`，在成员函数里返回一个指向自己、和外面共用引用计数的 `std::shared_ptr<Session>`。基类要把返回类型写成 `shared_ptr<Session>`，就得知道子类是谁，所以用 CRTP。它解决什么问题、错误写法会怎样，见[速查：shared_ptr 与 enable_shared_from_this](/zh/ref/cpp-syntax/#shared-from-this)。
+`!=` 这个例子在 C++20 里已经不需要了：写了 `==`，编译器自动支持 `!=`。标准库里至今常用的同类例子是 `std::enable_shared_from_this<T>`：`class Session : public std::enable_shared_from_this<Session>`，子类什么都不写，就多了一个成员函数 `shared_from_this()`，在成员函数里返回一个指向自己、和外面共用引用计数的 `std::shared_ptr<Session>`。基类要把返回类型写成 `shared_ptr<Session>`，就得知道子类是谁，所以用 CRTP。它解决什么问题、错误写法会怎样，见[shared_ptr 和 enable_shared_from_this](/zh/posts/shared-ptr/#shared-from-this-right)。
 
 #### 1.3.3 每个子类一份独立的静态成员
 
@@ -273,4 +273,4 @@ struct BybitFeed : FeedBase23 {
 
 `bybit.on_tick(3)` 时 `Self` 推导成 `BybitFeed&`，`self.on_tick_impl` 直接调到子类，效果和 CRTP 一样，但 1.4.1 节的“基类抄错”不存在了（没有模板实参可抄），`FeedBase23` 也成了一个普通类。GCC 14 起、Clang 18 支持，GCC 13 还不支持。现有代码里还是 CRTP 为主。
 
-同一套“编译期就把结构定下来”的思路，用在“一层层叠功能”上就是 Mixin（[速查：组合与 Mixin](/zh/ref/cpp-syntax/#mixin)），用在“把值提前算好”上就是 `constexpr` 一族（[速查：哪个保证编译期算](/zh/ref/cpp-syntax/#compile-time)）。
+同一套“编译期就把结构定下来”的思路，用在“一层层叠功能”上就是 Mixin（[速查：组合与 Mixin](/zh/ref/cpp-syntax/#mixin)），用在“把值提前算好”上就是 `constexpr` 一族（[const、constexpr：哪个保证编译期算](/zh/posts/const-constexpr/)）。

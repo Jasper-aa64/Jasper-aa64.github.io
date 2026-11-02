@@ -60,7 +60,7 @@ At `-O3`, `func` without `__restrict` vectorizes too. The compiler emits two ver
 - **Breaking it is undefined behavior.** If you write `__restrict` and then pass overlapping pointers, the compiler still optimizes as if they don't overlap, and the result is silently wrong, with no error anywhere.
 - **It affects only the compiler; the CPU never sees it.** There's no "restrict" in machine code; its whole effect is in which instructions the compiler emits. The CPU still checks every load against earlier stores to the same address.
 - **It isn't standard C++.** C99 has `restrict`, C++ doesn't; GCC, Clang and MSVC all support the `__restrict` extension.
-- **Different types don't need it.** Under strict aliasing, `int*` and `float*` are assumed not to overlap; `__restrict` is about two pointers of the same type. A `const T*` parameter doesn't replace it either: `const` only says you won't modify through it, while other pointers still can ([Reference: `const`](/ref/cpp-syntax/#const)).
+- **Different types don't need it.** Under strict aliasing, `int*` and `float*` are assumed not to overlap; `__restrict` is about two pointers of the same type. A `const T*` parameter doesn't replace it either: `const` only says you won't modify through it, while other pointers still can ([`const` and `constexpr`](/posts/const-constexpr/#const)).
 
 ## 2. How Wide to Store "Next" in a Linked Structure
 

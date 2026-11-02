@@ -1,6 +1,6 @@
 ---
-title: "C++ Syntax: What It Compiles To"
-description: "What common C++ features compile to, what they cost, and the alternatives. So far: virtual functions; composition and mixins; static vs. dynamic polymorphism; const / constexpr / consteval / constinit; shared_ptr and enable_shared_from_this."
+title: "Static Polymorphism: What It Compiles To"
+description: "Ways to fix \"which function\" at compile time, what they compile to and what they cost: CRTP, std::variant, batching by type, mixins, and how to choose between static and dynamic polymorphism. Virtual functions themselves are in the Virtual Functions post in the C++ & Linux section."
 date: 2026-10-10
 lastmod: 2026-10-12
 slug: "cpp-syntax"
@@ -8,74 +8,10 @@ weight: 20
 toc: true
 ---
 
-This page is a reference to keep open, not a post. Each entry follows the same order: what it is → what it compiles to → where the cost is → when it can be avoided and what to use instead. All assembly is real GCC 13.3 `-O2` x86-64 output. New language features get added to this page as they come up.
+This page is a reference to keep open, not a post. It covers static polymorphism: moving "which function to call" from run time to compile time. Virtual functions themselves (vptr, vtable, the cost of a virtual call) are C++ basics and live in the [Virtual Functions](/posts/virtual-functions/) post; `const` / `constexpr` and `shared_ptr` moved to the C++ & Linux section as well ([const and constexpr](/posts/const-constexpr/), [shared_ptr](/posts/shared-ptr/)). All assembly is real GCC 13.3 `-O2` x86-64 output.
 
-## 1. Virtual Functions: Pick the Function by the Object's Type at Run Time {#virtual}
+## 1. Alternatives to Virtual Functions: CRTP, variant, Batching by Type {#virtual-alternatives}
 
-### 1.1 What It Is {#virtual-what}
-
-A function declared `virtual` in a base class, when called through a base-class pointer or reference, runs the version for the object's **actual type**. The call site is always the same `o->handle()`; which function runs is known only at run time, from what `o` points to.
-
-```cpp
-struct Order {
-    virtual ~Order() = default;
-    virtual int handle() const = 0;   // pure virtual: every subclass implements it
-    int qty = 1;
-};
-struct LimitOrder : Order {
-    int handle() const override { return qty * 2; }
-};
-struct MarketOrder final : Order {    // final: no further subclasses
-    int handle() const override { return qty * 3; }
-};
-
-int run(const Order* o) { return o->handle(); }   // may be a LimitOrder or a MarketOrder
-```
-
-Typical use: a container holds objects of different subclasses (`std::vector<std::unique_ptr<Order>>`), and a loop calls `handle()` on each.
-
-### 1.2 What It Compiles To: vptr and vtable {#virtual-vtable}
-
-`run` compiles to just two instructions:
-
-```asm
-run(Order const*):
-        movq    (%rdi), %rax      # 1. load the object's first 8 bytes: the vptr, pointing at its class's vtable
-        jmp     *16(%rax)         # 2. load the function address from the table's 3rd slot and jump (indirect jump)
-```
-
-Two things make it work:
-
-- **vtable** (virtual function table): one per **class** with virtual functions, in read-only data, listing the address of each virtual function in declaration order. In `LimitOrder`'s table the `handle` slot holds `LimitOrder::handle`; in `MarketOrder`'s, `MarketOrder::handle`. (The first two slots are destructors, so `handle` sits at offset 16.)
-- **vptr** (vtable pointer): a hidden 8-byte pointer at the start of every **object**, set at construction to its class's vtable. That's why `sizeof(LimitOrder)` is 16: 8 bytes of vptr, 4 of `qty`, 4 of padding.
-
-So one virtual call = load the vptr → load the table slot → jump to the loaded address.
-
-### 1.3 Where the Cost Is {#virtual-cost}
-
-- **The indirect jump has to be predicted**: the target is loaded from memory, so the front end relies on the **indirect target predictor** ([#7 Section 1.3](/posts/branch-prediction-branch-optimization/)). When the object types at one call site follow a pattern (all the same, or a short repeating cycle), it almost never misses; when they're randomly mixed, it misses often, about 15–20 cycles each time.
-- **It blocks inlining**: the compiler doesn't know which function will run, so it can't inline it or optimize across the call (constant propagation, merging computations, vectorization). The smaller the function, the worse this is: `handle()` itself is a single multiply, much cheaper than the call.
-- **Two extra memory reads**: first the vptr from the start of the object (`movq (%rdi), %rax`), then the function address from the vtable slot (the `16(%rax)` in `jmp *16(%rax)`). If either goes to memory it costs about 70–120 ns, far more than the call itself, but they rarely do, for two different reasons:
-  - **The vptr sits in the same cache line as the object's data.** Without virtual functions you still read the object's members (such as `mult`). If the object is cold, both versions pay one cache miss for that line; reading the vptr doesn't add a second one. What the virtual version adds is only an object 8 bytes bigger, so fewer fit in a line.
-  - **There is one vtable per class, not per object.** It lives in the read-only data section; two or three classes means two or three cache lines, shared by every call. On a hot path something reads it all the time, so it stays in L1, about 1 ns.
-  - **When the prediction is right, the two reads barely slow anything.** The CPU doesn't wait for them to decide where to jump: the predictor supplies the target, the CPU starts executing the callee, and the two reads complete alongside, only to check the guess. On a mispredict, or when this call site has no prediction history yet, it really has to wait: read the vptr, and only then does it know where to read the function address; read that slot, and only then can it jump. The two reads happen one after the other and can't overlap.
-  - **What's really expensive is a cold start.** After the market has been quiet for a while, other code has pushed the hot path out of the cache, and when the next tick arrives both the object's line and the vtable's line may be missing. Both versions pay for the object; the vtable miss belongs to the virtual version alone and queues behind the vptr read, adding in the worst case one serial miss of about 70–120 ns (estimated from the [latency ranges](/ref/cpu-memory/#latency), not measured). The fix is to keep the hot path hot (run it on dummy data periodically even when idle), or use CRTP or `final` on the hot path so there is no vtable to read at all.
-- **8 more bytes per object**: a small object (say a 16-byte order) grows noticeably, so fewer fit in a cache line.
-
-### 1.4 When the Compiler Removes the Virtual Call (Devirtualization) {#virtual-devirt}
-
-When the compiler can prove the actual type, it calls the function directly, or inlines it. Three common cases; the first two are measured:
-
-```cpp
-int run_market(const MarketOrder* o) { return o->handle(); }   // MarketOrder is final
-int run_local() { LimitOrder l; return run(&l); }              // the object is right there
-```
-
-- **`final`**: `MarketOrder` is `final`, so there can't be a subclass and `o->handle()` can only be `MarketOrder::handle`. `run_market` compiles to `movl 8(%rdi), %eax` + `leal (%rax,%rax,2), %eax`: the multiply by 3 is inlined, no jump.
-- **Local objects**: in `run_local` the type is written right there; once `run` is inlined, the whole function compiles to `movl $2, %eax`.
-- **A single implementation**: with `-flto` (link-time optimization) the compiler sees the whole program, and a virtual function with only one implementation can be called directly too (not measured here).
-
-### 1.5 Alternatives to Virtual Functions {#virtual-alternatives}
 
 **CRTP** (curiously recurring template pattern): the subclass passes itself as a template parameter to the base, and the base `static_cast`s back to the subclass to call it. The type is fixed at compile time and the call inlines.
 
@@ -114,37 +50,8 @@ This compiles to a load of the type index (1 byte) plus two compare-and-jumps, w
 
 **Structure assembled at compile time**: for things like a strategy tree, where how the nodes connect is fixed before deployment, make the nodes types and assemble the whole tree at compile time; see the compile-time decision tree in [#7 Section 3.6](/posts/branch-prediction-branch-optimization/).
 
-### 1.6 How to Choose {#virtual-choose}
+## 2. Mixins: Stack Features at Compile Time with a Template Inheritance Chain {#mixin}
 
-- **Types known only at run time, open set (plugins, read from config)**: virtual functions. On hot paths, keep the types at one call site patterned, or batch by type.
-- **Fixed set of types, objects stored together**: `std::variant` + `std::visit`.
-- **Type known at compile time**: templates or CRTP; mark classes `final` where you can.
-- **Not on a hot path**: virtual functions read best; don't agonize.
-
-## 2. Composition and Inheritance: Reuse an Implementation as a Member, Stack Features with Mixins {#composition}
-
-### 2.1 Composition: To Reuse a Class's Implementation, Make It a Member {#composition-member}
-
-```cpp
-class InheritanceOrderBook : public std::vector<Order> {   // inheritance: "is" a vector
-};
-
-class CompositionOrderBook {                                // composition: "has" a vector
-    std::vector<Order> orders_;
-public:
-    auto size() const noexcept { return orders_.size(); }  // expose only what's needed
-};
-```
-
-**They compile the same**: member access and `size()` both read the field inside `orders_` directly, and `size()` inlines. The difference is all design; publicly inheriting `std::vector` has three problems:
-
-- **The whole interface is exposed**: anyone can call `push_back` or `erase`, so invariants like "the book is sorted by price" can't be protected. Composition exposes only the functions you choose.
-- **The destructor isn't virtual**: `std::vector<Order>* p = new InheritanceOrderBook;` followed by `delete p` is undefined behavior. Standard containers aren't designed to be base classes.
-- **Tied to the implementation**: replacing `std::vector` with another container means changing every caller with inheritance, but only the class's internals with composition.
-
-The rule: if you want "its implementation," make it a member (has-a); public inheritance only when you really mean "usable as one" (is-a) and the base is designed for it (it has a virtual destructor).
-
-### 2.2 Mixins: Stack Features at Compile Time with a Template Inheritance Chain {#mixin}
 
 Two terms first, then the code.
 
@@ -173,7 +80,7 @@ struct DoubleValueDeco : Iterator {    // one decorator layer: wraps the next, c
 };
 ```
 
-Every extra layer is one more heap allocation (`unique_ptr`), and every call costs one more virtual call on the way down (the costs in [entry 1](#virtual-cost)).
+Every extra layer is one more heap allocation (`unique_ptr`), and every call costs one more virtual call on the way down (the costs in [Virtual Functions](/posts/virtual-functions/#virtual-cost)).
 
 **The mixin version**: each layer is a template that takes the next layer as its template parameter and inherits from it.
 
@@ -211,7 +118,7 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // the template-argument order 
 
 <a href="/images/ref/mixin-vs-decorator.en.svg" target="_blank" rel="noopener"><img src="/images/ref/mixin-vs-decorator.en.svg" alt="Top: the decorator is 3 heap objects, each with a vptr, linked by inner pointers; one call to cell() loads a pointer, loads the vtable and makes an indirect call at every layer, and the compiler cannot inline. Bottom: the mixin is one 32-byte object; DoubleValue and OddOnly are base classes wrapped around MatrixWalk with no members, no vptr and no pointers, and every call inlines; the conditional jump of the odd filter remains." loading="lazy" decoding="async"></a>
 
-### 2.3 Order Is Meaning {#mixin-order}
+### 2.1 Order Is Meaning {#mixin-order}
 
 For the same matrix `{{1, 2, 3}, {}, {4, 5, 6}}`:
 
@@ -222,7 +129,7 @@ For the same matrix `{{1, 2, 3}, {}, {4, 5, 6}}`:
 
 A decorator can be stacked at run time from config; a mixin's order is written into the type and fixed at compile time.
 
-### 2.4 Costs {#mixin-cost}
+### 2.2 Costs {#mixin-cost}
 
 - **Combinatorial types**: every combination is a new type with its own instantiated code, growing compile time and binary size.
 - **Hard-to-read errors**: a few levels of nested templates make long error messages.
@@ -235,7 +142,7 @@ In one line: **the difference is when "which function to call" gets decided.** S
 
 ### 3.1 Where the Speed Comes From: Inlining, Not Just One Jump Saved {#poly-speed}
 
-The run-time cost of dynamic polymorphism is in [1.3](#virtual-cost): one indirect jump to predict, two extra memory reads, 8 bytes per object, and no inlining. The most expensive item is usually **no inlining**.
+The run-time cost of dynamic polymorphism is in [Virtual Functions 1.3](/posts/virtual-functions/#virtual-cost): one indirect jump to predict, two extra memory reads, 8 bytes per object, and no inlining. The most expensive item is usually **no inlining**. One more cost appears only on a cold start: after the market has been quiet for a while, other code has pushed the hot path out of the cache, and when the next tick arrives the vtable's line may be missing too, adding one serial miss behind the vptr read. The fix is to keep the hot path hot (run it on dummy data periodically even when idle), or use CRTP or `final` so there is no vtable to read.
 
 - The indirect jump itself: when the types at one call site follow a pattern it is almost never mispredicted and costs only a few cycles; with randomly mixed types each mispredict costs about 15–20 cycles.
 - Inlining: once the body is expanded into the caller, the compiler can propagate constants, merge computation, and vectorize. The smaller the body, the bigger this gap.
@@ -304,297 +211,3 @@ Two questions:
 
 The two are often mixed: an outer virtual call or `variant` picks once, and the chosen code is static all the way down.
 
-## 4. `const` / `constexpr` / `consteval` / `constinit`: Which One Guarantees Compile Time {#compile-time}
-
-Four look-alike keywords that answer different questions:
-
-| Keyword | Applies to | Guaranteed to be computed at compile time? | Can it change later? |
-|---|---|---|---|
-| `const` | variables, parameters, member functions | **no** | no |
-| `constexpr` | variables | yes | no |
-| `constexpr` | functions | no: only where a constant is required | — |
-| `consteval` | functions | yes: every call is evaluated at compile time | — |
-| `constinit` | variables with static storage duration | the initialization is | **yes** (not `const`) |
-
-### 4.1 `const`: Read-Only, Not a Compile-Time Constant {#const}
-
-`const` only says the value can't change after initialization; the initial value can come from run time (`const int scale = get_config("scale");`). For performance, separate two cases:
-
-- **A `const` object itself** (`const int max_len = 100;`): modifying it is undefined behavior, so the compiler can use 100 as an immediate. An integral `const` initialized with a constant can even be a template argument.
-- **`const T*` / `const T&`**: only *you* can't modify through it; another pointer still can, so the compiler has to assume it might:
-
-```cpp
-int f(const int* p, int* q) {
-    int a = *p;
-    *q = 1;          // q may point to the same int as p
-    return a + *p;   // so *p has to be loaded again
-}
-```
-
-It compiles to `movl (%rdi), %eax` → `movl $1, (%rsi)` → `addl (%rdi), %eax`: `*p` is loaded twice. The benefit of a `const &` parameter is no copy and no accidental writes, not extra optimization.
-
-### 4.2 `constexpr`: Variables Are Computed at Compile Time, Functions *Can* Be {#constexpr}
-
-- **A `constexpr` variable**: its initial value must be computed at compile time, or it's a compile error.
-- **A `constexpr` function**: is *allowed* to run at compile time. Where a constant is required (a `constexpr` variable, a template argument, an array size, `static_assert`), it must; with a run-time argument it's an ordinary call.
-
-```cpp
-constexpr int twice(int x) { return x + x; }
-constexpr int four = twice(2);           // computed at compile time: 4
-int twice_rt(int n) { return twice(n); } // computed at run time
-```
-
-`twice_rt` compiles to a single `leal (%rdi,%rdi), %eax`, like any ordinary function. `constexpr` is not an optimization hint.
-
-### 4.3 `consteval`: Every Call Must Happen at Compile Time {#consteval}
-
-A `consteval` function (an immediate function) must be fully evaluated at compile time on every call; a non-constant argument is a compile error. Use it where computing at run time would be a bug, such as validating configuration or generating a hash at compile time.
-
-```cpp
-consteval int get_dim() { return 4; }
-Vector<get_dim()> v;     // usable as a template argument
-```
-
-The catch: **inside a `consteval` function its parameters are not constant expressions**, so you can't write `static_assert(i == 1)` or use `i` as a template argument. For that, make it a template parameter, `template <int I>`.
-
-**`if consteval`** (C++23): inside one `constexpr` function, use an implementation that can run at compile time when evaluated at compile time, and a faster one at run time:
-
-```cpp
-constexpr std::size_t my_strlen(const char* s) {
-    if consteval {
-        std::size_t n = 0;          // compile time: count byte by byte
-        while (s[n]) ++n;
-        return n;
-    } else {
-        return std::strlen(s);      // run time: the library function (not constexpr)
-    }
-}
-```
-
-### 4.4 `constinit`: Static Variables Initialized at Compile Time, Still Mutable {#constinit}
-
-`constinit` does one thing: **a global or `static` variable must be initialized at compile time**, or it's a compile error. It is **not** `const`; the variable can change afterwards.
-
-```cpp
-constexpr int somefunc() { return 27; }    // must be constexpr, or the next line fails to compile
-constinit int g_counter = somefunc();      // goes in .data, with 27 stored in the executable
-// ...
-++g_counter;                               // allowed
-```
-
-It guards against the **static initialization order fiasco**: globals initialized at run time are computed by startup code before `main`, the order across source files is unspecified, and a global that reads another one not yet initialized is a bug. `constinit` guarantees that step doesn't exist.
-
-### 4.5 Non-Type Template Parameters: Make a Constant Part of the Type {#nttp}
-
-A template parameter can be a value (an NTTP, non-type template parameter):
-
-```cpp
-template <int Dim>
-struct Vector {
-    float data[Dim];
-    float dot(const Vector& other) const {
-        float sum = 0.0f;
-        for (int i = 0; i < Dim; i++) sum += data[i] * other.data[i];
-        return sum;
-    }
-};
-```
-
-`Vector<4>` and `Vector<8>` are two types, each compiled separately; the trip count is a constant, so the compiler can fully unroll or vectorize. The cost is the code bloat in [entry 3](#poly-cost). The template argument must be a compile-time constant: `const int d = 4;` works, `int n = 4; const int d = n;` doesn't.
-
-### 4.6 Generating a Lookup Table at Compile Time {#lut}
-
-```cpp
-constexpr std::array<uint64_t, 20> make_pow10() {
-    std::array<uint64_t, 20> t{};
-    uint64_t v = 1;
-    for (auto& x : t) { x = v; v *= 10; }
-    return t;
-}
-constexpr auto kPow10 = make_pow10();     // filled at compile time, placed in .rodata
-uint64_t pow10(unsigned e) { return kPow10[e]; }
-```
-
-`pow10` compiles to `leaq kPow10(%rip), %rax` + `movq (%rax,%rdi,8), %rax`: one memory load. That load is the cost of a lookup: about 1 ns from L1D, but a big table accessed randomly falls to L2, L3 or even DRAM ([reference: latency](/ref/cpu-memory/#latency)), and then computing directly may be faster.
-
-### 4.7 How to Choose {#compile-time-choose}
-
-- The value must exist at compile time and failing to compute it should be an error → a `constexpr` variable or a `consteval` function.
-- One implementation used both at compile time and at run time → a `constexpr` function, with `if consteval` if needed.
-- A global or `static` variable that must be mutable but shouldn't be initialized at run time → `constinit`.
-- You just don't want it modified → `const`.
-
-## 5. `shared_ptr` and `enable_shared_from_this`: Getting Your Own `shared_ptr` Inside a Member Function {#shared-from-this}
-
-### 5.1 What `shared_ptr` Is: the Object Plus a Control Block Holding the Count {#shared-ptr}
-
-`std::shared_ptr<T>` lets several places own one object together: anyone can hold a copy, and the object is destroyed when the last copy goes away. It does this with a reference count. The count isn't stored in the object but in a separate piece of memory called the **control block**.
-
-- `std::make_shared<T>()` allocates once, with the object and the control block side by side.
-- Every copy of a `shared_ptr` adds 1 to the count, every destroyed one subtracts 1, and at 0 the object is destroyed.
-- A `shared_ptr` itself is two pointers, one to the object and one to the control block: `sizeof` is 16 B.
-
-<svg viewBox="0 0 760 304" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="make_shared allocates once, object next to the control block; shared_ptr(new T) allocates twice and the control block holds a pointer to the object. Each shared_ptr stores an object pointer and a control-block pointer." style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
-  <style>
-    .sp0bg  { fill: #fbfaf7; }
-    .sp0p   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
-    .sp0c   { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
-    .sp0t   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
-    .sp0box { fill: none; stroke: #6b6558; stroke-width: 1.2; stroke-dasharray: 5 4; }
-    .sp0ink { fill: #1c1b18; font-size: 12px; }
-    .sp0mut { fill: #6b6558; font-size: 12px; }
-    .sp0ttl { fill: #1c1b18; font-size: 13.5px; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .sp0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
-    .sp0hd  { fill: #6b6558; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0bg { fill: #17161b; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0p { fill: #23262c; stroke: #3f4650; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0c { fill: #4a2f2c; stroke: #8f5a4c; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0t { fill: #33421f; stroke: #8fb257; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0box { stroke: #a19caf; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ink, :root:is([data-theme="dark"], [data-theme="black"]) .sp0ttl { fill: #e9e7ef; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0mut { fill: #a19caf; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ln { stroke: #a19caf; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0hd { fill: #a19caf; }
-  </style>
-  <defs><marker id="sp0a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="sp0hd"/></marker></defs>
-  <rect class="sp0bg" x="0" y="0" width="760" height="304" rx="10"/>
-  <text class="sp0ttl" x="24" y="32">std::make_shared&lt;T&gt;()</text>
-  <text class="sp0mut" x="26" y="71">p1</text>
-  <rect class="sp0p" x="48" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="103" y="71" text-anchor="middle">object ptr</text>
-  <rect class="sp0p" x="158" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="213" y="71" text-anchor="middle">ctrl block ptr</text>
-  <text class="sp0mut" x="26" y="227">p2</text>
-  <rect class="sp0p" x="48" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="103" y="227" text-anchor="middle">object ptr</text>
-  <rect class="sp0p" x="158" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="213" y="227" text-anchor="middle">ctrl block ptr</text>
-  <rect class="sp0box" x="42" y="114" width="312" height="62" rx="6"/>
-  <rect class="sp0t" x="48" y="120" width="110" height="50"/>
-  <text class="sp0ink" x="103" y="149" text-anchor="middle">T object</text>
-  <rect class="sp0c" x="158" y="120" width="46" height="50"/>
-  <text class="sp0ink" x="181" y="149" text-anchor="middle">vptr</text>
-  <rect class="sp0c" x="204" y="120" width="72" height="50"/>
-  <text class="sp0ink" x="240" y="149" text-anchor="middle">use = 2</text>
-  <rect class="sp0c" x="276" y="120" width="72" height="50"/>
-  <text class="sp0ink" x="312" y="149" text-anchor="middle">weak</text>
-  <path class="sp0ln" d="M103,82 L103,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M103,208 L103,173" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M213,82 L213,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M213,208 L213,173" marker-end="url(#sp0a)"/>
-  <text class="sp0mut" x="24" y="266">One allocation: object next to control block</text>
-  <text class="sp0ttl" x="408" y="32">std::shared_ptr&lt;T&gt;(new T)</text>
-  <text class="sp0mut" x="410" y="71">p1</text>
-  <rect class="sp0p" x="432" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="487" y="71" text-anchor="middle">object ptr</text>
-  <rect class="sp0p" x="542" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="597" y="71" text-anchor="middle">ctrl block ptr</text>
-  <text class="sp0mut" x="410" y="227">p2</text>
-  <rect class="sp0p" x="432" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="487" y="227" text-anchor="middle">object ptr</text>
-  <rect class="sp0p" x="542" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="597" y="227" text-anchor="middle">ctrl block ptr</text>
-  <rect class="sp0t" x="432" y="120" width="100" height="50"/>
-  <text class="sp0ink" x="482" y="149" text-anchor="middle">T object</text>
-  <rect class="sp0c" x="552" y="120" width="40" height="50"/>
-  <text class="sp0ink" x="572" y="149" text-anchor="middle">vptr</text>
-  <rect class="sp0c" x="592" y="120" width="58" height="50"/>
-  <text class="sp0ink" x="621" y="149" text-anchor="middle">use = 2</text>
-  <rect class="sp0c" x="650" y="120" width="44" height="50"/>
-  <text class="sp0ink" x="672" y="149" text-anchor="middle">weak</text>
-  <rect class="sp0c" x="694" y="120" width="52" height="50"/>
-  <text class="sp0ink" x="720" y="149" text-anchor="middle">ptr→T</text>
-  <path class="sp0ln" d="M482,82 L482,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M482,208 L482,173" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M597,82 L597,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M597,208 L597,173" marker-end="url(#sp0a)"/>
-  <text class="sp0mut" x="408" y="266">Two allocations: control block also stores a T*</text>
-  <text class="sp0mut" x="24" y="292">use_count sits at offset 8 of the control block in both: what addl $1, 8(%rdx) in 5.2 adds to.</text>
-</svg>
-
-The two spellings differ in how many allocations they make. `make_shared` calls `operator new` once, so the object and the control block share one block of memory: one allocation fewer, and the count you touch along with the object is likely on a neighboring cache line. The cost shows up on release: when `use_count` reaches 0 the object is destroyed as usual, but its bytes are attached to the control block and can only be freed once `weak_count` also reaches 0 (the last `weak_ptr` is gone). **With a large object and a long-lived `weak_ptr`, `make_shared` keeps that memory around**, so there `shared_ptr<T>(new T)` allocates separately and the object's memory goes back as soon as it is destroyed.
-
-### 5.2 What It Compiles To: a Copy = Copy Two Pointers + Add 1 to the Count {#shared-ptr-asm}
-
-```cpp
-std::shared_ptr<S> copy_sp(const std::shared_ptr<S>& p) { return p; }
-```
-
-```text
-movdqu  (%rsi), %xmm0                    # read 16 B at once: object pointer + control-block pointer
-movups  %xmm0, (%rdi)                    # write them into the new shared_ptr
-movq    8(%rdi), %rdx                    # control-block address
-testq   %rdx, %rdx
-je      .L12                             # null: no count to bump
-cmpb    $0, __libc_single_threaded(%rip) # is the process single-threaded?
-je      .L14
-addl    $1, 8(%rdx)                      # single-threaded: plain add
-ret
-.L14:
-lock addl $1, 8(%rdx)                    # multi-threaded: atomic add
-```
-
-`__libc_single_threaded` is a flag maintained by glibc; it is true until the process starts a second thread. Once there are several threads, every copy (and every decrement on destruction) is a `lock` atomic operation: about 5–10 ns when no other core is competing; when several cores copy `shared_ptr`s to the same object at once, the cache line holding the count bounces between cores (cache-line ping-pong), and one operation takes tens to hundreds of ns. So don't pass `shared_ptr` by value on a hot path: if you only use the object and don't need to own it, pass `const std::shared_ptr<T>&`, or just `T&` / `T*`.
-
-### 5.3 The Scenario: the Object Must Outlive the Callback {#shared-from-this-why}
-
-A `Session` object represents one connection to an exchange and is managed by a `shared_ptr`. `Session::send_order()` sends an order request, and the exchange replies a little later (say tens of µs). The program doesn't stop and wait; it first registers a function meaning "call this when the reply arrives". A function registered now and called later by someone else is a **callback**. After registering, `send_order()` returns immediately and the program moves on. What notices the reply and calls the registered callback is usually a loop that keeps spinning, called the **event loop**.
-
-The problem is the waiting period. Before the reply arrives, some other part of the program may stop using this connection (risk control disconnects it, say) and drop its `shared_ptr`. If the callback doesn't hold its own `shared_ptr<Session>`, the count drops to 0 and the `Session` is destroyed; when the reply arrives, the callback uses a destroyed object. If the callback holds a copy, the count can't reach 0 before it runs:
-
-| Step | What happens | Count if the callback holds nothing | Count if the callback holds a copy |
-|---|---|---|---|
-| 1 | `make_shared<Session>()`; the outside holds one | 1 | 1 |
-| 2 | `send_order()` registers the callback | 1 | 2 |
-| 3 | The outside drops its copy | 0, `Session` destroyed | 1, `Session` still alive |
-| 4 | The reply arrives; the event loop calls the callback | uses a destroyed object: undefined behavior | handles the reply normally |
-| 5 | The callback finishes and is removed | — | 0, destroyed only now |
-
-The catch: the callback is registered inside the member function `send_order()`, where all you have is `this`, a raw pointer (`Session*`), not a `shared_ptr`. How do you get from `this` a `shared_ptr` that **shares the same count** as the outside one?
-
-### 5.4 The Wrong Way: `shared_ptr<Session>(this)` Starts a Second Control Block {#shared-this-wrong}
-
-```cpp
-void send_order() {
-    std::shared_ptr<Session> self(this);   // wrong: allocates a new control block
-    g_loop.push_back([self] { self->on_reply(); });
-}
-```
-
-A `shared_ptr` built from a raw pointer doesn't know the object is already owned, so it creates a new control block with the count starting at 1. Now two counts run independently: at step 3 the outside one reaches 0 and destroys the object; the callback's copy is still 1 and points at a destroyed object; at step 5 it reaches 0 too and deletes again. Measured on GCC 13, the program aborts (`munmap_chunk(): invalid pointer`), and ASan reports a bad-free.
-
-### 5.5 The Right Way: Inherit `enable_shared_from_this` and Call `shared_from_this()` {#shared-from-this-right}
-
-```cpp
-std::vector<std::function<void()>> g_loop;     // a stand-in event loop: registered callbacks wait here until the reply arrives
-
-struct Session : std::enable_shared_from_this<Session> {
-    int id = 7;
-    void on_reply() { std::printf("reply on session %d\n", id); }
-    void send_order() {
-        // ...send the order request...
-        auto self = shared_from_this();        // count +1, sharing the outside copy's control block
-        g_loop.push_back([self] { self->on_reply(); });
-    }
-};
-
-void demo() {
-    auto s = std::make_shared<Session>();      // step 1: count 1
-    s->send_order();                           // step 2: count 2
-    s.reset();                                 // step 3: the outside drops its copy; count 1, Session alive
-    for (auto& cb : g_loop) cb();              // step 4: the reply arrives; prints reply on session 7
-    g_loop.clear();                            // step 5: callback removed; count 0, destroyed only now
-}
-```
-
-**How it works.** `enable_shared_from_this<Session>` holds a hidden `std::weak_ptr<Session>` member. A `weak_ptr` also points at the control block but doesn't add to the count, so it doesn't keep the object alive. When `make_shared` builds an object and sees that it inherits `enable_shared_from_this`, it points that `weak_ptr` at the new control block. `shared_from_this()` just upgrades it to a `shared_ptr`: same control block, count +1.
-
-**This is CRTP.** `enable_shared_from_this` is a CRTP base that injects a feature into the subclass (see [section 1.3.2 of #8](/posts/crtp-static-polymorphism/)): the subclass writes nothing and gains `shared_from_this()`. Both the base's `weak_ptr` member and `shared_from_this()`'s return type must say `Session`, so the template argument is the subclass itself. A non-template base could only store and return `shared_ptr<Base>`, and every use would need a `static_pointer_cast` back to `shared_ptr<Session>`; a wrong cast is undefined behavior.
-
-### 5.6 Three Pitfalls {#shared-from-this-pitfalls}
-
-All measured on GCC 13:
-
-- **The object must already be owned by a `shared_ptr`.** On a stack object, or inside the constructor (before `make_shared` has filled the `weak_ptr`), it throws `std::bad_weak_ptr` since C++17; in older standards it is undefined behavior.
-- **The inheritance must be `public`.** With private inheritance `shared_ptr` can't see the base, nobody fills the `weak_ptr`, and it throws `bad_weak_ptr` as well.
-- **The object grows and the call isn't free.** The object gains a `weak_ptr` (two pointers, 16 B; measured `sizeof(Session)` is 24 including padding), and every `shared_from_this()` is the atomic add from 5.2. So it belongs on cold paths such as connection management (in Asio-style async servers the callback is typically written `[self = shared_from_this()]`), not in market-data handling that runs millions of times a second.

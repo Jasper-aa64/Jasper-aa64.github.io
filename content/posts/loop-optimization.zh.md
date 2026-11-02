@@ -62,7 +62,7 @@ float dot(const float* v1, const float* v2, int n) {
 挡住它的两种情况：
 
 - **调用没内联**：编译器看不见函数体，就不敢假设被调函数没改那个值。#8 里的 `sum_virtual` 每轮都在被调函数里重读 `mult`。
-- **指针可能重叠**：循环里通过 `int* q` 写，编译器不能确定没写到 `*p`，`*p` 就得每轮重读（[速查：`const`](/zh/ref/cpp-syntax/#const) 里有例子）。
+- **指针可能重叠**：循环里通过 `int* q` 写，编译器不能确定没写到 `*p`，`*p` 就得每轮重读（[`const` 和 `constexpr`](/zh/posts/const-constexpr/#const) 里有例子）。
 
 ### 2.2 强度削弱（strength reduction）：乘法换成累加
 

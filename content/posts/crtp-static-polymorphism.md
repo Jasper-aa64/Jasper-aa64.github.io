@@ -97,7 +97,7 @@ run_crtp<BinanceFeed>:           run_virtual (OkxFeed is the only implementation
 - **Virtual**: GCC applied **speculative devirtualization** here. Seeing only one implementation, `OkxFeed`, in the whole program, it first checks whether the vtable slot is `OkxFeed::on_tick` and, if so, runs an inlined copy. Even then it still loads the vptr, loads the vtable slot and compares. Add a `BybitFeed : IFeed` to the program and `run_virtual` goes back to the two instructions from the opening: `movq (%rdi), %rax` + `jmp *16(%rax)`, a plain indirect jump, with no way to inline the body of `on_tick`.
 - **Object size**: `sizeof(BinanceFeed)` is 4 (one `int`; the empty base takes no space), `sizeof(OkxFeed)` is 16 (8-byte vptr + 4-byte `int` + 4 bytes of padding).
 
-What's saved is the list in [reference: the cost of virtual functions](/ref/cpp-syntax/#virtual-cost): an indirect jump to predict, two memory loads, 8 bytes of vptr, and, most valuable, inlining.
+What's saved is the list in [Virtual Functions: where the cost is](/posts/virtual-functions/#virtual-cost): an indirect jump to predict, two memory loads, 8 bytes of vptr, and, most valuable, inlining.
 
 **Why inlining is the most valuable part**: first, is the jump itself expensive? If a call site always goes to the same target (as when one feed object receives a whole stream of ticks), the indirect target predictor gets it right almost every time, and the jump plus `call` / `ret` costs a few cycles, under 1–2 ns. The 4–5 ns (15–20 cycles) figure is the cost of **one misprediction**, not something paid on every call. Looked at as a single call, the virtual version isn't much slower.
 
@@ -172,7 +172,7 @@ struct Price : EqualityOps<Price> {
 };
 ```
 
-The `!=` example is unnecessary in C++20: once `==` exists, the compiler supports `!=` automatically. A standard-library example of the same use, still common today, is `std::enable_shared_from_this<T>`: with `class Session : public std::enable_shared_from_this<Session>`, the subclass writes nothing and gains a member function `shared_from_this()`, which, inside a member function, returns a `std::shared_ptr<Session>` to itself that shares the reference count with the outside owners. To write the return type as `shared_ptr<Session>`, the base must know the subclass, hence CRTP. What problem it solves and what the wrong way does: see [Reference: shared_ptr and enable_shared_from_this](/ref/cpp-syntax/#shared-from-this).
+The `!=` example is unnecessary in C++20: once `==` exists, the compiler supports `!=` automatically. A standard-library example of the same use, still common today, is `std::enable_shared_from_this<T>`: with `class Session : public std::enable_shared_from_this<Session>`, the subclass writes nothing and gains a member function `shared_from_this()`, which, inside a member function, returns a `std::shared_ptr<Session>` to itself that shares the reference count with the outside owners. To write the return type as `shared_ptr<Session>`, the base must know the subclass, hence CRTP. What problem it solves and what the wrong way does: see [shared_ptr and enable_shared_from_this](/posts/shared-ptr/#shared-from-this-right).
 
 #### 1.3.3 A Separate Static Member per Subclass
 
@@ -273,4 +273,4 @@ struct BybitFeed : FeedBase23 {
 
 For `bybit.on_tick(3)`, `Self` is deduced as `BybitFeed&` and `self.on_tick_impl` calls straight into the subclass: the same effect as CRTP, but the "wrong base" of section 1.4.1 can't happen (there's no template argument to get wrong), and `FeedBase23` is an ordinary class. It's supported from GCC 14 and in Clang 18, not in GCC 13. Existing code still mostly uses CRTP.
 
-The same idea of fixing the structure at compile time, applied to stacking features layer by layer, is the mixin ([reference: composition and mixins](/ref/cpp-syntax/#mixin)); applied to computing values ahead of time, it's the `constexpr` family ([reference: which one guarantees compile time](/ref/cpp-syntax/#compile-time)).
+The same idea of fixing the structure at compile time, applied to stacking features layer by layer, is the mixin ([reference: composition and mixins](/ref/cpp-syntax/#mixin)); applied to computing values ahead of time, it's the `constexpr` family ([const, constexpr, consteval, constinit](/posts/const-constexpr/)).

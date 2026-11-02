@@ -131,7 +131,7 @@
   <text x="189" y="1236" class="t">.rodata：只读数据</text>
   <text x="189" y="1254" class="s">字符串字面量、有常量初值的 const 全局变量、编译期算好的查找表</text>
   <text x="189" y="1272" class="s">vtable 在 .data.rel.ro：启动时填好函数地址，再改成只读</text>
-  <text x="189" y="1290" class="tag"><a href="/zh/ref/cpp-syntax/#virtual-vtable" target="_blank" rel="noopener"><tspan>速查 C++ 语法 1.2 vptr 和 vtable</tspan></a></text>
+  <text x="189" y="1290" class="tag"><a href="/zh/posts/virtual-functions/#virtual-vtable" target="_blank" rel="noopener"><tspan>虚函数 1.2 vptr 和 vtable</tspan></a></text>
   </g>
   <g id="text">
   <rect x="177" y="1310" width="571" height="90" rx="6" class="img"/>

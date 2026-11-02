@@ -169,7 +169,7 @@ static_assert(sizeof(EboBase) == 4 && sizeof(NUA) == 4);
 
 ### 2.1 vptr：对象开头的 8 字节
 
-虚函数调用怎么找到函数、要付哪些代价，[C++ 语法速查的虚函数一节](/zh/ref/cpp-syntax/#virtual)讲过：每个对象开头藏一个 vptr，指向自己那个类的 vtable，调用时读 vptr、再从表里读函数地址、跳过去。这里只看它在对象里占了哪：
+虚函数调用怎么找到函数、要付哪些代价，[虚函数](/zh/posts/virtual-functions/)那篇讲过：每个对象开头藏一个 vptr，指向自己那个类的 vtable，调用时读 vptr、再从表里读函数地址、跳过去。这里只看它在对象里占了哪：
 
 ```cpp
 struct V {

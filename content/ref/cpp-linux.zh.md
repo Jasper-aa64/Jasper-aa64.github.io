@@ -204,6 +204,9 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 | 文章 | 讲什么 | 在哪张图上 |
 |---|---|---|
 | [new 一次走到哪](/zh/posts/new-malloc-page-fault/) | `operator new`、malloc、`brk` / `mmap`、第一次写时缺页 | 进程地图：堆、mmap 区 |
+| [虚函数](/zh/posts/virtual-functions/) | vptr、vtable、一次虚调用的代价、组合与继承 | 进程地图：`.rodata` 里的 vtable |
+| [const 和 constexpr](/zh/posts/const-constexpr/) | `const` / `constexpr` / `consteval` / `constinit`，编译期查找表 | 进程地图：`.rodata`、`.data` |
+| [shared_ptr](/zh/posts/shared-ptr/) | 控制块、复制的代价、`enable_shared_from_this` | 进程地图：堆 |
 | [对象布局](/zh/posts/object-layout/) | 对齐、填充、vptr 和 vtable、多重继承 | 进程地图：`.rodata` 里的 vtable |
 | [函数调用栈帧](/zh/posts/stack-frame/) | 返回地址、寄存器传参、RVO、栈溢出 | 进程地图：栈 |
 | [进程和线程](/zh/posts/process-thread-fork/) | `fork`、写时复制、共享与独占、进程状态 | 进程地图、从源码到进程：`execve` |

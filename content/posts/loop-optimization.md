@@ -62,7 +62,7 @@ Computations whose result is the same every iteration (an array length, a consta
 Two things block it:
 
 - **A call that isn't inlined**: the compiler can't see the body, so it can't assume the callee leaves the value alone. `sum_virtual` in #8 re-reads `mult` inside the callee every iteration.
-- **Pointers that may alias**: if the loop writes through `int* q`, the compiler can't be sure it didn't write `*p`, so `*p` must be re-read every iteration (there's an example under [Reference: `const`](/ref/cpp-syntax/#const)).
+- **Pointers that may alias**: if the loop writes through `int* q`, the compiler can't be sure it didn't write `*p`, so `*p` must be re-read every iteration (there's an example under [`const` and `constexpr`](/posts/const-constexpr/#const)).
 
 ### 2.2 Strength Reduction: Replace a Multiply With a Running Sum
 

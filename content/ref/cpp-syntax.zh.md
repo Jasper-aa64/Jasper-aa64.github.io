@@ -1,6 +1,6 @@
 ---
-title: "C++ 语法：机器码里是什么"
-description: "常用的 C++ 语法编译出来是什么指令、要付什么代价、有什么替代。目前五条：虚函数；组合与 Mixin；静态多态与动态多态；const / constexpr / consteval / constinit；shared_ptr 与 enable_shared_from_this。"
+title: "静态多态：机器码里是什么"
+description: "把“调哪个函数”定在编译期的几种写法，编译出来是什么、代价在哪：CRTP、std::variant、按类型分批、Mixin，以及静态多态和动态多态怎么选。虚函数本身见 C++ 与 Linux 板块的《虚函数》。"
 date: 2026-10-10
 lastmod: 2026-10-12
 slug: "cpp-syntax"
@@ -8,74 +8,10 @@ weight: 20
 toc: true
 ---
 
-这页是随时翻的活页，不是一篇文章。每一条按同一个顺序写：是什么 → 编译出来是什么 → 代价在哪 → 什么时候能省掉、拿什么替代。汇编都是 GCC 13.3 `-O2`、x86-64 的真实输出。后面讲到新的语法点，都补在这一页。
+这页是随时翻的活页，不是一篇文章，讲静态多态：把“调哪个函数”从运行时挪到编译期。虚函数本身（vptr、vtable、一次虚调用的代价）是 C++ 基础，写在[虚函数](/zh/posts/virtual-functions/)那篇；`const` / `constexpr` 和 `shared_ptr` 也搬去了 C++ 与 Linux 板块（[const 和 constexpr](/zh/posts/const-constexpr/)、[shared_ptr](/zh/posts/shared-ptr/)）。汇编都是 GCC 13.3 `-O2`、x86-64 的真实输出。
 
-## 1. 虚函数（virtual function）：运行时按对象的类型选函数 {#virtual}
+## 1. 虚函数的替代：CRTP、variant、按类型分批 {#virtual-alternatives}
 
-### 1.1 是什么 {#virtual-what}
-
-基类里声明 `virtual` 的函数，通过基类指针或引用调用时，调用的是**对象实际类型**的那个版本。调用处写的是同一句 `o->handle()`，到底执行哪个函数，要到运行时看 `o` 指向的是什么才知道。
-
-```cpp
-struct Order {
-    virtual ~Order() = default;
-    virtual int handle() const = 0;   // 纯虚函数：每个子类自己实现
-    int qty = 1;
-};
-struct LimitOrder : Order {
-    int handle() const override { return qty * 2; }
-};
-struct MarketOrder final : Order {    // final：不会再有子类
-    int handle() const override { return qty * 3; }
-};
-
-int run(const Order* o) { return o->handle(); }   // 可能是 LimitOrder，也可能是 MarketOrder
-```
-
-典型用法：一个容器里放着不同子类的对象（`std::vector<std::unique_ptr<Order>>`），循环里统一调 `handle()`。
-
-### 1.2 编译出来：vptr 和 vtable {#virtual-vtable}
-
-`run` 编译出来只有两条指令：
-
-```asm
-run(Order const*):
-        movq    (%rdi), %rax      # 1. 读对象开头的 8 字节：vptr，指向这个类的虚函数表
-        jmp     *16(%rax)         # 2. 从表里第 3 格读出函数地址，跳过去（间接跳转）
-```
-
-靠的是两样东西：
-
-- **vtable**（虚函数表）：每个有虚函数的**类**一张，存在只读数据段里，按声明顺序列出这个类每个虚函数的地址。`LimitOrder` 的表里 `handle` 那格是 `LimitOrder::handle`，`MarketOrder` 的是 `MarketOrder::handle`。（前两格是析构函数，所以 `handle` 在偏移 16。）
-- **vptr**（虚表指针）：每个**对象**开头藏着的一个 8 字节指针，构造时指向自己那个类的 vtable。`sizeof(LimitOrder)` 因此是 16：vptr 8 字节，`qty` 4 字节，再补 4 字节对齐。
-
-所以一次虚调用 = 读 vptr → 读表里那一格 → 按读到的地址跳。
-
-### 1.3 代价在哪 {#virtual-cost}
-
-- **间接跳转要猜**：目标地址是读出来的，前端要靠**间接目标预测器**去猜（[#7 第 1.3 节](/zh/posts/branch-prediction-branch-optimization/)）。同一处调用，对象类型有规律（全是同一种，或者短周期重复）几乎不会错；类型随机混在一起就经常错，每次约 15–20 个周期。
-- **挡住内联**：编译器不知道会调到哪个函数，就没法把它内联进来，也没法跨这次调用做优化（常量传播、合并计算、向量化）。函数体越小，这一条越亏：`handle()` 本身只有一条乘法，调用开销比它大得多。
-- **多两次读内存**：第一次从对象开头读 vptr（`movq (%rdi), %rax`），第二次从 vtable 那一格读函数地址（`jmp *16(%rax)` 里的 `16(%rax)`）。这两次读落到内存的话一次约 70–120 ns，比一次调用本身贵得多，但平时很少落到内存，原因两次各不相同：
-  - **vptr 和对象的数据在同一条缓存行里。** 不用虚函数，也得读这个对象的成员（比如 `mult`）。对象冷了，两种写法都要为这条行付一次缓存未命中；读 vptr 不会多出第二次未命中。虚函数这边多出来的，只有对象大了 8 字节、一条行装得更少。
-  - **vtable 每个类一份，不是每个对象一份。** 它在只读数据段里，两三个类就是两三条缓存行，所有调用共用。热路径上一直有人读，它就一直在 L1，约 1 ns。
-  - **猜对时，这两次读基本不拖慢。** CPU 不等它们读完才决定跳去哪：预测器先给出目标，CPU 接着执行被调函数，两次读在旁边并行完成，只用来核对猜得对不对。猜错了，或者这处调用还没有预测记录，就得真的等：先读 vptr，拿到它才知道去哪读函数地址，再读那一格，才能跳。两次读一前一后，没法并行。
-  - **真正贵的是冷启动。** 行情安静了一阵，热路径的缓存被别的代码挤掉，下一个 tick 到来时，对象那条行和 vtable 那条行都可能不在缓存里。对象那次两种写法都要付；vtable 那次是虚函数独有的，还排在读 vptr 之后，最坏多出一次约 70–120 ns 的串行未命中（按[延迟范围](/zh/ref/cpu-memory/#latency)估算，没有实测）。办法是让热路径保持热（空闲时也定期用假数据跑一遍），或者在热路径上换成 CRTP、`final`，根本没有 vtable 要读。
-- **每个对象多 8 字节**：小对象（比如 16 字节的订单）会因此大一截，一条缓存行装得更少。
-
-### 1.4 编译器什么时候能省掉虚调用（devirtualization） {#virtual-devirt}
-
-编译器能确定对象的实际类型时，就直接调用、甚至内联。三种常见情况，前两种是实测：
-
-```cpp
-int run_market(const MarketOrder* o) { return o->handle(); }   // MarketOrder 是 final
-int run_local() { LimitOrder l; return run(&l); }              // 对象就在眼前
-```
-
-- **`final`**：`MarketOrder` 标了 `final`，不可能有子类，`o->handle()` 只能是 `MarketOrder::handle`。`run_market` 编出来是 `movl 8(%rdi), %eax` + `leal (%rax,%rax,2), %eax`，乘 3 直接内联了，没有跳转。
-- **局部对象**：`run_local` 里对象的类型就写在那，`run` 内联进来以后，整个函数编成了 `movl $2, %eax`。
-- **只有一个实现**：开 `-flto`（链接期优化）后，编译器看到整个程序，某个虚函数只有一个实现时也能直接调用（这一条没有实测）。
-
-### 1.5 不用虚函数的替代 {#virtual-alternatives}
 
 **CRTP**（curiously recurring template pattern，奇异递归模板）：子类把自己当模板参数传给基类，基类里用 `static_cast` 转回子类再调用。类型在编译期就定了，调用直接内联。
 
@@ -112,37 +48,8 @@ int run_variant(const AnyOrder& o) {
 
 **编译期拼好的结构**：策略树这类“节点之间怎么连”在部署前就定好的东西，可以把节点做成类型，整棵树在编译期拼好，见 [#7 第 3.6 节](/zh/posts/branch-prediction-branch-optimization/)的编译期决策树。
 
-### 1.6 怎么选 {#virtual-choose}
+## 2. Mixin：用模板继承链在编译期叠功能 {#mixin}
 
-- **类型在运行时才知道、集合开放（插件、配置里读出来）**：虚函数。热路径上尽量让同一处调用的类型有规律，或者按类型分批。
-- **类型集合固定、对象要放在一起**：`std::variant` + `std::visit`。
-- **类型在编译期就能定**：模板或 CRTP，能标 `final` 的就标上。
-- **不在热路径上**：虚函数最好读，不用纠结。
-
-## 2. 组合与继承：复用实现用成员，叠加功能用 Mixin {#composition}
-
-### 2.1 组合（composition）：复用一个类的实现，把它放成成员 {#composition-member}
-
-```cpp
-class InheritanceOrderBook : public std::vector<Order> {   // 继承：直接“是”一个 vector
-};
-
-class CompositionOrderBook {                                // 组合：“有”一个 vector
-    std::vector<Order> orders_;
-public:
-    auto size() const noexcept { return orders_.size(); }  // 只暴露需要的接口
-};
-```
-
-**编译出来一样**：读成员和调 `size()` 都是直接读 `orders_` 里的字段，`size()` 内联。差别全在设计上，public 继承 `std::vector` 有三个问题：
-
-- **接口全部暴露**：`push_back`、`erase` 谁都能调，订单簿“按价格排序”这类不变量就守不住。组合只给出愿意给的函数。
-- **析构函数不是虚的**：`std::vector<Order>* p = new InheritanceOrderBook;` 再 `delete p` 是未定义行为。标准容器不是设计来当基类的。
-- **和底层绑死**：想把 `std::vector` 换成别的容器，继承的写法所有调用方都要改，组合只改类内部。
-
-规则：要的是“用它的实现”，放成成员（has-a）；真要“当成它来用”（is-a），并且基类是为继承设计的（有虚析构函数），才 public 继承。
-
-### 2.2 Mixin：用模板继承链在编译期叠功能 {#mixin}
 
 先说清两个名词，再看代码。
 
@@ -171,7 +78,7 @@ struct DoubleValueDeco : Iterator {    // 一层装饰：包住下一层，只�
 };
 ```
 
-每叠一层，就多一次堆分配（`unique_ptr`），每次调用往下多一次虚调用（[第 1 条](#virtual-cost)的代价）。
+每叠一层，就多一次堆分配（`unique_ptr`），每次调用往下多一次虚调用（[虚函数的代价](/zh/posts/virtual-functions/#virtual-cost)）。
 
 **Mixin 的写法**：每层是一个模板，把下一层当模板参数并继承它。
 
@@ -209,7 +116,7 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // 模板实参的顺序就是�
 
 <a href="/images/ref/mixin-vs-decorator.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/mixin-vs-decorator.zh.svg" alt="上：装饰器是 3 个堆上的对象，每个带 vptr，用 inner 指针连起来；调一次 cell() 每往下一层都要读指针、读 vtable、做一次间接调用，编译器没法内联。下：Mixin 是 1 个 32 字节的对象，DoubleValue、OddOnly 是 MatrixWalk 外面套的基类，不加成员，没有 vptr 和指针，调用全部内联；筛奇数的条件跳转还在。" loading="lazy" decoding="async"></a>
 
-### 2.3 顺序就是语义 {#mixin-order}
+### 2.1 顺序就是语义 {#mixin-order}
 
 同一个矩阵 `{{1, 2, 3}, {}, {4, 5, 6}}`：
 
@@ -220,7 +127,7 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // 模板实参的顺序就是�
 
 装饰器可以运行时按配置叠；Mixin 的顺序写在类型里，编译完就定了。
 
-### 2.4 代价 {#mixin-cost}
+### 2.2 代价 {#mixin-cost}
 
 - **类型组合爆炸**：每种组合都是新类型、实例化一份代码，编译时间和二进制体积涨。
 - **报错难读**：模板嵌套几层后错误信息很长。
@@ -233,7 +140,7 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // 模板实参的顺序就是�
 
 ### 3.1 快在哪：内联，不只是省一次跳转 {#poly-speed}
 
-动态多态的运行时代价见 [1.3](#virtual-cost)：一次要猜的间接跳转、两次读内存、每个对象 8 字节、挡住内联。其中最贵的通常是**挡住内联**。
+动态多态的运行时代价见[虚函数 1.3](/zh/posts/virtual-functions/#virtual-cost)：一次要猜的间接跳转、两次读内存、每个对象 8 字节、挡住内联。其中最贵的通常是**挡住内联**。另有一笔只在冷启动时出现：行情安静了一阵，热路径的缓存被别的代码挤掉，下一个 tick 到来时 vtable 那条行也可能不在缓存里，排在读 vptr 之后多出一次串行未命中。办法是让热路径保持热（空闲时也定期用假数据跑一遍），或者换成 CRTP、`final`，根本没有 vtable 要读。
 
 - 间接跳转本身：同一处调用的类型有规律时几乎不会猜错，只是多几个周期；类型随机混在一起时，每次猜错约 15–20 个周期。
 - 内联：函数体被展开进调用方以后，编译器能做常量传播、合并计算、向量化。函数体越小，这一条差得越多。
@@ -302,297 +209,3 @@ void dispatch(const AlgoV& a, const MemV& m) {
 
 两者常常混用：外层用虚函数或 `variant` 选一次，选中的那份代码内部全是静态的。
 
-## 4. `const` / `constexpr` / `consteval` / `constinit`：哪个保证编译期算 {#compile-time}
-
-四个关键字长得像，回答的是不同的问题：
-
-| 关键字 | 修饰什么 | 保证在编译期算出来吗 | 之后能改吗 |
-|---|---|---|---|
-| `const` | 变量、参数、成员函数 | **不保证** | 不能 |
-| `constexpr` | 变量 | 保证 | 不能 |
-| `constexpr` | 函数 | 不保证：用在要求常量的地方才在编译期算 | — |
-| `consteval` | 函数 | 保证：每次调用都在编译期算 | — |
-| `constinit` | 静态生命周期的变量 | 保证初始化在编译期完成 | **能**（不带 `const`） |
-
-### 4.1 `const`：只读，不是编译期常量 {#const}
-
-`const` 只说初始化之后不能改，初始值可以是运行时的（`const int scale = get_config("scale");`）。对性能要分清两种：
-
-- **`const` 对象本身**（`const int max_len = 100;`）：改它是未定义行为，编译器可以直接把 100 当立即数用。整型 `const` 用常量初始化时，还能当模板实参。
-- **`const T*` / `const T&`**：只是**你**不能通过它改，别的指针照样能改，编译器得防着：
-
-```cpp
-int f(const int* p, int* q) {
-    int a = *p;
-    *q = 1;          // q 可能和 p 指向同一个 int
-    return a + *p;   // 所以这里要重新读 *p
-}
-```
-
-编出来 `movl (%rdi), %eax` → `movl $1, (%rsi)` → `addl (%rdi), %eax`，`*p` 读了两次。所以 `const &` 参数的好处是不拷贝、防误改，不是让编译器多优化。
-
-### 4.2 `constexpr`：变量一定编译期算，函数“能”编译期算 {#constexpr}
-
-- **`constexpr` 变量**：初始值必须在编译期算出来，否则编译报错。
-- **`constexpr` 函数**：**允许**在编译期算。用在要求常量的地方（`constexpr` 变量、模板实参、数组大小、`static_assert`），一定在编译期算；参数是运行时的值，就是一次普通调用。
-
-```cpp
-constexpr int twice(int x) { return x + x; }
-constexpr int four = twice(2);           // 编译期算出 4
-int twice_rt(int n) { return twice(n); } // 运行时算
-```
-
-`twice_rt` 编出来是一条 `leal (%rdi,%rdi), %eax`，和普通函数一样。`constexpr` 不是“优化提示”。
-
-### 4.3 `consteval`：每次调用都必须在编译期 {#consteval}
-
-`consteval` 函数（立即函数）每次调用都必须在编译期算完，参数不是常量就编译报错。用在“运行时算就是 bug”的地方，比如编译期校验配置、生成哈希。
-
-```cpp
-consteval int get_dim() { return 4; }
-Vector<get_dim()> v;     // 可以当模板实参
-```
-
-陷阱：`consteval` 函数的**形参在函数体里不是常量表达式**，不能 `static_assert(i == 1)`，也不能拿 `i` 当模板实参。要这样用，得把它写成模板参数 `template <int I>`。
-
-**`if consteval`**（C++23）：同一个 `constexpr` 函数里，编译期走一套能在编译期跑的实现，运行时走更快的实现：
-
-```cpp
-constexpr std::size_t my_strlen(const char* s) {
-    if consteval {
-        std::size_t n = 0;          // 编译期：一个字节一个字节数
-        while (s[n]) ++n;
-        return n;
-    } else {
-        return std::strlen(s);      // 运行时：库函数（不是 constexpr）
-    }
-}
-```
-
-### 4.4 `constinit`：静态变量在编译期初始化，但可以改 {#constinit}
-
-`constinit` 只管一件事：**全局变量、`static` 变量的初始化必须在编译期完成**，做不到就编译报错。它**不**带 `const`，之后可以改。
-
-```cpp
-constexpr int somefunc() { return 27; }    // 必须是 constexpr，否则下一行编译失败
-constinit int g_counter = somefunc();      // 进 .data，初值 27 写在可执行文件里
-// ...
-++g_counter;                               // 可以改
-```
-
-它防的是**静态初始化顺序问题**（static initialization order fiasco）：运行时初始化的全局变量由启动代码在 `main` 之前去算，不同源文件之间谁先谁后标准不规定，一个全局变量读到另一个还没初始化的就是 bug。`constinit` 保证没有这一步。
-
-### 4.5 非类型模板参数：把常量变成类型的一部分 {#nttp}
-
-模板参数可以是一个值（NTTP，non-type template parameter）：
-
-```cpp
-template <int Dim>
-struct Vector {
-    float data[Dim];
-    float dot(const Vector& other) const {
-        float sum = 0.0f;
-        for (int i = 0; i < Dim; i++) sum += data[i] * other.data[i];
-        return sum;
-    }
-};
-```
-
-`Vector<4>` 和 `Vector<8>` 是两个类型，各编一份，循环次数是常量，编译器能整个展开或向量化。代价是[第 3 条](#poly-cost)的代码膨胀。模板实参必须是编译期常量：`const int d = 4;` 可以，`int n = 4; const int d = n;` 不行。
-
-### 4.6 编译期生成查找表 {#lut}
-
-```cpp
-constexpr std::array<uint64_t, 20> make_pow10() {
-    std::array<uint64_t, 20> t{};
-    uint64_t v = 1;
-    for (auto& x : t) { x = v; v *= 10; }
-    return t;
-}
-constexpr auto kPow10 = make_pow10();     // 编译期填好，放进 .rodata
-uint64_t pow10(unsigned e) { return kPow10[e]; }
-```
-
-`pow10` 编出来是 `leaq kPow10(%rip), %rax` + `movq (%rax,%rdi,8), %rax`：一次读内存。查表的代价就是这次读：表在 L1D 里约 1 ns，表大、访问又随机就会落到 L2、L3 甚至内存（[速查：延迟](/zh/ref/cpu-memory/#latency)），这时直接算可能更快。
-
-### 4.7 怎么选 {#compile-time-choose}
-
-- 值必须编译期就有，算不出来应该报错 → `constexpr` 变量，或 `consteval` 函数。
-- 一份实现编译期、运行时都要用 → `constexpr` 函数，需要时加 `if consteval`。
-- 全局 / `static` 变量要能改，但不要运行时初始化 → `constinit`。
-- 只是不想被改 → `const`。
-
-## 5. `shared_ptr` 与 `enable_shared_from_this`：成员函数里怎么拿到自己的 `shared_ptr` {#shared-from-this}
-
-### 5.1 `shared_ptr` 是什么：对象 + 一块存计数的控制块 {#shared-ptr}
-
-`std::shared_ptr<T>` 让好几个地方共同拥有一个对象：谁都可以持有一份，最后一份没了，对象才析构。它靠一个引用计数做到这一点。计数不在对象里，而在一块单独的内存里，叫**控制块**（control block）。
-
-- `std::make_shared<T>()` 只分配一次，对象和控制块挨在一起。
-- 每复制一个 `shared_ptr`，计数 +1；每销毁一个，计数 -1；减到 0 就析构对象。
-- 一个 `shared_ptr` 本身是两个指针：一个指向对象，一个指向控制块，`sizeof` 是 16 B。
-
-<svg viewBox="0 0 760 304" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="make_shared 一次分配，对象和控制块挨在一起；shared_ptr(new T) 分配两次，控制块里多一个指向对象的指针。两个 shared_ptr 都各存一个对象指针和一个控制块指针。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
-  <style>
-    .sp0bg  { fill: #fbfaf7; }
-    .sp0p   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
-    .sp0c   { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
-    .sp0t   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
-    .sp0box { fill: none; stroke: #6b6558; stroke-width: 1.2; stroke-dasharray: 5 4; }
-    .sp0ink { fill: #1c1b18; font-size: 12px; }
-    .sp0mut { fill: #6b6558; font-size: 12px; }
-    .sp0ttl { fill: #1c1b18; font-size: 13.5px; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .sp0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
-    .sp0hd  { fill: #6b6558; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0bg { fill: #17161b; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0p { fill: #23262c; stroke: #3f4650; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0c { fill: #4a2f2c; stroke: #8f5a4c; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0t { fill: #33421f; stroke: #8fb257; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0box { stroke: #a19caf; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ink, :root:is([data-theme="dark"], [data-theme="black"]) .sp0ttl { fill: #e9e7ef; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0mut { fill: #a19caf; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ln { stroke: #a19caf; }
-    :root:is([data-theme="dark"], [data-theme="black"]) .sp0hd { fill: #a19caf; }
-  </style>
-  <defs><marker id="sp0a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="sp0hd"/></marker></defs>
-  <rect class="sp0bg" x="0" y="0" width="760" height="304" rx="10"/>
-  <text class="sp0ttl" x="24" y="32">std::make_shared&lt;T&gt;()</text>
-  <text class="sp0mut" x="26" y="71">p1</text>
-  <rect class="sp0p" x="48" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="103" y="71" text-anchor="middle">对象指针</text>
-  <rect class="sp0p" x="158" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="213" y="71" text-anchor="middle">控制块指针</text>
-  <text class="sp0mut" x="26" y="227">p2</text>
-  <rect class="sp0p" x="48" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="103" y="227" text-anchor="middle">对象指针</text>
-  <rect class="sp0p" x="158" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="213" y="227" text-anchor="middle">控制块指针</text>
-  <rect class="sp0box" x="42" y="114" width="312" height="62" rx="6"/>
-  <rect class="sp0t" x="48" y="120" width="110" height="50"/>
-  <text class="sp0ink" x="103" y="149" text-anchor="middle">T 对象</text>
-  <rect class="sp0c" x="158" y="120" width="46" height="50"/>
-  <text class="sp0ink" x="181" y="149" text-anchor="middle">vptr</text>
-  <rect class="sp0c" x="204" y="120" width="72" height="50"/>
-  <text class="sp0ink" x="240" y="149" text-anchor="middle">use = 2</text>
-  <rect class="sp0c" x="276" y="120" width="72" height="50"/>
-  <text class="sp0ink" x="312" y="149" text-anchor="middle">weak</text>
-  <path class="sp0ln" d="M103,82 L103,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M103,208 L103,173" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M213,82 L213,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M213,208 L213,173" marker-end="url(#sp0a)"/>
-  <text class="sp0mut" x="24" y="266">一次分配：对象和控制块挨在一起</text>
-  <text class="sp0ttl" x="408" y="32">std::shared_ptr&lt;T&gt;(new T)</text>
-  <text class="sp0mut" x="410" y="71">p1</text>
-  <rect class="sp0p" x="432" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="487" y="71" text-anchor="middle">对象指针</text>
-  <rect class="sp0p" x="542" y="52" width="110" height="30"/>
-  <text class="sp0ink" x="597" y="71" text-anchor="middle">控制块指针</text>
-  <text class="sp0mut" x="410" y="227">p2</text>
-  <rect class="sp0p" x="432" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="487" y="227" text-anchor="middle">对象指针</text>
-  <rect class="sp0p" x="542" y="208" width="110" height="30"/>
-  <text class="sp0ink" x="597" y="227" text-anchor="middle">控制块指针</text>
-  <rect class="sp0t" x="432" y="120" width="100" height="50"/>
-  <text class="sp0ink" x="482" y="149" text-anchor="middle">T 对象</text>
-  <rect class="sp0c" x="552" y="120" width="40" height="50"/>
-  <text class="sp0ink" x="572" y="149" text-anchor="middle">vptr</text>
-  <rect class="sp0c" x="592" y="120" width="58" height="50"/>
-  <text class="sp0ink" x="621" y="149" text-anchor="middle">use = 2</text>
-  <rect class="sp0c" x="650" y="120" width="44" height="50"/>
-  <text class="sp0ink" x="672" y="149" text-anchor="middle">weak</text>
-  <rect class="sp0c" x="694" y="120" width="52" height="50"/>
-  <text class="sp0ink" x="720" y="149" text-anchor="middle">ptr→T</text>
-  <path class="sp0ln" d="M482,82 L482,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M482,208 L482,173" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M597,82 L597,117" marker-end="url(#sp0a)"/>
-  <path class="sp0ln" d="M597,208 L597,173" marker-end="url(#sp0a)"/>
-  <text class="sp0mut" x="408" y="266">两次分配：控制块里另存一个指向 T 的指针</text>
-  <text class="sp0mut" x="24" y="292">两种写法的 use_count 都在控制块偏移 8 处：5.2 里 addl $1, 8(%rdx) 加的就是它。</text>
-</svg>
-
-两种写法差在分配次数。`make_shared` 只调一次 `operator new`，对象和控制块在同一块内存里，少一次分配，用对象时顺带碰到的计数也多半在相邻的缓存行。代价在释放：`use_count` 归零时对象照常析构，可它占的那段内存和控制块连在一起，要等 `weak_count` 也归零（最后一个 `weak_ptr` 没了）才能整块还掉。**对象很大、又有 `weak_ptr` 长期挂着时，`make_shared` 会让这块内存一直留着**，这时用 `shared_ptr<T>(new T)` 分开分配，对象析构时它的内存就能先还。
-
-### 5.2 编译出来是什么：复制 = 拷两个指针 + 计数加 1 {#shared-ptr-asm}
-
-```cpp
-std::shared_ptr<S> copy_sp(const std::shared_ptr<S>& p) { return p; }
-```
-
-```text
-movdqu  (%rsi), %xmm0                    # 一次读 16 B：对象指针 + 控制块指针
-movups  %xmm0, (%rdi)                    # 写进新的 shared_ptr
-movq    8(%rdi), %rdx                    # 控制块地址
-testq   %rdx, %rdx
-je      .L12                             # 空指针就不用加计数
-cmpb    $0, __libc_single_threaded(%rip) # 进程是不是单线程
-je      .L14
-addl    $1, 8(%rdx)                      # 单线程：普通加 1
-ret
-.L14:
-lock addl $1, 8(%rdx)                    # 多线程：原子加 1
-```
-
-`__libc_single_threaded` 是 glibc 维护的标志，进程还没起第二个线程时为真。一旦有了多个线程，每次复制（以及每次销毁时的减 1）都是一次 `lock` 原子操作：没有别的核在抢时约 5–10 ns；几个核同时复制同一个对象的 `shared_ptr` 时，计数所在的缓存行在核之间来回搬（缓存行乒乓），一次要几十到上百 ns。所以热路径上不要按值传 `shared_ptr`：只是用一下、不需要“拥有”，就传 `const std::shared_ptr<T>&`，或者直接传 `T&` / `T*`。
-
-### 5.3 场景：对象要活到回调执行完 {#shared-from-this-why}
-
-一个 `Session` 对象代表和交易所的一条连接，由 `shared_ptr` 管理。`Session::send_order()` 把下单请求发出去，交易所要过一会儿（比如几十 µs）才回包。程序不会停下来等，而是先登记一个函数，意思是“回包到了就调用它”。这种先登记、以后由别人来调用的函数叫**回调**。登记完，`send_order()` 立刻返回，程序接着干别的。负责“看到回包到了，就调用登记过的回调”的，通常是一个一直在转的循环，叫**事件循环**。
-
-问题出在等待的这段时间里。回包到之前，程序别处可能已经不用这条连接了（比如风控把它断开），丢掉了手里的 `shared_ptr`。如果回调里没有持有一份 `shared_ptr<Session>`，计数就到 0，`Session` 被析构；回包一到，回调去用的是一个已经析构的对象。回调自己持有一份，计数就不会在它执行之前归零：
-
-| 时刻 | 发生了什么 | 回调不持有时的计数 | 回调持有一份时的计数 |
-|---|---|---|---|
-| 1 | `make_shared<Session>()`，外面持有一份 | 1 | 1 |
-| 2 | `send_order()` 登记回调 | 1 | 2 |
-| 3 | 外面丢掉自己那份 | 0，`Session` 被析构 | 1，`Session` 还活着 |
-| 4 | 回包到了，事件循环调用回调 | 用到已析构的对象，未定义行为 | 正常处理回包 |
-| 5 | 回调执行完、被删掉 | — | 0，这时才析构 |
-
-难点在于：回调是在 `send_order()` 这个成员函数里登记的，函数里手上只有 `this`，一个裸指针（`Session*`），不是 `shared_ptr`。怎么从 `this` 得到一份和外面**共用同一个计数**的 `shared_ptr`？
-
-### 5.4 错误写法：`shared_ptr<Session>(this)` 另起一个控制块 {#shared-this-wrong}
-
-```cpp
-void send_order() {
-    std::shared_ptr<Session> self(this);   // 错：又分配了一个新的控制块
-    g_loop.push_back([self] { self->on_reply(); });
-}
-```
-
-用裸指针构造 `shared_ptr` 时，它不知道这个对象已经有人管了，就新建一个控制块，计数从 1 开始。于是两个计数各数各的：时刻 3 外面那份数到 0，对象析构；回调这份还是 1，指着已经析构的对象；时刻 5 它也数到 0，再 delete 一次。GCC 13 实测程序直接 abort（`munmap_chunk(): invalid pointer`），ASan 报 bad-free。
-
-### 5.5 正确写法：继承 `enable_shared_from_this`，调 `shared_from_this()` {#shared-from-this-right}
-
-```cpp
-std::vector<std::function<void()>> g_loop;     // 假装是事件循环：登记的回调先存起来，回包到了再调用
-
-struct Session : std::enable_shared_from_this<Session> {
-    int id = 7;
-    void on_reply() { std::printf("reply on session %d\n", id); }
-    void send_order() {
-        // ……把下单请求发出去……
-        auto self = shared_from_this();        // 计数 +1，和外面那份共用控制块
-        g_loop.push_back([self] { self->on_reply(); });
-    }
-};
-
-void demo() {
-    auto s = std::make_shared<Session>();      // 时刻 1：计数 1
-    s->send_order();                           // 时刻 2：计数 2
-    s.reset();                                 // 时刻 3：外面丢掉自己那份，计数 1，Session 还活着
-    for (auto& cb : g_loop) cb();              // 时刻 4：回包到了，打印 reply on session 7
-    g_loop.clear();                            // 时刻 5：回调删掉，计数 0，这时才析构
-}
-```
-
-**它怎么做到的。** `enable_shared_from_this<Session>` 里藏了一个 `std::weak_ptr<Session>` 成员。`weak_ptr` 也指向控制块，但不让计数 +1，所以不会让对象一直活着。`make_shared` 建对象时，发现它继承了 `enable_shared_from_this`，就把这个 `weak_ptr` 指向刚建好的控制块。`shared_from_this()` 只是把它升级成 `shared_ptr`：同一个控制块，计数 +1。
-
-**这是 CRTP。** `enable_shared_from_this` 是一个往子类里注入功能的 CRTP 基类（见 [#8 的 1.3.2 节](/zh/posts/crtp-static-polymorphism/)）：子类什么都不写，就多了 `shared_from_this()`。基类里的 `weak_ptr` 成员和 `shared_from_this()` 的返回值都要写成 `Session`，所以模板参数传的是子类自己。基类如果不是模板，只能存、只能返回 `shared_ptr<基类>`，每次用都要先 `static_pointer_cast` 转回 `shared_ptr<Session>`，转错了就是未定义行为。
-
-### 5.6 三个坑 {#shared-from-this-pitfalls}
-
-都在 GCC 13 上实测过：
-
-- **对象必须已经归 `shared_ptr` 管。** 对栈上的对象调用，或者在构造函数里调用（这时 `make_shared` 还没填 `weak_ptr`），C++17 起抛 `std::bad_weak_ptr`，更早的标准是未定义行为。
-- **必须 `public` 继承。** 私有继承时 `shared_ptr` 看不见这个基类，`weak_ptr` 没人填，同样抛 `bad_weak_ptr`。
-- **对象变大，调用不免费。** 对象多一个 `weak_ptr`（两个指针，16 B；实测 `sizeof(Session)` 是 24，含对齐填充）；每次 `shared_from_this()` 都是 5.2 节那次原子加。所以它用在连接管理这种冷路径上（Asio 风格的异步服务器里，回调常写成 `[self = shared_from_this()]`），每秒几百万次的行情处理里不这么做。
