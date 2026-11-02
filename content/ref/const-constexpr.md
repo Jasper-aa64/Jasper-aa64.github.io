@@ -104,7 +104,7 @@ struct Vector {
 };
 ```
 
-`Vector<4>` and `Vector<8>` are two types, each compiled separately; the trip count is a constant, so the compiler can fully unroll or vectorize. The cost is the code bloat in [entry 3](/ref/cpp-syntax/#poly-cost). The template argument must be a compile-time constant: `const int d = 4;` works, `int n = 4; const int d = n;` doesn't.
+`Vector<4>` and `Vector<8>` are two types, each compiled separately; the trip count is a constant, so the compiler can fully unroll or vectorize. The cost is the code bloat in [the cost of static polymorphism](/posts/crtp-static-polymorphism/#poly-cost). The template argument must be a compile-time constant: `const int d = 4;` works, `int n = 4; const int d = n;` doesn't.
 
 ## 6. Generating a Lookup Table at Compile Time {#lut}
 

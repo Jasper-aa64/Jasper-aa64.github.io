@@ -52,6 +52,8 @@ refUpdated: "Updated {{ . }}"
 algoEntry: "Algorithms"
 projectsEntry: "Projects"
 secProjects: "Projects"
+interviewEntry: "Interviews"
+secInterview: "Interviews"
 
 # post
 prevPost: "Previous"

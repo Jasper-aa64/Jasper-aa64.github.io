@@ -51,6 +51,8 @@ refUpdated: "更新于 {{ . }}"
 algoEntry: "算法"
 projectsEntry: "项目"
 secProjects: "项目"
+interviewEntry: "面经"
+secInterview: "面经"
 
 # post
 prevPost: "上一篇"

@@ -61,7 +61,7 @@ So one virtual call = load the vptr → load the table slot → jump to the load
   - **The vptr sits in the same cache line as the object's data.** Without virtual functions you still read the object's members (such as `mult`). If the object is cold, both versions pay one cache miss for that line; reading the vptr doesn't add a second one. What the virtual version adds is only an object 8 bytes bigger, so fewer fit in a line.
   - **There is one vtable per class, not per object.** It lives in the read-only data section; two or three classes means two or three cache lines, shared by every call. When calls are frequent something reads it all the time, so it stays in L1, about 1 ns.
   - **When the prediction is right, the two reads barely slow anything.** The CPU doesn't wait for them to decide where to jump: the predictor supplies the target, the CPU starts executing the callee, and the two reads complete alongside, only to check the guess. On a mispredict, or when this call site has no prediction history yet, it really has to wait: read the vptr, and only then does it know where to read the function address; read that slot, and only then can it jump. The two reads happen one after the other and can't overlap.
-  - **What's really expensive is a cold start.** After the program has been idle for a while, other code has pushed this code's cache lines out, and on the next call both the object's line and the vtable's line may be missing. Both versions pay for the object; the vtable miss belongs to the virtual version alone and queues behind the vptr read, adding in the worst case one serial miss of about 70–120 ns (estimated from the [latency ranges](/ref/cpu-memory/#latency), not measured). Where that one miss matters, switch to [static polymorphism](/ref/cpp-syntax/), which has no vtable to read.
+  - **What's really expensive is a cold start.** After the program has been idle for a while, other code has pushed this code's cache lines out, and on the next call both the object's line and the vtable's line may be missing. Both versions pay for the object; the vtable miss belongs to the virtual version alone and queues behind the vptr read, adding in the worst case one serial miss of about 70–120 ns (estimated from the [latency ranges](/ref/cpu-memory/#latency), not measured). Where that one miss matters, switch to [static polymorphism](/posts/crtp-static-polymorphism/), which has no vtable to read.
 - **8 more bytes per object**: a small object (say a 16-byte message) grows noticeably, so fewer fit in a cache line.
 
 ### 1.4 When the Compiler Removes the Virtual Call (Devirtualization) {#virtual-devirt}
@@ -79,14 +79,14 @@ int run_local() { TextMsg l; return run(&l); }              // the object is rig
 
 ### 1.5 Without Virtual Functions: Static Polymorphism {#virtual-alternatives}
 
-When the type is known at compile time, you don't need a vtable: templates and CRTP fix "which function" at compile time and the call inlines; when the set of types is fixed, `std::variant` dispatches on a type index. Together these are called static polymorphism; what they compile to and what each costs is in [Static Polymorphism](/ref/cpp-syntax/).
+When the type is known at compile time, you don't need a vtable: templates and CRTP fix "which function" at compile time and the call inlines; when the set of types is fixed, `std::variant` dispatches on a type index. Together these are called static polymorphism; what they compile to and what each costs is in [Static Polymorphism](/posts/crtp-static-polymorphism/).
 
 ### 1.6 How to Choose {#virtual-choose}
 
 - **The type is only known at run time and the set is open (plugins, read from config)**: virtual functions.
 - **The set of types is fixed and objects share one container**: `std::variant` + `std::visit`.
 - **The type is known at compile time**: templates or CRTP; mark classes `final` where you can so the compiler can call directly.
-- **Most of the time**: virtual functions read and change most easily, so start with them. Only where calls are very frequent and the function body is tiny does the virtual-call cost show, and then switch to [static polymorphism](/ref/cpp-syntax/).
+- **Most of the time**: virtual functions read and change most easily, so start with them. Only where calls are very frequent and the function body is tiny does the virtual-call cost show, and then switch to [static polymorphism](/posts/crtp-static-polymorphism/).
 
 ## 2. Composition and Inheritance: Reuse an Implementation as a Member {#composition}
 

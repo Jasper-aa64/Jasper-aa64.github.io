@@ -104,7 +104,7 @@ struct Vector {
 };
 ```
 
-`Vector<4>` 和 `Vector<8>` 是两个类型，各编一份，循环次数是常量，编译器能整个展开或向量化。代价是[第 3 条](/zh/ref/cpp-syntax/#poly-cost)的代码膨胀。模板实参必须是编译期常量：`const int d = 4;` 可以，`int n = 4; const int d = n;` 不行。
+`Vector<4>` 和 `Vector<8>` 是两个类型，各编一份，循环次数是常量，编译器能整个展开或向量化。代价是[静态多态的代价](/zh/posts/crtp-static-polymorphism/#poly-cost)的代码膨胀。模板实参必须是编译期常量：`const int d = 4;` 可以，`int n = 4; const int d = n;` 不行。
 
 ## 6. 编译期生成查找表 {#lut}
 
