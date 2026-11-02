@@ -3,7 +3,7 @@ title: "C++ 与 Linux：总图"
 description: "C++ 程序在 Linux 上最常翻的两张总图。进程地图：一个进程的虚拟地址空间有哪几段，C++ 里的变量、new 出来的内存、线程栈各落在哪，虚拟地址怎么经页表落到物理内存。IO 地图：读写文件、mmap、收发网络包时，数据在设备、内核和你的缓冲区之间怎么走，哪一步是 CPU 拷贝、哪一步是 DMA，IO 模型和零拷贝各省在哪。"
 date: 2026-11-02
 slug: "cpp-linux"
-aliases: ["/zh/ref/process-memory/"]
+aliases: ["/ref/process-memory/"]
 weight: 12
 toc: true
 ---
