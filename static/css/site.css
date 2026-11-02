@@ -2293,11 +2293,6 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   filter: invert(.9) hue-rotate(180deg) saturate(1.15);
   border-color: var(--rule-strong);
 }
-:root[data-theme="dark"] .prose > svg, :root[data-theme="dark"] .prose p > svg,
-:root[data-theme="black"] .prose > svg, :root[data-theme="black"] .prose p > svg {
-  filter: invert(.9) hue-rotate(180deg) saturate(1.15);
-  border-color: var(--rule-strong);
-}
 
 /* ==========================================================================
    About (知悉): profile card, writing stats, projects, skills, background

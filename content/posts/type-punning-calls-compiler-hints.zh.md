@@ -34,14 +34,14 @@ $1.f$ 是说尾数前面默认有一个 1，不占位置；指数 $e$ 存的时�
     .muted { fill: #6b6558; font-size: 12px; }
     .bits  { fill: #1c1b18; font-size: 15px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .ttl   { fill: #1c1b18; font-size: 14px; font-weight: 700; }
-      :root[data-theme="dark"] .fbg { fill: #17161b; }
-      :root[data-theme="dark"] .fs { fill: #4a2f2c; stroke: #8f5a4c; }
-      :root[data-theme="dark"] .fe { fill: #33421f; stroke: #8fb257; }
-      :root[data-theme="dark"] .fm { fill: #23262c; stroke: #3f4650; }
-      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
-      :root[data-theme="dark"] .bits { fill: #e9e7ef; }
-      :root[data-theme="dark"] .ttl { fill: #e9e7ef; }
-      :root[data-theme="dark"] .muted { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fbg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fs { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fe { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fm { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ink { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .bits { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ttl { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .muted { fill: #a19caf; }
   </style>
   <rect class="fbg" x="0" y="0" width="760" height="196" rx="10"/>
   <text class="ttl" x="24" y="30">100.0 的 64 位（double，IEEE 754）</text>

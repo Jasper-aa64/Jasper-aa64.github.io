@@ -69,14 +69,14 @@ for (;;) {
     .e0ttl { fill: #1c1b18; font-size: 14px; font-weight: 700; }
     .e0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
     .e0hd  { fill: #6b6558; }
-      :root[data-theme="dark"] .e0bg { fill: #17161b; }
-      :root[data-theme="dark"] .e0n { fill: #4a2f2c; stroke: #8f5a4c; }
-      :root[data-theme="dark"] .e0k { fill: #33421f; stroke: #8fb257; }
-      :root[data-theme="dark"] .e0g { fill: #23262c; stroke: #3f4650; }
-      :root[data-theme="dark"] .e0ink, :root[data-theme="dark"] .e0ttl { fill: #e9e7ef; }
-      :root[data-theme="dark"] .e0mut { fill: #a19caf; }
-      :root[data-theme="dark"] .e0ln { stroke: #a19caf; }
-      :root[data-theme="dark"] .e0hd { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0n { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0k { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0g { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0ink, :root:is([data-theme="dark"], [data-theme="black"]) .e0ttl { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0mut { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0ln { stroke: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e0hd { fill: #a19caf; }
   </style>
   <defs><marker id="e0a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="e0hd"/></marker></defs>
   <rect class="e0bg" x="0" y="0" width="760" height="236" rx="10"/>
@@ -140,22 +140,22 @@ for (;;) {
     .e1dash{ stroke: #8c8577; stroke-width: 1.2; fill: none; stroke-dasharray: 5 4; }
     .e1hd  { fill: #6b6558; }
     .e1hdr { fill: #b4532f; }
-      :root[data-theme="dark"] .e1bg { fill: #17161b; }
-      :root[data-theme="dark"] .e1usr { fill: #23262c; stroke: #3f4650; }
-      :root[data-theme="dark"] .e1krn { fill: #1e1c1a; stroke: #3e3a33; }
-      :root[data-theme="dark"] .e1box { fill: #26231f; stroke: #6f685c; }
-      :root[data-theme="dark"] .e1ep { fill: #2b2617; stroke: #9c8240; }
-      :root[data-theme="dark"] .e1sk { fill: #1c2633; stroke: #4f74a0; }
-      :root[data-theme="dark"] .e1nd { fill: #33421f; stroke: #8fb257; }
-      :root[data-theme="dark"] .e1hot { fill: #4a2f2c; stroke: #8f5a4c; }
-      :root[data-theme="dark"] .e1ink, :root[data-theme="dark"] .e1ttl { fill: #e9e7ef; }
-      :root[data-theme="dark"] .e1mut { fill: #a19caf; }
-      :root[data-theme="dark"] .e1num { fill: #f0a07a; }
-      :root[data-theme="dark"] .e1ln { stroke: #a19caf; }
-      :root[data-theme="dark"] .e1hl { stroke: #f0a07a; }
-      :root[data-theme="dark"] .e1dash { stroke: #6f685c; }
-      :root[data-theme="dark"] .e1hd { fill: #a19caf; }
-      :root[data-theme="dark"] .e1hdr { fill: #f0a07a; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1usr { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1krn { fill: #1e1c1a; stroke: #3e3a33; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1box { fill: #26231f; stroke: #6f685c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1ep { fill: #2b2617; stroke: #9c8240; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1sk { fill: #1c2633; stroke: #4f74a0; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1nd { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1hot { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1ink, :root:is([data-theme="dark"], [data-theme="black"]) .e1ttl { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1mut { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1num { fill: #f0a07a; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1ln { stroke: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1hl { stroke: #f0a07a; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1dash { stroke: #6f685c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1hd { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e1hdr { fill: #f0a07a; }
   </style>
   <defs>
     <marker id="e1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="e1hd"/></marker>
@@ -363,15 +363,15 @@ for (epi : txlist，最多 maxevents 个) {
     .e2no  { fill: #ffffff; stroke: #8c8577; stroke-width: 1.3; }
     .e2zz  { stroke: #c98a76; stroke-width: 6; stroke-linecap: round; fill: none; opacity: .55; }
     .e2tk  { stroke: #c9c2b4; stroke-width: 1; stroke-dasharray: 3 4; fill: none; }
-      :root[data-theme="dark"] .e2bg { fill: #17161b; }
-      :root[data-theme="dark"] .e2ink, :root[data-theme="dark"] .e2ttl { fill: #e9e7ef; }
-      :root[data-theme="dark"] .e2mut { fill: #a19caf; }
-      :root[data-theme="dark"] .e2ax { stroke: #6f685c; }
-      :root[data-theme="dark"] .e2arr { fill: #6f9bd0; }
-      :root[data-theme="dark"] .e2yes { fill: #8fb257; }
-      :root[data-theme="dark"] .e2no { fill: #17161b; stroke: #a19caf; }
-      :root[data-theme="dark"] .e2zz { stroke: #e08a70; }
-      :root[data-theme="dark"] .e2tk { stroke: #3e3a33; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2ink, :root:is([data-theme="dark"], [data-theme="black"]) .e2ttl { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2mut { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2ax { stroke: #6f685c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2arr { fill: #6f9bd0; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2yes { fill: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2no { fill: #17161b; stroke: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2zz { stroke: #e08a70; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .e2tk { stroke: #3e3a33; }
   </style>
   <rect class="e2bg" x="0" y="0" width="760" height="236" rx="10"/>
   <path class="e2tk" d="M220,40 L220,200 M330,40 L330,200 M440,40 L440,200 M640,40 L640,200"/>

@@ -241,20 +241,20 @@ The key point: this surcharge is **not an occasional spike — it's a tax you pa
     .irq   { stroke: #c15b3f; stroke-width: 1.8; fill: none; marker-end: url(#ah); }
     .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
     .cap   { fill: #6b6558; font-size: 10.5px; }
-      :root[data-theme="dark"] .bg { fill: #17161b; }
-      :root[data-theme="dark"] .panel { fill: #201f26; stroke: #3a3945; }
-      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
-      :root[data-theme="dark"] .muted { fill: #a19caf; }
-      :root[data-theme="dark"] .core { fill: #2a2933; stroke: #47454f; }
-      :root[data-theme="dark"] .coreHouse { fill: #4a2f2c; stroke: #8f5a4c; }
-      :root[data-theme="dark"] .coreHot { fill: #33421f; stroke: #8fb257; }
-      :root[data-theme="dark"] .coreLabel { fill: #d7d3c8; }
-      :root[data-theme="dark"] .dram { fill: #23262c; stroke: #3f4650; }
-      :root[data-theme="dark"] .nic { fill: #2e2940; stroke: #6a5c95; }
-      :root[data-theme="dark"] .upi { stroke: #9a9384; }
-      :root[data-theme="dark"] .irq { stroke: #e0795b; }
-      :root[data-theme="dark"] .title { fill: #e9e7ef; }
-      :root[data-theme="dark"] .cap { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .panel { fill: #201f26; stroke: #3a3945; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ink { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .muted { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .core { fill: #2a2933; stroke: #47454f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .coreHouse { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .coreHot { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .coreLabel { fill: #d7d3c8; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dram { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .nic { fill: #2e2940; stroke: #6a5c95; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .upi { stroke: #9a9384; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .irq { stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .title { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cap { fill: #a19caf; }
   </style>
   <defs>
     <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">

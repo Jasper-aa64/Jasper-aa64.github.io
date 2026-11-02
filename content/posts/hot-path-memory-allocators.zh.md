@@ -151,16 +151,16 @@ vec.emplace_back(1);  // 未定义行为
     .edge     { stroke: #b3ab98; stroke-width: 1.6; fill: none; marker-end: url(#ahN2z); }
     .edgeGone { stroke: #b3ab98; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; opacity: 0.75; marker-end: url(#ahN2z); }
     .edgeGo   { stroke: #6f8f3f; stroke-width: 2; fill: none; marker-end: url(#ahGo2z); }
-      :root[data-theme="dark"] .bg { fill: #17161b; }
-      :root[data-theme="dark"] .ink { fill: #e9e7ef; }
-      :root[data-theme="dark"] .muted { fill: #a19caf; }
-      :root[data-theme="dark"] .title { fill: #e9e7ef; }
-      :root[data-theme="dark"] .boxN { fill: #201f26; stroke: #3a3945; }
-      :root[data-theme="dark"] .boxGone { fill: #2a2933; stroke: #47454f; }
-      :root[data-theme="dark"] .boxGo { fill: #33421f; stroke: #8fb257; }
-      :root[data-theme="dark"] .edge { stroke: #55525f; }
-      :root[data-theme="dark"] .edgeGone { stroke: #55525f; }
-      :root[data-theme="dark"] .edgeGo { stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ink { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .muted { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .title { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .boxN { fill: #201f26; stroke: #3a3945; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .boxGone { fill: #2a2933; stroke: #47454f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .boxGo { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .edge { stroke: #55525f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .edgeGone { stroke: #55525f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .edgeGo { stroke: #8fb257; }
   </style>
   <defs>
     <marker id="ahN2z" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
