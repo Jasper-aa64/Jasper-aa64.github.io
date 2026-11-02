@@ -183,51 +183,127 @@ PREEMPT_RT 把剩下的这些窗口也拆掉，主要改了三处：
 
 ## 4. 内核与 BIOS 调优：一张按层的清单
 
-[#1](/zh/posts/cpu-affinity-core-isolation-numa/) 讲了隔离核、超线程、C-state 和 P-state，[#3](/zh/posts/hot-path-memory-allocators/) 讲了 `mlockall` 和 TLB shootdown。剩下的开关按层排在下面，每一个都写它动的是什么、换来什么、代价是什么。共同的思路和 #1 一样：凡是为平均效率、省电、峰值吞吐设计的机制，都可能让某一次执行变慢，热核上能关就关；用不到的子系统也关，少一条可能打断热核的路径。
+下面七张表是一张按层排的部署清单：从 BIOS、启动参数、sysctl 到应用，每一行写改哪里、要不要重启、为什么改、要注意什么。“要不要重启”这一列其实是按改起来的代价分层：BIOS 要进机房改，还要重启；启动参数要重启；sysctl 和 sysfs 运行时就能改，但重启以后就没了，4.8 的 tuned 就是用来把它们固定下来的。表里和 [#1](/zh/posts/cpu-affinity-core-isolation-numa/)、[#3](/zh/posts/hot-path-memory-allocators/) 重叠的行，表下只指过去；新的行在表下展开。共同的思路和 #1 一样：凡是为平均效率、省电、峰值吞吐设计的机制，都可能让某一次执行变慢，热核上能关就关；用不到的子系统也关，少一条可能打断热核的路径。
 
-### 4.1 BIOS 和电源：关掉为平均和峰值设计的机制
+### 4.1 BIOS：电源与频率
 
-- C-state、P-state、超线程：原理和取舍见 #1 第 2 部分。BIOS 里也要关，一些平台的调频由硬件自己做（如 Intel 的 HWP），只改操作系统一侧管不住。
-- Turbo：有取舍。关掉以后频率固定，每次执行时间一样；开着时单核能快约 10%–30%，但频率随活跃核数和温度变。追求确定性就关，也有团队留着 Turbo，同时把活跃核数和散热控制住。
-- 服务器 BIOS 的性能预设：一般叫 power profile，选“性能”或“低延迟”，会把上面几项连同 uncore 频率、内存省电一起设好。
-- HPET：它平时不发中断，要紧的是时钟源。内核正常用 TSC 当时钟源，`clock_gettime` 在用户态读 TSC，约 20–30 ns；TSC 一旦被判成不可靠，内核退回 HPET，每次读都要访问芯片组，约 0.5–1.5 µs。用 `cat /sys/devices/system/clocksource/clocksource0/current_clocksource` 确认是 `tsc`。
-- VT-x / AMD-V：不跑虚拟机就关，属于“用不到的都关”。
+| 配置项 | 操作方式 | 是否需 BIOS / 重启 | 核心目的 | 注意事项 |
+|---|---|---|---|---|
+| 禁用 C-state（Global C-State Control） | BIOS → CPU 设置，设为 Disabled | 是 | 禁止核进深度睡眠，消除唤醒延迟 | Intel 还要关 C1E 等子选项 |
+| 禁用 P-state（Intel Speed Shift / AMD CPPC） | BIOS → CPU 设置或电源管理，设为 Disabled | 是 | 不在不同性能状态之间切换，避免调频带来的抖动 | 常和关 SpeedStep / Cool'n'Quiet 一起做；有的服务器 BIOS 里叫 Power Performance Bias，设成 Performance |
+| 禁用动态调频（Intel SpeedStep / AMD Cool'n'Quiet） | BIOS → CPU 设置 | 是 | 锁定频率 | 一直跑在高频，功耗上升 |
+| 禁用 Turbo（Intel Turbo Boost / AMD Core Performance Boost） | BIOS → CPU 设置 | 是 | 频率固定，执行时间不随活跃核数和温度变 | 单核峰值慢约 10%–30%；追求吞吐可以保留 |
+| 禁用超线程（Hyper-Threading / SMT） | BIOS → CPU 设置 | 是 | 一个物理核不再被两个线程分着用 | 也可以只空出热核的兄弟线程 |
+| 禁用 HPET | BIOS → 高级电源 / 定时器设置 | 是 | TSC 被判不可靠时，内核不会退回读得慢的 HPET | 先确认当前时钟源是 `tsc` |
+| 禁用 VT-x / AMD-V | BIOS → 虚拟化设置 | 是 | 关掉用不到的功能 | 要跑虚拟机就保留 |
 
-操作系统一侧对应的命令：`cpupower frequency-set -g performance` 把调频策略定在最高频；Intel 的 `intel_pstate` 驱动下关 Turbo 是 `echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo`（**写 1 才是关**），`acpi-cpufreq` 驱动下是 `echo 0 > /sys/devices/system/cpu/cpufreq/boost`；限制 C-state 可以打开 `/dev/cpu_dma_latency`、写入 0 并一直开着（#1 2.2）。
+C-state、P-state、动态调频和超线程的原理与取舍在 #1 第 2 部分。这些在 BIOS 里也要关：一些平台的调频由硬件自己做（如 Intel 的 HWP），只改操作系统一侧管不住。服务器 BIOS 一般还有一个性能预设（power profile），选“性能”或“低延迟”，会把这几项连同 uncore 频率、内存省电一起设好。
 
-### 4.2 启动参数：隔离之外的几个
+Turbo 是有取舍的一项。关掉以后频率固定，每次执行时间一样；开着时单核能快约 10%–30%，但频率随活跃核数和温度变。**追求确定性就关**；也有团队留着 Turbo，同时把活跃核数和散热控制住。
 
-- `isolcpus`、`nohz_full`、`rcu_nocbs`、`irqaffinity`：见 #1 1.2。
-- `preempt=`：见 3.1。
-- `threadirqs`：把中断处理函数放进内核线程（`irq/N-名字`），这样它们可以绑核、排优先级；代价是每次中断多一次线程切换。
-- `nowatchdog`、`nmi_watchdog=0`：soft lockup 检测线程每几秒醒一次，NMI watchdog 用一个性能计数器周期性地发 NMI。关掉少两类打断，代价是内核真卡死时没人报。
-- `tsc=reliable`：跳过内核对 TSC 的定期核对（时钟源看门狗拿别的时钟比），也就不会因为一次核对的抖动把 TSC 判成不可靠、退回 HPET。代价是 TSC 真有问题时也发现不了，较新的 CPU 上 TSC 频率恒定、跨核同步，风险小。
-- `mitigations=off`：关掉 Spectre、Meltdown 这类 CPU 漏洞的缓解措施。缓解的开销主要在进出内核：每次系统调用切换页表（KPTI）、返回用户态前清空缓冲区、间接跳转加防护，每次系统调用多约 0.1–0.5 µs。热路径不进内核时几乎不受影响，**代价是安全**，只用在专用、不跑外来代码的机器上。
-- `transparent_hugepage=never`：关掉透明大页。后台线程 `khugepaged` 合并页的时机不受控制，合并时还要改页表，触发 TLB shootdown（#3 2.2）。
-- `audit=0`、`ipv6.disable=1`、`mce=off`：关掉用不到的子系统。`mce=off` 关的是硬件错误上报，只在测试机上关。
+HPET 平时不发中断，关它要紧的是时钟源。内核正常用 TSC 当时钟源，`clock_gettime` 在用户态读 TSC，约 20–30 ns；TSC 一旦被判成不可靠，内核退回 HPET，每次读都要访问芯片组，约 0.5–1.5 µs。用 `cat /sys/devices/system/clocksource/clocksource0/current_clocksource` 确认是 `tsc`。VT-x 不跑虚拟机就关，属于“用不到的都关”。
+
+### 4.2 启动参数
+
+| 配置项 | 操作方式 | 是否需 BIOS / 重启 | 核心目的 | 注意事项 |
+|---|---|---|---|---|
+| `isolcpus=8-15` | 写进 `/etc/default/grub` 的 `GRUB_CMDLINE_LINUX`，再 `update-grub` | 是 | 指定的核不参与通用调度 | 范围和 `nohz_full`、`rcu_nocbs` 保持一致 |
+| `nohz_full=8-15` | 同上 | 是 | 核上只有一个可运行任务时停掉时钟中断 | 内核要开 `CONFIG_NO_HZ_FULL` |
+| `rcu_nocbs=8-15` | 同上 | 是 | RCU 回调交给打杂核上的线程 | `nohz_full` 已经隐含它，显式写更稳 |
+| `preempt=full` | 同上 | 是 | 内核代码除了拿锁、关中断的区域，都可以被抢占 | 内核要开 `CONFIG_PREEMPT_DYNAMIC` |
+| `threadirqs` | 同上 | 是 | 中断处理函数放进内核线程，可以绑核、排优先级 | 每次中断多一次线程切换 |
+| `nowatchdog` | 同上 | 是 | 关掉 soft lockup 检测线程 | 常和 `nmi_watchdog=0` 一起；内核卡死时没人报 |
+| `tsc=reliable` | 同上 | 是 | 跳过时钟源看门狗对 TSC 的核对，不会被误判后退回 HPET | TSC 真有问题时也发现不了 |
+| `mce=off` | 同上 | 是 | 关掉机器检查异常的处理 | 硬件错误也报不出来，只在测试机上用 |
+| `ipv6.disable=1` | 同上 | 是 | 关掉 IPv6 协议栈 | 要用 IPv6 就别加 |
+| `audit=0` | 同上 | 是 | 关掉审计子系统 | 不需要审计日志时才关 |
+| `mitigations=off` | 同上 | 是 | 关掉 CPU 漏洞缓解，进出内核变快 | 去掉了侧信道防护，只用在专用机器上 |
+| `tuned-adm profile network-latency` | 命令行执行 | 否 | 套用预设的低延迟配置 | 要装 tuned，见 4.8 |
+
+前三行是隔离，见 #1 1.2；`preempt=` 见 3.1。
+
+`threadirqs` 把中断处理函数放进内核线程（`irq/N-名字`），这样它们可以绑核、排优先级，3.2 里 PREEMPT_RT 做的三件事之一，普通内核用这个参数也能做到；代价是每次中断多一次线程切换。
+
+`nowatchdog` 关的是 soft lockup 检测线程，它每几秒醒一次；`nmi_watchdog=0` 关的是 NMI watchdog，它用一个性能计数器周期性地发 NMI。关掉少两类打断，代价是内核真卡死时没人报。
+
+`tsc=reliable` 跳过内核对 TSC 的定期核对（时钟源看门狗拿别的时钟和它比），也就不会因为一次核对的抖动把 TSC 判成不可靠、退回 HPET，和 4.1 关 HPET 是同一个目的。较新的 CPU 上 TSC 频率恒定、跨核同步，风险小。
+
+`mitigations=off` 关掉 Spectre、Meltdown 这类 CPU 漏洞的缓解措施。缓解的开销主要在进出内核：每次系统调用切换页表（KPTI）、返回用户态前清空缓冲区、间接跳转加防护，每次系统调用多约 0.1–0.5 µs。热路径不进内核时几乎不受影响，**代价是安全**，只用在专用、不跑外来代码的机器上。`mce=off`、`ipv6.disable=1`、`audit=0` 都是关掉用不到的子系统，其中 `mce=off` 关的是硬件错误上报，只在测试机上关。
 
 ### 4.3 sysctl：网络
 
-- `net.core.busy_read`、`net.core.busy_poll`（单位 µs）：socket 读不到数据时，先在内核里轮询网卡队列最多这么久，而不是立刻睡下等中断。省掉“中断 → 软中断 → 唤醒线程”这一段，约 5–20 µs，代价是轮询期间占着 CPU。讲内核旁路时会接着说。
-- `net.core.netdev_max_backlog`：每个核上驱动交给协议栈的队列长度。突发流量把队列打满就丢包（`/proc/net/softnet_stat` 第 2 列在涨），调大可以防丢。
-- `net.core.somaxconn`：`listen` 的全连接队列上限，影响要接很多连接的服务端；交易客户端连接少、连得久，影响小。
-- 关 Nagle：没有全局的 sysctl，要每个 socket 自己设 `setsockopt(TCP_NODELAY)`。`net.ipv4.tcp_low_latency` 从 4.14 起已经不起作用。
-- BBR、`tcp_fastopen`：BBR 是拥塞控制算法，影响长距离链路的吞吐和排队；fast open 在建连时省一个往返。交易连接在机房内、建好后长期不断，这两项影响都小。
+| 配置项 | 操作方式 | 是否需 BIOS / 重启 | 核心目的 | 注意事项 |
+|---|---|---|---|---|
+| `net.core.netdev_max_backlog=250000` | `sysctl -w 参数=值`，或写进 `/etc/sysctl.conf` 后 `sysctl -p` | 否 | 调大驱动交给协议栈的队列，突发时不丢包 | 太大占内存 |
+| `net.core.somaxconn=65535` | 同上 | 否 | 调大 `listen` 的全连接队列 | 程序里 `listen` 的 backlog 也要一起调 |
+| `net.ipv4.tcp_low_latency=1` | 同上 | 否 | 原意是让 TCP 偏向延迟 | 4.14 起已经不起作用 |
+| `TCP_NODELAY` | 每个 socket 调 `setsockopt` | 否 | 关掉 Nagle，小包立刻发出 | 没有同名的 sysctl |
+| `net.ipv4.tcp_congestion_control=bbr` | 同上 | 否 | 换成 BBR 拥塞控制 | 内核 4.9 起；机房内的短链路影响小 |
+| `net.core.busy_read=50` | 同上 | 否 | socket 读时先轮询网卡队列，最多 50 µs | 轮询时占着 CPU |
+| `net.core.busy_poll=50` | 同上 | 否 | `poll` / `select` 时同样先轮询 | 和 `busy_read` 一起用 |
+| `net.ipv4.tcp_fastopen=3` | 同上 | 否 | 建连时省一个往返 | 只对频繁新建的短连接有用 |
 
-### 4.4 sysctl：内存
+busy poll 是这张表里对延迟影响最大的一项。socket 读不到数据时，先在内核里轮询网卡队列最多这么久，而不是立刻睡下等中断，省掉“中断 → 软中断 → 唤醒线程”这一段，约 5–20 µs，代价是轮询期间占着 CPU。讲内核旁路时会接着说。
 
-- `vm.swappiness` 和 `mlockall`：swappiness 调小只是让内核少换出，内存压力大时照样会换。真正保证热数据不被换出的是 `mlockall(MCL_CURRENT | MCL_FUTURE)`，它的漏洞见 #3 第 2 部分。进程要有 `CAP_IPC_LOCK`，或者足够大的 `RLIMIT_MEMLOCK`。
-- `vm.dirty_ratio`、`vm.dirty_background_ratio`：脏页占到内存的多少比例时开始后台写回、多少时让写的线程停下来等。调小以后小批量常写，不会一次攒几 GB 再写，写日志的线程就不会在 `write()` 里卡上几百 ms；代价是写盘次数多。
-- `vm.zone_reclaim_mode=0`、`kernel.numa_balancing=0`：本节点内存不够时直接用远端的，不先回收本地的页；不让内核自动搬页，搬页要改页表，同样会触发 TLB shootdown。NUMA 见 #1 第 3 部分。
-- 关 KSM：KSM 在后台扫描、合并内容相同的页，主要服务虚拟机，合并和拆分都要改页表。
+`netdev_max_backlog` 是每个核上驱动交给协议栈的队列长度，突发流量把它打满就丢包，`/proc/net/softnet_stat` 第 2 列在涨时就该调大。`somaxconn` 影响的是要接很多连接的服务端；BBR 影响长距离链路的吞吐和排队；fast open 在建连时省一个往返。**交易连接在机房内、连接少、建好后长期不断，这三项影响都小。**关 Nagle 没有全局开关，每个 socket 自己设 `setsockopt(TCP_NODELAY)`。
 
-### 4.5 中断和后台工作
+### 4.4 sysctl 与 sysfs：内存
 
-- 停掉 irqbalance，把网卡中断绑到打杂核：见 #1 1.2。irqbalance 不停，手动绑的中断会被它改回去。
-- `echo 0-1 > /sys/devices/virtual/workqueue/cpumask`：不绑核的内核工作队列只在 0、1 号打杂核上跑。绑在某个核上的工作不受它管。
-- 中断合并 `ethtool -C eth0 rx-usecs N`：网卡攒够 N µs 或若干个包，才发一次中断。中断少了，CPU 也省了，但每个包最多多等 N µs。`rx-usecs 100` 是为吞吐配的，行情网卡要低延迟，就设成 0 并关掉 adaptive，或者干脆用 busy poll。
+| 配置项 | 操作方式 | 是否需 BIOS / 重启 | 核心目的 | 注意事项 |
+|---|---|---|---|---|
+| `vm.swappiness=0` | `sysctl -w`，或写进 `/etc/sysctl.conf` | 否 | 尽量不换出到 swap | 内存压力大时仍会换，要配 `mlockall` |
+| `vm.dirty_ratio=5` / `vm.dirty_background_ratio=1` | 同上 | 否 | 脏页少攒、早写 | 写盘次数变多 |
+| `vm.zone_reclaim_mode=0` | 同上 | 否 | 本节点内存不够时直接用远端，不先回收本地 | NUMA 机器才有意义 |
+| `kernel.numa_balancing=0` | 同上 | 否 | 关掉自动 NUMA 搬页 | 自己用 `numactl` 管 |
+| `transparent_hugepage=never` | 启动参数，或 `echo never > /sys/kernel/mm/transparent_hugepage/enabled` | 启动参数要重启 | 关掉透明大页，没有后台合并 | 程序主动要的大页不受影响 |
+| 禁用 KSM | `echo 0 > /sys/kernel/mm/ksm/run` | 否 | 不再在后台合并相同的页 | 只对 `madvise(MADV_MERGEABLE)` 的页生效；`echo 2` 拆开已合并的页 |
 
-### 4.6 tuned：把清单存成一份配置
+swappiness 调小只是让内核少换出，内存压力大时照样会换。**真正保证热数据不被换出的是 `mlockall`**（4.7），它的漏洞见 #3 第 2 部分。
+
+脏页的两个比例，一个是开始后台写回的线，一个是让写的线程停下来等的线。调小以后小批量常写，不会一次攒几 GB 再写，写日志的线程就不会在 `write()` 里卡上几百 ms，代价是写盘次数多。
+
+后三行都和改页表有关。`numa_balancing` 自动搬页、`khugepaged` 合并透明大页、KSM 合并和拆分相同的页，都要改页表，都会触发 TLB shootdown（#3 2.2），打断和这个进程共享地址空间的热核。`zone_reclaim_mode=0` 让本节点内存不够时直接用远端的，不先回收本地的页，NUMA 见 #1 第 3 部分。
+
+### 4.5 中断控制
+
+| 配置项 | 操作方式 | 是否需 BIOS / 重启 | 核心目的 | 注意事项 |
+|---|---|---|---|---|
+| 停用 irqbalance | `systemctl stop irqbalance && systemctl disable irqbalance` | 否 | 不再自动改中断绑定 | 之后要自己维护绑定 |
+| 网卡中断绑核 | `echo <掩码> > /proc/irq/<n>/smp_affinity` | 否 | 网卡中断落在打杂核上 | 新设备的中断要再查 `/proc/interrupts` |
+| 中断固定到指定核 | `echo 0 > /proc/irq/<n>/smp_affinity_list` | 否 | 这个中断只在 0 号核处理，不再迁移 | 写的是核号列表，0 就是 0 号核 |
+| 中断合并 | `ethtool -C ethX rx-usecs 100 rx-frames 64 adaptive-rx off` | 否 | 攒一批再发中断，中断次数少 | 每个包最多多等 `rx-usecs` |
+| 限制工作队列 | `echo 3 > /sys/devices/virtual/workqueue/cpumask` | 否 | 不绑核的内核工作只在 0、1 号核上跑 | 写的是十六进制掩码；绑核的工作不受管 |
+
+前三行见 #1 1.2：irqbalance 不停，手动绑的中断会被它改回去。`smp_affinity` 写十六进制掩码，`smp_affinity_list` 写核号列表，工作队列的 `cpumask` 也是十六进制掩码，3 就是 0、1 号核。
+
+中断合并是吞吐和延迟的直接交换：网卡攒够 `rx-usecs` 微秒或 `rx-frames` 个包才发一次中断，中断少了，CPU 省了，但每个包最多多等这么久。**表里的 `rx-usecs 100` 是为吞吐配的**，行情网卡要低延迟，就设成 0 并关掉 adaptive，或者干脆用 busy poll。
+
+### 4.6 电源管理（运行时）
+
+| 配置项 | 操作方式 | 是否需 BIOS / 重启 | 核心目的 | 注意事项 |
+|---|---|---|---|---|
+| 调频策略设为 performance | `cpupower frequency-set -g performance` | 否 | 调频策略定在最高频 | 只管频率，不管 C-state |
+| 锁定频率 | `cpupower frequency-set -f <MHz>` | 否 | 固定频率，没有调频的过渡 | 目标频率看 CPU 型号 |
+| P-state 不往下调 | `echo 100 > /sys/devices/system/cpu/intel_pstate/min_perf_pct`，`scaling_governor` 设 performance | 否 | 最低性能拉到 100%，频率不往下掉 | `intel_pstate` 驱动；AMD 用 performance 策略 |
+| 限制 C-state | 启动参数 `intel_idle.max_cstate=1 processor.max_cstate=1`，或运行时 `echo 1 > /sys/devices/system/cpu/cpuN/cpuidle/stateM/disable` | 启动参数要重启 | 不进深度睡眠 | 配合 BIOS 效果更好 |
+| 关 Turbo | `echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo`；`acpi-cpufreq` 驱动是 `echo 0 > /sys/devices/system/cpu/cpufreq/boost` | 否 | 频率不随 Turbo 波动 | `no_turbo` 写 1 才是关 |
+
+这张表是 4.1 在操作系统一侧的对应，原理都在 #1 第 2 部分。要注意两个文件的方向相反：`no_turbo` 是“不要 Turbo”，**写 1 才是关**；`boost` 是“要 Turbo”，写 0 才是关。限制 C-state 还有一种程序里的做法：打开 `/dev/cpu_dma_latency`、写入 0 并一直开着（#1 2.2），4.8 的 tuned 就是这么做的。
+
+### 4.7 应用层：内存锁定与绑核
+
+| 配置项 | 操作方式 | 是否需 BIOS / 重启 | 核心目的 | 注意事项 |
+|---|---|---|---|---|
+| 内存锁定权限 | `setcap CAP_IPC_LOCK+ep /path/to/app` | 否 | 允许程序锁内存 | 程序里还要调 `mlockall` |
+| 内存锁定 | 程序里调 `mlockall(MCL_CURRENT \| MCL_FUTURE)` | 否 | 页不被换出 | 首次访问才分配物理页，要预先缺页 |
+| 大页 | `echo <页数> > /sys/devices/system/node/nodeX/hugepages/hugepages-2048kB/nr_hugepages` | 否 | 少 TLB 未命中、少缺页 | 按 NUMA 节点分配 |
+| 绑核 | `taskset -c 8-15 ./app` | 否 | 程序只在隔离核上跑 | 每个热线程最好单独绑一个核 |
+| 实时调度 | `chrt -f 99 taskset -c 8-15 ./app` | 否 | 实时优先级抢占普通任务 | 99 和内核线程同级，一般给 50–80；注意 RT 限流 |
+| NUMA 绑定 | `numactl --cpunodebind=0 --membind=0 ./app` | 否 | CPU 和内存在同一个节点 | 用 `numactl --show` 验证 |
+
+`mlockall` 的漏洞和预先缺页见 #3 第 2、3 部分；绑核和 NUMA 绑定见 #1。实时调度那一行的 99 不要照抄：99 和 `migration/N`、watchdog 这类内核线程同级，忙轮询时还会碰上 RT 限流和饿死内核线程（1.3、1.4），**一般给 50–80**。
+
+### 4.8 tuned：把清单存成一份配置
 
 上面这些开关一条条手敲，重启以后很容易漏一条，或者被别的工具改回去。tuned 是一个后台服务，按配置文件（profile）统一设置 sysctl、sysfs、调频策略、`/dev/cpu_dma_latency` 和启动参数，并一直维持着。常用的几个：
 
