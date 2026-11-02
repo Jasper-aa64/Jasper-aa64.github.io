@@ -4,12 +4,13 @@ date: 2026-11-02
 slug: "virtual-functions"
 description: "虚函数让同一句 o->handle() 在运行时按对象的实际类型调到不同的函数。编译出来是读 vptr、查 vtable、间接跳转三步；代价在要猜的间接跳转、挡住内联、两次读内存和每个对象多 8 字节；编译器在 final、局部对象这些情况下能把它省掉。最后讲继承之前为什么先想组合。"
 summary: "虚调用 = 读对象开头的 vptr → 读这个类 vtable 里那一格 → 按读到的地址跳。最贵的通常不是这一跳，而是编译器没法内联；类型在编译期就能定时，可以改用静态多态。要复用一个类的实现，放成成员，不要继承它。"
-categories: [Linux]
-tags: [cpp, virtual, vtable, polymorphism, inheritance]
 toc: true
+group: cpplinux
+weight: 102
+aliases: ["/posts/virtual-functions/"]
 ---
 
-同一句 `o->handle()`，`o` 指向不同子类的对象，就调到不同的函数，这叫动态多态，靠的是虚函数。这篇从编译出来的两条指令讲起：每个对象里藏着什么、每个类多了什么、一次虚调用要付哪些代价、编译器什么时候能把它省掉。对象在内存里的完整布局（多重继承时的两个 vptr、vtable 里还有什么）见[对象布局](/zh/posts/object-layout/)。
+同一句 `o->handle()`，`o` 指向不同子类的对象，就调到不同的函数，这叫动态多态，靠的是虚函数。这篇从编译出来的两条指令讲起：每个对象里藏着什么、每个类多了什么、一次虚调用要付哪些代价、编译器什么时候能把它省掉。对象在内存里的完整布局（多重继承时的两个 vptr、vtable 里还有什么）见[对象布局](/zh/ref/object-layout/)。
 
 ## 1. 虚函数（virtual function）：运行时按对象的类型选函数 {#virtual}
 

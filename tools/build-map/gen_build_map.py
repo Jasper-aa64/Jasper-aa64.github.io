@@ -20,7 +20,7 @@ W, H = 1600, 960
 FONT = 'PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif'
 LANGS = ('zh',)
 PM = '/maps/process-map.zh.html'
-FORK = '/zh/posts/process-thread-fork/'
+FORK = '/zh/ref/process-thread-fork/'
 
 
 # ---------------------------------------------------------------- boxes

@@ -10,14 +10,13 @@
     {{/* Tags grouped by the category their posts belong to, so the cloud reads as a few short lists. */}}
     {{ $all := partial "tag-list.html" . }}
     <div class="tag-groups">
-      {{ range slice "lowlatency" "cpplinux" "algorithms/common" "algorithms/combinatorics" "algorithms/number-theory" "algorithms/matrix" "ainative" "other" }}
+      {{ range slice "lowlatency" "algorithms/common" "algorithms/combinatorics" "algorithms/number-theory" "algorithms/matrix" "ainative" "other" }}
         {{ $g := . }}{{ $list := where $all "g" $g }}
         {{ with $list }}
           {{ $rareN := len (where $list "n" 1) }}
           <section class="tag-group{{ if and $rareN (lt $rareN (len $list)) }} tag-group--fold{{ end }} reveal">
             <h3 class="tag-group__head">
               {{ if eq $g "lowlatency" }}{{ i18n "catLowLatency" }}
-              {{ else if eq $g "cpplinux" }}{{ i18n "catCppLinux" }}
               {{ else if eq $g "ainative" }}{{ i18n "catAINative" }}
               {{ else if eq $g "other" }}{{ i18n "tagOther" }}
               {{ else }}{{ i18n "catAlgorithms" }}<span>{{ if eq $g "algorithms/common" }}{{ i18n "tagGeneral" }}{{ else }}{{ i18n (print "cat_" (strings.TrimPrefix "algorithms/" $g)) }}{{ end }}</span>{{ end }}

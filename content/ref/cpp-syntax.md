@@ -8,7 +8,7 @@ weight: 20
 toc: true
 ---
 
-This page is a reference to keep open, not a post. It covers static polymorphism: moving "which function to call" from run time to compile time. Virtual functions themselves (vptr, vtable, the cost of a virtual call) are C++ basics and live in the [Virtual Functions](/posts/virtual-functions/) post; `const` / `constexpr` and `shared_ptr` moved to the C++ & Linux section as well ([const and constexpr](/posts/const-constexpr/), [shared_ptr](/posts/shared-ptr/)). All assembly is real GCC 13.3 `-O2` x86-64 output.
+This page is a reference to keep open, not a post. It covers static polymorphism: moving "which function to call" from run time to compile time. Virtual functions themselves (vptr, vtable, the cost of a virtual call) are C++ basics and live in the [Virtual Functions](/ref/virtual-functions/) post; `const` / `constexpr` and `shared_ptr` moved to the C++ & Linux section as well ([const and constexpr](/ref/const-constexpr/), [shared_ptr](/ref/shared-ptr/)). All assembly is real GCC 13.3 `-O2` x86-64 output.
 
 ## 1. Alternatives to Virtual Functions: CRTP, variant, Batching by Type {#virtual-alternatives}
 
@@ -80,7 +80,7 @@ struct DoubleValueDeco : Iterator {    // one decorator layer: wraps the next, c
 };
 ```
 
-Every extra layer is one more heap allocation (`unique_ptr`), and every call costs one more virtual call on the way down (the costs in [Virtual Functions](/posts/virtual-functions/#virtual-cost)).
+Every extra layer is one more heap allocation (`unique_ptr`), and every call costs one more virtual call on the way down (the costs in [Virtual Functions](/ref/virtual-functions/#virtual-cost)).
 
 **The mixin version**: each layer is a template that takes the next layer as its template parameter and inherits from it.
 
@@ -142,7 +142,7 @@ In one line: **the difference is when "which function to call" gets decided.** S
 
 ### 3.1 Where the Speed Comes From: Inlining, Not Just One Jump Saved {#poly-speed}
 
-The run-time cost of dynamic polymorphism is in [Virtual Functions 1.3](/posts/virtual-functions/#virtual-cost): one indirect jump to predict, two extra memory reads, 8 bytes per object, and no inlining. The most expensive item is usually **no inlining**. One more cost appears only on a cold start: after the market has been quiet for a while, other code has pushed the hot path out of the cache, and when the next tick arrives the vtable's line may be missing too, adding one serial miss behind the vptr read. The fix is to keep the hot path hot (run it on dummy data periodically even when idle), or use CRTP or `final` so there is no vtable to read.
+The run-time cost of dynamic polymorphism is in [Virtual Functions 1.3](/ref/virtual-functions/#virtual-cost): one indirect jump to predict, two extra memory reads, 8 bytes per object, and no inlining. The most expensive item is usually **no inlining**. One more cost appears only on a cold start: after the market has been quiet for a while, other code has pushed the hot path out of the cache, and when the next tick arrives the vtable's line may be missing too, adding one serial miss behind the vptr read. The fix is to keep the hot path hot (run it on dummy data periodically even when idle), or use CRTP or `final` so there is no vtable to read.
 
 - The indirect jump itself: when the types at one call site follow a pattern it is almost never mispredicted and costs only a few cycles; with randomly mixed types each mispredict costs about 15–20 cycles.
 - Inlining: once the body is expanded into the caller, the compiler can propagate constants, merge computation, and vectorize. The smaller the body, the bigger this gap.

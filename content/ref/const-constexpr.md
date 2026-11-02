@@ -4,9 +4,10 @@ date: 2026-11-02
 slug: "const-constexpr"
 description: "Four keywords that look alike answer different questions: const is read-only and guarantees nothing about compile time; a constexpr variable is always computed at compile time, a constexpr function only can be; every consteval call must happen at compile time; constinit guarantees a static variable is initialized at compile time but can still change. Plus non-type template parameters and generating a lookup table at compile time."
 summary: "const is about whether a value can change, not when it is computed; for compile-time values use constexpr variables and consteval functions; for static variables with initialization-order problems use constinit."
-categories: [Linux]
-tags: [cpp, const, constexpr, consteval, constinit, templates]
 toc: true
+group: cpplinux
+weight: 103
+aliases: ["/posts/const-constexpr/"]
 ---
 
 Four look-alike keywords that answer different questions:

@@ -4,9 +4,10 @@ date: 2026-11-02
 slug: "shared-ptr"
 description: "shared_ptr 是对象加一块存计数的控制块；复制它是拷两个指针加一次计数加 1，多线程时是一次原子操作。成员函数里要拿到自己的 shared_ptr，不能用 shared_ptr(this) 另起一个控制块，要继承 enable_shared_from_this 再调 shared_from_this()。"
 summary: "shared_ptr 的计数在控制块里，make_shared 只分配一次；成员函数里要延长自己的寿命，用 shared_from_this() 共用外面那个控制块，自己另起一个会析构两次。"
-categories: [Linux]
-tags: [cpp, shared_ptr, smart-pointer, enable_shared_from_this]
 toc: true
+group: cpplinux
+weight: 104
+aliases: ["/posts/shared-ptr/"]
 ---
 
 ## 1. `shared_ptr` 是什么：对象 + 一块存计数的控制块 {#shared-ptr}

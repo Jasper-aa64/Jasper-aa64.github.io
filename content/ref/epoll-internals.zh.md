@@ -4,9 +4,10 @@ date: 2026-11-02
 slug: "epoll-internals"
 description: "一个线程要同时等几千个连接，select 和 poll 每次调用都把全部 fd 交给内核挨个查一遍。epoll 把“登记”和“等待”拆开：登记的 fd 放进内核里的一棵红黑树，只有 epoll_ctl 会碰它；登记时在每个 socket 上挂一个回调，数据到了，回调顺着指针把这一项挂上就绪链表；epoll_wait 只看这条链表。再讲水平触发和边缘触发的差别、每一步进不进内核、epoll 为什么算同步 IO，以及想再省还有哪些办法。"
 summary: "epoll 在内核里有三样东西：红黑树记着关注哪些 fd，只给 epoll_ctl 用；就绪链表记着哪些 fd 现在有事，回调往里挂，epoll_wait 从里取；等待队列记着谁睡在 epoll_wait 里。事件来的时候不查树，靠的是登记时挂在 socket 上的那个指针。所以连接再多，每一圈事件循环的开销只看真正有事件的那几个；但每一次 epoll_wait、每一次 recv 仍然是一次系统调用。"
-categories: [Linux]
-tags: [linux, epoll, io-multiplexing, kernel, syscall, network, cpp]
 toc: true
+group: cpplinux
+weight: 109
+aliases: ["/posts/epoll-internals/"]
 ---
 
 一个 Web 服务器或者聊天服务，同时连着几千个客户端。给每个连接开一个线程、阻塞在 `recv` 上，线程数一多，每个线程的栈、每次切换的开销都扛不住。所以服务端的常见写法是：一个线程同时等很多个连接，哪个有数据就处理哪个。这就要回答一个问题：怎么便宜地知道，几千个连接里此刻是哪几个有数据。这篇从 `select` 的问题讲起，再进内核看 epoll 是怎么做到只处理有事件的那几个的。

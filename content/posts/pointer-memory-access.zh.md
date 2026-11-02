@@ -60,7 +60,7 @@ void func_restrict(int *__restrict a, int *__restrict b, int n) {
 - **违反了就是未定义行为。** 写了 `__restrict`，调用时又传了重叠的指针，编译器照样按“不重叠”优化，结果静默算错，没有任何报错。
 - **它只影响编译器，CPU 看不见。** 机器码里没有“restrict”，它的效果全在“编译器生成了哪些指令”。CPU 照样检查每个读和前面的写是否同址。
 - **不是标准 C++。** C99 有 `restrict`，C++ 没有；GCC、Clang、MSVC 都支持 `__restrict` 扩展。
-- **类型不同时本来就不用写。** `int*` 和 `float*` 按严格别名规则（strict aliasing）默认不重叠；`__restrict` 管的是同一种类型的两个指针。参数写成 `const T*` 也代替不了它：`const` 只说你不通过它改，别的指针照样能改（[`const` 和 `constexpr`](/zh/posts/const-constexpr/#const)）。
+- **类型不同时本来就不用写。** `int*` 和 `float*` 按严格别名规则（strict aliasing）默认不重叠；`__restrict` 管的是同一种类型的两个指针。参数写成 `const T*` 也代替不了它：`const` 只说你不通过它改，别的指针照样能改（[`const` 和 `constexpr`](/zh/ref/const-constexpr/#const)）。
 
 ## 2. 链式结构里“下一个”存多宽
 

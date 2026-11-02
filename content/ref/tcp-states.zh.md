@@ -4,10 +4,11 @@ date: 2026-11-02
 slug: "tcp-states"
 description: "一条 TCP 连接从建立到关闭要经过 11 个状态，每一步由一个报文推动。握手为什么是三次：两个方向各对一次序列号，还要让发起方有机会拒绝旧的 SYN；listen、connect、accept 各对应哪一步，半连接队列和全连接队列满了会怎样。挥手为什么是四次，CLOSE_WAIT 为什么几乎总是程序忘了 close，TIME_WAIT 为什么要等 60 s、太多了怎么办，RST 什么时候出现，以及怎么用 ss 和 tcpdump 亲眼看到这些状态。"
 summary: "握手是两个方向各对一次序列号，中间两步合成了 SYN+ACK；第三个报文让发起方能拒绝迟到的旧 SYN。accept 不参与握手，只从全连接队列里取走一条建好的连接。挥手时 ACK 由内核当场回，FIN 要等程序 close，所以通常是四个报文。CLOSE_WAIT 没有超时，成堆出现就是程序漏了 close；TIME_WAIT 是先关的一方替连接收尾，在 Linux 上固定 60 s，太多时靠复用连接解决。"
-categories: [Linux]
-tags: [linux, tcp, network, socket, kernel, cpp]
 toc: true
 math: true
+group: cpplinux
+weight: 110
+aliases: ["/posts/tcp-states/"]
 ---
 
 写过 TCP 服务的人，迟早会在 `ss` 里看到成堆的 `TIME-WAIT` 或 `CLOSE-WAIT`，或者在日志里看到 `Connection reset by peer`。这些都是连接状态留下的痕迹：一条 TCP 连接从建立到关闭要经过一串状态，每一步都由一个报文推动；`connect`、`accept`、`close`、`shutdown` 这些调用，只是让内核去发其中某个报文，或者从内核手里取走一个结果。弄清每个状态在等什么，看到这些痕迹时就知道该查哪里。
@@ -177,7 +178,7 @@ while ((r = recv(fd, buf, sizeof buf, 0)) > 0)   // 读到 0：对方也发完�
 close(fd);                               // shutdown 不释放 fd，最后还得 close
 ```
 
-两者的另一个差别，出现在多个 fd 指向同一个 socket 时，比如 `fork` 以后父子进程各有一个，或者 `dup` 出来的。`close` 只是把这个 socket 的引用计数减 1，减到 0 才真正发 FIN；`shutdown` 不看引用计数，直接作用在连接上，别的进程手里的 fd 也跟着不能写了。所以“每来一个连接 `fork` 一个子进程”的服务器，父进程要是忘了 `close` 自己那份 `cfd`，子进程 `close` 以后计数还剩 1，FIN 发不出去，客户端会一直等。**想让对方收到 FIN，要么指向这个 socket 的 fd 全都 `close` 掉，要么用 `shutdown`。** `fork` 之后父子进程共享哪些东西，在[进程、线程和 fork](/zh/posts/process-thread-fork/)那篇里讲。
+两者的另一个差别，出现在多个 fd 指向同一个 socket 时，比如 `fork` 以后父子进程各有一个，或者 `dup` 出来的。`close` 只是把这个 socket 的引用计数减 1，减到 0 才真正发 FIN；`shutdown` 不看引用计数，直接作用在连接上，别的进程手里的 fd 也跟着不能写了。所以“每来一个连接 `fork` 一个子进程”的服务器，父进程要是忘了 `close` 自己那份 `cfd`，子进程 `close` 以后计数还剩 1，FIN 发不出去，客户端会一直等。**想让对方收到 FIN，要么指向这个 socket 的 fd 全都 `close` 掉，要么用 `shutdown`。** `fork` 之后父子进程共享哪些东西，在[进程、线程和 fork](/zh/ref/process-thread-fork/)那篇里讲。
 
 ### 2.3 CLOSE_WAIT：对方关了，你还没 close
 
@@ -191,7 +192,7 @@ if (r == 0) {
 }
 ```
 
-对面那一方这时停在 FIN_WAIT_2，等你的 FIN。它如果是用 `close` 关的，已经不能再读，内核不会陪它无限等，过了 `net.ipv4.tcp_fin_timeout`（默认 60 s）就直接释放；如果是 `shutdown(SHUT_WR)` 半关的，它还要读你的数据，就一直等着。**CLOSE_WAIT 多，查自己的代码；TIME_WAIT 多，多半是正常现象。** 用 epoll 写的服务端，这个 `close` 通常就写在 `recv` 返回 0 的分支里，[epoll](/zh/posts/epoll-internals/) 那篇的 `drain()` 就是这么做的。
+对面那一方这时停在 FIN_WAIT_2，等你的 FIN。它如果是用 `close` 关的，已经不能再读，内核不会陪它无限等，过了 `net.ipv4.tcp_fin_timeout`（默认 60 s）就直接释放；如果是 `shutdown(SHUT_WR)` 半关的，它还要读你的数据，就一直等着。**CLOSE_WAIT 多，查自己的代码；TIME_WAIT 多，多半是正常现象。** 用 epoll 写的服务端，这个 `close` 通常就写在 `recv` 返回 0 的分支里，[epoll](/zh/ref/epoll-internals/) 那篇的 `drain()` 就是这么做的。
 
 ### 2.4 TIME_WAIT：先 close 的一方最后要等 60 s
 

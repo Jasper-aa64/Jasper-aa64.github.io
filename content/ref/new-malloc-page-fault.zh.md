@@ -4,9 +4,10 @@ date: 2026-11-02
 slug: "new-malloc-page-fault"
 description: "写一行 new，内存要过好几层才真正到手：编译器把 new 拆成 operator new 加构造函数；operator new 调 glibc 的 malloc；malloc 先在本线程的 tcache 和 arena 的空闲链表里找，不够才用 brk 推高堆顶，大块直接 mmap；内核这时只登记了一段地址，物理页要等第一次写、触发缺页才分配并清零。再讲 delete 之后内存回到哪、为什么 RSS 不降，overcommit 下 new 为什么几乎不抛 bad_alloc，以及第一次用慢的几种通用办法。"
 summary: "new 拿到的是地址，不是内存。malloc 大多数时候在自己手里的空闲块里就找到了，进内核的 brk、mmap 也只是登记一段地址；物理页要等第一次写才由缺页分配，每页一次，每次约 0.5–2 µs。所以第一遍写一块新内存比第二遍慢，delete 之后 RSS 不降也不等于泄漏。"
-categories: [Linux]
-tags: [linux, cpp, malloc, glibc, page-fault, virtual-memory, memory]
 toc: true
+group: cpplinux
+weight: 101
+aliases: ["/posts/new-malloc-page-fault/"]
 ---
 
 `Widget* p = new Widget(42);` 看起来是一步，其实要过好几层才拿到能用的内存：标准库、glibc 的分配器、内核，最后还有 CPU 的缺页异常。每一层只在自己手里不够时才往下一层要，所以绝大多数 `new` 在用户态几十 ns 以内就返回了，偶尔一次要进内核；而真正的物理内存，要等你第一次往里写才分配。地址空间里堆、mmap 区各在哪，可以对照[进程地图](/maps/process-map.zh.html)看。
@@ -310,7 +311,7 @@ brk(0x55d0c2a5f000)      = 0x55d0c2a5f000     // 往上推 132 KiB
 
 同一页后面的 4095 个字节再写，页表里已经有了，不再缺页；写到下一页，又缺一次。**缺页按页算，每页一次，每次约 0.5–2 µs，大部分花在进出内核和清零上。** 地址如果不在任何 VMA 里（空指针、越界太远），走的是同一个入口，只是内核查不到 VMA，就给进程发 SIGSEGV。
 
-还有个细节：匿名内存如果先读后写，第一次读时内核不分配新页，而是把一个全局共享的全零页只读地映射给你；等你真的写，再缺一次页，这时才复制出自己的一页。这和 fork 之后的写时复制是同一套机制（见[进程、线程和 fork](/zh/posts/process-thread-fork/)）。
+还有个细节：匿名内存如果先读后写，第一次读时内核不分配新页，而是把一个全局共享的全零页只读地映射给你；等你真的写，再缺一次页，这时才复制出自己的一页。这和 fork 之后的写时复制是同一套机制（见[进程、线程和 fork](/zh/ref/process-thread-fork/)）。
 
 ### 4.2 第一次用为什么慢
 

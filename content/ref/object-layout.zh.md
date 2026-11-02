@@ -4,9 +4,10 @@ date: 2026-11-02
 slug: "object-layout"
 description: "一个 C++ 对象在内存里就是一段连续的字节。成员要落在自己的对齐上，编译器就在中间和末尾补填充，所以 sizeof 往往比成员加起来大，调一下顺序就能变小；空类占 1 字节，做基类或标了 [[no_unique_address]] 可以不占。有虚函数的类，每个对象开头多一个 vptr，指向这个类唯一的一张 vtable，表里除了函数地址还有 offset_to_top 和 typeinfo。多继承时对象里有两个 vptr，转成第二个基类的指针，数值会加 16，第二张表里放的是先调整 this 再跳过去的 thunk。最后讲怎么用 sizeof、-fdump-lang-class、pahole 和 gdb 亲眼看到这些。"
 summary: "对象的大小 = 成员 + 为对齐补的填充，按从大到小排成员填充最少；空类做基类可以不占空间。有虚函数时对象只多一个 8 字节的 vptr，函数再多也只是表变长；vtable 每个类一张，放在重定位后变只读的 .data.rel.ro。多继承时第二个基类子对象有自己的 vptr，转换指针要加偏移，经它调用的虚函数要先过一个调整 this 的 thunk。"
-categories: [Linux]
-tags: [cpp, object-layout, alignment, padding, vtable, inheritance, abi]
 toc: true
+group: cpplinux
+weight: 105
+aliases: ["/posts/object-layout/"]
 ---
 
 `sizeof` 一个结构体，结果常常比成员大小加起来要大；一个什么成员都没有的空类，`sizeof` 是 1；一个类加了虚函数，每个对象就大了 8 字节；多继承时把派生类指针转成第二个基类的指针，指针的数值会变。这几件事背后是同一个问题：编译器怎么把一个对象摆进一段连续的字节里。这篇把它们一个个画在字节格子上，数字都按 x86-64 Linux 上的 Itanium C++ ABI（GCC 和 Clang 都用它），用 GCC 16 编译实测。
@@ -169,7 +170,7 @@ static_assert(sizeof(EboBase) == 4 && sizeof(NUA) == 4);
 
 ### 2.1 vptr：对象开头的 8 字节
 
-虚函数调用怎么找到函数、要付哪些代价，[虚函数](/zh/posts/virtual-functions/)那篇讲过：每个对象开头藏一个 vptr，指向自己那个类的 vtable，调用时读 vptr、再从表里读函数地址、跳过去。这里只看它在对象里占了哪：
+虚函数调用怎么找到函数、要付哪些代价，[虚函数](/zh/ref/virtual-functions/)那篇讲过：每个对象开头藏一个 vptr，指向自己那个类的 vtable，调用时读 vptr、再从表里读函数地址、跳过去。这里只看它在对象里占了哪：
 
 ```cpp
 struct V {
@@ -545,4 +546,4 @@ $1 = {<BaseA> = {_vptr.BaseA = 0x... <vtable for Derive+16>, a = ..., b = ...},
 
 `+16` 和 `+64` 正好对上 3.3 那张表：两个 vptr 分别指向前半段和后半段的地址点。**sizeof 告诉你多大，-fdump-lang-class 告诉你编译器打算怎么摆，gdb 告诉你运行起来的对象里实际是什么**，三样对上了，布局就没有猜的成分。
 
-对象摆好以后放在哪一段（栈、堆、`.data`），见[进程地图](/zh/ref/cpp-linux/#segments)；`new` 一个对象时内存从哪来，见 [new 一次走到哪](/zh/posts/new-malloc-page-fault/)。
+对象摆好以后放在哪一段（栈、堆、`.data`），见[进程地图](/zh/ref/cpp-linux/#segments)；`new` 一个对象时内存从哪来，见 [new 一次走到哪](/zh/ref/new-malloc-page-fault/)。

@@ -4,9 +4,10 @@ date: 2026-11-02
 slug: "virtual-functions"
 description: "A virtual function lets the same o->handle() call a different function at run time depending on the object's actual type. It compiles to three steps: load the vptr, look up the vtable, jump indirectly. The cost is an indirect jump to predict, blocked inlining, two memory loads and 8 extra bytes per object; with final or a local object the compiler can remove it. Last, why to think of composition before inheritance."
 summary: "A virtual call = load the vptr at the start of the object → load one slot of the class's vtable → jump to that address. The expensive part is usually not the jump but the lost inlining; when the type is known at compile time, static polymorphism avoids it. To reuse a class's implementation, make it a member, don't inherit from it."
-categories: [Linux]
-tags: [cpp, virtual, vtable, polymorphism, inheritance]
 toc: true
+group: cpplinux
+weight: 102
+aliases: ["/posts/virtual-functions/"]
 ---
 
 The same `o->handle()` calls a different function depending on which subclass `o` points to: that is dynamic polymorphism, and virtual functions provide it. This post starts from the two instructions it compiles to: what each object hides, what each class gains, what one virtual call costs, and when the compiler can remove it.

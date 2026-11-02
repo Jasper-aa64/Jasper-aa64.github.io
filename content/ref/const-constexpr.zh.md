@@ -4,9 +4,10 @@ date: 2026-11-02
 slug: "const-constexpr"
 description: "四个关键字长得像，回答的是不同的问题：const 只读，不保证编译期；constexpr 变量一定编译期算，函数只是能；consteval 每次调用都必须在编译期；constinit 保证静态变量在编译期初始化，但之后可以改。再讲非类型模板参数和编译期生成查找表。"
 summary: "const 管的是能不能改，不管什么时候算；要编译期算出来，变量用 constexpr，函数用 consteval；静态变量怕初始化顺序问题，用 constinit。"
-categories: [Linux]
-tags: [cpp, const, constexpr, consteval, constinit, templates]
 toc: true
+group: cpplinux
+weight: 103
+aliases: ["/posts/const-constexpr/"]
 ---
 
 四个关键字长得像，回答的是不同的问题：

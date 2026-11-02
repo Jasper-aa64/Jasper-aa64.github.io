@@ -170,7 +170,7 @@
   <text x="832" y="778" class="s" style="white-space:pre">有 INTERP：把 ld.so 也映射进来，</text>
   <text x="832" y="796" class="s" style="white-space:pre">先从 ld.so 开始跑</text>
   <text x="832" y="814" class="s" style="white-space:pre">静态链接的：直接从 _start 开始</text>
-  <text x="832" y="832" class="tag"><a href="/zh/posts/process-thread-fork/" target="_blank" rel="noopener"><tspan>进程和线程：fork 和 exec</tspan></a></text>
+  <text x="832" y="832" class="tag"><a href="/zh/ref/process-thread-fork/" target="_blank" rel="noopener"><tspan>进程和线程：fork 和 exec</tspan></a></text>
   </g>
   <g id="plt">
   <rect x="1190" y="700" width="370" height="170" rx="6" class="run"/>

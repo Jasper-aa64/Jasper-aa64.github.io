@@ -8,7 +8,7 @@ weight: 20
 toc: true
 ---
 
-这页是随时翻的活页，不是一篇文章，讲静态多态：把“调哪个函数”从运行时挪到编译期。虚函数本身（vptr、vtable、一次虚调用的代价）是 C++ 基础，写在[虚函数](/zh/posts/virtual-functions/)那篇；`const` / `constexpr` 和 `shared_ptr` 也搬去了 C++ 与 Linux 板块（[const 和 constexpr](/zh/posts/const-constexpr/)、[shared_ptr](/zh/posts/shared-ptr/)）。汇编都是 GCC 13.3 `-O2`、x86-64 的真实输出。
+这页是随时翻的活页，不是一篇文章，讲静态多态：把“调哪个函数”从运行时挪到编译期。虚函数本身（vptr、vtable、一次虚调用的代价）是 C++ 基础，写在[虚函数](/zh/ref/virtual-functions/)那篇；`const` / `constexpr` 和 `shared_ptr` 也搬去了 C++ 与 Linux 板块（[const 和 constexpr](/zh/ref/const-constexpr/)、[shared_ptr](/zh/ref/shared-ptr/)）。汇编都是 GCC 13.3 `-O2`、x86-64 的真实输出。
 
 ## 1. 虚函数的替代：CRTP、variant、按类型分批 {#virtual-alternatives}
 
@@ -78,7 +78,7 @@ struct DoubleValueDeco : Iterator {    // 一层装饰：包住下一层，只�
 };
 ```
 
-每叠一层，就多一次堆分配（`unique_ptr`），每次调用往下多一次虚调用（[虚函数的代价](/zh/posts/virtual-functions/#virtual-cost)）。
+每叠一层，就多一次堆分配（`unique_ptr`），每次调用往下多一次虚调用（[虚函数的代价](/zh/ref/virtual-functions/#virtual-cost)）。
 
 **Mixin 的写法**：每层是一个模板，把下一层当模板参数并继承它。
 
@@ -140,7 +140,7 @@ using Iter = DoubleValue<OddOnly<MatrixWalk>>;   // 模板实参的顺序就是�
 
 ### 3.1 快在哪：内联，不只是省一次跳转 {#poly-speed}
 
-动态多态的运行时代价见[虚函数 1.3](/zh/posts/virtual-functions/#virtual-cost)：一次要猜的间接跳转、两次读内存、每个对象 8 字节、挡住内联。其中最贵的通常是**挡住内联**。另有一笔只在冷启动时出现：行情安静了一阵，热路径的缓存被别的代码挤掉，下一个 tick 到来时 vtable 那条行也可能不在缓存里，排在读 vptr 之后多出一次串行未命中。办法是让热路径保持热（空闲时也定期用假数据跑一遍），或者换成 CRTP、`final`，根本没有 vtable 要读。
+动态多态的运行时代价见[虚函数 1.3](/zh/ref/virtual-functions/#virtual-cost)：一次要猜的间接跳转、两次读内存、每个对象 8 字节、挡住内联。其中最贵的通常是**挡住内联**。另有一笔只在冷启动时出现：行情安静了一阵，热路径的缓存被别的代码挤掉，下一个 tick 到来时 vtable 那条行也可能不在缓存里，排在读 vptr 之后多出一次串行未命中。办法是让热路径保持热（空闲时也定期用假数据跑一遍），或者换成 CRTP、`final`，根本没有 vtable 要读。
 
 - 间接跳转本身：同一处调用的类型有规律时几乎不会猜错，只是多几个周期；类型随机混在一起时，每次猜错约 15–20 个周期。
 - 内联：函数体被展开进调用方以后，编译器能做常量传播、合并计算、向量化。函数体越小，这一条差得越多。

@@ -5,10 +5,12 @@ date: 2026-11-02
 slug: "cpp-linux"
 aliases: ["/ref/process-memory/"]
 weight: 12
+group: cpplinux
+hub: true
 toc: true
 ---
 
-这页放 C++ 程序在 Linux 上最常翻的总图，和[硬件地图](/zh/ref/cpu-memory/)是一对：硬件地图讲一次访存经过哪些硬件，这页讲在那之前，操作系统替程序做了什么。三张图：[进程地图](#map)讲一个进程的内存长什么样，[IO 地图](#io)讲数据怎么进出这个进程，[从源码到进程](#build)讲一个可执行文件是怎么编出来、又怎么变成进程的。细分的知识点（epoll、fork、动态链接……）写成 [C++ 与 Linux](/zh/categories/linux/) 分类下的单篇文章，这页只放总图和最常翻的表。
+这页放 C++ 程序在 Linux 上最常翻的总图，和[硬件地图](/zh/ref/cpu-memory/)是一对：硬件地图讲一次访存经过哪些硬件，这页讲在那之前，操作系统替程序做了什么。三张图：[进程地图](#map)讲一个进程的内存长什么样，[IO 地图](#io)讲数据怎么进出这个进程，[从源码到进程](#build)讲一个可执行文件是怎么编出来、又怎么变成进程的。细分的知识点（epoll、fork、动态链接……）写成单页，和这页一起放在[速查的 C++ 与 Linux 这一组](/zh/ref/#cpplinux)，这页只放总图和最常翻的表。
 
 ## 1. 进程地图：一个进程的虚拟地址空间 {#map}
 
@@ -113,7 +115,7 @@ perf stat -e page-faults,dTLB-load-misses ./a.out
 
 ### 2.2 收发网络：socket 缓冲区和协议栈 {#net}
 
-收包时，网卡用 DMA 把包写进内存里的收包环，发中断；软中断里协议栈校验、去包头，按 IP 和端口找到 socket，把数据放进它的接收缓冲，唤醒等它的线程（被 epoll 关注的，回调把它挂上就绪链表，见 [epoll](/zh/posts/epoll-internals/)）。你调 `recv`，内核再把数据拷进 `buf`。
+收包时，网卡用 DMA 把包写进内存里的收包环，发中断；软中断里协议栈校验、去包头，按 IP 和端口找到 socket，把数据放进它的接收缓冲，唤醒等它的线程（被 epoll 关注的，回调把它挂上就绪链表，见 [epoll](/zh/ref/epoll-internals/)）。你调 `recv`，内核再把数据拷进 `buf`。
 
 发包反过来：`send` 把数据拷进 socket 的发送缓冲就返回，**返回只代表拷进去了，不代表对方收到**；TCP 分段发出去，数据留在发送缓冲里，直到对方确认，丢了重传。发送缓冲满了，`send` 阻塞，或者在非阻塞 socket 上返回 `EAGAIN`。
 
@@ -197,19 +199,20 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 
 `nm -C` 的 `-C` 把修饰过的名字还原成 C++ 的写法，`_Z1gi` 显示成 `g(int)`；`undefined reference` 报错里的名字也是这样还原过的。
 
-## 4. 细分的文章 {#posts}
+## 4. 细分的单页 {#posts}
 
-总图上每个框背后的细节，写成 [C++ 与 Linux](/zh/categories/linux/) 分类下的单篇：
+总图上每个框背后的细节，写成单页，都在[速查的 C++ 与 Linux 这一组](/zh/ref/#cpplinux)：
 
-| 文章 | 讲什么 | 在哪张图上 |
+| 单页 | 讲什么 | 在哪张图上 |
 |---|---|---|
-| [new 一次走到哪](/zh/posts/new-malloc-page-fault/) | `operator new`、malloc、`brk` / `mmap`、第一次写时缺页 | 进程地图：堆、mmap 区 |
-| [虚函数](/zh/posts/virtual-functions/) | vptr、vtable、一次虚调用的代价、组合与继承 | 进程地图：`.rodata` 里的 vtable |
-| [const 和 constexpr](/zh/posts/const-constexpr/) | `const` / `constexpr` / `consteval` / `constinit`，编译期查找表 | 进程地图：`.rodata`、`.data` |
-| [shared_ptr](/zh/posts/shared-ptr/) | 控制块、复制的代价、`enable_shared_from_this` | 进程地图：堆 |
-| [对象布局](/zh/posts/object-layout/) | 对齐、填充、vptr 和 vtable、多重继承 | 进程地图：`.rodata` 里的 vtable |
-| [函数调用栈帧](/zh/posts/stack-frame/) | 返回地址、寄存器传参、RVO、栈溢出 | 进程地图：栈 |
-| [进程和线程](/zh/posts/process-thread-fork/) | `fork`、写时复制、共享与独占、进程状态 | 进程地图、从源码到进程：`execve` |
-| [进程间通信](/zh/posts/ipc/) | 管道、共享内存、信号、Unix socket | 进程地图：mmap 区；IO 地图 |
-| [epoll](/zh/posts/epoll-internals/) | 红黑树、就绪链表、回调，LT 和 ET | IO 地图：epoll |
-| [TCP](/zh/posts/tcp-states/) | 三次握手、四次挥手、`TIME_WAIT` | IO 地图：TCP/IP 协议栈 |
+| [new 一次走到哪](/zh/ref/new-malloc-page-fault/) | `operator new`、malloc、`brk` / `mmap`、第一次写时缺页 | 进程地图：堆、mmap 区 |
+| [虚函数](/zh/ref/virtual-functions/) | vptr、vtable、一次虚调用的代价、组合与继承 | 进程地图：`.rodata` 里的 vtable |
+| [const 和 constexpr](/zh/ref/const-constexpr/) | `const` / `constexpr` / `consteval` / `constinit`，编译期查找表 | 进程地图：`.rodata`、`.data` |
+| [shared_ptr](/zh/ref/shared-ptr/) | 控制块、复制的代价、`enable_shared_from_this` | 进程地图：堆 |
+| [对象布局](/zh/ref/object-layout/) | 对齐、填充、vptr 和 vtable、多重继承 | 进程地图：`.rodata` 里的 vtable |
+| [函数调用栈帧](/zh/ref/stack-frame/) | 返回地址、寄存器传参、RVO、栈溢出 | 进程地图：栈 |
+| [进程和线程](/zh/ref/process-thread-fork/) | `fork`、写时复制、共享与独占、进程状态 | 进程地图、从源码到进程：`execve` |
+| [进程间通信](/zh/ref/ipc/) | 管道、共享内存、信号、Unix socket | 进程地图：mmap 区；IO 地图 |
+| [epoll](/zh/ref/epoll-internals/) | 红黑树、就绪链表、回调，LT 和 ET | IO 地图：epoll |
+| [TCP](/zh/ref/tcp-states/) | 三次握手、四次挥手、`TIME_WAIT` | IO 地图：TCP/IP 协议栈 |
+| [LRU 缓存](/zh/ref/lru-cache/) | 哈希表加双向链表、`splice`、带哨兵的手写链表 | IO 地图：页缓存怎么淘汰 |

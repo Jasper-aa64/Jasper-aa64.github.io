@@ -79,7 +79,7 @@
   <text x="992" y="218" class="s" style="white-space:pre">IO 多路复用（select / poll / epoll）：一个线程等很多 fd，读还是自己读</text>
   <text x="992" y="236" class="s" style="white-space:pre">异步（io_uring）：把“读到 buf 里”交给内核，读完了再通知你</text>
   <text x="992" y="254" class="s" style="white-space:pre">前三种都是同步 IO：把数据拷进 buf 这一步，是你的线程在等</text>
-  <text x="992" y="272" class="tag"><a href="/zh/posts/epoll-internals/" target="_blank" rel="noopener"><tspan>epoll：红黑树、就绪链表和回调</tspan></a></text>
+  <text x="992" y="272" class="tag"><a href="/zh/ref/epoll-internals/" target="_blank" rel="noopener"><tspan>epoll：红黑树、就绪链表和回调</tspan></a></text>
   </g>
   <g id="vfs">
   <rect x="40" y="390" width="300" height="110" rx="6" class="file"/>
@@ -121,7 +121,7 @@
   <text x="1022" y="432" class="s" style="white-space:pre">socket 收到数据，回调把它挂上 epoll 的就绪链表，</text>
   <text x="1022" y="450" class="s" style="white-space:pre">再叫醒睡在 epoll_wait 里的线程</text>
   <text x="1022" y="468" class="s" style="white-space:pre">只通知“可以读了”，数据还得你自己 recv</text>
-  <text x="1022" y="486" class="tag"><a href="/zh/posts/epoll-internals/" target="_blank" rel="noopener"><tspan>epoll：红黑树、就绪链表和回调</tspan></a></text>
+  <text x="1022" y="486" class="tag"><a href="/zh/ref/epoll-internals/" target="_blank" rel="noopener"><tspan>epoll：红黑树、就绪链表和回调</tspan></a></text>
   </g>
   <g id="tcp">
   <rect x="670" y="570" width="300" height="110" rx="6" class="net"/>

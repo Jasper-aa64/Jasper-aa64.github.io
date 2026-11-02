@@ -20,7 +20,7 @@ FONT = 'PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif'
 LANGS = ('zh',)
 HW = '/maps/hardware-map.zh.html'
 PM = '/maps/process-map.zh.html'
-EPOLL = '/zh/posts/epoll-internals/'
+EPOLL = '/zh/ref/epoll-internals/'
 
 
 def post(lang, slug, anchor=''):

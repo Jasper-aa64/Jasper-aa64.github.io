@@ -717,11 +717,11 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .home-sec__more span { transition: transform .25s var(--ease); }
 .home-sec__more:hover span { transform: translateX(3px); }
 
-/* Core areas: five doors into the notes.
-   Home: one row of five, text only. Categories page (--art): 2 x 2 with an illustration, "all" spanning the last row. */
+/* Core areas: four doors into the notes.
+   Home: one row of four, text only (the original look). Categories page (--art): 2 x 2 with an illustration. */
 .area-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--rule-strong);
   border-radius: 14px;
   overflow: hidden;
@@ -799,9 +799,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   border-right: 0;
 }
 .area-grid--art .area:nth-child(odd) { border-right: 1px solid var(--rule); }
-.area-grid--art .area:not(:last-child) { border-bottom: 1px solid var(--rule); }
-.area-grid--art .area:last-child { grid-column: 1 / -1; border-right: 0; }
-.area-grid--art .area:last-child .area__art { width: 100%; max-width: 330px; justify-self: end; }
+.area-grid--art .area:nth-child(-n + 2) { border-bottom: 1px solid var(--rule); }
 .area-grid--art .area__text { align-self: stretch; }
 .area-grid--art .area__name { font-size: 34px; }
 .area__art { position: relative; display: block; color: var(--ink-2); }
@@ -985,6 +983,11 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .ref-entry:hover span { transform: translateX(3px); }
 .page-body { padding-bottom: 12px; }
 /* Reference page: the quiet link to the algorithms hub, bottom left. */
+.ref-group__title { margin: 56px 0 6px; font-size: 20px; color: var(--ink); scroll-margin-top: 90px; }
+.ref-group__blurb { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+.ref-group__list { margin: 18px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 28px; }
+.ref-group__list a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); font-size: 15px; line-height: 1.7; transition: color .2s, border-color .2s; }
+.ref-group__list a:hover { color: var(--accent); border-color: var(--accent); }
 .algo-entry { margin: 40px 0 0; font-size: 13px; }
 .algo-entry a { color: var(--faint); text-decoration: none; border-bottom: 1px dotted var(--rule-strong); transition: color .2s; }
 .algo-entry a:hover { color: var(--muted); }
@@ -1741,9 +1744,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
    ========================================================================== */
 @media (max-width: 1080px) {
   .area-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .area:nth-child(2n) { border-right: 0; }
-  .area:not(:last-child) { border-bottom: 1px solid var(--rule); }
-  .area:last-child { grid-column: 1 / -1; }
+  .area:nth-child(2) { border-right: 0; }
+  .area:nth-child(-n + 2) { border-bottom: 1px solid var(--rule); }
   .area-grid--art .area { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .area__art { max-width: 280px; order: -1; }
   .card.has-thumb { grid-template-columns: minmax(0, 1fr) 200px; }
@@ -2355,7 +2357,6 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .about-share__seg { flex-basis: 0; }
 .about-share__seg--lowlatency { background: color-mix(in srgb, var(--accent) var(--mix, 100%), var(--card)); }
 .about-share__seg--algorithms { background: color-mix(in srgb, var(--gold) var(--mix, 100%), var(--card)); }
-.about-share__seg--cpplinux { background: color-mix(in srgb, #4f8fc0 var(--mix, 100%), var(--card)); }
 .about-share__seg--ainative { background: color-mix(in srgb, #e07882 var(--mix, 100%), var(--card)); }
 .about-share__legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
 .about-share__legend a { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto 40px; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--rule); font-size: 15px; }
