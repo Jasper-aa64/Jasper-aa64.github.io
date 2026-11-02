@@ -374,6 +374,7 @@
   <text x="1339" y="990" class="t">Linear basis</text>
   <text x="1339" y="1008" class="s">Max XOR, k-th XOR</text>
   <text x="1339" y="1026" class="tag"><a href="/posts/matrix-3-linear-basis/" target="_blank" rel="noopener"><tspan>M #3 linear basis</tspan></a></text>
+  <text x="1339" y="1044" class="tag"><a href="/algo/l2-xor-basis/" target="_blank" rel="noopener"><tspan>L2 §1</tspan></a></text>
   </g>
   <path d="M76,822 L76,846" class="line edge" id="e_c_pow_c_inv" marker-end="url(#arr)"/>
   <path d="M76,940 L76,964" class="line edge" id="e_c_inv_c_sieve" marker-end="url(#arr)"/>
