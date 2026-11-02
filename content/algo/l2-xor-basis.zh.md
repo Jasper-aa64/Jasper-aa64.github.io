@@ -2,7 +2,7 @@
 title: "L2：线性基"
 date: 2026-11-02
 slug: "l2-xor-basis"
-description: "异或是 GF(2) 上的加法，任选子集的异或和构成一个线性空间，线性基是它的一组至多 60 个数的基：按最高位插入、2^r 种值每种由 2^(n-r) 个子集得到、最大值贪心、规范化后第 k 小；前缀异或、带权贪心、区间询问留最靠右的数；从 0 写完最大 XOR 和路径。附 8 道练习题。"
+description: "异或是 GF(2) 上的加法，任选子集的异或和构成一个线性空间，线性基是它的一组至多 60 个数的基：按最高位插入、2^r 种值每种由 2^(n-r) 个子集得到、最大值贪心、规范化后第 k 小；前缀异或、带权贪心、区间询问留最靠右的数；从 0 写完最大 XOR 和路径；两道近年赛题：CCPC Final 2025 L 数不同的区间张成空间，2026 ICPC 网络赛第二场 A 求最小的公共空间。附 8 道练习题。"
 weight: 16
 math: true
 toc: true
@@ -302,6 +302,188 @@ int main() {
 ```
 
 写完先和暴力对拍。边权取小于 16 的值时，“当前在哪个点、当前异或值是多少”这个状态只有 $16 n$ 种，从 $(1, 0)$ 出发 BFS 出所有能到的状态，落在点 $n$ 上的那些异或值就是全部路径的异或值，取最大和程序比。**能重复走的路径题，状态（点，异或值）在小边权下是有限的，这是现成的暴力。**
+
+## 7. 两道近年的赛题
+
+### 7.1 CCPC Final 2025 L（Spirited Away）：数不同的区间张成空间
+
+题（[QOJ / Universal Cup 3727 L](https://contest.ucup.ac/contest/3727/problem/18012)）：多组数据，每组给 $n$ 个小于 $2^{32}$ 的数，$\sum n \le 10^5$。对所有 $1 \le l \le r \le n$ 求 $B(l, r) = \operatorname{span}(a_l, \dots, a_r)$，问一共有多少个不同的集合。
+
+#### 7.1.1 不同的区间只有 $O(32 n)$ 种
+
+区间有 $O(n^2)$ 个，先要缩到能枚举的量。固定右端点 $r$，左端点 $l$ 往左走时空间只会变大，每变一次维数加 1，所以最多变 32 次。变化点就是 5.3 前缀线性基里的那些位置：把插完 $a_r$ 后的基按 `pos` 从大到小排成 $v_1, \dots, v_k$，位置为 $p_1 > p_2 > \cdots > p_k$，记 $p_{k+1} = 0$，那么
+
+$$
+B(l, r) = \operatorname{span}(v_1, \dots, v_j), \qquad p_{j+1} < l \le p_j .
+$$
+
+这是 5.3 那句“位置 $\ge l$ 的部分正好张成 $a_l, \dots, a_r$”换了个说法。另外 $a_r = 0$ 时 $l = r$ 给出 $\{0\}$（这时 $p_1 < r$）。**固定右端点，左端点往左只经过至多 32 个跳变点，所有区间的空间加起来只有 $O(32 n)$ 个。**
+
+#### 7.1.2 两个空间相同，当且仅当规范化后的基相同
+
+同一个空间有很多组基，直接比基不行，得找一个只由空间决定的写法。规范化后的基就是。空间里每个非零数的最高位都是主元位（理由和 2.2 的线性无关证明一样：任何组合的最高位，就是参与组合的基里最高的那个主元位），所以主元位的集合由空间决定。再看主元位 $p$ 上的那个基 $c_p$：规范化之后，它是空间里“主元位中只有第 $p$ 位是 1”的数，而 4.3 说空间里的数由它在主元位上的取值唯一决定，这样的数只有一个。所以 **规范化后的基由空间唯一决定，两个空间相同当且仅当规范化后的基相同**。把规范化的基哈希成一个 64 位数，最后数有多少种不同的哈希值。
+
+#### 7.1.3 一边插入一边保持规范化
+
+对每个 $r$，按 $v_1, v_2, \dots$ 的顺序往一个空的基里插，每插一个记下当前空间的哈希。如果每次插完都调用 4.2 的 `reduce()` 再整体哈希，一次是 $O(32^2)$，每个 $r$ 要 $O(32^3)$，太慢。改成插入时就保持规范化：先用已有的基把新数 $y$ 的主元位全部消掉，$y$ 剩下的最高位 $t$ 是一个新主元位；再把已有的基里第 $t$ 位是 1 的都异或上 $y$。这样每插一个是 $O(32)$。哈希取各个基打散之后的和，改动一个基就减去旧的、加上新的。总复杂度 $O(32^2 n)$，$n = 10^5$ 时约 $10^8$ 次简单操作。
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+using u32 = uint32_t;
+using u64 = uint64_t;
+
+u64 mix(u64 x) {                          // splitmix64：把一个数打散成随机的 64 位
+    x += 0x9e3779b97f4a7c15ULL;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    return x ^ (x >> 31);
+}
+
+int main() {
+    int T;
+    scanf("%d", &T);
+    while (T--) {
+        int n;
+        scanf("%d", &n);
+        u32 b[32] = {};                   // 5.3 的前缀线性基
+        int pos[32] = {};
+        vector<u64> hs;                   // 每个 (r, j) 对应空间的哈希
+        for (int r = 1; r <= n; r++) {
+            u32 x;
+            scanf("%u", &x);
+            int p = r;
+            for (int i = 31; i >= 0; i--) {
+                if (!(x >> i & 1)) continue;
+                if (!b[i]) { b[i] = x; pos[i] = p; break; }
+                if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
+                x ^= b[i];
+            }
+            vector<pair<int, u32>> v;     // (位置, 基)，按位置从大到小
+            for (int i = 0; i < 32; i++)
+                if (b[i]) v.push_back({pos[i], b[i]});
+            sort(v.rbegin(), v.rend());
+            if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0：B(r, r) = {0}
+            u32 c[32] = {};               // 规范化的基，一个一个往里插
+            u64 h = 0;
+            for (auto [q, y] : v) {
+                for (int i = 31; i >= 0; i--)
+                    if ((y >> i & 1) && c[i]) y ^= c[i];          // 消掉 y 上已有的主元位
+                int t = 31 - __builtin_clz(y);                    // 新的主元位
+                for (int i = t + 1; i < 32; i++)
+                    if (c[i] >> t & 1) { h -= mix(c[i]); c[i] ^= y; h += mix(c[i]); }
+                c[t] = y;
+                h += mix(y);
+                hs.push_back(h);          // l 落在 (下一个位置, q] 时的 B(l, r)
+            }
+        }
+        sort(hs.begin(), hs.end());
+        printf("%d\n", (int)(unique(hs.begin(), hs.end()) - hs.begin()));
+    }
+}
+```
+
+$O(32 n)$ 个 64 位哈希值里出现碰撞的概率约是 $(3 \times 10^6)^2 / 2^{65}$，可以忽略。
+
+### 7.2 2026 ICPC 网络赛第二场 A（All Closed）：所有解都必须包含的数
+
+题（[QOJ 4113](https://qoj.ac/contest/4113)）：有 $n$ 个非空集合 $S_1, \dots, S_n$，元素都在 $[0, 2^m)$ 里，$m \le 20$。一次操作选一个数 $x$，把它同时加进所有集合。用最少的操作让每个集合都对异或封闭，输出要加的那些数。
+
+#### 7.2.1 把“最少操作”换成“最小的空间”
+
+设加进去的数组成集合 $T$，最后第 $i$ 个集合是 $S_i \cup T$。一个非空集合对异或封闭，就包含 $a \oplus a = 0$，又对加法封闭，所以它就是一个空间。看所有最终集合的公共部分：
+
+$$
+K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i .
+$$
+
+若干个空间的交还是空间，所以 $K$ 是一个包含 $I$ 的空间，并且最终集合可以写成 $S_i \cup K$。$T$ 里不必放 $I$ 中的数（它们本来就在每个集合里），所以 $|T| = |K| - |I|$，**操作最少等价于 $K$ 最小：求最小的空间 $K \supseteq I$，使每个 $S_i \cup K$ 都是空间，答案是 $K \setminus I$。**
+
+#### 7.2.2 每一步加的数都是逼出来的
+
+从 $K = \operatorname{span}(I)$ 开始，任何合法的 $K$ 都包含 $I$、又是空间，所以都包含 $\operatorname{span}(I)$。如果某个 $S_i \cup K$ 不封闭，就有一个数 $x$ 落在 $\operatorname{span}(S_i \cup K)$ 里，却既不在 $S_i$ 也不在 $K$ 里。任取一个包含当前 $K$ 的合法解 $K^*$：$S_i \cup K^*$ 是空间，又包含 $S_i \cup K$，所以包含 $x$；$x$ 不在 $S_i$ 里，只能在 $K^*$ 里。于是每个合法解都包含 $x$，令 $K \leftarrow \operatorname{span}(K \cup \{x\})$，它仍然被每个合法解包含。
+
+每加一个 $x$，$K$ 的秩加 1，至多 $m$ 次后所有 $S_i \cup K$ 都封闭。这时 $K$ 本身合法，又包含于每个合法解，所以它就是最小的那个，答案也因此唯一。**求最小的合法解，可以从“每个合法解都必须包含什么”出发，一直加到合法为止，停下时得到的就是最小解。**
+
+#### 7.2.3 判断封闭：数元素个数
+
+$S_i \cup K \subseteq \operatorname{span}(S_i \cup K)$，而后者正好有 $2^r$ 个元素（3.1），$r$ 是 $S_i \cup K$ 的秩。所以
+
+$$
+S_i \cup K \text{ 封闭} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .
+$$
+
+不封闭时，把 $\operatorname{span}(S_i \cup K)$ 列出来（至多 $2^m$ 个），找一个既不在 $S_i$ 也不在 $K$ 里的数，就是要加的 $x$。每轮检查所有集合是 $O(m \sum \lvert S_i \rvert)$，至多 $m$ 轮，再加上每轮 $O(2^m)$ 的列举。
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+int n, m;
+
+bool insert(vector<int>& b, int x) {      // 2.1 的插入，b 有 m 个位置
+    for (int i = m - 1; i >= 0; i--) {
+        if (!(x >> i & 1)) continue;
+        if (!b[i]) { b[i] = x; return true; }
+        x ^= b[i];
+    }
+    return false;
+}
+
+vector<int> expand(const vector<int>& b) { // 列出 span(b) 的全部元素
+    vector<int> all = {0};
+    for (int i = 0; i < m; i++)
+        if (b[i]) {
+            int sz = all.size();
+            for (int j = 0; j < sz; j++) all.push_back(all[j] ^ b[i]);
+        }
+    return all;
+}
+
+int main() {
+    scanf("%d %d", &n, &m);
+    vector<vector<int>> s(n);
+    vector<int> cnt(1 << m, 0);            // cnt[x]：x 在几个集合里
+    for (auto& si : s) {
+        int k;
+        scanf("%d", &k);
+        si.resize(k);
+        for (int& x : si) { scanf("%d", &x); cnt[x]++; }
+    }
+    vector<int> kb(m, 0);                  // K 的基，从 span(I) 开始
+    for (int x = 0; x < (1 << m); x++)
+        if (cnt[x] == n) insert(kb, x);
+    vector<char> inK(1 << m), inS(1 << m);
+    while (true) {
+        vector<int> K = expand(kb);
+        fill(inK.begin(), inK.end(), 0);
+        for (int x : K) inK[x] = 1;
+        int forced = -1;                   // 每个合法解都必须包含的新数
+        for (int i = 0; i < n && forced < 0; i++) {
+            vector<int> b = kb;
+            int common = 0;                // |S_i ∩ K|
+            for (int x : s[i]) { insert(b, x); common += inK[x]; }
+            int r = 0;
+            for (int i2 = 0; i2 < m; i2++) r += b[i2] != 0;
+            long long uni = (long long)s[i].size() + K.size() - common;   // |S_i ∪ K|
+            if (uni == (1LL << r)) continue;                              // 已经封闭
+            for (int x : s[i]) inS[x] = 1;
+            for (int x : expand(b))
+                if (!inK[x] && !inS[x]) { forced = x; break; }
+            for (int x : s[i]) inS[x] = 0;
+        }
+        if (forced < 0) break;
+        insert(kb, forced);
+    }
+    vector<int> ans;                       // K \ I
+    for (int x : expand(kb))
+        if (cnt[x] < n) ans.push_back(x);
+    sort(ans.begin(), ans.end());
+    printf("%d\n", (int)ans.size());
+    for (int x : ans) printf("%d ", x);
+    printf("\n");
+}
+```
 
 ## 练习
 

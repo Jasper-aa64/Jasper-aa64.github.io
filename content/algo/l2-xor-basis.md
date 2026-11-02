@@ -2,7 +2,7 @@
 title: "L2: XOR Basis"
 date: 2026-11-02
 slug: "l2-xor-basis"
-description: "XOR is addition over GF(2), so all subset XORs form a linear space, and an XOR basis is a basis of it with at most 60 numbers: insertion by highest bit, 2^r values each reached by 2^(n-r) subsets, greedy maximum, k-th smallest after reduction; prefix XORs, weighted greedy, range queries that keep the rightmost number; maximum XOR path written from scratch. With 8 practice problems."
+description: "XOR is addition over GF(2), so all subset XORs form a linear space, and an XOR basis is a basis of it with at most 60 numbers: insertion by highest bit, 2^r values each reached by 2^(n-r) subsets, greedy maximum, k-th smallest after reduction; prefix XORs, weighted greedy, range queries that keep the rightmost number; maximum XOR path written from scratch; two recent contest problems: CCPC Final 2025 L counts distinct range spans, 2026 ICPC Online II A finds the smallest common space. With 8 practice problems."
 weight: 16
 math: true
 toc: true
@@ -302,6 +302,188 @@ int main() {
 ```
 
 Once it is written, compare it against brute force. With weights below 16, the state "which vertex, which current XOR" has only $16 n$ possibilities; BFS from $(1, 0)$ over all reachable states, and the XORs of states at vertex $n$ are exactly the XORs of all paths; take the maximum and compare. **For path problems that allow revisits, the state (vertex, XOR) is finite under small weights, which is a ready-made brute force.**
+
+## 7. Two Recent Contest Problems
+
+### 7.1 CCPC Final 2025 L (Spirited Away): Counting Distinct Range Spans
+
+Problem ([QOJ / Universal Cup 3727 L](https://contest.ucup.ac/contest/3727/problem/18012)): several test cases, each with $n$ numbers below $2^{32}$, $\sum n \le 10^5$. For all $1 \le l \le r \le n$ take $B(l, r) = \operatorname{span}(a_l, \dots, a_r)$; how many distinct sets are there?
+
+#### 7.1.1 Only $O(32 n)$ Ranges Are Really Different
+
+There are $O(n^2)$ ranges, so first shrink that to something enumerable. Fix the right end $r$. As the left end $l$ moves left the space only grows, each change adds one dimension, so it changes at most 32 times. The change points are exactly the positions in the prefix basis of 5.3: sort the basis after inserting $a_r$ by `pos` from high to low as $v_1, \dots, v_k$, with positions $p_1 > p_2 > \cdots > p_k$, and set $p_{k+1} = 0$; then
+
+$$
+B(l, r) = \operatorname{span}(v_1, \dots, v_j), \qquad p_{j+1} < l \le p_j .
+$$
+
+This is the sentence of 5.3, "the part with position $\ge l$ spans exactly $a_l, \dots, a_r$", said another way. In addition, when $a_r = 0$, $l = r$ gives $\{0\}$ (then $p_1 < r$). **With the right end fixed, the left end passes at most 32 change points, so all ranges together produce only $O(32 n)$ spaces.**
+
+#### 7.1.2 Two Spaces Are Equal Exactly When Their Reduced Bases Are
+
+One space has many bases, so comparing bases directly does not work; we need a form determined by the space alone. The reduced basis is one. The highest bit of every nonzero element of the space is a pivot bit (same reason as the independence proof in 2.2: the highest bit of any combination is the highest pivot bit among the basis numbers used), so the set of pivot bits is determined by the space. Now take the basis number $c_p$ on pivot bit $p$: after reduction it is the element of the space whose pivot bits contain only bit $p$, and 4.3 says an element of the space is determined uniquely by its values on the pivot bits, so there is only one such element. Therefore **the reduced basis is determined by the space, and two spaces are equal exactly when their reduced bases are equal**. Hash the reduced basis into a 64-bit number and count the distinct hashes at the end.
+
+#### 7.1.3 Keeping the Basis Reduced While Inserting
+
+For each $r$, insert $v_1, v_2, \dots$ in that order into an empty basis and record the hash of the current space after each insertion. Calling `reduce()` from 4.2 after every insertion and hashing everything costs $O(32^2)$ each time, $O(32^3)$ per $r$, too slow. Instead keep the basis reduced during insertion: first clear all pivot bits of the new number $y$ with the existing basis, so the highest remaining bit $t$ of $y$ is a new pivot bit; then XOR $y$ into every existing basis number that has a 1 in bit $t$. Each insertion is then $O(32)$. The hash is the sum of the scrambled basis numbers, so changing one basis number subtracts the old term and adds the new one. In total $O(32^2 n)$, about $10^8$ simple operations for $n = 10^5$.
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+using u32 = uint32_t;
+using u64 = uint64_t;
+
+u64 mix(u64 x) {                          // splitmix64: scramble a number into 64 random-looking bits
+    x += 0x9e3779b97f4a7c15ULL;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    return x ^ (x >> 31);
+}
+
+int main() {
+    int T;
+    scanf("%d", &T);
+    while (T--) {
+        int n;
+        scanf("%d", &n);
+        u32 b[32] = {};                   // the prefix basis of 5.3
+        int pos[32] = {};
+        vector<u64> hs;                   // hash of the space for each (r, j)
+        for (int r = 1; r <= n; r++) {
+            u32 x;
+            scanf("%u", &x);
+            int p = r;
+            for (int i = 31; i >= 0; i--) {
+                if (!(x >> i & 1)) continue;
+                if (!b[i]) { b[i] = x; pos[i] = p; break; }
+                if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
+                x ^= b[i];
+            }
+            vector<pair<int, u32>> v;     // (position, basis number), by position from high to low
+            for (int i = 0; i < 32; i++)
+                if (b[i]) v.push_back({pos[i], b[i]});
+            sort(v.rbegin(), v.rend());
+            if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0: B(r, r) = {0}
+            u32 c[32] = {};               // reduced basis, filled one number at a time
+            u64 h = 0;
+            for (auto [q, y] : v) {
+                for (int i = 31; i >= 0; i--)
+                    if ((y >> i & 1) && c[i]) y ^= c[i];          // clear the existing pivot bits of y
+                int t = 31 - __builtin_clz(y);                    // the new pivot bit
+                for (int i = t + 1; i < 32; i++)
+                    if (c[i] >> t & 1) { h -= mix(c[i]); c[i] ^= y; h += mix(c[i]); }
+                c[t] = y;
+                h += mix(y);
+                hs.push_back(h);          // B(l, r) for l in (next position, q]
+            }
+        }
+        sort(hs.begin(), hs.end());
+        printf("%d\n", (int)(unique(hs.begin(), hs.end()) - hs.begin()));
+    }
+}
+```
+
+Among $O(32 n)$ 64-bit hashes the chance of a collision is about $(3 \times 10^6)^2 / 2^{65}$, negligible.
+
+### 7.2 2026 ICPC Online Contest II A (All Closed): What Every Solution Must Contain
+
+Problem ([QOJ 4113](https://qoj.ac/contest/4113)): there are $n$ nonempty sets $S_1, \dots, S_n$ with elements in $[0, 2^m)$, $m \le 20$. One operation picks a number $x$ and adds it to all sets at once. Using as few operations as possible, make every set closed under XOR, and output the numbers added.
+
+#### 7.2.1 From "Fewest Operations" to "Smallest Space"
+
+Let the added numbers form a set $T$, so set $i$ ends up as $S_i \cup T$. A nonempty set closed under XOR contains $a \oplus a = 0$ and is closed under addition, so it is a space. Look at the part common to all final sets:
+
+$$
+K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i .
+$$
+
+An intersection of spaces is a space, so $K$ is a space containing $I$, and the final sets can be written as $S_i \cup K$. $T$ never needs numbers from $I$ (they are already in every set), so $|T| = |K| - |I|$, and **fewest operations means smallest $K$: find the smallest space $K \supseteq I$ such that every $S_i \cup K$ is a space; the answer is $K \setminus I$.**
+
+#### 7.2.2 Every Added Number Is Forced
+
+Start from $K = \operatorname{span}(I)$: every valid $K$ contains $I$ and is a space, so it contains $\operatorname{span}(I)$. If some $S_i \cup K$ is not closed, there is a number $x$ in $\operatorname{span}(S_i \cup K)$ that is in neither $S_i$ nor $K$. Take any valid solution $K^*$ containing the current $K$: $S_i \cup K^*$ is a space containing $S_i \cup K$, so it contains $x$; $x$ is not in $S_i$, so it must be in $K^*$. Hence every valid solution contains $x$; set $K \leftarrow \operatorname{span}(K \cup \{x\})$, which is still contained in every valid solution.
+
+Each added $x$ raises the rank of $K$ by 1, so after at most $m$ steps every $S_i \cup K$ is closed. At that point $K$ itself is valid and is contained in every valid solution, so it is the smallest one, which also makes the answer unique. **To find the smallest valid solution, start from what every valid solution must contain and keep adding until it is valid; where you stop is the smallest solution.**
+
+#### 7.2.3 Testing Closure by Counting Elements
+
+$S_i \cup K \subseteq \operatorname{span}(S_i \cup K)$, and the latter has exactly $2^r$ elements (3.1), where $r$ is the rank of $S_i \cup K$. So
+
+$$
+S_i \cup K \text{ closed} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .
+$$
+
+When it is not closed, list $\operatorname{span}(S_i \cup K)$ (at most $2^m$ elements) and find a number in neither $S_i$ nor $K$: that is the $x$ to add. Checking all sets in one round costs $O(m \sum \lvert S_i \rvert)$, there are at most $m$ rounds, plus $O(2^m)$ for the listing in each round.
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+int n, m;
+
+bool insert(vector<int>& b, int x) {      // insertion of 2.1, b has m slots
+    for (int i = m - 1; i >= 0; i--) {
+        if (!(x >> i & 1)) continue;
+        if (!b[i]) { b[i] = x; return true; }
+        x ^= b[i];
+    }
+    return false;
+}
+
+vector<int> expand(const vector<int>& b) { // list every element of span(b)
+    vector<int> all = {0};
+    for (int i = 0; i < m; i++)
+        if (b[i]) {
+            int sz = all.size();
+            for (int j = 0; j < sz; j++) all.push_back(all[j] ^ b[i]);
+        }
+    return all;
+}
+
+int main() {
+    scanf("%d %d", &n, &m);
+    vector<vector<int>> s(n);
+    vector<int> cnt(1 << m, 0);            // cnt[x]: how many sets contain x
+    for (auto& si : s) {
+        int k;
+        scanf("%d", &k);
+        si.resize(k);
+        for (int& x : si) { scanf("%d", &x); cnt[x]++; }
+    }
+    vector<int> kb(m, 0);                  // basis of K, starting from span(I)
+    for (int x = 0; x < (1 << m); x++)
+        if (cnt[x] == n) insert(kb, x);
+    vector<char> inK(1 << m), inS(1 << m);
+    while (true) {
+        vector<int> K = expand(kb);
+        fill(inK.begin(), inK.end(), 0);
+        for (int x : K) inK[x] = 1;
+        int forced = -1;                   // a new number every valid solution must contain
+        for (int i = 0; i < n && forced < 0; i++) {
+            vector<int> b = kb;
+            int common = 0;                // |S_i ∩ K|
+            for (int x : s[i]) { insert(b, x); common += inK[x]; }
+            int r = 0;
+            for (int i2 = 0; i2 < m; i2++) r += b[i2] != 0;
+            long long uni = (long long)s[i].size() + K.size() - common;   // |S_i ∪ K|
+            if (uni == (1LL << r)) continue;                              // already closed
+            for (int x : s[i]) inS[x] = 1;
+            for (int x : expand(b))
+                if (!inK[x] && !inS[x]) { forced = x; break; }
+            for (int x : s[i]) inS[x] = 0;
+        }
+        if (forced < 0) break;
+        insert(kb, forced);
+    }
+    vector<int> ans;                       // K \ I
+    for (int x : expand(kb))
+        if (cnt[x] < n) ans.push_back(x);
+    sort(ans.begin(), ans.end());
+    printf("%d\n", (int)ans.size());
+    for (int x : ans) printf("%d ", x);
+    printf("\n");
+}
+```
 
 ## Practice
 
