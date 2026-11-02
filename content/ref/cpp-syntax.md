@@ -434,6 +434,86 @@ uint64_t pow10(unsigned e) { return kPow10[e]; }
 - Every copy of a `shared_ptr` adds 1 to the count, every destroyed one subtracts 1, and at 0 the object is destroyed.
 - A `shared_ptr` itself is two pointers, one to the object and one to the control block: `sizeof` is 16 B.
 
+<svg viewBox="0 0 760 304" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="make_shared allocates once, object next to the control block; shared_ptr(new T) allocates twice and the control block holds a pointer to the object. Each shared_ptr stores an object pointer and a control-block pointer." style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .sp0bg  { fill: #fbfaf7; }
+    .sp0p   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .sp0c   { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
+    .sp0t   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
+    .sp0box { fill: none; stroke: #6b6558; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .sp0ink { fill: #1c1b18; font-size: 12px; }
+    .sp0mut { fill: #6b6558; font-size: 12px; }
+    .sp0ttl { fill: #1c1b18; font-size: 13.5px; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .sp0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .sp0hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0p { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0c { fill: #4a2f2c; stroke: #8f5a4c; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0t { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0box { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ink, :root:is([data-theme="dark"], [data-theme="black"]) .sp0ttl { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="sp0a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="sp0hd"/></marker></defs>
+  <rect class="sp0bg" x="0" y="0" width="760" height="304" rx="10"/>
+  <text class="sp0ttl" x="24" y="32">std::make_shared&lt;T&gt;()</text>
+  <text class="sp0mut" x="26" y="71">p1</text>
+  <rect class="sp0p" x="48" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="103" y="71" text-anchor="middle">object ptr</text>
+  <rect class="sp0p" x="158" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="213" y="71" text-anchor="middle">ctrl block ptr</text>
+  <text class="sp0mut" x="26" y="227">p2</text>
+  <rect class="sp0p" x="48" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="103" y="227" text-anchor="middle">object ptr</text>
+  <rect class="sp0p" x="158" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="213" y="227" text-anchor="middle">ctrl block ptr</text>
+  <rect class="sp0box" x="42" y="114" width="312" height="62" rx="6"/>
+  <rect class="sp0t" x="48" y="120" width="110" height="50"/>
+  <text class="sp0ink" x="103" y="149" text-anchor="middle">T object</text>
+  <rect class="sp0c" x="158" y="120" width="46" height="50"/>
+  <text class="sp0ink" x="181" y="149" text-anchor="middle">vptr</text>
+  <rect class="sp0c" x="204" y="120" width="72" height="50"/>
+  <text class="sp0ink" x="240" y="149" text-anchor="middle">use = 2</text>
+  <rect class="sp0c" x="276" y="120" width="72" height="50"/>
+  <text class="sp0ink" x="312" y="149" text-anchor="middle">weak</text>
+  <path class="sp0ln" d="M103,82 L103,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M103,208 L103,173" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M213,82 L213,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M213,208 L213,173" marker-end="url(#sp0a)"/>
+  <text class="sp0mut" x="24" y="266">One allocation: object next to control block</text>
+  <text class="sp0ttl" x="408" y="32">std::shared_ptr&lt;T&gt;(new T)</text>
+  <text class="sp0mut" x="410" y="71">p1</text>
+  <rect class="sp0p" x="432" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="487" y="71" text-anchor="middle">object ptr</text>
+  <rect class="sp0p" x="542" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="597" y="71" text-anchor="middle">ctrl block ptr</text>
+  <text class="sp0mut" x="410" y="227">p2</text>
+  <rect class="sp0p" x="432" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="487" y="227" text-anchor="middle">object ptr</text>
+  <rect class="sp0p" x="542" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="597" y="227" text-anchor="middle">ctrl block ptr</text>
+  <rect class="sp0t" x="432" y="120" width="100" height="50"/>
+  <text class="sp0ink" x="482" y="149" text-anchor="middle">T object</text>
+  <rect class="sp0c" x="552" y="120" width="40" height="50"/>
+  <text class="sp0ink" x="572" y="149" text-anchor="middle">vptr</text>
+  <rect class="sp0c" x="592" y="120" width="58" height="50"/>
+  <text class="sp0ink" x="621" y="149" text-anchor="middle">use = 2</text>
+  <rect class="sp0c" x="650" y="120" width="44" height="50"/>
+  <text class="sp0ink" x="672" y="149" text-anchor="middle">weak</text>
+  <rect class="sp0c" x="694" y="120" width="52" height="50"/>
+  <text class="sp0ink" x="720" y="149" text-anchor="middle">ptr→T</text>
+  <path class="sp0ln" d="M482,82 L482,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M482,208 L482,173" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M597,82 L597,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M597,208 L597,173" marker-end="url(#sp0a)"/>
+  <text class="sp0mut" x="408" y="266">Two allocations: control block also stores a T*</text>
+  <text class="sp0mut" x="24" y="292">use_count sits at offset 8 of the control block in both: what addl $1, 8(%rdx) in 5.2 adds to.</text>
+</svg>
+
+The two spellings differ in how many allocations they make. `make_shared` calls `operator new` once, so the object and the control block share one block of memory: one allocation fewer, and the count you touch along with the object is likely on a neighboring cache line. The cost shows up on release: when `use_count` reaches 0 the object is destroyed as usual, but its bytes are attached to the control block and can only be freed once `weak_count` also reaches 0 (the last `weak_ptr` is gone). **With a large object and a long-lived `weak_ptr`, `make_shared` keeps that memory around**, so there `shared_ptr<T>(new T)` allocates separately and the object's memory goes back as soon as it is destroyed.
+
 ### 5.2 What It Compiles To: a Copy = Copy Two Pointers + Add 1 to the Count {#shared-ptr-asm}
 
 ```cpp

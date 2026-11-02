@@ -432,6 +432,86 @@ uint64_t pow10(unsigned e) { return kPow10[e]; }
 - 每复制一个 `shared_ptr`，计数 +1；每销毁一个，计数 -1；减到 0 就析构对象。
 - 一个 `shared_ptr` 本身是两个指针：一个指向对象，一个指向控制块，`sizeof` 是 16 B。
 
+<svg viewBox="0 0 760 304" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="make_shared 一次分配，对象和控制块挨在一起；shared_ptr(new T) 分配两次，控制块里多一个指向对象的指针。两个 shared_ptr 都各存一个对象指针和一个控制块指针。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .sp0bg  { fill: #fbfaf7; }
+    .sp0p   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .sp0c   { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
+    .sp0t   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
+    .sp0box { fill: none; stroke: #6b6558; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .sp0ink { fill: #1c1b18; font-size: 12px; }
+    .sp0mut { fill: #6b6558; font-size: 12px; }
+    .sp0ttl { fill: #1c1b18; font-size: 13.5px; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .sp0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .sp0hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0p { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0c { fill: #4a2f2c; stroke: #8f5a4c; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0t { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0box { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ink, :root:is([data-theme="dark"], [data-theme="black"]) .sp0ttl { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp0hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="sp0a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="sp0hd"/></marker></defs>
+  <rect class="sp0bg" x="0" y="0" width="760" height="304" rx="10"/>
+  <text class="sp0ttl" x="24" y="32">std::make_shared&lt;T&gt;()</text>
+  <text class="sp0mut" x="26" y="71">p1</text>
+  <rect class="sp0p" x="48" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="103" y="71" text-anchor="middle">对象指针</text>
+  <rect class="sp0p" x="158" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="213" y="71" text-anchor="middle">控制块指针</text>
+  <text class="sp0mut" x="26" y="227">p2</text>
+  <rect class="sp0p" x="48" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="103" y="227" text-anchor="middle">对象指针</text>
+  <rect class="sp0p" x="158" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="213" y="227" text-anchor="middle">控制块指针</text>
+  <rect class="sp0box" x="42" y="114" width="312" height="62" rx="6"/>
+  <rect class="sp0t" x="48" y="120" width="110" height="50"/>
+  <text class="sp0ink" x="103" y="149" text-anchor="middle">T 对象</text>
+  <rect class="sp0c" x="158" y="120" width="46" height="50"/>
+  <text class="sp0ink" x="181" y="149" text-anchor="middle">vptr</text>
+  <rect class="sp0c" x="204" y="120" width="72" height="50"/>
+  <text class="sp0ink" x="240" y="149" text-anchor="middle">use = 2</text>
+  <rect class="sp0c" x="276" y="120" width="72" height="50"/>
+  <text class="sp0ink" x="312" y="149" text-anchor="middle">weak</text>
+  <path class="sp0ln" d="M103,82 L103,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M103,208 L103,173" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M213,82 L213,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M213,208 L213,173" marker-end="url(#sp0a)"/>
+  <text class="sp0mut" x="24" y="266">一次分配：对象和控制块挨在一起</text>
+  <text class="sp0ttl" x="408" y="32">std::shared_ptr&lt;T&gt;(new T)</text>
+  <text class="sp0mut" x="410" y="71">p1</text>
+  <rect class="sp0p" x="432" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="487" y="71" text-anchor="middle">对象指针</text>
+  <rect class="sp0p" x="542" y="52" width="110" height="30"/>
+  <text class="sp0ink" x="597" y="71" text-anchor="middle">控制块指针</text>
+  <text class="sp0mut" x="410" y="227">p2</text>
+  <rect class="sp0p" x="432" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="487" y="227" text-anchor="middle">对象指针</text>
+  <rect class="sp0p" x="542" y="208" width="110" height="30"/>
+  <text class="sp0ink" x="597" y="227" text-anchor="middle">控制块指针</text>
+  <rect class="sp0t" x="432" y="120" width="100" height="50"/>
+  <text class="sp0ink" x="482" y="149" text-anchor="middle">T 对象</text>
+  <rect class="sp0c" x="552" y="120" width="40" height="50"/>
+  <text class="sp0ink" x="572" y="149" text-anchor="middle">vptr</text>
+  <rect class="sp0c" x="592" y="120" width="58" height="50"/>
+  <text class="sp0ink" x="621" y="149" text-anchor="middle">use = 2</text>
+  <rect class="sp0c" x="650" y="120" width="44" height="50"/>
+  <text class="sp0ink" x="672" y="149" text-anchor="middle">weak</text>
+  <rect class="sp0c" x="694" y="120" width="52" height="50"/>
+  <text class="sp0ink" x="720" y="149" text-anchor="middle">ptr→T</text>
+  <path class="sp0ln" d="M482,82 L482,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M482,208 L482,173" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M597,82 L597,117" marker-end="url(#sp0a)"/>
+  <path class="sp0ln" d="M597,208 L597,173" marker-end="url(#sp0a)"/>
+  <text class="sp0mut" x="408" y="266">两次分配：控制块里另存一个指向 T 的指针</text>
+  <text class="sp0mut" x="24" y="292">两种写法的 use_count 都在控制块偏移 8 处：5.2 里 addl $1, 8(%rdx) 加的就是它。</text>
+</svg>
+
+两种写法差在分配次数。`make_shared` 只调一次 `operator new`，对象和控制块在同一块内存里，少一次分配，用对象时顺带碰到的计数也多半在相邻的缓存行。代价在释放：`use_count` 归零时对象照常析构，可它占的那段内存和控制块连在一起，要等 `weak_count` 也归零（最后一个 `weak_ptr` 没了）才能整块还掉。**对象很大、又有 `weak_ptr` 长期挂着时，`make_shared` 会让这块内存一直留着**，这时用 `shared_ptr<T>(new T)` 分开分配，对象析构时它的内存就能先还。
+
 ### 5.2 编译出来是什么：复制 = 拷两个指针 + 计数加 1 {#shared-ptr-asm}
 
 ```cpp
