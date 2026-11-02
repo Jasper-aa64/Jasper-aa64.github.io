@@ -6,6 +6,7 @@ description: "写一行 new，内存要过好几层才真正到手：编译器�
 summary: "new 拿到的是地址，不是内存。malloc 大多数时候在自己手里的空闲块里就找到了，进内核的 brk、mmap 也只是登记一段地址；物理页要等第一次写才由缺页分配，每页一次，每次约 0.5–2 µs。所以第一遍写一块新内存比第二遍慢，delete 之后 RSS 不降也不等于泄漏。"
 toc: true
 group: cpplinux
+topic: mem
 weight: 108
 aliases: ["/posts/new-malloc-page-fault/"]
 ---

@@ -6,6 +6,7 @@ description: "容量满了先淘汰最久没用的那个，get 和 put 都要 O(
 summary: "LRU 要两样东西：按 key 一步找到，按使用先后排好队。哈希表给前一样，双向链表给后一样，哈希表的值存链表节点的位置把两者接上。命中时用 splice 把节点挪到头部，节点不动、位置不变，哈希表也不用改。"
 toc: true
 group: cpplinux
+topic: ds
 weight: 123
 ---
 

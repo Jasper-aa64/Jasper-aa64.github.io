@@ -17,7 +17,7 @@
       </div>
     {{ else if eq .Section "ref" }}
       {{ if .Params.group }}
-        <a class="eyebrow post-head__kicker reveal" href="{{ "ref/" | relLangURL }}#{{ .Params.group }}">{{ i18n "secRef" }} · {{ i18n "refGroupCppLinux" }}</a>
+        <a class="eyebrow post-head__kicker reveal" href="{{ "interview/" | relLangURL }}#{{ .Params.group }}">{{ i18n "interviewEntry" }} · {{ i18n "refGroupCppLinux" }}</a>
       {{ else }}
         <a class="eyebrow post-head__kicker reveal" href="{{ "ref/" | relLangURL }}">{{ i18n "secRef" }}</a>
       {{ end }}

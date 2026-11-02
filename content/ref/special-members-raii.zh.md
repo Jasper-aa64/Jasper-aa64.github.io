@@ -6,6 +6,7 @@ description: "一个类有六个特殊成员函数，不写时编译器按成员
 summary: "类自己管资源，就要自己写析构、拷贝和移动；能交给 std::string、vector、unique_ptr 管的，一个都不用写。RAII 让资源跟着对象走：不管是正常 return 还是异常，离开作用域都会调析构函数，这是 C++ 里做清理的标准办法。"
 toc: true
 group: cpplinux
+topic: cpp
 weight: 102
 ---
 

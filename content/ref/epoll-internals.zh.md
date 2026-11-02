@@ -6,6 +6,7 @@ description: "一个线程要同时等几千个连接，select 和 poll 每次�
 summary: "epoll 在内核里有三样东西：红黑树记着关注哪些 fd，只给 epoll_ctl 用；就绪链表记着哪些 fd 现在有事，回调往里挂，epoll_wait 从里取；等待队列记着谁睡在 epoll_wait 里。事件来的时候不查树，靠的是登记时挂在 socket 上的那个指针。所以连接再多，每一圈事件循环的开销只看真正有事件的那几个；但每一次 epoll_wait、每一次 recv 仍然是一次系统调用。"
 toc: true
 group: cpplinux
+topic: proc
 weight: 117
 aliases: ["/posts/epoll-internals/"]
 ---

@@ -26,34 +26,8 @@
       </article>
     {{ end }}{{ end }}
   </div>
-  {{/* Grouped pages (front matter `group: cpplinux`): the C++ & Linux basics, one hub page (`hub: true`) with the
-       overview maps plus one page per topic. They get a group of their own below the main cards: the hub as a card,
-       the topic pages as a compact list, so the reference page doesn't fill up with them. */}}
-  {{ $grp := where .Pages "Params.group" "cpplinux" }}
-  {{ with $grp }}
-    <h2 class="ref-group__title" id="cpplinux">{{ i18n "refGroupCppLinux" }}</h2>
-    <p class="ref-group__blurb">{{ i18n "refGroupCppLinuxBlurb" }}</p>
-    <div class="card-list">
-      {{ range where $grp "Params.hub" true }}
-        <article class="card">
-          <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
-          <div class="card__main">
-            <div class="card__meta">
-              <span class="card__series">{{ i18n "secRef" }}</span>
-              <time datetime="{{ .Lastmod.Format `2006-01-02` }}">{{ i18n "refUpdated" (.Lastmod.Format (i18n "dateLong")) }}</time>
-            </div>
-            <h3 class="card__title">{{ .Title }}</h3>
-            {{ with .Description }}<p class="card__summary">{{ . }}</p>{{ end }}
-          </div>
-        </article>
-      {{ end }}
-    </div>
-    <ul class="ref-group__list">
-      {{ range ($grp.ByWeight) }}{{ if not .Params.hub }}
-        <li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
-      {{ end }}{{ end }}
-    </ul>
-  {{ end }}
+  {{/* Grouped pages (front matter `group: cpplinux`, the C++ & Linux basics) are listed on the interview hub
+       (layouts/interview/list.html), not here. */}}
   {{/* Quiet entries to the algorithms hub (/algo/), the projects hub (/projects/) and the interview hub (/interview/), deliberately low-key:
        bottom left, small and muted. */}}
   <p class="algo-entry"><a href="{{ "algo/" | relLangURL }}">{{ i18n "algoEntry" }} <span aria-hidden="true">→</span></a><a href="{{ "projects/" | relLangURL }}">{{ i18n "projectsEntry" }} <span aria-hidden="true">→</span></a><a href="{{ "interview/" | relLangURL }}">{{ i18n "interviewEntry" }} <span aria-hidden="true">→</span></a></p>

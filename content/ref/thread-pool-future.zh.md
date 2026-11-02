@@ -6,6 +6,7 @@ description: "std::thread 起一个线程，析构前必须 join 或 detach；�
 summary: "future 拿结果靠的是一块共享状态：promise 写、future 读，各一次；packaged_task 和 async 都是在它外面再包一层。线程池就是一个加锁的任务队列加几个一直在取任务的线程，难点在停止：标志要在锁里改，队列要先做完。"
 toc: true
 group: cpplinux
+topic: conc
 weight: 113
 math: true
 ---

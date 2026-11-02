@@ -6,6 +6,7 @@ description: "C++ 把 C 的一种强制转换拆成了四种，各管一件事�
 summary: "static_cast 是编译期的、会调整指针但不检查；dynamic_cast 是运行时的、会检查但要查表；const_cast 只动 const；reinterpret_cast 只换解释方式，拿来读写别的类型的对象多半是未定义行为，看字节用 std::bit_cast。C 风格转换会替你挑一种，挑的那种不一定是你以为的。"
 toc: true
 group: cpplinux
+topic: cpp
 weight: 107
 ---
 

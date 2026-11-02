@@ -7,6 +7,7 @@ summary: "三者都是 O(log n) 的有序结构，差别在每一步的代价落
 toc: true
 math: true
 group: cpplinux
+topic: ds
 weight: 124
 ---
 

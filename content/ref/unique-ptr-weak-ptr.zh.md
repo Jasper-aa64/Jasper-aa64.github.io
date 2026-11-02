@@ -6,6 +6,7 @@ description: "智能指针把“谁负责释放”写进类型。unique_ptr 独�
 summary: "默认用 unique_ptr：所有权只有一份，转交时写 std::move，大小和裸指针一样。只有对象的寿命真要由几方共同决定时才用 shared_ptr；指回去的那条边、观察者、缓存用 weak_ptr，它不让对象活着，用之前 lock() 一下。"
 toc: true
 group: cpplinux
+topic: mem
 weight: 110
 ---
 

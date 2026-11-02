@@ -6,6 +6,7 @@ description: "一条 TCP 连接，服务端要调 socket、bind、listen、accep
 summary: "服务端的 socket 先 bind 地址、再 listen 变成监听 socket，握手由内核完成，accept 只是从队列里取走一条建好的连接，换来一个新 fd；客户端 connect 时内核替它挑本地端口。TCP 只保证字节按序到达，不保证一次 read 拿到一条完整消息，所以读写都要循环、消息边界要协议自己定。并发从每连接一个进程或线程，走到一个线程用 epoll 等很多个非阻塞 socket，回调里绝不能阻塞。"
 toc: true
 group: cpplinux
+topic: net
 weight: 120
 ---
 

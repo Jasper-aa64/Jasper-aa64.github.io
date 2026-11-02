@@ -6,6 +6,7 @@ description: "fd 只是进程 fd 表里的一个下标，状态分在后面两�
 summary: "fd → 打开的文件（偏移、O_APPEND、O_NONBLOCK）→ inode（大小、权限、链接数、数据块）。dup 和 fork 复制的是指向第二层的指针，所以共用偏移；重定向就是 open 加 dup2。数据到磁盘前要过两层缓冲：FILE* 的用户态缓冲靠 fflush 推进内核，页缓存靠 fsync 推上磁盘。"
 toc: true
 group: cpplinux
+topic: proc
 weight: 116
 ---
 

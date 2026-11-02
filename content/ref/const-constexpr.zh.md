@@ -6,6 +6,7 @@ description: "四个关键字长得像，回答的是不同的问题：const 只
 summary: "const 管的是能不能改，不管什么时候算；要编译期算出来，变量用 constexpr，函数用 consteval；静态变量怕初始化顺序问题，用 constinit。"
 toc: true
 group: cpplinux
+topic: cpp
 weight: 105
 aliases: ["/posts/const-constexpr/"]
 ---

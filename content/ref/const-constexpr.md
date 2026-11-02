@@ -6,6 +6,7 @@ description: "Four keywords that look alike answer different questions: const is
 summary: "const is about whether a value can change, not when it is computed; for compile-time values use constexpr variables and consteval functions; for static variables with initialization-order problems use constinit."
 toc: true
 group: cpplinux
+topic: cpp
 weight: 105
 aliases: ["/posts/const-constexpr/"]
 ---

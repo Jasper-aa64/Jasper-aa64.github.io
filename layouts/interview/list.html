@@ -1,6 +1,7 @@
 {{ define "main" }}
-{{/* Interview hub: interview write-ups (questions plus the knowledge behind them). Entered only from a small
-     link at the bottom of the reference page, after the algorithms and projects ones, so it stays out of the menu, the Blog list and the homepage. */}}
+{{/* Interview hub: interview write-ups (questions plus the knowledge behind them), then the C++ & Linux basics.
+     Entered only from a small link at the bottom of the reference page, after the algorithms and projects ones,
+     so it stays out of the menu, the Blog list and the homepage. */}}
 <section class="page-head wrap">
   <h1 class="page-head__title reveal">{{ .Title }}</h1>
   {{ with .Description }}<p class="page-head__lede reveal">{{ . }}</p>{{ end }}
@@ -9,6 +10,36 @@
   <div class="post-body prose">{{ .Content }}</div>
   {{ with .Pages.ByWeight }}
     <div class="card-list">{{ range . }}{{ partial "post-card.html" . }}{{ end }}</div>
+  {{ end }}
+  {{/* The C++ & Linux basics: pages under content/ref/ with `group: cpplinux` (their URLs stay /ref/...).
+       The hub page (`hub: true`) is a card; the topic pages are listed under their `topic` front matter, in this order. */}}
+  {{ $grp := where (site.GetPage "/ref").Pages "Params.group" "cpplinux" }}
+  {{ with $grp }}
+    <h2 class="ref-group__title" id="cpplinux">{{ i18n "refGroupCppLinux" }}</h2>
+    <p class="ref-group__blurb">{{ i18n "refGroupCppLinuxBlurb" }}</p>
+    <div class="card-list">
+      {{ range where $grp "Params.hub" true }}
+        <article class="card">
+          <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
+          <div class="card__main">
+            <div class="card__meta">
+              <span class="card__series">{{ i18n "refGroupCppLinux" }}</span>
+              <time datetime="{{ .Lastmod.Format `2006-01-02` }}">{{ i18n "refUpdated" (.Lastmod.Format (i18n "dateLong")) }}</time>
+            </div>
+            <h3 class="card__title">{{ .Title }}</h3>
+            {{ with .Description }}<p class="card__summary">{{ . }}</p>{{ end }}
+          </div>
+        </article>
+      {{ end }}
+    </div>
+    {{ range $t := slice "cpp" "mem" "conc" "proc" "net" "ds" }}
+      {{ with (where $grp "Params.topic" $t).ByWeight }}
+        <h3 class="ref-group__topic" id="cpplinux-{{ $t }}">{{ i18n (print "refTopic_" $t) }}</h3>
+        <ul class="ref-group__list">
+          {{ range . }}<li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>{{ end }}
+        </ul>
+      {{ end }}
+    {{ end }}
   {{ end }}
 </section>
 {{ end }}

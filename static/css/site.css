@@ -984,8 +984,9 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .page-body { padding-bottom: 12px; }
 /* Reference page: the quiet link to the algorithms hub, bottom left. */
 .ref-group__title { margin: 56px 0 6px; font-size: 20px; color: var(--ink); scroll-margin-top: 90px; }
+.ref-group__topic { margin: 30px 0 0; font-size: 15px; color: var(--muted); font-weight: 600; scroll-margin-top: 90px; }
 .ref-group__blurb { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
-.ref-group__list { margin: 18px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 28px; }
+.ref-group__list { margin: 10px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 28px; }
 .ref-group__list a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); font-size: 15px; line-height: 1.7; transition: color .2s, border-color .2s; }
 .ref-group__list a:hover { color: var(--accent); border-color: var(--accent); }
 .algo-entry { margin: 40px 0 0; font-size: 13px; }

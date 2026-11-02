@@ -6,6 +6,7 @@ description: "每调一次函数，栈上就多出一块栈帧：call 压进去�
 summary: "栈帧就是一次调用在栈上占的那一块：call 把返回地址压进去，函数开头保存旧的 rbp、把 rsp 往下挪出局部变量的位置，ret 再把返回地址弹回 rip。参数前 6 个走寄存器，大对象由调用者在自己的帧里留好位置、把地址悄悄传进去，RVO 就是被调用者直接在那里构造。栈上的三种常见错误都能在这张图上找到位置：越过栈底的保护页、指向已经被下一帧覆盖的格子、写过头盖掉返回地址。"
 toc: true
 group: cpplinux
+topic: mem
 weight: 109
 aliases: ["/posts/stack-frame/"]
 ---

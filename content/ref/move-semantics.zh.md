@@ -6,6 +6,7 @@ description: "拷贝一个持有堆内存的对象要把整块内存复制一遍
 summary: "移动就是把源对象的指针拿过来、把源对象留成空的，只拷几个字节。std::move 只是一次类型转换，真正挑中移动构造的是重载决议；有名字的右值引用本身是左值，所以模板里要用 std::forward 把参数按原来的类别转出去。"
 toc: true
 group: cpplinux
+topic: cpp
 weight: 101
 ---
 

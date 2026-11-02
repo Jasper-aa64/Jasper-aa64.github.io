@@ -7,6 +7,7 @@ summary: "握手是两个方向各对一次序列号，中间两步合成了 SYN
 toc: true
 math: true
 group: cpplinux
+topic: net
 weight: 118
 aliases: ["/posts/tcp-states/"]
 ---

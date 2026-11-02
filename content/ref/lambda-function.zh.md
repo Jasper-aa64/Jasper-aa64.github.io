@@ -6,6 +6,7 @@ description: "lambda 是编译器替你写的一个类的对象：捕获的变�
 summary: "lambda 就是一个带 operator() 的类，按模板传进去和手写函数一样快；std::function 换来的是“任何可调用的东西都能放进同一个类型”，付出的是可能的堆分配和一次不能内联的间接调用。捕获引用时，被捕获的变量得比 lambda 活得久。"
 toc: true
 group: cpplinux
+topic: cpp
 weight: 106
 ---
 
