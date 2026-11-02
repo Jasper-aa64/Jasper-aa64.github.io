@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 960" width="1600" height="960" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#bc4c00"/>
+    </marker>
+    <marker id="arrD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0969da"/>
+    </marker>
+    <marker id="arrM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a7f37"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .labc{ font-size: 11.5px; fill: #bc4c00; }
+      .labd{ font-size: 11.5px; fill: #0969da; }
+      .labm{ font-size: 11.5px; fill: #1a7f37; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .art  { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .step { fill: #fbefff; stroke: #c297ff; stroke-width: 1.2; }
+      .run  { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.2; }
+      .user { fill: #eefbf1; stroke: #1a7f37; stroke-width: 1.3; }
+      .note { fill: #fbfbfc; stroke: #8c959f; stroke-width: 1; }
+      .ctl { stroke: #555; stroke-width: 1.5; fill: none; }
+      .cpy { stroke: #bc4c00; stroke-width: 2; fill: none; }
+      .ref { stroke: #0969da; stroke-width: 2; fill: none; stroke-dasharray: 6 4; }
+      .map { stroke: #1a7f37; stroke-width: 2; fill: none; stroke-dasharray: 3 3; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1600" height="960" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">从源码到进程：编译、链接、加载</text>
+  <text x="20" y="62" class="s">上面是编译：每个 .cpp 各自变成一个 .o。中间是链接：所有 .o 和库拼成一个可执行文件。下面是运行：内核和动态链接器把它变成进程地图上的那几段。</text>
+  <text x="20" y="82" class="s">橙线 = 代码拷进输出文件；蓝色虚线 = 只记一个名字，运行时再找；绿色虚线 = 加载时 mmap 进地址空间；灰线 = 下一步。</text>
+  <text x="20" y="102" class="s">蓝字 = 在哪里讲过，进程地图会打开对应的那张图。</text>
+  <rect x="20" y="112" width="1560" height="228" rx="10" fill="#fbf7ff" stroke="#c297ff" stroke-dasharray="6 4"/>
+  <text x="32" y="134" class="lane-h" style="fill:#8250df">编译：一次一个翻译单元</text>
+  <rect x="20" y="360" width="1560" height="280" rx="10" fill="#fffdf2" stroke="#d4a72c" stroke-dasharray="6 4"/>
+  <text x="32" y="382" class="lane-h" style="fill:#9a6700">链接：把所有 .o 和库拼成一个文件</text>
+  <rect x="20" y="660" width="1560" height="250" rx="10" fill="#fff8f7" stroke="#ff8182" stroke-dasharray="6 4"/>
+  <text x="32" y="682" class="lane-h" style="fill:#cf222e">加载和运行</text>
+  <g id="src">
+  <rect x="40" y="150" width="250" height="170" rx="6" class="art"/>
+  <text x="52" y="174" class="t">源文件和头文件</text>
+  <text x="52" y="192" class="s" style="white-space:pre">a.cpp、b.cpp：各自单独编译</text>
+  <text x="52" y="210" class="s" style="white-space:pre">a.h：放声明，被 #include 进去</text>
+  <text x="52" y="228" class="s" style="white-space:pre">一个 .cpp 加上它 include 的</text>
+  <text x="52" y="246" class="s" style="white-space:pre">全部内容 = 一个翻译单元</text>
+  <text x="52" y="264" class="s" style="white-space:pre">编译器一次只看一个翻译单元，</text>
+  <text x="52" y="282" class="s" style="white-space:pre">不知道别的 .cpp 里写了什么</text>
+  </g>
+  <g id="pp">
+  <rect x="320" y="150" width="250" height="170" rx="6" class="step"/>
+  <text x="332" y="174" class="t">① 预处理：g++ -E</text>
+  <text x="332" y="192" class="s" style="white-space:pre">#include：把头文件原样粘进来</text>
+  <text x="332" y="210" class="s" style="white-space:pre">#define：宏按文本替换</text>
+  <text x="332" y="228" class="s" style="white-space:pre">#if、#ifdef：删掉不要的分支</text>
+  <text x="332" y="246" class="s" style="white-space:pre">产物 a.ii：纯 C++ 文本，</text>
+  <text x="332" y="264" class="s" style="white-space:pre">常常有几万行</text>
+  </g>
+  <g id="cc">
+  <rect x="600" y="150" width="260" height="170" rx="6" class="step"/>
+  <text x="612" y="174" class="t">② 编译：g++ -S</text>
+  <text x="612" y="192" class="s" style="white-space:pre">语法、类型检查：编译错误多在这</text>
+  <text x="612" y="210" class="s" style="white-space:pre">模板在这里按具体类型实例化</text>
+  <text x="612" y="228" class="s" style="white-space:pre">优化：内联、常量传播……</text>
+  <text x="612" y="246" class="s" style="white-space:pre">名字修饰：f(int) → _Z1fi</text>
+  <text x="612" y="264" class="s" style="white-space:pre">产物 a.s：汇编文本</text>
+  </g>
+  <g id="as">
+  <rect x="890" y="150" width="240" height="170" rx="6" class="step"/>
+  <text x="902" y="174" class="t">③ 汇编：g++ -c</text>
+  <text x="902" y="192" class="s" style="white-space:pre">汇编指令 → 机器码</text>
+  <text x="902" y="210" class="s" style="white-space:pre">产物 a.o：可重定位目标文件</text>
+  <text x="902" y="228" class="s" style="white-space:pre">地址还没定：调别的文件里的</text>
+  <text x="902" y="246" class="s" style="white-space:pre">函数，地址先填 0，</text>
+  <text x="902" y="264" class="s" style="white-space:pre">旁边记一条重定位项</text>
+  </g>
+  <g id="obj">
+  <rect x="1160" y="150" width="400" height="170" rx="6" class="art"/>
+  <text x="1172" y="174" class="t">a.o 里有什么（nm、readelf）</text>
+  <text x="1172" y="192" class="s" style="white-space:pre">段：.text 机器码，.data，.bss，.rodata</text>
+  <text x="1172" y="210" class="s" style="white-space:pre">符号表：T f = 这里定义了 f</text>
+  <text x="1172" y="228" class="s" style="white-space:pre">        U g = 用了 g，定义不在这里</text>
+  <text x="1172" y="246" class="s" style="white-space:pre">重定位表：.text+0x1c 处要填 g 的地址</text>
+  <text x="1172" y="264" class="s" style="white-space:pre">每个 .o 都从地址 0 排起，互相不知道对方</text>
+  <text x="1172" y="282" class="tag"><a href="/maps/process-map.zh.html" target="_blank" rel="noopener"><tspan>进程地图：这些段最后落在哪</tspan></a></text>
+  </g>
+  <g id="staticlib">
+  <rect x="40" y="400" width="300" height="100" rx="6" class="art"/>
+  <text x="52" y="424" class="t">静态库 libx.a</text>
+  <text x="52" y="442" class="s" style="white-space:pre">一堆 .o 打成的包（ar）</text>
+  <text x="52" y="460" class="s" style="white-space:pre">链接器只挑用得上的 .o，</text>
+  <text x="52" y="478" class="s" style="white-space:pre">把代码拷进可执行文件</text>
+  </g>
+  <g id="so">
+  <rect x="40" y="520" width="300" height="100" rx="6" class="art"/>
+  <text x="52" y="544" class="t">动态库 libc.so.6</text>
+  <text x="52" y="562" class="s" style="white-space:pre">链接时只检查符号在不在，</text>
+  <text x="52" y="580" class="s" style="white-space:pre">记下“运行时要 libc.so.6”，</text>
+  <text x="52" y="598" class="s" style="white-space:pre">代码不拷进来</text>
+  </g>
+  <g id="ld">
+  <rect x="390" y="400" width="420" height="220" rx="6" class="step"/>
+  <text x="402" y="424" class="t">④ 链接：ld（g++ 最后一步替你调）</text>
+  <text x="402" y="442" class="s" style="white-space:pre">1. 符号解析：每个 U 都要找到唯一的定义</text>
+  <text x="402" y="460" class="s" style="white-space:pre">   一个都没有 → undefined reference</text>
+  <text x="402" y="478" class="s" style="white-space:pre">   有两个 → multiple definition</text>
+  <text x="402" y="496" class="s" style="white-space:pre">2. 合并：各个 .o 的 .text 拼成一个 .text，</text>
+  <text x="402" y="514" class="s" style="white-space:pre">   .data、.bss 同理；定下每个段、</text>
+  <text x="402" y="532" class="s" style="white-space:pre">   每个符号的最终地址</text>
+  <text x="402" y="550" class="s" style="white-space:pre">3. 重定位：按重定位项把地址填进去</text>
+  <text x="402" y="568" class="s" style="white-space:pre">产物：可执行文件，或者一个 .so</text>
+  </g>
+  <g id="exe">
+  <rect x="860" y="400" width="400" height="220" rx="6" class="art"/>
+  <text x="872" y="424" class="t">可执行文件 a.out（readelf -l）</text>
+  <text x="872" y="442" class="s" style="white-space:pre">ELF 头：入口地址 _start</text>
+  <text x="872" y="460" class="s" style="white-space:pre">程序头：加载时每一段 mmap 到哪</text>
+  <text x="872" y="478" class="s" style="white-space:pre">  LOAD r-x：.text</text>
+  <text x="872" y="496" class="s" style="white-space:pre">  LOAD r--：.rodata、.eh_frame</text>
+  <text x="872" y="514" class="s" style="white-space:pre">  LOAD rw-：.data、.bss（.bss 只记大小）</text>
+  <text x="872" y="532" class="s" style="white-space:pre">INTERP：/lib64/ld-linux-x86-64.so.2</text>
+  <text x="872" y="550" class="s" style="white-space:pre">DYNAMIC：需要 libc.so.6……</text>
+  <text x="872" y="568" class="s" style="white-space:pre">.plt、.got：调 .so 里函数的跳板</text>
+  <text x="872" y="586" class="tag"><a href="/maps/process-map.zh.html" target="_blank" rel="noopener"><tspan>进程地图：.text、.data、.bss</tspan></a></text>
+  </g>
+  <g id="errs">
+  <rect x="1290" y="400" width="270" height="220" rx="6" class="note"/>
+  <text x="1302" y="424" class="t">链接报错，多半是这几种</text>
+  <text x="1302" y="442" class="s" style="white-space:pre">undefined reference to f：</text>
+  <text x="1302" y="460" class="s" style="white-space:pre"> · 只声明没定义，或那个 .cpp</text>
+  <text x="1302" y="478" class="s" style="white-space:pre">   没参与链接</text>
+  <text x="1302" y="496" class="s" style="white-space:pre"> · 少了 -l，或 -l 写在了前面</text>
+  <text x="1302" y="514" class="s" style="white-space:pre"> · 模板的定义写在 .cpp 里</text>
+  <text x="1302" y="532" class="s" style="white-space:pre"> · C 函数没加 extern &quot;C&quot;</text>
+  <text x="1302" y="550" class="s" style="white-space:pre">multiple definition of x：</text>
+  <text x="1302" y="568" class="s" style="white-space:pre"> · 头文件里定义了普通函数或变量</text>
+  <text x="1302" y="586" class="s" style="white-space:pre">可以多处定义：inline、模板</text>
+  </g>
+  <g id="procmap">
+  <rect x="40" y="700" width="330" height="170" rx="6" class="user"/>
+  <text x="52" y="724" class="t">落到进程地图上</text>
+  <text x="52" y="742" class="s" style="white-space:pre">.text → 代码段（r-x）</text>
+  <text x="52" y="760" class="s" style="white-space:pre">.rodata → 只读数据（r--）</text>
+  <text x="52" y="778" class="s" style="white-space:pre">.data、.bss → 读写数据（rw-）</text>
+  <text x="52" y="796" class="s" style="white-space:pre">libc.so、ld.so → mmap 区</text>
+  <text x="52" y="814" class="s" style="white-space:pre">栈：内核放好 argv、环境变量</text>
+  <text x="52" y="832" class="tag"><a href="/maps/process-map.zh.html" target="_blank" rel="noopener"><tspan>进程地图</tspan></a></text>
+  </g>
+  <g id="ldso">
+  <rect x="410" y="700" width="370" height="170" rx="6" class="run"/>
+  <text x="422" y="724" class="t">⑥ 动态链接器 ld.so</text>
+  <text x="422" y="742" class="s" style="white-space:pre">按 DT_NEEDED 找 .so：rpath、</text>
+  <text x="422" y="760" class="s" style="white-space:pre">LD_LIBRARY_PATH、/etc/ld.so.cache</text>
+  <text x="422" y="778" class="s" style="white-space:pre">找到的库 mmap 进来，做重定位</text>
+  <text x="422" y="796" class="s" style="white-space:pre">跑全局对象的构造函数</text>
+  <text x="422" y="814" class="s" style="white-space:pre">最后跳到 _start，由它调 main</text>
+  </g>
+  <g id="exec">
+  <rect x="820" y="700" width="330" height="170" rx="6" class="run"/>
+  <text x="832" y="724" class="t">⑤ execve(&quot;./a.out&quot;)</text>
+  <text x="832" y="742" class="s" style="white-space:pre">内核读 ELF 头和程序头</text>
+  <text x="832" y="760" class="s" style="white-space:pre">按 LOAD 段 mmap，建好栈</text>
+  <text x="832" y="778" class="s" style="white-space:pre">有 INTERP：把 ld.so 也映射进来，</text>
+  <text x="832" y="796" class="s" style="white-space:pre">先从 ld.so 开始跑</text>
+  <text x="832" y="814" class="s" style="white-space:pre">静态链接的：直接从 _start 开始</text>
+  <text x="832" y="832" class="tag"><a href="/zh/posts/process-thread-fork/" target="_blank" rel="noopener"><tspan>进程和线程：fork 和 exec</tspan></a></text>
+  </g>
+  <g id="plt">
+  <rect x="1190" y="700" width="370" height="170" rx="6" class="run"/>
+  <text x="1202" y="724" class="t">⑦ 调 .so 里的函数：PLT 和 GOT</text>
+  <text x="1202" y="742" class="s" style="white-space:pre">call printf@plt：先跳到 PLT 的跳板</text>
+  <text x="1202" y="760" class="s" style="white-space:pre">跳板去 GOT 里取真实地址，再跳过去</text>
+  <text x="1202" y="778" class="s" style="white-space:pre">延迟绑定：第一次取到的是解析函数，</text>
+  <text x="1202" y="796" class="s" style="white-space:pre">解析完把 printf 的地址写回 GOT</text>
+  <text x="1202" y="814" class="s" style="white-space:pre">-z now：启动时全填好，再设只读</text>
+  </g>
+  <path d="M290,235 L318,235" class="ctl edge" id="e_src_pp" marker-end="url(#arr)"/>
+  <path d="M570,235 L598,235" class="ctl edge" id="e_pp_cc" marker-end="url(#arr)"/>
+  <path d="M860,235 L888,235" class="ctl edge" id="e_cc_as" marker-end="url(#arr)"/>
+  <path d="M1130,235 L1158,235" class="ctl edge" id="e_as_obj" marker-end="url(#arr)"/>
+  <path d="M1360,320 L1360,350 L600,350 L600,398" class="ctl edge" id="e_obj_ld" marker-end="url(#arr)"/>
+  <path d="M340,450 L388,450" class="cpy edge" id="e_lib_ld" marker-end="url(#arrC)"/>
+  <path d="M340,570 L388,570" class="ref edge" id="e_so_ld" marker-end="url(#arrD)"/>
+  <path d="M810,510 L858,510" class="ctl edge" id="e_ld_exe" marker-end="url(#arr)"/>
+  <path d="M985,620 L985,698" class="ctl edge" id="e_exe_exec" marker-end="url(#arr)"/>
+  <path d="M1230,620 L1230,698" class="ctl edge" id="e_exe_plt" marker-end="url(#arr)"/>
+  <path d="M820,785 L782,785" class="ctl edge" id="e_exec_ldso" marker-end="url(#arr)"/>
+  <path d="M300,620 L300,650 L595,650 L595,698" class="map edge" id="e_so_ldso" marker-end="url(#arrM)"/>
+  <path d="M410,785 L372,785" class="map edge" id="e_ldso_pm" marker-end="url(#arrM)"/>
+  <text x="1000" y="343" class="lab" text-anchor="start">所有 .o 一起交给链接器</text>
+  <text x="364" y="442" class="labc" text-anchor="middle">拷进来</text>
+  <text x="364" y="562" class="labd" text-anchor="middle">只记名字</text>
+  <text x="993" y="652" class="lab" text-anchor="start">./a.out</text>
+  <text x="1238" y="652" class="lab" text-anchor="start">运行时调库函数</text>
+  <text x="801" y="777" class="lab" text-anchor="middle">跳过去</text>
+  <text x="391" y="777" class="labm" text-anchor="middle">mmap</text>
+  <text x="604" y="684" class="labm" text-anchor="start">运行时 mmap 进来，进程间共享</text>
+  <text x="20" y="930" class="s">图随文章更新：讲到模板实例化、内联和链接时优化（LTO）时再往上补。</text>
+</svg>

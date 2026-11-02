@@ -84,6 +84,7 @@
   <text x="201" y="656" class="s">libstdc++、libc、ld.so</text>
   <text x="201" y="674" class="s">每个库也分代码段、数据段</text>
   <text x="201" y="692" class="s">代码页所有进程共用一份</text>
+  <text x="201" y="710" class="tag"><a href="/maps/build-map.zh.html#run" target="_blank" rel="noopener"><tspan>从源码到进程：.so 怎么加载</tspan></a></text>
   </g>
   <g id="bigmalloc">
   <rect x="470" y="614" width="266" height="134" rx="6" class="mmap"/>
