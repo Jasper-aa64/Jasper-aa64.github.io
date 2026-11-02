@@ -1,0 +1,306 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1555" width="1600" height="1555" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s  { font-size: 12px; fill: #57606a; }
+      .h  { font-size: 17px; font-weight: 700; fill: #1f2328; }
+      .tag{ font-size: 12px; fill: #0969da; }
+      .lab{ font-size: 11.5px; fill: #57606a; }
+      .labr{ font-size: 11.5px; fill: #cf222e; }
+      .lane-h { font-size: 13px; font-weight: 700; }
+      .code { font-size: 12px; fill: #1f2328; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
+      .addr { font-size: 11px; fill: #57606a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .kern  { fill: #eaeef2; stroke: #57606a; stroke-width: 1.2; }
+      .hole  { fill: #ffffff; stroke: #8c959f; stroke-width: 1; stroke-dasharray: 4 3; }
+      .stack { fill: #eefbf1; stroke: #1a7f37; stroke-width: 1.3; }
+      .mmap  { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .heap  { fill: #fff1e5; stroke: #fb8f44; stroke-width: 1.2; }
+      .img   { fill: #fbefff; stroke: #c297ff; stroke-width: 1.2; }
+      .buf   { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .mem   { fill: #ffebe9; stroke: #ff8182; stroke-width: 1.2; }
+      .note  { fill: #fbfbfc; stroke: #8c959f; stroke-width: 1; }
+      .user  { fill: #ffffff; stroke: #1f2328; stroke-width: 2; }
+      .line { stroke: #555; stroke-width: 1.6; fill: none; }
+      .ret  { stroke: #cf222e; stroke-width: 1.6; fill: none; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1600" height="1555" fill="#ffffff"/>
+  <text x="20" y="38" class="h" style="font-size:23px">进程地图：一个 C++ 程序的虚拟地址空间</text>
+  <text x="20" y="62" class="s">左边是一个进程的虚拟地址空间，高地址在上（x86-64、4 级页表、开了 PIE；不按比例）。右边是这些地址怎么落到物理内存上，以及热路径怎么用它。</text>
+  <text x="20" y="82" class="s">蓝字 = 在哪里讲过（#N = 交易系统笔记 #N，速查 = 速查页的小节，硬件地图 = 打开硬件地图上对应的路径）。数字都是量级。</text>
+  <text x="20" y="102" class="s">红线 = 缺页时内核往页表里填一项。</text>
+  <text x="155" y="122" class="lab" text-anchor="end">高地址 ↑</text>
+  <text x="155" y="1492" class="lab" text-anchor="end">低地址 ↓</text>
+  <text x="155" y="141" class="addr" text-anchor="end">0xffff ffff ffff ffff</text>
+  <text x="155" y="278" class="addr" text-anchor="end">0xffff 8000 0000 0000</text>
+  <text x="155" y="377" class="addr" text-anchor="end">0x0000 7fff ffff ffff</text>
+  <text x="155" y="412" class="addr" text-anchor="end">≈ 0x7ffc …</text>
+  <text x="155" y="628" class="addr" text-anchor="end">≈ 0x7f…</text>
+  <text x="155" y="1330" class="addr" text-anchor="end">≈ 0x55… / 0x56…</text>
+  <text x="155" y="1420" class="addr" text-anchor="end">0x0000 0000 0001 0000</text>
+  <text x="155" y="1462" class="addr" text-anchor="end">0x0</text>
+  <rect x="165" y="362" width="595" height="1114" rx="10" class="user"/>
+  <text x="177" y="386" class="h">用户空间（128 TiB）：每个进程一份</text>
+  <rect x="177" y="580" width="571" height="324" rx="8" fill="#f3f9ff" stroke="#54aeff" stroke-dasharray="6 4"/>
+  <text x="189" y="602" class="lane-h" style="fill:#0969da">mmap 区 ↓：从高往低分配，下面四类都在这里</text>
+  <rect x="177" y="912" width="571" height="56" rx="8" class="hole"/>
+  <text x="462" y="945" class="lab" text-anchor="middle">没映射的空地：堆往上长，mmap 区往下长，中间留得最大</text>
+  <g id="kernel">
+  <rect x="165" y="128" width="595" height="152" rx="6" class="kern"/>
+  <text x="177" y="152" class="t">内核空间（128 TiB）：所有进程共用同一份</text>
+  <text x="177" y="170" class="s">内核代码和数据、每个进程的页表、每个线程的内核栈（16 KiB）</text>
+  <text x="177" y="188" class="s">系统调用、缺页、中断时，CPU 切到这里执行</text>
+  <text x="177" y="206" class="s">还有全部物理内存的线性映射、页缓存（读写文件时缓存的文件内容）</text>
+  <text x="177" y="224" class="s">用户态的代码读写这段地址 → SIGSEGV</text>
+  <text x="177" y="242" class="tag"><a href="/zh/posts/scheduling-priority-inversion-kernel-tuning/" target="_blank" rel="noopener"><tspan>#19 调度策略与内核调优</tspan></a></text>
+  </g>
+  <g id="hole">
+  <rect x="165" y="292" width="595" height="58" rx="6" class="hole"/>
+  <text x="177" y="316" class="t">非规范地址空洞（约 16 M TiB）</text>
+  <text x="177" y="334" class="s">地址只有 48 位有效：bit 47 往上必须全和 bit 47 相同，中间这一大段不能用</text>
+  </g>
+  <g id="stack">
+  <rect x="177" y="396" width="571" height="96" rx="6" class="stack"/>
+  <text x="189" y="420" class="t">主线程的栈 ↓</text>
+  <text x="189" y="438" class="s">局部变量、函数参数、返回地址；每调用一层，往低地址长一段</text>
+  <text x="189" y="456" class="s">上限默认 8 MiB（ulimit -s），用超了碰到保护页 → SIGSEGV</text>
+  <text x="189" y="474" class="tag"><a href="/zh/posts/rvo-pure-functions/" target="_blank" rel="noopener"><tspan>#11 返回值优化：返回的对象直接构造在调用者的栈上</tspan></a></text>
+  </g>
+  <g id="vdso">
+  <rect x="177" y="500" width="571" height="70" rx="6" class="stack"/>
+  <text x="189" y="524" class="t">[vvar] [vdso]：内核映射进来的一小段代码和数据</text>
+  <text x="189" y="542" class="s">clock_gettime、gettimeofday 在这里直接读 TSC 算时间，不进内核</text>
+  <text x="189" y="560" class="tag"><a href="/zh/posts/tsc-latency-measurement/#12-rdtsc读一次约-10-ns但读数不一定一个-tick-一个-tick-地走" target="_blank" rel="noopener"><tspan>#20 1.2 clock_gettime 走 vDSO</tspan></a></text>
+  </g>
+  <g id="libs">
+  <rect x="189" y="614" width="266" height="134" rx="6" class="mmap"/>
+  <text x="201" y="638" class="t">共享库（.so）</text>
+  <text x="201" y="656" class="s">libstdc++、libc、ld.so</text>
+  <text x="201" y="674" class="s">每个库也分代码段、数据段</text>
+  <text x="201" y="692" class="s">代码页所有进程共用一份</text>
+  </g>
+  <g id="bigmalloc">
+  <rect x="470" y="614" width="266" height="134" rx="6" class="mmap"/>
+  <text x="482" y="638" class="t">大块 malloc（≥ 128 KiB）</text>
+  <text x="482" y="656" class="s">glibc 直接 mmap 一块新映射</text>
+  <text x="482" y="674" class="s">free 时立刻 munmap 还给内核</text>
+  <text x="482" y="692" class="s">门槛会随使用自动调高</text>
+  <text x="482" y="710" class="tag"><a href="/zh/posts/hot-path-memory-allocators/#21-光靠-mlockall-有个漏洞" target="_blank" rel="noopener"><tspan>#3 2.1 mmap 陷阱</tspan></a></text>
+  </g>
+  <g id="tstack">
+  <rect x="189" y="760" width="266" height="134" rx="6" class="mmap"/>
+  <text x="201" y="784" class="t">其他线程的栈 + TLS</text>
+  <text x="201" y="802" class="s">每个线程一块，默认 8 MiB</text>
+  <text x="201" y="820" class="s">最低处留一页保护页</text>
+  <text x="201" y="838" class="s">thread_local 在栈顶那头</text>
+  </g>
+  <g id="filemap">
+  <rect x="470" y="760" width="266" height="134" rx="6" class="mmap"/>
+  <text x="482" y="784" class="t">文件映射、共享内存</text>
+  <text x="482" y="802" class="s">mmap 文件：读写的就是页缓存</text>
+  <text x="482" y="820" class="s">/dev/shm：几个进程映射同一批页</text>
+  <text x="482" y="838" class="s">大页（hugetlbfs）也映射在这里</text>
+  <text x="482" y="856" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#2-放进共享内存" target="_blank" rel="noopener"><tspan>#5 2 放进共享内存</tspan></a></text>
+  </g>
+  <g id="heap">
+  <rect x="177" y="976" width="571" height="96" rx="6" class="heap"/>
+  <text x="189" y="1000" class="t">堆 ↑（brk）</text>
+  <text x="189" y="1018" class="s">new、malloc 的小块从这里切：先查本线程的缓存（tcache），不够再找 arena</text>
+  <text x="189" y="1036" class="s">arena 不够了，brk 把堆顶往上推；推出来的只是虚拟地址</text>
+  <text x="189" y="1054" class="tag"><a href="/zh/posts/hot-path-memory-allocators/" target="_blank" rel="noopener"><tspan>#3 内存池与分配器</tspan></a></text>
+  </g>
+  <g id="bss">
+  <rect x="177" y="1080" width="571" height="58" rx="6" class="img"/>
+  <text x="189" y="1104" class="t">.bss：没有初值的全局变量和 static 变量</text>
+  <text x="189" y="1122" class="s">初值都是 0，文件里只记大小，启动时映射成全 0 的页</text>
+  </g>
+  <g id="data">
+  <rect x="177" y="1146" width="571" height="58" rx="6" class="img"/>
+  <text x="189" y="1170" class="t">.data：有初值的全局变量和 static 变量</text>
+  <text x="189" y="1188" class="s">初值存在可执行文件里，启动时映射进来，可读可写</text>
+  </g>
+  <g id="rodata">
+  <rect x="177" y="1212" width="571" height="90" rx="6" class="img"/>
+  <text x="189" y="1236" class="t">.rodata：只读数据</text>
+  <text x="189" y="1254" class="s">字符串字面量、有常量初值的 const 全局变量、编译期算好的查找表</text>
+  <text x="189" y="1272" class="s">vtable 在 .data.rel.ro：启动时填好函数地址，再改成只读</text>
+  <text x="189" y="1290" class="tag"><a href="/zh/ref/cpp-syntax/#virtual-vtable" target="_blank" rel="noopener"><tspan>速查 C++ 语法 1.2 vptr 和 vtable</tspan></a></text>
+  </g>
+  <g id="text">
+  <rect x="177" y="1310" width="571" height="90" rx="6" class="img"/>
+  <text x="189" y="1334" class="t">.text：机器码（只读 + 可执行）</text>
+  <text x="189" y="1352" class="s">函数编译出来的指令；.plt 是调 .so 里函数的跳板</text>
+  <text x="189" y="1370" class="s">PIE 每次加载到随机地址；gdb 默认关掉随机化，基址常见 0x5555 5555 4000</text>
+  <text x="189" y="1388" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/#26-函数分组代码也走缓存" target="_blank" rel="noopener"><tspan>#6 2.6 函数分组：代码也走缓存</tspan></a></text>
+  </g>
+  <g id="null">
+  <rect x="177" y="1408" width="571" height="56" rx="6" class="hole"/>
+  <text x="189" y="1432" class="t">0 – 64 KiB：不映射</text>
+  <text x="189" y="1450" class="s">空指针解引用落在这里 → SIGSEGV（vm.mmap_min_addr = 65536）</text>
+  </g>
+  <g id="code">
+  <rect x="800" y="128" width="360" height="250" rx="6" class="note"/>
+  <text x="812" y="152" class="t">C++ 里写的东西放在哪</text>
+  <text x="812" y="170" class="code">int g = 1;             // .data</text>
+  <text x="812" y="188" class="code">int z;                 // .bss</text>
+  <text x="812" y="206" class="code">const char* s = &quot;hi&quot;;  // s：.data，&quot;hi&quot;：.rodata</text>
+  <text x="812" y="224" class="code">thread_local int t;    // 每个线程一份（TLS）</text>
+  <text x="812" y="242" class="code">void f() {             // 指令：.text</text>
+  <text x="812" y="260" class="code">  int x = 0;           // 栈</text>
+  <text x="812" y="278" class="code">  int* p = new int(2); // p：栈，*p：堆</text>
+  <text x="812" y="296" class="code">  char* b = new char[1 &lt;&lt; 20];</text>
+  <text x="812" y="314" class="code">                       // 1 MiB：mmap 区</text>
+  <text x="812" y="332" class="code">}</text>
+  </g>
+  <g id="thread">
+  <rect x="1220" y="128" width="360" height="250" rx="6" class="note"/>
+  <text x="1232" y="152" class="t">线程：共享什么，各有什么</text>
+  <text x="1232" y="170" class="s">共享：整个地址空间，同一份页表</text>
+  <text x="1232" y="188" class="s">（代码、全局变量、堆、mmap 区、文件描述符）</text>
+  <text x="1232" y="206" class="s">各一份：栈、TLS、寄存器、内核栈</text>
+  <text x="1232" y="224" class="s">所以全局和堆上的数据要同步；</text>
+  <text x="1232" y="242" class="s">栈上的变量地址不传出去，就只有自己用</text>
+  <text x="1232" y="260" class="tag"><a href="/zh/posts/memory-ordering-false-sharing-dependency-chains/" target="_blank" rel="noopener"><tspan>#2 内存序与缓存行</tspan></a></text>
+  <text x="1232" y="278" class="tag"><a href="/zh/posts/thread-safe-queue/" target="_blank" rel="noopener"><tspan>#18 线程安全队列</tspan></a></text>
+  </g>
+  <g id="pt">
+  <rect x="800" y="400" width="360" height="200" rx="6" class="buf"/>
+  <text x="812" y="424" class="t">页表：虚拟地址 → 物理地址</text>
+  <text x="812" y="442" class="s">每个进程一份；4 级，每级用 9 位，页内偏移 12 位</text>
+  <text x="812" y="460" class="s">TLB 命中不额外花时间；没命中查页表约 15–30 ns</text>
+  <text x="812" y="478" class="s">2 MiB 大页少查一级，一项 TLB 管 512 倍的地址</text>
+  <text x="812" y="496" class="tag"><a href="/maps/hardware-map.zh.html#load" target="_blank" rel="noopener"><tspan>硬件地图：dTLB → 一次 load 走到内存</tspan></a></text>
+  <text x="812" y="514" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 2 MiB 大页</tspan></a></text>
+  <text x="812" y="532" class="tag"><a href="/zh/ref/cpu-memory/#latency" target="_blank" rel="noopener"><tspan>速查 2.1 TLB 覆盖范围</tspan></a></text>
+  </g>
+  <g id="dram">
+  <rect x="1220" y="400" width="360" height="440" rx="6" class="mem"/>
+  <text x="1232" y="424" class="t">物理内存（内存条）</text>
+  <text x="1232" y="442" class="s">物理页零散地分在内存条上</text>
+  <text x="1232" y="460" class="s">连续的虚拟地址，背后的物理页不一定连续</text>
+  <text x="1232" y="478" class="s">同一个 .so 的代码页、/dev/shm 的页：几个进程共用</text>
+  <text x="1232" y="496" class="tag"><a href="/maps/hardware-map.zh.html#load" target="_blank" rel="noopener"><tspan>硬件地图：内存控制器 → 通道</tspan></a></text>
+  <rect x="1232" y="520" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1266" y="520" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1300" y="520" width="28" height="28" rx="3" class="img"/>
+  <rect x="1334" y="520" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1368" y="520" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1402" y="520" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1436" y="520" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1470" y="520" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1504" y="520" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1538" y="520" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1232" y="554" width="28" height="28" rx="3" class="stack"/>
+  <rect x="1266" y="554" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1300" y="554" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1334" y="554" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1368" y="554" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1402" y="554" width="28" height="28" rx="3" class="img"/>
+  <rect x="1436" y="554" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1470" y="554" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1504" y="554" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1538" y="554" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1232" y="588" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1266" y="588" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1300" y="588" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1334" y="588" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1368" y="588" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1402" y="588" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1436" y="588" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1470" y="588" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1504" y="588" width="28" height="28" rx="3" class="stack"/>
+  <rect x="1538" y="588" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1232" y="622" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1266" y="622" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1300" y="622" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1334" y="622" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1368" y="622" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1402" y="622" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1436" y="622" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1470" y="622" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1504" y="622" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1538" y="622" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1232" y="656" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1266" y="656" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1300" y="656" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1334" y="656" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1368" y="656" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1402" y="656" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1436" y="656" width="28" height="28" rx="3" class="img"/>
+  <rect x="1470" y="656" width="28" height="28" rx="3" class="stack"/>
+  <rect x="1504" y="656" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1538" y="656" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1232" y="690" width="28" height="28" rx="3" class="stack"/>
+  <rect x="1266" y="690" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1300" y="690" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1334" y="690" width="28" height="28" rx="3" class="img"/>
+  <rect x="1368" y="690" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1402" y="690" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1436" y="690" width="28" height="28" rx="3" class="img"/>
+  <rect x="1470" y="690" width="28" height="28" rx="3" class="img"/>
+  <rect x="1504" y="690" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1538" y="690" width="28" height="28" rx="3" class="stack"/>
+  <rect x="1232" y="724" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1266" y="724" width="28" height="28" rx="3" class="img"/>
+  <rect x="1300" y="724" width="28" height="28" rx="3" class="kern"/>
+  <rect x="1334" y="724" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1368" y="724" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1402" y="724" width="28" height="28" rx="3" class="heap"/>
+  <rect x="1436" y="724" width="28" height="28" rx="3" class="img"/>
+  <rect x="1470" y="724" width="28" height="28" rx="3" class="hole"/>
+  <rect x="1504" y="724" width="28" height="28" rx="3" class="mmap"/>
+  <rect x="1538" y="724" width="28" height="28" rx="3" class="kern"/>
+  <text x="1232" y="784" class="lab">每格 = 一页物理内存（4 KiB），颜色 = 属于左边哪一段；</text>
+  <text x="1232" y="802" class="lab">白格 = 空闲或属于别的进程。同一种颜色的格子并不挨着。</text>
+  </g>
+  <g id="fault">
+  <rect x="800" y="640" width="360" height="200" rx="6" class="buf"/>
+  <text x="812" y="664" class="t">缺页：第一次碰到才给物理页</text>
+  <text x="812" y="682" class="s">new、mmap、brk 只拿到虚拟地址，页表里还没有</text>
+  <text x="812" y="700" class="s">第一次写：陷入内核，分一页、清零、填进页表</text>
+  <text x="812" y="718" class="s">约 0.5–2 µs；要读磁盘的（major）几十 µs 到 ms</text>
+  <text x="812" y="736" class="s">地址不在任何映射里，或权限不对 → SIGSEGV</text>
+  <text x="812" y="754" class="tag"><a href="/zh/posts/hot-path-memory-allocators/#32-预先缺页补上-mlock-在首次访问时留下的口子" target="_blank" rel="noopener"><tspan>#3 3.2 预先缺页 + mlock</tspan></a></text>
+  </g>
+  <g id="hft">
+  <rect x="800" y="860" width="780" height="150" rx="6" class="note"/>
+  <text x="812" y="884" class="t">低延迟系统怎么用这张图</text>
+  <text x="812" y="902" class="s">启动时把热路径要用的内存分好、每页写一遍（预先缺页），mlockall 锁住；热路径上不再 new，也不 munmap</text>
+  <text x="812" y="920" class="s">热数据放 2 MiB 大页，少些 TLB 未命中；热路径上不 mprotect、不 munmap，免得 TLB shootdown 打断别的核</text>
+  <text x="812" y="938" class="s">共享内存里存偏移，不存指针：同一批物理页在每个进程里的虚拟地址可能不一样</text>
+  <text x="812" y="956" class="tag"><a href="/zh/posts/hot-path-memory-allocators/" target="_blank" rel="noopener"><tspan>#3 内存池与分配器</tspan></a><a href="/zh/posts/hot-path-memory-allocators/#22-isolcpus-替你挡不住的税tlb-shootdown" target="_blank" rel="noopener"><tspan> · #3 2.2 TLB shootdown</tspan></a><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan> · #6 大页</tspan></a><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#22-同样的字节不同的地址" target="_blank" rel="noopener"><tspan> · #5 2.2 同样的字节，不同的地址</tspan></a></text>
+  </g>
+  <g id="see">
+  <rect x="800" y="1030" width="780" height="150" rx="6" class="note"/>
+  <text x="812" y="1054" class="t">在自己机器上看</text>
+  <text x="812" y="1072" class="code">cat /proc/&lt;pid&gt;/maps    # 每一段的地址范围、权限、来源文件（r-xp 就是 .text）</text>
+  <text x="812" y="1090" class="code">pmap -x &lt;pid&gt;           # 每一段实际占了多少物理内存（RSS）</text>
+  <text x="812" y="1108" class="code">size a.out              # .text、.data、.bss 各多大</text>
+  <text x="812" y="1126" class="code">perf stat -e page-faults,dTLB-load-misses ./a.out   # 缺页、TLB 未命中各几次</text>
+  <text x="812" y="1144" class="code">ulimit -s               # 栈上限（KiB）</text>
+  </g>
+  <g id="myth">
+  <rect x="800" y="1200" width="780" height="150" rx="6" class="note"/>
+  <text x="812" y="1224" class="t">几个常见说法，哪里不对</text>
+  <text x="812" y="1242" class="s">“堆比栈慢”：访问一样快，都是普通内存；慢在 malloc 耗时不固定，以及对象散开以后局部性差</text>
+  <text x="812" y="1260" class="s">“用户空间 3 GB、内核 1 GB”：那是 32 位。64 位上用户空间是低 128 TiB，内核是高 128 TiB</text>
+  <text x="812" y="1278" class="s">“全局区空间大”：.data、.bss 的大小链接时就定死了，要能变大的数据放堆上</text>
+  <text x="812" y="1296" class="s">“new 了就占内存”：第一次写之前不占物理页，RSS 不涨</text>
+  <text x="812" y="1314" class="s">“栈上的变量别的线程碰不到”：地址传过去就能读写，栈也在同一个地址空间里</text>
+  </g>
+  <path d="M762,500 L798,500" class="line edge" id="e_space_pt" marker-end="url(#arr)"/>
+  <path d="M1162,500 L1218,500" class="line edge" id="e_pt_dram" marker-end="url(#arr)"/>
+  <path d="M980,638 L980,602" class="ret edge" id="e_fault_pt" marker-end="url(#arrR)"/>
+  <text x="780" y="492" class="lab" text-anchor="middle">虚拟</text>
+  <text x="780" y="518" class="lab" text-anchor="middle">地址</text>
+  <text x="1190" y="492" class="lab" text-anchor="middle">物理地址</text>
+  <text x="988" y="625" class="labr" text-anchor="start">内核填一项</text>
+  <text x="20" y="1515" class="s">地址范围按 x86-64 Linux 的默认布局；开了 ASLR，栈、mmap 区、堆和程序本身的起点每次运行都随机挪一点。</text>
+  <text x="20" y="1535" class="s">图随文章更新：讲到 fork、动态链接、IO 时再往上补。</text>
+</svg>
