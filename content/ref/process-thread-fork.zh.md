@@ -468,13 +468,164 @@ int install_reaper(void) {
 
 ## 4. 切换的代价：同一进程的线程之间，和不同进程之间
 
-### 4.1 线程之间切换不换页表
+“线程比进程轻”常被说成：线程切换不用换页表、不用刷 TLB，只换几个寄存器，所以快一个数量级。前半句对，后半句不对。同一进程的两个线程互相切换，和两个进程互相切换，连同唤醒、调度在内都在 1 到几 µs，直接开销差得不多。**线程真正轻的地方在切换之后：接着跑的线程，还能用上一个线程留在 TLB 和缓存里的东西。** 下面一路追到硬件：切换做了什么，页表和 TLB 是每个进程一份还是每个核一份，线程换了个核会怎样，改页表时又要通知谁。
 
-一个核从任务 A 换到任务 B，内核要保存 A 的寄存器、换到 B 的内核栈、恢复 B 的寄存器。如果 A 和 B 属于不同进程，还要多做一步：把 CR3 寄存器换成 B 的页表根地址，因为 B 看到的是另一份地址空间。同一个进程的两个线程共用一个 `mm`，这一步就省了。
+### 4.1 一次切换做了什么：保存、换栈、恢复
 
-直接开销差得并不多，两种切换都在 1 到几 µs（包括叫醒、调度和切换本身）。**真正的差别在切换之后：换了进程，B 的数据和页表项多半不在缓存和 TLB 里，要慢慢热起来；同一进程的线程共用地址空间，至少 TLB 里的页表项还能接着用。** 没有 PCID 的 CPU 上，换 CR3 会把 TLB 整个清掉；有 PCID 时 TLB 项按地址空间打了标签，不用全清，但 B 的项本来就少。TLB 和缓存在硬件上是哪几格，见[硬件地图](/zh/ref/cpu-memory/)。
+线程进内核的时候（系统调用、中断、被抢占），用户态的寄存器已经存到它自己的内核栈上了。调度器决定换下一个任务后，`context_switch()` 做两件事：
 
-### 4.2 开线程还是开进程
+- **换地址空间**（`switch_mm`）：下一个任务属于另一个进程，才把 CR3 改成那个进程的页表（4.2）。同一个进程的线程共用一个 `mm`，这一步直接跳过。
+- **换执行现场**（`switch_to`）：保存当前任务在内核里的几个寄存器和栈指针，换到下一个任务的内核栈，恢复它的寄存器；回用户态时，再从它的内核栈上把用户态寄存器取回来。浮点和向量寄存器也要换，开了 AVX-512 时这一份就有 2 KiB 多。
+
+这些都在 CPU 上做，不碰磁盘、不等别人。1 到几 µs 里，更多花在进出内核、唤醒和调度器挑下一个任务上。**线程切换和进程切换在这一步只差一处：要不要改写 CR3。**
+
+### 4.2 CR3：每个核一个，指向页表的根
+
+程序里用的是虚拟地址，访存前要翻译成物理地址，翻译规则就是进程的页表。x86-64 上它是一棵 4 级的树，每级 512 项，根那一页的物理地址放在 **CR3** 里。**CR3 是每个核一个的寄存器**，存的是这个核上正在跑的那个地址空间的页表根。
+
+页表是每个进程一份（内核里的 `mm_struct`），同一进程的线程共用它。所以同一时刻，几个核的 CR3 可以指向同一份页表（同一进程的几个线程在各自的核上跑），也可以指向不同的页表（跑的是不同进程）。切到同一进程的另一个线程，CR3 的值本来就对，不用动；切到别的进程，要写入那个进程页表根的物理地址。从这一刻起，这个核看到的是另一份地址空间：同一个虚拟地址，翻译出来是另一个物理页，或者根本没有映射。
+
+<svg viewBox="0 0 760 356" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="两个核各有一个 CR3 和一份私有的 TLB。核 0 的 CR3 指向进程 A 的页表，进程 A 的线程 T1、T2、T3 共用这一份；核 1 的 CR3 指向进程 B 的页表。同进程的线程切换 CR3 不动；换到进程 B 要改写 CR3，没有 PCID 时 TLB 跟着清空。线程换到核 1 时，核 1 的 CR3 也指向页表 A，只是核 1 的 TLB 里还没有 A 的项。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .cx-bg    { fill: #fbfaf7; }
+    .cx-panel { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
+    .cx-muted { fill: #6b6558; }
+    .cx-reg   { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; }
+    .cx-tlb   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.6; }
+    .cx-pt    { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.2; }
+    .cx-hot   { fill: #f6ddd6; stroke: #c15b3f; stroke-width: 1.8; }
+    .cx-off   { fill: none; stroke: #b4ae9f; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .cx-arrow { stroke: #8a8474; stroke-width: 2; fill: none; marker-end: url(#ahcx); }
+    .cx-ipi   { stroke: #c15b3f; stroke-width: 2; fill: none; marker-end: url(#ahcx2); }
+    .cx-title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .cx-lbl   { fill: #3a372f; font-size: 11px; }
+    .cx-cap   { fill: #6b6558; font-size: 10.5px; }
+    .cx-red   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-panel { fill: #201f26; stroke: #3a3945; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-muted { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-reg { fill: #2a2933; stroke: #47454f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-tlb { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-pt { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-hot { fill: #4a2f2c; stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-off { stroke: #5a5664; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-arrow { stroke: #9a9384; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-ipi { stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-title { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-lbl { fill: #d7d3c8; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-cap { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .cx-red { fill: #e0795b; }
+  </style>
+  <defs>
+    <marker id="ahcx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8a8474"/>
+    </marker>
+    <marker id="ahcx2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#c15b3f"/>
+    </marker>
+  </defs>
+  <rect class="cx-bg" x="0" y="0" width="760" height="356" rx="10"/>
+  <text class="cx-title" x="24" y="30">CR3 每个核一个，页表每个进程一份</text>
+  <rect class="cx-panel" x="24" y="48" width="380" height="124" rx="8"/>
+  <text class="cx-muted" x="40" y="70" font-size="12" font-weight="700">核 0：正在跑进程 A 的线程 T1</text>
+  <rect class="cx-tlb" x="40" y="84" width="196" height="72" rx="6"/>
+  <text class="cx-lbl" x="52" y="106" font-weight="700">TLB（本核私有）</text>
+  <text class="cx-cap" x="52" y="124">缓存 A 的地址翻译</text>
+  <text class="cx-cap" x="52" y="142">几十到几千项</text>
+  <rect class="cx-reg" x="252" y="84" width="136" height="72" rx="6"/>
+  <text class="cx-lbl" x="264" y="106" font-weight="700">CR3</text>
+  <text class="cx-cap" x="264" y="124">页表 A 根页的</text>
+  <text class="cx-cap" x="264" y="142">物理地址</text>
+  <rect class="cx-panel" x="24" y="188" width="380" height="124" rx="8"/>
+  <text class="cx-muted" x="40" y="210" font-size="12" font-weight="700">核 1：正在跑进程 B</text>
+  <rect class="cx-tlb" x="40" y="224" width="196" height="72" rx="6"/>
+  <text class="cx-lbl" x="52" y="246" font-weight="700">TLB（本核私有）</text>
+  <text class="cx-cap" x="52" y="264">缓存 B 的地址翻译</text>
+  <text class="cx-cap" x="52" y="282">几十到几千项</text>
+  <rect class="cx-reg" x="252" y="224" width="136" height="72" rx="6"/>
+  <text class="cx-lbl" x="264" y="246" font-weight="700">CR3</text>
+  <text class="cx-cap" x="264" y="264">页表 B 根页的</text>
+  <text class="cx-cap" x="264" y="282">物理地址</text>
+  <rect class="cx-panel" x="468" y="48" width="268" height="124" rx="8"/>
+  <text class="cx-muted" x="484" y="70" font-size="12" font-weight="700">进程 A（一个 mm）</text>
+  <rect class="cx-pt" x="484" y="84" width="236" height="36" rx="6"/>
+  <text class="cx-lbl" x="496" y="107" font-weight="700">页表 A（4 级）</text>
+  <text class="cx-cap" x="484" y="142">线程 T1、T2、T3 共用这一份</text>
+  <text class="cx-cap" x="484" y="160">同进程的线程切换：CR3 不动</text>
+  <rect class="cx-panel" x="468" y="188" width="268" height="124" rx="8"/>
+  <text class="cx-muted" x="484" y="210" font-size="12" font-weight="700">进程 B（另一个 mm）</text>
+  <rect class="cx-pt" x="484" y="224" width="236" height="36" rx="6"/>
+  <text class="cx-lbl" x="496" y="247" font-weight="700">页表 B（4 级）</text>
+  <text class="cx-cap" x="484" y="282">核 0 换到进程 B：CR3 改写成这里</text>
+  <text class="cx-cap" x="484" y="300">没有 PCID 时，TLB 跟着清空</text>
+  <path class="cx-arrow" d="M388 120 L482 102"/>
+  <path class="cx-arrow" d="M388 260 L482 242"/>
+  <text class="cx-red" x="24" y="338">线程换到核 1：核 1 的 CR3 也指向页表 A，翻译规则没变，只是核 1 的 TLB 里还没有 A 的项。</text>
+</svg>
+
+> 图：CR3 和 TLB 跟着核走，页表跟着进程走。同一进程的线程查的是同一份页表，切过去 CR3 不用动；换进程才要改写 CR3。
+
+### 4.3 TLB：地址翻译的缓存，也是每个核一份
+
+每次访存都去 4 级页表里查一遍太慢，所以每个核有自己的 **TLB**（translation lookaside buffer），缓存最近用过的翻译：L1 dTLB 64–96 项，二级的 STLB 1500–3000 项，每项管一页（[内存延迟与带宽](/zh/posts/low-latency-memory-latency-bandwidth/) 第 3.2 节讲了它能盖住多大的内存、大页怎么帮忙）。TLB 命中，翻译几乎不花时间；没命中，硬件的 page walker 从 CR3 出发，一级一级往下读页表项。页表项本身也是内存里的数据，会被缓存在 L1、L2、L3 里，所以从内存读一个数，TLB 命中约 70–90 ns，没命中约 85–120 ns，只多出 15–30 ns（[速查 2.1](/zh/ref/cpu-memory/#latency)）。4 级页表项全都要从内存读的情况很少，真遇上了，一次就是几百 ns。
+
+TLB 里的每一项都是按某一份页表算出来的。改写了 CR3，旧的翻译对新进程就是错的，所以没有 PCID 时，写 CR3 会把 TLB 里所有非全局的项清掉；内核的映射在每个进程里都一样，标了全局（global），不跟着清。**PCID**（process-context identifier）给每一项打上地址空间的标签，写 CR3 时带上新标签，就不用清：旧进程的项还在，只是新进程查不到，等它切回来还能接着用。Linux 从 4.14 起用 PCID，但每个核只轮换几个号，TLB 总共也就几千项，一个进程歇了一阵再回来，它的项多半已经被别人挤掉了。
+
+同一进程的线程之间切换，CR3 不动，TLB 里的项全部有效，接着跑的线程直接用。**这才是“线程更轻”里真正属于硬件的那一部分。**
+
+### 4.4 切换之后要重新热起来，换核也一样
+
+换进程之后，新进程的数据多半已经不在 L1、L2 里（每个核只有几十 KiB 和一两 MiB），每次访问都要去 L3 或内存取；TLB 里它的项也少，每碰一个新页就走一遍页表。同一进程的线程好一些：代码、堆上共享的数据、TLB 里的翻译都还热，但各自的栈和私有数据未必在缓存里。这笔账不记在切换本身上，而是摊在切换之后的一段执行里。**只测切换本身，会低估切换的代价。**
+
+线程被调度器挪到另一个核，是另一种“切换之后”。新核的 CR3 指向同一份页表，翻译规则没变，什么都不用清；可是 **L1、L2 和 TLB 都是每个核私有的**，线程在原来那个核上攒下的热数据、指令和地址翻译都留在那里，到了新核，数据要从 L3（另一个插槽的话，从远端内存）重新取，TLB 也要一页一页重新查表填回来。绑核（[#1](/zh/posts/cpu-affinity-core-isolation-numa/)）消掉的就是这一笔。线程走了，它在原来那个核的 TLB 里留下的项也不会跟着消失，改页表时这些旧项也得处理（4.5）。
+
+### 4.5 改页表：TLB 没有 MESI
+
+数据缓存之间有 [MESI](/zh/posts/low-latency-mesi-cache-coherence/)：一个核写一条行，硬件自动让别的核的副本作废。**TLB 没有这套机制：内存里的页表项被改了，别的核 TLB 里缓存的旧翻译不会自己作废。** 内核改了页表（`munmap`、`mprotect`、搬页、合并透明大页）之后，先用 `invlpg` 作废本核的项，再给可能拿着旧翻译的核发一个核间中断（IPI）。对方进中断处理程序作废对应的项、回话；发起的核等齐所有回话才能接着往下走，因为在那之前，别的核还可能顺着旧翻译写到一个已经还给系统的物理页。这一来一回叫 **TLB shootdown**。
+
+<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="核 2 上的冷线程调 munmap：改页表项，invlpg 作废本核的项，给正在跑这个进程的核发 IPI，等齐回话才往下走。同进程热线程所在的核 5 和跑着同进程另一个线程的核 3 都收到 IPI；核 7 刚跑过这个进程、现在在跑别的进程，不发 IPI，切回来时发现页表改过再自己清。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <rect class="cx-bg" x="0" y="0" width="760" height="300" rx="10"/>
+  <text class="cx-title" x="24" y="30">TLB 没有 MESI：改了页表，要发 IPI 一个个通知</text>
+  <rect class="cx-reg" x="24" y="60" width="250" height="114" rx="6"/>
+  <text class="cx-lbl" x="36" y="84" font-weight="700">核 2：冷线程调 munmap</text>
+  <text class="cx-cap" x="36" y="106">① 改页表项</text>
+  <text class="cx-cap" x="36" y="124">② invlpg 作废本核的项</text>
+  <text class="cx-cap" x="36" y="142">③ 给正在跑这个进程的核发 IPI</text>
+  <text class="cx-cap" x="36" y="160">④ 等齐回话才往下走</text>
+  <path class="cx-ipi" d="M274 100 L428 73"/>
+  <text class="cx-red" x="336" y="78">IPI</text>
+  <path class="cx-ipi" d="M274 124 L428 137"/>
+  <text class="cx-red" x="336" y="146">IPI</text>
+  <rect class="cx-hot" x="430" y="48" width="306" height="50" rx="6"/>
+  <text class="cx-lbl" x="442" y="68" font-weight="700">核 5：热线程（同一进程，已隔离）</text>
+  <text class="cx-cap" x="442" y="86">被打断：进内核作废这一项，再回话</text>
+  <rect class="cx-tlb" x="430" y="112" width="306" height="50" rx="6"/>
+  <text class="cx-lbl" x="442" y="132" font-weight="700">核 3：同进程的另一个线程正在跑</text>
+  <text class="cx-cap" x="442" y="150">也在名单上，同样被打断</text>
+  <rect class="cx-off" x="430" y="176" width="306" height="50" rx="6"/>
+  <text class="cx-lbl" x="442" y="196" font-weight="700">核 7：刚跑过，现在在跑别的进程</text>
+  <text class="cx-cap" x="442" y="214">不发 IPI：切回来时发现页表改过，再自己清</text>
+  <text class="cx-red" x="24" y="262">发起的核同步等待；收到 IPI 的核被打断一次，绑核和 isolcpus 都挡不住。</text>
+  <text class="cx-cap" x="24" y="282">名单 mm_cpumask：正在跑这个进程的核。改的是内核自己的映射，才要通知所有核。</text>
+</svg>
+
+> 图：数据缓存靠硬件互相作废，TLB 靠内核发中断。正在跑这个进程的核都要停下来处理一次，发起的核等它们全部回话；不在跑的核留到切回来时再清。
+
+IPI 发给谁，看内核给每个地址空间记的一份核的名单 `mm_cpumask`，x86 上就是正在跑这个进程的核。**改用户空间的页表，只有名单上的核收到 IPI，跑别的进程的核不受打扰。** 不在名单上的核也可能拿着旧翻译（线程走了，旧项还在；有 PCID 时，换了进程也不一定被清掉）。内核的办法是给每个地址空间记一个页表版本号，每改一次加一；核切回这个进程时，拿自己记下的版本号比一下，旧了就先清再跑，不用打断一个正在干别的事的核。借用页表的内核线程（内核线程没有自己的用户地址空间，切过去时沿用上一个进程的页表，叫 lazy TLB）也这样处理。内核自己的映射（`vmalloc` 出来的区域、加载的模块）在每个地址空间里都有，改了就得通知所有核，内核会攒一批再一起清。
+
+线程多的进程要记住一点：**同一个进程里，一个线程 `munmap`，正在跑的其他线程都要陪着被打断一次。** 绑核和 `isolcpus` 挡不住它，因为 IPI 按 `mm_cpumask` 投递，不经过调度器；低延迟程序怎么从源头上不改页表，见 [#3](/zh/posts/hot-path-memory-allocators/) 第 2 节。
+
+### 4.6 三种情况放在一起
+
+| | CR3 | TLB | L1、L2 |
+|---|---|---|---|
+| 同一进程的线程，同一个核 | 不动 | 接着用 | 共享的数据还热，各自的栈和私有数据未必 |
+| 线程换核 | 新核指向同一份页表 | 新核上是冷的，按需查表填回来 | 冷，从 L3 或内存重新取 |
+| 换进程 | 改写 | 没有 PCID 就清空；有 PCID 也多半被挤掉了 | 多半被上一个任务挤掉了 |
+
+差别都在切换之后。创建也是一样的道理：线程用 `clone` 共用 `mm`，不复制页表；`fork` 要给子进程复制一份页表（2.2）。
+
+### 4.7 开线程还是开进程
 
 把上面几节合起来，取舍就清楚了。线程共用地址空间，所以创建快、切换后缓存热、交换数据只要传一个指针；代价是没有隔离，一个线程越界写坏了堆、或者段错误，整个进程一起完蛋，共享的数据还得自己加锁。进程各有一份地址空间，一个崩了不影响别的，可以分别以不同的用户、不同的权限运行；代价是创建慢、交换数据要走进程间通信（管道、共享内存、socket，见[进程间通信](/zh/ref/ipc/)）。
 
