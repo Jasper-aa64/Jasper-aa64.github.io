@@ -23,6 +23,12 @@ On early CPUs the TSC followed the core clock: it slowed down when the core slow
 
 So **the TSC counts time, not the cycles the core actually ran**. With the core in Turbo at 4.5 GHz and the TSC running at 3.0 GHz, 100 TSC ticks are 33 ns, during which the core ran 150 cycles. To count core cycles, use perf's `cycles` event, which comes from the performance counters, not the TSC.
 
+**When the frequency changes, how the ticks change** depends on what sets the time:
+
+- **Pure computation**: the number of cycles is set by the instructions and their dependencies and does not change with frequency. A faster core takes less time, so the TSC reads fewer ticks. Take 480 cycles: at 2.4 GHz the core takes 200 ns and a TSC running at 3.6 GHz reads 720 ticks; at 3.6 GHz it takes about 133 ns and reads 480 ticks.
+- **Waiting on memory**: the time is set by memory latency and does not change with core frequency. The ticks stay about the same, while the core idles through more cycles.
+- **So fewer ticks don't necessarily mean faster code; the core may just be running at a higher frequency**. Before comparing two measurements, pin the frequency (turn off power saving and Turbo, or run on a core that doesn't throttle).
+
 Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a concern. The cores of one CPU start counting from the same reset, so their readings are synchronized; Linux also checks at boot, and if they are not, it prints `tsc: Marking TSC unstable` and switches to another clock source. 1.4 relies on this.
 
 ### 1.2 rdtsc: 6–12 ns per Read, and on AMD the Reading Only Jumps About Every 10 ns
@@ -178,9 +184,11 @@ Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a 
    - **Why it works**: as 1.1 said, the cores of one machine have synchronized TSCs.
    - **Watch out**: the sync is not perfect. When the queueing time is very short, the difference can be a tiny negative number. That means the queueing time is within the sync error, not that the program is broken.
 
-4. **When you can't subtract**
+4. **When you can't subtract: the sync assumption breaks**
+   - **The assumption**: subtracting across cores works only because the cores' TSCs are synchronized (1.1). In the cases below, that assumption fails.
+   - **The TSC on this machine isn't synchronized**: firmware (BIOS) wrote the TSC, or the sockets of a multi-socket server aren't aligned. Linux catches this at boot and prints `tsc: Marking TSC unstable` (1.1), visible in `dmesg`; then cross-core differences can't be trusted.
    - **Virtual machines**: the hypervisor may add an offset to the TSC, or skew it when a virtual CPU moves to another physical core, so subtracting across cores is no longer reliable.
-   - **Two machines**: their TSCs have nothing to do with each other and cannot be subtracted at all.
+   - **Two machines**: they don't share a counter at all, so there is nothing to synchronize and nothing to subtract. To line up times across machines, use the PTP-synchronized system clock (1.5, block 4).
 
 5. **Checking that a machine supports this**
    - **CPUID**: bit 27 of EDX in leaf `0x80000001` is `rdtscp`, and bit 8 of EDX in leaf `0x80000007` is invariant TSC.
