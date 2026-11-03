@@ -54,6 +54,85 @@ run(Msg const*):
 
 所以一次虚调用 = 读 vptr → 读表里那一格 → 按读到的地址跳。
 
+**为什么一个 vptr 就够：同一个虚函数，在每个子类的表里都在同一格。** 编译 `run` 时，编译器只知道 `o` 是 `const Msg*`，不知道将来传进来的是哪个子类，偏移 16 是从 `Msg` 的声明算出来的：`Msg` 的表里前两格是析构函数，`handle` 排第 3 格。子类的表都照基类的格子排：继承来的虚函数按原来的顺序占同样的格子，重写了的就把那一格换成自己的函数地址，子类新加的虚函数接在后面。所以不管 `o` 指向 `TextMsg` 还是 `ImageMsg`，`16(%rax)` 读到的都是这个类自己的 `handle`。
+
+<svg viewBox="0 0 760 390" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="两个对象各有一个 vptr，分别指向 TextMsg 和 ImageMsg 的 vtable。两张表的格子顺序相同：+0 和 +8 是析构函数，+16 是 handle，只是格子里的函数地址不同。调用处写死的 16(%rax) 在两张表里读到的都是本类的 handle。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .vt-bg    { fill: #fbfaf7; }
+    .vt-ptr   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.4; }
+    .vt-cell  { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; }
+    .vt-slot  { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.2; }
+    .vt-hot   { fill: #f6ddd6; stroke: #c15b3f; stroke-width: 2; }
+    .vt-arrow { stroke: #6f8f3f; stroke-width: 1.8; fill: none; marker-end: url(#ahvt); }
+    .vt-brk   { stroke: #c15b3f; stroke-width: 1.5; fill: none; }
+    .vt-title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .vt-head  { fill: #6b6558; font-size: 11.5px; font-weight: 700; }
+    .vt-lbl   { fill: #3a372f; font-size: 11px; }
+    .vt-mono  { fill: #3a372f; font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+    .vt-cap   { fill: #6b6558; font-size: 11px; }
+    .vt-red   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-ptr { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-cell { fill: #2a2933; stroke: #47454f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-slot { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-hot { fill: #4a2f2c; stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-arrow { stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-brk { stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-title { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-head { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-lbl, :root:is([data-theme="dark"], [data-theme="black"]) .vt-mono { fill: #d7d3c8; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-cap { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-red { fill: #e0795b; }
+  </style>
+  <defs>
+    <marker id="ahvt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#6f8f3f"/>
+    </marker>
+  </defs>
+  <rect class="vt-bg" x="0" y="0" width="760" height="390" rx="10"/>
+  <text class="vt-title" x="24" y="30">vptr 只告诉你查哪张表；第几格是编译期定好的，每张表都一样</text>
+  <text class="vt-head" x="24" y="70">TextMsg 对象</text>
+  <rect class="vt-ptr" x="24" y="80" width="80" height="36" rx="4"/>
+  <text class="vt-lbl" x="64" y="102" text-anchor="middle" font-weight="700">vptr</text>
+  <rect class="vt-cell" x="104" y="80" width="80" height="36" rx="4"/>
+  <text class="vt-mono" x="144" y="102" text-anchor="middle">qty</text>
+  <path class="vt-arrow" d="M64 116 V132 H276 V98 H296"/>
+  <text class="vt-head" x="300" y="70">TextMsg 的 vtable</text>
+  <rect class="vt-slot" x="300" y="80" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="102">+0</text>
+  <text class="vt-mono" x="352" y="102">析构函数（完整对象）</text>
+  <rect class="vt-slot" x="300" y="116" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="138">+8</text>
+  <text class="vt-mono" x="352" y="138">析构函数（顺带 delete）</text>
+  <rect class="vt-hot" x="300" y="152" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="174">+16</text>
+  <text class="vt-mono" x="352" y="174">TextMsg::handle</text>
+  <text class="vt-head" x="24" y="220">ImageMsg 对象</text>
+  <rect class="vt-ptr" x="24" y="230" width="80" height="36" rx="4"/>
+  <text class="vt-lbl" x="64" y="252" text-anchor="middle" font-weight="700">vptr</text>
+  <rect class="vt-cell" x="104" y="230" width="80" height="36" rx="4"/>
+  <text class="vt-mono" x="144" y="252" text-anchor="middle">qty</text>
+  <path class="vt-arrow" d="M64 266 V282 H276 V248 H296"/>
+  <text class="vt-head" x="300" y="220">ImageMsg 的 vtable</text>
+  <rect class="vt-slot" x="300" y="230" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="252">+0</text>
+  <text class="vt-mono" x="352" y="252">析构函数（完整对象）</text>
+  <rect class="vt-slot" x="300" y="266" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="288">+8</text>
+  <text class="vt-mono" x="352" y="288">析构函数（顺带 delete）</text>
+  <rect class="vt-hot" x="300" y="302" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="324">+16</text>
+  <text class="vt-mono" x="352" y="324">ImageMsg::handle</text>
+  <path class="vt-brk" d="M562 170 H580 V320 H562"/>
+  <path class="vt-brk" d="M580 245 H590"/>
+  <text class="vt-red" x="596" y="240">16(%rax) 读的就是这一格</text>
+  <text class="vt-cap" x="596" y="258">两张表都一样</text>
+  <text class="vt-cap" x="24" y="358">子类的表照基类 Msg 的格子排：重写的函数换掉同一格，子类新加的虚函数接在后面。</text>
+  <text class="vt-cap" x="24" y="376">所以调用处只需要知道静态类型 Msg 的格子顺序，不用知道有哪些子类。</text>
+</svg>
+
+“调哪个函数”就这样分成两半：**第几格在编译期按静态类型定好，格子里是谁由对象构造时 vptr 指向哪张表决定。** 调用处因此不用知道有哪些子类：以后在别的文件、甚至别的动态库里再写一个子类，它的表照样按 `Msg` 的格子排，`jmp *16(%rax)` 不用重新编译。
+
 ### 1.3 代价在哪 {#virtual-cost}
 
 - **间接跳转要猜**：目标地址是读出来的，前端要靠**间接目标预测器**去猜（[#7 第 1.3 节](/zh/posts/branch-prediction-branch-optimization/)）。同一处调用，对象类型有规律（全是同一种，或者短周期重复）几乎不会错；类型随机混在一起就经常错，每次约 15–20 个周期。

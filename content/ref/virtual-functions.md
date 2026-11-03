@@ -54,6 +54,85 @@ Two things make it work:
 
 So one virtual call = load the vptr → load the table slot → jump to the loaded address.
 
+**Why one vptr is enough: a given virtual function sits in the same slot in every derived class's table.** When compiling `run`, the compiler only knows `o` is a `const Msg*`, not which derived class will show up, so the offset 16 comes from `Msg`'s declaration: in `Msg`'s table the first two slots are destructors and `handle` is the 3rd. Every derived table is laid out on the base's slots: inherited virtuals keep their slots in the same order, an override replaces that slot with its own address, and new virtuals go after them. So whether `o` points to a `TextMsg` or an `ImageMsg`, `16(%rax)` reads that class's own `handle`.
+
+<svg viewBox="0 0 760 390" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two objects each hold a vptr pointing at TextMsg's and ImageMsg's vtable. Both tables use the same slot order: +0 and +8 are destructors, +16 is handle; only the addresses in the slots differ. The 16(%rax) baked into the call site reads each class's own handle." style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
+  <style>
+    .vt-bg    { fill: #fbfaf7; }
+    .vt-ptr   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.4; }
+    .vt-cell  { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; }
+    .vt-slot  { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.2; }
+    .vt-hot   { fill: #f6ddd6; stroke: #c15b3f; stroke-width: 2; }
+    .vt-arrow { stroke: #6f8f3f; stroke-width: 1.8; fill: none; marker-end: url(#ahvt); }
+    .vt-brk   { stroke: #c15b3f; stroke-width: 1.5; fill: none; }
+    .vt-title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .vt-head  { fill: #6b6558; font-size: 11.5px; font-weight: 700; }
+    .vt-lbl   { fill: #3a372f; font-size: 11px; }
+    .vt-mono  { fill: #3a372f; font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+    .vt-cap   { fill: #6b6558; font-size: 11px; }
+    .vt-red   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-ptr { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-cell { fill: #2a2933; stroke: #47454f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-slot { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-hot { fill: #4a2f2c; stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-arrow { stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-brk { stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-title { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-head { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-lbl, :root:is([data-theme="dark"], [data-theme="black"]) .vt-mono { fill: #d7d3c8; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-cap { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .vt-red { fill: #e0795b; }
+  </style>
+  <defs>
+    <marker id="ahvt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#6f8f3f"/>
+    </marker>
+  </defs>
+  <rect class="vt-bg" x="0" y="0" width="760" height="390" rx="10"/>
+  <text class="vt-title" x="24" y="30">The vptr only picks the table; the slot is fixed at compile time and the same in every table</text>
+  <text class="vt-head" x="24" y="70">TextMsg object</text>
+  <rect class="vt-ptr" x="24" y="80" width="80" height="36" rx="4"/>
+  <text class="vt-lbl" x="64" y="102" text-anchor="middle" font-weight="700">vptr</text>
+  <rect class="vt-cell" x="104" y="80" width="80" height="36" rx="4"/>
+  <text class="vt-mono" x="144" y="102" text-anchor="middle">qty</text>
+  <path class="vt-arrow" d="M64 116 V132 H276 V98 H296"/>
+  <text class="vt-head" x="300" y="70">TextMsg vtable</text>
+  <rect class="vt-slot" x="300" y="80" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="102">+0</text>
+  <text class="vt-mono" x="352" y="102">destructor (complete object)</text>
+  <rect class="vt-slot" x="300" y="116" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="138">+8</text>
+  <text class="vt-mono" x="352" y="138">destructor (deleting)</text>
+  <rect class="vt-hot" x="300" y="152" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="174">+16</text>
+  <text class="vt-mono" x="352" y="174">TextMsg::handle</text>
+  <text class="vt-head" x="24" y="220">ImageMsg object</text>
+  <rect class="vt-ptr" x="24" y="230" width="80" height="36" rx="4"/>
+  <text class="vt-lbl" x="64" y="252" text-anchor="middle" font-weight="700">vptr</text>
+  <rect class="vt-cell" x="104" y="230" width="80" height="36" rx="4"/>
+  <text class="vt-mono" x="144" y="252" text-anchor="middle">qty</text>
+  <path class="vt-arrow" d="M64 266 V282 H276 V248 H296"/>
+  <text class="vt-head" x="300" y="220">ImageMsg vtable</text>
+  <rect class="vt-slot" x="300" y="230" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="252">+0</text>
+  <text class="vt-mono" x="352" y="252">destructor (complete object)</text>
+  <rect class="vt-slot" x="300" y="266" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="288">+8</text>
+  <text class="vt-mono" x="352" y="288">destructor (deleting)</text>
+  <rect class="vt-hot" x="300" y="302" width="260" height="36" rx="4"/>
+  <text class="vt-mono" x="312" y="324">+16</text>
+  <text class="vt-mono" x="352" y="324">ImageMsg::handle</text>
+  <path class="vt-brk" d="M562 170 H580 V320 H562"/>
+  <path class="vt-brk" d="M580 245 H590"/>
+  <text class="vt-red" x="596" y="240">16(%rax) reads this slot</text>
+  <text class="vt-cap" x="596" y="258">in both tables</text>
+  <text class="vt-cap" x="24" y="358">A derived table follows the base Msg's slots: an override replaces the same slot; new virtuals go after the inherited ones.</text>
+  <text class="vt-cap" x="24" y="376">So the call site only needs the slot order of the static type Msg, not the list of derived classes.</text>
+</svg>
+
+Picking the function is split in two: **which slot is fixed at compile time from the static type; what the slot holds depends on which table the vptr was set to at construction.** That's why the call site doesn't need to know the derived classes: a new subclass written later, in another file or even another shared library, lays out its table on `Msg`'s slots, and `jmp *16(%rax)` needs no recompiling.
+
 ### 1.3 Where the Cost Is {#virtual-cost}
 
 - **The indirect jump has to be predicted**: the target is loaded from memory, so the front end relies on the **indirect target predictor** ([#7 Section 1.3](/posts/branch-prediction-branch-optimization/)). When the object types at one call site follow a pattern (all the same, or a short repeating cycle), it almost never misses; when they're randomly mixed, it misses often, about 15–20 cycles each time.
