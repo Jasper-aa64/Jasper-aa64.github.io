@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" width="1100" height="600" font-family="Helvetica, Arial, sans-serif">
+<style>.h{font-size:18px;font-weight:700;fill:#1f2328}.ax{stroke:#57606a;stroke-width:1.2}.g{stroke:#d0d7de;stroke-width:1;stroke-dasharray:4 4}.tk{font-size:13px;fill:#57606a}.lab{font-size:14px;fill:#1f2328}.ft{font-size:12.5px;fill:#57606a}</style>
+<rect x="0" y="0" width="1100" height="600" fill="#ffffff"/>
+<text class="h" x="40" y="40">The TSC reading jumps about every 10 ns: the same 5 ns of code reads as 1 or 36, depending on a jump in between</text>
+<line class="g" x1="130.0" y1="100" x2="130.0" y2="390"/>
+<text class="tk" x="130.0" y="410" text-anchor="middle">0</text>
+<line class="g" x1="357.5" y1="100" x2="357.5" y2="390"/>
+<text class="tk" x="357.5" y="410" text-anchor="middle">10</text>
+<line class="g" x1="585.0" y1="100" x2="585.0" y2="390"/>
+<text class="tk" x="585.0" y="410" text-anchor="middle">20</text>
+<line class="g" x1="812.5" y1="100" x2="812.5" y2="390"/>
+<text class="tk" x="812.5" y="410" text-anchor="middle">30</text>
+<line class="g" x1="1040.0" y1="100" x2="1040.0" y2="390"/>
+<text class="tk" x="1040.0" y="410" text-anchor="middle">40</text>
+<line class="ax" x1="130" y1="390" x2="1060" y2="390"/>
+<line class="ax" x1="130" y1="390" x2="130" y2="90"/>
+<text class="tk" x="1060" y="430" text-anchor="end">real time (ns)</text>
+<text class="tk" x="120" y="82" text-anchor="start">rdtsc reading</text>
+<text class="tk" x="120" y="394.0" text-anchor="end">1000</text>
+<text class="tk" x="120" y="324.0" text-anchor="end">1036</text>
+<text class="tk" x="120" y="254.0" text-anchor="end">1072</text>
+<text class="tk" x="120" y="184.0" text-anchor="end">1108</text>
+<line x1="130.0" y1="390.0" x2="1040.0" y2="110.0" stroke="#8c959f" stroke-width="1.5" stroke-dasharray="6 5"/>
+<path d="M 130.0 390.0 L 357.5 390.0 L 357.5 320.0 L 585.0 320.0 L 585.0 250.0 L 812.5 250.0 L 812.5 180.0 L 1040.0 180.0" fill="none" stroke="#0969da" stroke-width="3"/>
+<line x1="152.8" y1="106" x2="188.8" y2="106" stroke="#0969da" stroke-width="3"/>
+<text class="lab" x="198.8" y="111" fill="#0969da">actual: one jump of +36 about every 10 ns</text>
+<line x1="152.8" y1="132" x2="188.8" y2="132" stroke="#8c959f" stroke-width="1.5" stroke-dasharray="6 5"/>
+<text class="lab" x="198.8" y="137" fill="#57606a">ideal: +1 every 0.28 ns</text>
+<line x1="403.0" y1="320.0" x2="403.0" y2="443" stroke="#1a7f37" stroke-width="1.2" stroke-dasharray="3 3"/>
+<circle cx="403.0" cy="320.0" r="5.5" fill="#1a7f37"/>
+<text class="tk" x="411.0" y="312.0" fill="#1a7f37">1036</text>
+<line x1="516.8" y1="318.1" x2="516.8" y2="443" stroke="#1a7f37" stroke-width="1.2" stroke-dasharray="3 3"/>
+<circle cx="516.8" cy="318.1" r="5.5" fill="#1a7f37"/>
+<text class="tk" x="524.8" y="336.1" fill="#1a7f37">1037</text>
+<rect x="403.0" y="443" width="113.8" height="16" rx="3" fill="#1a7f37" fill-opacity="0.18" stroke="#1a7f37"/>
+<text class="tk" x="459.9" y="456" text-anchor="middle" fill="#1a7f37">5 ns</text>
+<text class="lab" x="389.0" y="453" text-anchor="end" fill="#1a7f37" font-weight="700">Case A: the code runs inside one step</text>
+<text class="lab" x="389.0" y="473" text-anchor="end">difference 1 → 0.28 ns (really 5 ns: too short)</text>
+<line x1="744.2" y1="250.0" x2="744.2" y2="503" stroke="#cf222e" stroke-width="1.2" stroke-dasharray="3 3"/>
+<circle cx="744.2" cy="250.0" r="5.5" fill="#cf222e"/>
+<text class="tk" x="752.2" y="242.0" fill="#cf222e">1072</text>
+<line x1="858.0" y1="180.0" x2="858.0" y2="503" stroke="#cf222e" stroke-width="1.2" stroke-dasharray="3 3"/>
+<circle cx="858.0" cy="180.0" r="5.5" fill="#cf222e"/>
+<text class="tk" x="866.0" y="198.0" fill="#cf222e">1108</text>
+<rect x="744.2" y="503" width="113.8" height="16" rx="3" fill="#cf222e" fill-opacity="0.18" stroke="#cf222e"/>
+<text class="tk" x="801.1" y="516" text-anchor="middle" fill="#cf222e">5 ns</text>
+<text class="lab" x="730.2" y="513" text-anchor="end" fill="#cf222e" font-weight="700">Case B: a jump falls in between</text>
+<text class="lab" x="730.2" y="533" text-anchor="end">difference 36 → 10 ns (really 5 ns: too long)</text>
+<text class="tk" x="524.8" y="356.0" fill="#1a7f37">read again within one step: only +1</text>
+<text class="ft" x="40" y="580">Step pattern measured on an AMD Ryzen 5 5600GT (TSC 3.593 GHz); other machines may step differently, so read back-to-back a few times first.</text>
+</svg>

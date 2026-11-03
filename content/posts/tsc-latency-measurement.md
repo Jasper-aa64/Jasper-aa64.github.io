@@ -43,7 +43,13 @@ Why not just call `clock_gettime`? In user space (the vDSO) it also reads the TS
 
 How short an interval the reading can resolve depends on how it actually advances. By frequency, one tick is 1 / 3.593 GHz ≈ 0.28 ns. But on the AMD machine used here, the reading doesn't go up by 1 every 0.28 ns; it jumps about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns). Read twice within the same 10 ns and the second read is only 1 higher: that 1 is there so readings never repeat, not because 0.28 ns really passed.
 
+This staircase is how the counter itself updates, and has nothing to do with how fast `rdtsc` reads: even if a read took no time, you would see the same steps. 3.593 GHz ÷ 36 ≈ 100 MHz, so the reading appears to be updated on a roughly 100 MHz reference clock, adding 36 per tick (inferred from the numbers, not from documentation).
+
+<a href="/images/tsc-latency-measurement/rdtsc-steps.en.svg" target="_blank" rel="noopener"><img src="/images/tsc-latency-measurement/rdtsc-steps.en.svg" alt="Horizontal axis: real time 0–40 ns; vertical axis: rdtsc reading. Ideally the reading rises by 1 every 0.28 ns, a straight line; in reality it is a staircase, jumping by 36 about every 10 ns. Case A: 5 ns of code falls inside one step, readings 1036 and 1037, difference 1, converted to 0.28 ns: too short. Case B: the same 5 ns spans a jump, readings 1072 and 1108, difference 36, converted to 10 ns: too long." loading="lazy" decoding="async"></a>
+
 That has two consequences. First, you can't measure `rdtsc` itself precisely on this machine: two back-to-back reads differ by 36 almost every time, exactly one jump, so all you can see is that a read takes at most about 10 ns. Second, **a single measurement shorter than 10–20 ns mostly reads quantization error**: a 5 ns piece of code may show a difference of 1 or of 36, depending on whether a jump fell in between. To measure code that short, run it many times and divide the total, or measure many times and look at the distribution.
+
+Besides quantization, the reading also includes the read instructions themselves. With no code at all between two reads, the difference is still about 36, about 10 ns, and none of that is the code being measured. It is roughly a fixed floor, so measure an empty region first and subtract it. Errors from out-of-order execution are a separate matter; see 1.3.
 
 ### 1.3 Out-of-Order Execution: rdtsc Doesn't Wait for Earlier Instructions
 
