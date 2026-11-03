@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 400" width="1100" height="400" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker></defs>
+<style>.h{font-size:18px;font-weight:700;fill:#1f2328}.b{font-size:15px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.t{font-size:12.5px;fill:#0969da}.q{font-size:12px;fill:#57606a}.br{font-size:13.5px;fill:#1f2328}.ft{font-size:12.5px;fill:#57606a}</style>
+<rect width="1100" height="400" fill="#ffffff"/>
+<text class="h" x="20" y="36">What TTT and RTT each cover: T7–T12 are the six marks on the participant side</text>
+<rect x="20" y="170" width="110" height="92" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text class="b" x="75.0" y="210" text-anchor="middle">Exchange</text>
+<text class="s" x="75.0" y="232" text-anchor="middle">sends data</text>
+<rect x="158" y="170" width="62" height="92" rx="8" fill="#fff8e6" stroke="#bf8700" stroke-width="1.5"/>
+<text class="b" x="189.0" y="222" text-anchor="middle">NIC</text>
+<rect x="250" y="170" width="170" height="92" rx="8" fill="#eaf5ff" stroke="#0969da" stroke-width="1.5"/>
+<text class="b" x="335.0" y="198" text-anchor="middle">Market data</text>
+<text class="t" x="335.0" y="225" text-anchor="middle">T7 UDP read</text>
+<text class="t" x="335.0" y="246" text-anchor="middle">T8 queue write</text>
+<rect x="470" y="170" width="170" height="92" rx="8" fill="#eaf5ff" stroke="#0969da" stroke-width="1.5"/>
+<text class="b" x="555.0" y="198" text-anchor="middle">Trade engine</text>
+<text class="t" x="555.0" y="225" text-anchor="middle">T9 queue read</text>
+<text class="t" x="555.0" y="246" text-anchor="middle">T10 queue write</text>
+<rect x="690" y="170" width="170" height="92" rx="8" fill="#eaf5ff" stroke="#0969da" stroke-width="1.5"/>
+<text class="b" x="775.0" y="198" text-anchor="middle">Order gateway</text>
+<text class="t" x="775.0" y="225" text-anchor="middle">T11 queue read</text>
+<text class="t" x="775.0" y="246" text-anchor="middle">T12 TCP write</text>
+<rect x="880" y="170" width="56" height="92" rx="8" fill="#fff8e6" stroke="#bf8700" stroke-width="1.5"/>
+<text class="b" x="908.0" y="222" text-anchor="middle">NIC</text>
+<rect x="1000" y="170" width="80" height="92" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text class="b" x="1040.0" y="210" text-anchor="middle">Exchange</text>
+<text class="s" x="1040.0" y="232" text-anchor="middle">match, reply</text>
+<line x1="132" y1="216.0" x2="155" y2="216.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="222" y1="216.0" x2="247" y2="216.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="422" y1="216.0" x2="467" y2="216.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="642" y1="216.0" x2="687" y2="216.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="862" y1="216.0" x2="877" y2="216.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<text class="q" x="445" y="284" text-anchor="middle">T9 − T8: waiting in the queue</text>
+<text class="q" x="665" y="304" text-anchor="middle">T11 − T10: waiting in the queue</text>
+<line x1="938" y1="200" x2="997" y2="200" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="998" y1="234" x2="939" y2="234" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<text class="q" x="968.0" y="194" text-anchor="middle">order</text>
+<text class="q" x="968.0" y="252" text-anchor="middle">reply</text>
+<path d="M250 146 L250 138 L860 138 L860 146" fill="none" stroke="#0969da" stroke-width="2"/>
+<text class="br" x="555.0" y="130" text-anchor="middle" fill="#0969da">Software TTT = T12 − T7: only our code and queues</text>
+<path d="M158 88 L158 80 L936 80 L936 88" fill="none" stroke="#9a6700" stroke-width="2"/>
+<text class="br" x="547.0" y="72" text-anchor="middle" fill="#9a6700">Wire-to-wire TTT: data into the NIC → order out of the NIC, adding the NIC and kernel legs</text>
+<path d="M880 324 L880 332 L1080 332 L1080 324" fill="none" stroke="#cf222e" stroke-width="2"/>
+<text class="br" x="1080" y="352" text-anchor="end" fill="#cf222e">RTT: order out of the NIC → reply back at the NIC, mostly network and exchange, outside our control</text>
+<text class="ft" x="20" y="380">Marks stop at thread boundaries; time inside the NIC and kernel needs NIC hardware timestamps or a switch mirror capture.</text>
+</svg>

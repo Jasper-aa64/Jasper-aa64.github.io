@@ -2,7 +2,7 @@
 title: "CPU and Memory: Map, Numbers, Estimates"
 description: "Which boxes one memory access passes through, how big and how fast each box is, and how to combine those numbers to estimate the memory time of a piece of code."
 date: 2026-10-08
-lastmod: 2026-10-25
+lastmod: 2026-11-03
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -80,6 +80,7 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | seq_cst fence | ~2–6 ns (8–25 cycles): GCC emits `lock or` on x86; `dmb ish` on ARM |
 | | x86's `sfence`, `lfence`, `mfence` | 1–6, 4–15, 30–80 cycles; for `lfence`, not counting the wait for earlier instructions |
 | | One `pause` in a spin-wait loop | ~140 cycles (~35 ns), the number to use on today's trading servers; Intel chips before Skylake take only ~10, so spin budgets count time, not iterations; ARM has no equivalent and uses `yield` (a no-op on many cores) or `isb` (see [#16](/posts/spinlock-implementation/)) |
+| | Uncontended mutex lock plus unlock | ~10–25 ns: two atomic read-modify-writes; when contended and it has to sleep, see the futex row in the "System" group |
 | | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete; falsely shared counters pay this too |
 | **Arithmetic** | Integer add/subtract, bit operation, shift | 1 cycle |
 | | Integer multiply | 3 cycles |
@@ -88,9 +89,13 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | Integer divide, remainder | ~3–20 ns (10–90 cycles) |
 | **Branches** | Correctly predicted branch | 0–1 cycles |
 | | Conditional move (x86 `cmov`, ARM `csel`) | 1 cycle, but it waits for the condition and both values |
+| | Non-inlined function call (direct) | ~1–2 ns (a few cycles): `call`, `ret` plus saving registers; the real cost is the lost inlining, since the compiler can't optimize across the call |
 | | One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
-| **System** | Simplest system call | ~0.1–0.5 µs |
+| | Virtual function call | ~1–2 ns when predicted, about the same as a direct call; add a branch mispredict when it guesses wrong, and a data fetch when the vtable isn't cached (see [virtual functions](/ref/virtual-functions/)) |
+| **System** | `malloc` plus `free` (small block) | ~10–50 ns from the thread's own cache; when the cache is empty and it asks the OS for memory, it enters the kernel and reaches µs |
+| | Simplest system call | ~0.1–0.5 µs |
 | | First write to a page (page fault) | ~1–2 µs |
+| | Throwing and catching an exception | ~1–2 µs, more with a deeper stack |
 | | Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
 | | Sleep on a taken lock, then get woken (futex: from the unlock until the waiter runs) | ~2–10 µs: two system calls plus two thread switches; longer if the waiter's core was in a deep power-saving state (see [#16](/posts/spinlock-implementation/)) |
 | | NVMe SSD 4 KiB read | 10–100 µs |
