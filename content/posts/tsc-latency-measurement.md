@@ -73,6 +73,7 @@ inline uint64_t rdtsc() noexcept {
 - Two ways to measure short code:
   - Run it 1000 times between the two reads and divide by 1000. The error is still one jump, but per run it shrinks to about 0.01 ns.
   - Measure many times and take the **mean, not the median**. Where the start falls within a step is random, so 5 ns of code crosses a jump half the time, and the average comes out at (1 + 36) / 2 = 18.5 ticks ≈ 5.2 ns, close to the truth. The median gets pulled to one of the two outcomes: 3 ns of code crosses a jump only 30% of the time, so the median is 1 tick, read as 0.28 ns.
+- **This is how benchmarks report differences like 52.6 ns vs 52.5 ns: the first way above.** The tool (Google Benchmark, say) loops the code hundreds of thousands to millions of times and divides the total by the count, so one jump of error shrinks to around a hundred-thousandth of a ns per run. What limits the result then is run-to-run variation (frequency, caches, code alignment), not timer resolution; whether a 0.1 ns difference is real takes several runs and a check that the intervals don't overlap.
 - Save medians and percentiles such as p99 for intervals much longer than a jump, such as a full processing path of hundreds of ns to a few µs, where quantization is a few percent.
 - Errors from out-of-order execution are a separate matter; see 1.3.
 
