@@ -183,31 +183,49 @@ Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a 
 
 ### 1.5 Marks on the Hot Path: Record Ticks, Leave Conversion and Output to Another Thread
 
-A mark adds time to the hot path itself: about 10 ns to read the TSC, plus a memory write or an enqueue to record it. So the hot path does only those two steps, storing the difference in ticks into a preallocated array, or handing it to the asynchronous logger of [#4](/posts/lock-free-queue-logger-micro-batching/), with conversion, formatting and file writes done on another thread. A common way to write it is a pair of macros:
+1. **A mark costs time too**
+   - **Where it goes**: about 10 ns to read the TSC, plus a memory write or an enqueue to record it.
+   - **The hot path does only those two steps**: store the difference in ticks into a preallocated array, or hand it to the asynchronous logger of [#4](/posts/lock-free-queue-logger-micro-batching/).
+   - **Everything else moves away**: conversion to nanoseconds, formatting and file writes all happen on another thread.
 
-```cpp
-#define START_MEASURE(TAG) const auto TAG = Common::rdtsc()
+2. **A common form: a pair of macros**
 
-#define END_MEASURE(TAG, LOGGER)                                                  \
-    do {                                                                          \
-        const auto end = Common::rdtsc();                                         \
-        LOGGER.log("% RDTSC " #TAG " %\n", Common::getCurrentTimeStr(&time_str_), \
-                   (end - TAG));                                                  \
-    } while (false)
-```
+   ```cpp
+   #define START_MEASURE(TAG) const auto TAG = Common::rdtsc()
 
-`LOGGER.log` only puts its arguments into a lock-free queue, and the logger thread formats them later. The `end - TAG` in the log is a tick count, not nanoseconds. Every mark adds tens of ns to the hot path, so in production mark only a few key points, or sample.
+   #define END_MEASURE(TAG, LOGGER)                       \
+       do {                                               \
+           const auto end = Common::rdtsc();              \
+           LOGGER.log("RDTSC " #TAG " %\n", (end - TAG)); \
+       } while (false)
+   ```
 
-A span measured with the TSC suits a piece of code within one thread. But a trade goes from the market-data thread to the strategy thread to the order thread, often across processes, from receiving the update to sending the order. To know how long each leg took, every stage records an **absolute timestamp**, and afterwards the records of each stage are joined per order. This kind of record is called tick-to-trade (TTT), commonly written as:
+   - **`START_MEASURE`**: reads the TSC once into a local variable named `TAG`.
+   - **`END_MEASURE`**: reads it again and hands the difference to the logger.
+   - **`LOGGER.log`**: only puts its arguments into a lock-free queue; the logger thread formats them later.
+   - **Units**: the `end - TAG` in the log is a tick count, not nanoseconds.
+   - **Don't build a time string here**: calling a "current time as a string" function inside `END_MEASURE` puts formatting right back on the hot path. If you want a time, record the raw number and let the logger thread convert it.
+   - **Cost**: every mark adds tens of ns to the hot path, so in production mark only a few key points, or sample.
 
-```cpp
-#define TTT_MEASURE(TAG, LOGGER)                                                  \
-    do {                                                                          \
-        const auto TAG = Common::getCurrentNanos();                               \
-        LOGGER.log("% TTT " #TAG " %\n", Common::getCurrentTimeStr(&time_str_), TAG); \
-    } while (false)
-```
+3. **Across threads and machines: record absolute timestamps**
+   - **What a TSC span can't cover**: it suits a piece of code within one thread. A trade goes from the market-data thread to the strategy thread to the order thread, often across processes, from receiving the update to sending the order.
+   - **How**: every stage records an **absolute timestamp**, and afterwards the records of each stage are joined per order, which shows how long each leg took. This kind of record is called tick-to-trade (TTT):
 
-`getCurrentNanos()` returns nanoseconds since 1970, i.e. the system clock. Several processes on one machine could in fact share the TSC, but to line up with timestamps in exchange reports or records on another machine, you need the system clock that every machine has synchronized (via PTP). **Use the TSC for spans within one thread, and a shared absolute clock to build timelines across components and machines.**
+   ```cpp
+   #define TTT_MEASURE(TAG, LOGGER)                    \
+       do {                                            \
+           const auto TAG = Common::getCurrentNanos(); \
+           LOGGER.log("TTT " #TAG " %\n", TAG);        \
+       } while (false)
+   ```
 
-A single measurement means little: the same code takes 300 ns one time and 2 µs the next when it hits a cache miss. What matters is the distribution over many measurements: the median, the 99th percentile, the maximum. That is the subject of the next item, measuring trading-system performance.
+   - **`getCurrentNanos()`**: returns nanoseconds since 1970, i.e. the system clock.
+
+4. **TSC or system clock**
+   - **Several processes on one machine**: they could in fact share the TSC, since the cores' TSCs are synchronized (1.1).
+   - **Lining up with exchange reports or other machines**: the TSC can't do that; you need the system clock that every machine has synchronized (via PTP).
+   - **Use the TSC for spans within one thread, and a shared absolute clock to build timelines across components and machines.**
+
+5. **Look at the distribution, not one run**
+   - **One measurement means little**: the same code takes 300 ns one time and 2 µs the next when it hits a cache miss.
+   - **What matters**: the distribution over many measurements, i.e. the median, the 99th percentile, the maximum. That is the subject of the next item, measuring trading-system performance.
