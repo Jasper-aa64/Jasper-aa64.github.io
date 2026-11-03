@@ -3,7 +3,7 @@ title: "交易系统笔记 #20：用 TSC 测延迟"
 date: 2026-11-02
 slug: "tsc-latency-measurement"
 description: "想知道一段代码花了多久，最直接的办法是在两头各读一次 TSC。可 TSC 数的是按固定频率走的时间，不是核心跑了多少周期；rdtsc 不等前面的指令做完，测短区间要加栅栏，栅栏又让测量本身变重；rdtscp 顺带告诉你读数时在哪个核，跨核比较读数靠的是各核 TSC 同步。热路径上只记 tick，换算和输出交给别的线程。"
-summary: "TSC 读到的是什么、什么时候读到、在哪个核上读到，以及在热路径上打点该怎么记。"
+summary: "TSC 读到的是什么、什么时候读到、在哪个核上读到，热路径上打点该怎么记，以及 tick 怎么换算成 ns：频率从哪来、怎么自己校准。"
 chapter: 1
 categories: [Systems]
 tags: [cpp, tsc, rdtsc, rdtscp, latency, measurement, hft, low-latency]
@@ -246,3 +246,191 @@ TSC 是每个逻辑核里的一个 64 位计数器，开机时清零，之后一
 5. **看分布，不看单次**
    - **单次意义不大**：同一段代码，这一次 300 ns，下一次碰上缓存未命中就是 2 µs。
    - **要看的**：很多次测量的分布，也就是中位数、99 分位、最大值。这是下一节交易系统性能衡量的内容。
+
+## 2. 换算和校准：tick 怎么变成 ns
+
+- 第 1 部分记下的都是 tick。要变成 ns，得知道 TSC 一秒走多少个 tick，也就是 TSC 频率。
+- 这个数错了，每个时间都按同一个比例错，而且看不出来。所以先讲换算本身，再讲频率从哪来、怎么自己量、量完放在哪。
+
+### 2.1 换算：tick 除以 TSC 频率
+
+1. **式子**
+
+   $$t_{\text{ns}} = \frac{\Delta \text{tick}}{f_{\text{TSC}}} \times 10^9$$
+
+   - **只缺一个数**：读数差 $\Delta \text{tick}$ 已经有了，缺的是 TSC 频率 $f_{\text{TSC}}$。
+   - **频率错多少，时间就错多少**：按 3.0 GHz 算、实际是 3.593 GHz，每个时间都多算约 20%（3.593 ÷ 3.0 ≈ 1.198）。这种错不会报错，数看起来照样合理。
+   - **在哪算**：热路径只记 tick（1.5），换算在日志线程里做，或者事后做。
+
+2. **整数先乘后除会溢出**
+   - **常见写法**：`ticks * 1000000000ULL / freq`，先乘 $10^9$ 再除，保住精度。
+   - **溢出点**：乘出来的数要放进 64 位，所以 $\Delta \text{tick}$ 最多约 $1.8 \times 10^{10}$（$2^{64} \div 10^9$）。按 3.6 GHz 算，区间超过约 5 秒就溢出，结果变成一个小得离谱的数，也不报错。
+   - **改法**：用 double 算，double 有 15–16 位有效数字，ns 级够用；或者先算好 `ns_per_tick = 1e9 / freq`，换算时乘一次。
+
+### 2.2 频率从哪来：先查，查不到再量
+
+1. **内核开机时量过一遍**
+   - **怎么看**：`dmesg | grep -i tsc`，会有一行 `tsc: Refined TSC clocksource calibration: … MHz`，或者 `tsc: Detected … MHz processor`。
+   - **怎么来的**：开机时内核拿别的时钟（HPET、PIT 这类）对着 TSC 量了一段。
+   - **怎么用**：部署时读一次，写进配置。
+
+2. **Intel：CPUID 0x15**
+   - **给的是什么**：晶振频率（ECX）和一个比值（EBX ÷ EAX）。TSC 频率 = 晶振频率 × 比值，就是 1.2 第 3 块说的“慢晶振加每拍补固定数”。
+   - **可能查不到**：有的型号 ECX 是 0，不报晶振频率；虚拟机里整个叶子可能都是 0（实测云上一台 Intel 虚拟机，0x15、0x16 都返回 0）。
+
+   ```cpp
+   uint64_t freq_from_cpuid_15() {
+       unsigned eax, ebx, ecx, edx;
+       if (!__get_cpuid(0x15, &eax, &ebx, &ecx, &edx)) return 0;   // 没有这个叶子（多数 AMD）
+       if (eax == 0 || ebx == 0 || ecx == 0) return 0;              // 没报比值或晶振频率（虚拟机里常见）
+       return uint64_t(ecx) * ebx / eax;
+   }
+   ```
+
+   - **`__get_cpuid`**：先查这个叶子存不存在，不存在返回 0，不会读到垃圾。
+   - **查不到就返回 0**：让调用方知道要换别的办法，不要退回一个写死的默认值。
+
+3. **别用 CPUID 0x16**
+   - **它是什么**：处理器的标称基础频率（MHz），是给人看的，Intel 没保证它等于 TSC 频率。
+   - **AMD 上没有**：AMD 没有定义这个叶子，查不到。
+   - **后果**：拿它当 TSC 频率、查不到再退回 3.0 GHz 的默认值，在 3.593 GHz 的机器上，每个时间都多算约 20%。
+
+4. **都拿不到就自己量**：对着 `steady_clock` 校准，见 2.3。
+
+### 2.3 自己校准：对着 steady_clock 量一段
+
+1. **做法**
+   - **两头各记一对**：开始时记下 TSC 读数和 `steady_clock` 时间，等一段时间 $T$，结束时再记一对。
+   - **算频率**：
+
+   $$f_{\text{TSC}} = \frac{\text{tick}_1 - \text{tick}_0}{t_1 - t_0}$$
+
+2. **误差从哪来：两头的配对误差**
+   - **配对误差**：TSC 和 `steady_clock` 不是同一瞬间读的，中间隔着一次 `now()`（20–30 ns，1.2），偶尔还会被打断。记作 $\delta$。
+   - **摊到基线上**：两头各有一个 $\delta$，频率的相对误差大约是
+
+   $$\frac{\Delta f}{f} \approx \frac{\delta_0 + \delta_1}{T}$$
+
+   - **例子**：两头合计 60 ns，基线 100 ms，相对误差 $60 \div 10^8 = 6 \times 10^{-7}$，也就是 0.6 ppm。拿这个频率换算一段 1 ms 的区间，只差 0.6 ns。
+   - **所以基线越长越准**。100 ms 级的基线，误差已经远小于 1.2 的一跳（约 10 ns）。
+
+3. **把配对误差压小：两次 TSC 夹一次 now()**
+
+   ```cpp
+   tsc_arr[0] = rdtsc();
+   for (int i = 0; i < try_times; ++i) {          // try_times = 5
+       ns_arr[i] = std::chrono::steady_clock::now();
+       tsc_arr[i + 1] = rdtsc();
+   }
+
+   auto min_tsc_diff = tsc_arr[1] - tsc_arr[0];
+   auto ave_tsc = average(tsc_arr[0], tsc_arr[1]);
+   auto ns = ns_arr[0];
+   for (int i = 1; i < try_times; ++i) {
+       auto tsc_diff = tsc_arr[i + 1] - tsc_arr[i];
+       if (tsc_diff < min_tsc_diff) {               // 找夹得最紧的一组
+           min_tsc_diff = tsc_diff;
+           ave_tsc = average(tsc_arr[i], tsc_arr[i + 1]);
+           ns = ns_arr[i];
+       }
+   }
+   return {ave_tsc, ns};
+   ```
+
+   - **夹住**：`now()` 读到的那一刻，一定落在它前后两次 `rdtsc` 之间。取两次读数的中点当作配对的 TSC，误差不超过夹缝的一半。
+   - **连夹 5 次、取最紧的**：夹缝最小的那次，说明中间没被中断或调度打断。
+   - **夹缝多宽**：一次 `now()` 加一次 `rdtsc`，最紧的约 30–40 ns，所以中点误差不到 20 ns。
+
+4. **对着哪个时钟量**
+   - **`steady_clock`**：单调，不会往回跳（Linux 上是 `CLOCK_MONOTONIC`）。
+   - **`system_clock` 会跳**：NTP 校时、有人改系统时间，它会整段往前或往后跳。校准的那 100 ms 里跳一下，频率就错了。
+   - **`high_resolution_clock` 别用**：在 libstdc++（GCC 默认的标准库）里它就是 `system_clock`（实测 `std::is_same` 为真），在 libc++ 里又是 `steady_clock`。同一行代码，换个标准库意思就变了。
+   - **还要更干净**：NTP 也会微调 `steady_clock` 走的快慢，只调快慢、不跳。要连这个也避开，用 `clock_gettime(CLOCK_MONOTONIC_RAW, …)`。
+
+### 2.4 两种计时器：校准放在什么时候
+
+1. **TSCTimer：第一次取结果时才校准**
+   - **启动时记一对**：`base_point` 是静态变量，程序启动时就用 2.3 的夹法记下一对（TSC，`steady_clock`）。
+   - **第一次 `get()` 再记一对**：两对一减，算出 `cycle_to_ns_scale`（每个 tick 多少 ns），存进一个原子变量，之后不再算。
+
+   ```cpp
+   static void calibrate() {
+       auto [end_tsc, end_time] = TimerHelper::get_tsc_ns_pair();
+       auto& [begin_tsc, begin_time] = TimerHelper::base_point;
+       std::chrono::nanoseconds duration = end_time - begin_time;
+       auto scale = static_cast<double>(duration.count()) / static_cast<double>(end_tsc - begin_tsc);
+       double expected = 0.;
+       cycle_to_ns_scale.compare_exchange_strong(expected, scale, std::memory_order_relaxed);
+   }
+   ```
+
+   - **`compare_exchange_strong`**：几个线程同时第一次 `get()`，只有第一个写进去的算数，其余的用它的结果。
+   - **好处**：`start` / `end` 只读 TSC，不碰别的时钟；基线是“程序启动到第一次 `get()`”，通常很长，误差很小。
+   - **代价**：第一次 `get()` 要做 5 次 `now()`，约 100–150 ns，落在热路径上就是一次尖刺。程序刚启动就调 `get()`，基线又太短。
+   - **怎么用**：启动阶段等一会儿（比如 100 ms 以上），主动调一次 `get()`，把校准做在热路径之外。
+
+2. **TSCTimer：一次读数同时结束一段、开始下一段**
+
+   ```cpp
+   timer.start(1);
+   some_work(20);
+   timer.start(0, timer.stop, 1);   // 一次读数：开始区间 0，同时结束区间 1
+   some_work(30);
+   timer.end(0);
+   ```
+
+   - **累计**：每个区间一个槽，`end` 时做 `cycles_arr_[i] += tsc - last_tsc_arr_[i]`，同一个区间测多次会加在一起。
+   - **一次读数切换**：就是 1.3 说的连续打点，一个读数既是区间 1 的终点，又是区间 0 的起点。少读一次，两段之间也没有缝。
+   - **没加栅栏**：`start` / `end` 里只有 `rdtsc` 或 `rdtscp`，适合 ms 级的长区间；测几十 ns 的代码，要按 1.3 加 `lfence`。
+
+3. **HardwareTimer：构造时就校准好**
+   - **构造时做完**：先用 CPUID 查有没有 TSC、`rdtscp`、invariant TSC，再校准 5 次、每次 100 ms，取中位数。构造一次要 0.5 秒以上，所以只能放在启动阶段。
+   - **每次校准查迁移**：两头都用 `rdtscp`，`aux` 不一样就重来（1.4）。
+   - **取中位数**：5 次里有一两次被打断，中位数不受影响。
+   - **单次校准可以这样写**：
+
+   ```cpp
+   // 对着 steady_clock 量 baseline，返回 TSC 频率（Hz）；连续 max_retry 次都换过核就返回 0
+   double calibrate(std::chrono::milliseconds baseline, int max_retry = 5) {
+       using clock = std::chrono::steady_clock;
+       for (int attempt = 0; attempt < max_retry; ++attempt) {
+           unsigned a0, a1;
+           auto c0 = clock::now();
+           uint64_t t0 = __rdtscp(&a0);
+           std::this_thread::sleep_for(baseline);
+           uint64_t t1 = __rdtscp(&a1);
+           auto c1 = clock::now();
+           if (a0 != a1) continue;                          // 中途换过核：这次不算，重来
+           double ns = std::chrono::duration<double, std::nano>(c1 - c0).count();
+           return double(t1 - t0) * 1e9 / ns;               // double 算，不会溢出
+       }
+       return 0;                                            // 一直在换核：先绑核再校准
+   }
+   ```
+
+   - **对着 `steady_clock`**：理由见 2.3 第 4 块。
+   - **用 double 算**：避开 2.1 的整数溢出。
+   - **重来要有上限**：线程没绑核、机器又忙时，可能一直被挪，没有上限的重来就会一直转。超过几次就返回 0，让调用方先绑核（[#1](/zh/posts/cpu-affinity-core-isolation-numa/)）再校准。
+   - **查不到频率就报错**：按 2.2，不要退回写死的默认值。
+
+4. **两种怎么选**
+   - **TSCTimer**：校准晚、开销小，适合嵌在程序里随时测几段。
+   - **HardwareTimer**：启动时付 0.5 秒，换来能检查的校准结果（查迁移、取中位数），适合先确认机器和频率再开工。
+   - **两种都把校准放在热路径之外，热路径上只读 TSC**。
+
+### 2.5 虚拟机里的 TSC
+
+1. **读数被改过**
+   - **偏移**：虚拟机监控程序给每台虚拟机的 TSC 加一个偏移，让它看起来从虚拟机开机时算起。
+   - **缩放**：虚拟机迁到 TSC 频率不同的物理机上，读数要按比例缩放。CPU 支持 TSC scaling 时由硬件做；不支持时只能把 `rdtsc` 拦下来模拟，一次读要进出虚拟机，慢到 µs 级。
+
+2. **频率不好拿**
+   - **CPUID 可能全是 0**：0x15、0x16 都查不到（2.2）。
+   - **内核知道**：虚拟机里的内核从虚拟机监控程序拿到频率，`dmesg` 里照样有 `tsc: Detected … MHz`。
+   - **所以在虚拟机里**：先看内核的值，再按 2.3 自己量一遍核对。
+
+3. **时钟源可能被换掉**
+   - **怎么看**：`cat /sys/devices/system/clocksource/clocksource0/current_clocksource`，虚拟机里常见 `tsc` 或 `kvm-clock`。
+   - **被判不可靠时**：内核退回 HPET 这类时钟源，`clock_gettime` 每次都要访问芯片组，从 20–30 ns 涨到约 0.5–1.5 µs（[#19](/zh/posts/scheduling-priority-inversion-kernel-tuning/) 4.1）。
+   - **`tsc=reliable`**：让内核跳过对 TSC 的核对，不会因为一次抖动就把它判掉（#19 4.2）。确定 TSC 没问题时才加。
+   - **对校准的影响**：`rdtsc` 照样能读，变的是 `steady_clock`：对照的时钟每次读要 µs 级，配对误差跟着变大，基线要相应拉长。
