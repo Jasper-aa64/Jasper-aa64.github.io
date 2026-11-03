@@ -1465,6 +1465,10 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .prose li > ul, .prose li > ol { margin: .4em 0 0; }
 .prose ul li::marker { color: var(--faint); }
 .prose ol li::marker { font-family: var(--mono); font-size: .86em; color: var(--muted); }
+/* outline lists ("1. **title**" with nested points): number and title in ink and heavier, the points' bold lead-ins keep the accent color */
+.prose ol > li:has(> ul)::marker { font-family: inherit; font-size: 1em; font-weight: 700; color: var(--ink); }
+.prose ol > li:has(> ul) > strong:first-child,
+.prose ol > li:has(> ul) > p:first-child > strong:first-child { font-weight: 700; color: var(--ink); }
 .prose blockquote {
   /* Callout box, as in the original theme: thick accent bar on the left, frosted panel. */
   margin: 1.4em 0 1.6em;

@@ -30,108 +30,108 @@ Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a 
 - The most direct way to time code is to read the TSC at both ends and subtract.
 - Whether that difference can be trusted depends on two things: how long one read takes, and how short an interval the reading can resolve.
 
-**1. How to read it**
+1. **How to read it**
 
-- `rdtsc` returns the 64-bit reading in two halves: the low 32 bits in EAX, the high 32 bits in EDX. It dates from the 32-bit era, when one register couldn't hold 64 bits.
+   - `rdtsc` returns the 64-bit reading in two halves: the low 32 bits in EAX, the high 32 bits in EDX. It dates from the 32-bit era, when one register couldn't hold 64 bits.
 
-```cpp
-inline uint64_t rdtsc() noexcept {
-    unsigned int lo, hi;
-    __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-    return (uint64_t(hi) << 32) | lo;
-}
-```
+   ```cpp
+   inline uint64_t rdtsc() noexcept {
+       unsigned int lo, hi;
+       __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+       return (uint64_t(hi) << 32) | lo;
+   }
+   ```
 
-- When writing the assembly yourself, don't drop `volatile`. Without it the compiler treats the asm as a computation with a fixed result and can merge two reads into one: measured, Clang 18 `-O2` compiles "read twice and subtract" to returning 0.
-- **Prefer the compiler's own `__rdtsc()`** (header `<x86intrin.h>`): same instruction, never merged.
+   - When writing the assembly yourself, don't drop `volatile`. Without it the compiler treats the asm as a computation with a fixed result and can merge two reads into one: measured, Clang 18 `-O2` compiles "read twice and subtract" to returning 0.
+   - **Prefer the compiler's own `__rdtsc()`** (header `<x86intrin.h>`): same instruction, never merged.
 
-**2. Why not `clock_gettime`**
+2. **Why not `clock_gettime`**
 
-- In user space (the vDSO), `clock_gettime` also reads the TSC.
-- But each call adds a function call and a multiply-and-shift to convert to nanoseconds: 20–30 ns per call.
-- `rdtsc` is only the read: about 20–40 cycles, 6–12 ns.
-- **So on the hot path, record ticks only and convert later.**
+   - In user space (the vDSO), `clock_gettime` also reads the TSC.
+   - But each call adds a function call and a multiply-and-shift to convert to nanoseconds: 20–30 ns per call.
+   - `rdtsc` is only the read: about 20–40 cycles, 6–12 ns.
+   - **So on the hot path, record ticks only and convert later.**
 
-**3. The reading moves in steps**
+3. **The reading moves in steps**
 
-- By frequency, one tick is 1 / 3.593 GHz ≈ 0.28 ns.
-- But measured on AMD Zen parts (Ryzen, EPYC), the reading jumps only about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns). Intel parts usually show no fixed step; back-to-back differences vary. A few back-to-back reads tell you which kind your machine is.
-- Read again within the same 10 ns and you get only 1 more. That 1 is there so readings never repeat, not because 0.28 ns really passed.
-- **The staircase is how the counter itself updates, unrelated to how fast `rdtsc` reads**: even if a read took no time, you'd see the same steps. 3.593 GHz ÷ 36 ≈ 100 MHz, so the reading appears to follow a roughly 100 MHz reference clock, adding 36 per tick (inferred from the numbers, not from documentation).
+   - By frequency, one tick is 1 / 3.593 GHz ≈ 0.28 ns.
+   - But measured on AMD Zen parts (Ryzen, EPYC), the reading jumps only about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns). Intel parts usually show no fixed step; back-to-back differences vary. A few back-to-back reads tell you which kind your machine is.
+   - Read again within the same 10 ns and you get only 1 more. That 1 is there so readings never repeat, not because 0.28 ns really passed.
+   - **The staircase is how the counter itself updates, unrelated to how fast `rdtsc` reads**: even if a read took no time, you'd see the same steps. 3.593 GHz ÷ 36 ≈ 100 MHz, so the reading appears to follow a roughly 100 MHz reference clock, adding 36 per tick (inferred from the numbers, not from documentation).
 
-<a href="/images/tsc-latency-measurement/rdtsc-steps.en.svg" target="_blank" rel="noopener"><img src="/images/tsc-latency-measurement/rdtsc-steps.en.svg" alt="Horizontal axis: real time 0–40 ns; vertical axis: rdtsc reading. Ideally the reading rises by 1 every 0.28 ns, a straight line; in reality it is a staircase, jumping by 36 about every 10 ns. Case A: 5 ns of code falls inside one step, readings 1036 and 1037, difference 1, converted to 0.28 ns: too short. Case B: the same 5 ns spans a jump, readings 1072 and 1108, difference 36, converted to 10 ns: too long." loading="lazy" decoding="async"></a>
+   <a href="/images/tsc-latency-measurement/rdtsc-steps.en.svg" target="_blank" rel="noopener"><img src="/images/tsc-latency-measurement/rdtsc-steps.en.svg" alt="Horizontal axis: real time 0–40 ns; vertical axis: rdtsc reading. Ideally the reading rises by 1 every 0.28 ns, a straight line; in reality it is a staircase, jumping by 36 about every 10 ns. Case A: 5 ns of code falls inside one step, readings 1036 and 1037, difference 1, converted to 0.28 ns: too short. Case B: the same 5 ns spans a jump, readings 1072 and 1108, difference 36, converted to 10 ns: too long." loading="lazy" decoding="async"></a>
 
-**4. What it does to measurements**
+4. **What it does to measurements**
 
-- You can't measure `rdtsc` itself precisely: two back-to-back reads differ by 36 almost every time, exactly one jump, so all you can see is that a read takes at most about 10 ns.
-- Any single measurement can come out only two ways: the interval crossed n jumps, or n + 1 (cases A and B in the figure). So **a single measurement is off by at most one jump, about 10 ns, no matter how long the code runs**. How many jumps you cross depends on where the start lands within a step, which is random, so over many runs the over- and under-counts cancel and the mean has no bias.
-- What matters is how much of the measured time those 10 ns are: timing 1 µs of code, a single reading is off by at most 1%; 100 ns, by at most 10%, so one reading cannot tell 100 ns from 105 ns, and only averaging or repetition can (the two ways below); 5 ns, the error is bigger than the code itself. **So don't read single samples of code around 100 ns, and a single measurement shorter than 10–20 ns mostly reads quantization error.**
-- On an Intel part without steps, a single reading is not much better: without fences, out-of-order execution moves the read earlier or later by ten-odd cycles, and with fences each read gets heavier (1.3), so the edges carry about 10 ns of uncertainty anyway. **About 10 ns is the resolution of a single timestamp pair, not just an AMD quirk**; production marks time whole spans of hundreds of ns to several µs, where this is a few percent.
-- The reading also includes the reads themselves: with nothing between two reads, the difference is still about 36. That part is roughly fixed, so measure an empty region first and subtract the floor.
-- Two ways to measure short code:
-  - Run it 1000 times between the two reads and divide by 1000. The error is still one jump, but per run it shrinks to about 0.01 ns.
-  - Measure many times and take the **mean, not the median**. Where the start falls within a step is random, so 5 ns of code crosses a jump half the time, and the average comes out at (1 + 36) / 2 = 18.5 ticks ≈ 5.2 ns, close to the truth. The median gets pulled to one of the two outcomes: 3 ns of code crosses a jump only 30% of the time, so the median is 1 tick, read as 0.28 ns.
-- **This is how benchmarks report differences like 52.6 ns vs 52.5 ns: the first way above.** The tool (Google Benchmark, say) loops the code hundreds of thousands to millions of times and divides the total by the count, so one jump of error shrinks to around a hundred-thousandth of a ns per run. What limits the result then is run-to-run variation (frequency, caches, code alignment), not timer resolution; whether a 0.1 ns difference is real takes several runs and a check that the intervals don't overlap.
-- Save medians and percentiles such as p99 for intervals much longer than a jump, such as a full processing path of hundreds of ns to a few µs, where quantization is a few percent.
-- Errors from out-of-order execution are a separate matter; see 1.3.
+   - You can't measure `rdtsc` itself precisely: two back-to-back reads differ by 36 almost every time, exactly one jump, so all you can see is that a read takes at most about 10 ns.
+   - Any single measurement can come out only two ways: the interval crossed n jumps, or n + 1 (cases A and B in the figure). So **a single measurement is off by at most one jump, about 10 ns, no matter how long the code runs**. How many jumps you cross depends on where the start lands within a step, which is random, so over many runs the over- and under-counts cancel and the mean has no bias.
+   - What matters is how much of the measured time those 10 ns are: timing 1 µs of code, a single reading is off by at most 1%; 100 ns, by at most 10%, so one reading cannot tell 100 ns from 105 ns, and only averaging or repetition can (the two ways below); 5 ns, the error is bigger than the code itself. **So don't read single samples of code around 100 ns, and a single measurement shorter than 10–20 ns mostly reads quantization error.**
+   - On an Intel part without steps, a single reading is not much better: without fences, out-of-order execution moves the read earlier or later by ten-odd cycles, and with fences each read gets heavier (1.3), so the edges carry about 10 ns of uncertainty anyway. **About 10 ns is the resolution of a single timestamp pair, not just an AMD quirk**; production marks time whole spans of hundreds of ns to several µs, where this is a few percent.
+   - The reading also includes the reads themselves: with nothing between two reads, the difference is still about 36. That part is roughly fixed, so measure an empty region first and subtract the floor.
+   - Two ways to measure short code:
+     - Run it 1000 times between the two reads and divide by 1000. The error is still one jump, but per run it shrinks to about 0.01 ns.
+     - Measure many times and take the **mean, not the median**. Where the start falls within a step is random, so 5 ns of code crosses a jump half the time, and the average comes out at (1 + 36) / 2 = 18.5 ticks ≈ 5.2 ns, close to the truth. The median gets pulled to one of the two outcomes: 3 ns of code crosses a jump only 30% of the time, so the median is 1 tick, read as 0.28 ns.
+   - **This is how benchmarks report differences like 52.6 ns vs 52.5 ns: the first way above.** The tool (Google Benchmark, say) loops the code hundreds of thousands to millions of times and divides the total by the count, so one jump of error shrinks to around a hundred-thousandth of a ns per run. What limits the result then is run-to-run variation (frequency, caches, code alignment), not timer resolution; whether a 0.1 ns difference is real takes several runs and a check that the intervals don't overlap.
+   - Save medians and percentiles such as p99 for intervals much longer than a jump, such as a full processing path of hundreds of ns to a few µs, where quantization is a few percent.
+   - Errors from out-of-order execution are a separate matter; see 1.3.
 
 ### 1.3 Out-of-Order Execution: rdtsc Doesn't Wait for Earlier Instructions
 
-**1. Why the edges are fuzzy**
-- **Out-of-order execution**: the CPU does not finish instructions one by one in program order (the "Rename + ROB" box on the hardware map). `rdtsc` reads without waiting for the instructions before it to finish, and instructions after it may start before it.
-- With just two reads and a subtraction, look at this:
+1. **Why the edges are fuzzy**
+   - **Out-of-order execution**: the CPU does not finish instructions one by one in program order (the "Rename + ROB" box on the hardware map). `rdtsc` reads without waiting for the instructions before it to finish, and instructions after it may start before it.
+   - With just two reads and a subtraction, look at this:
 
-```cpp
-uint64_t t0 = __rdtsc();
-int r = parse(msg);        // the code being measured
-uint64_t t1 = __rdtsc();
-```
+   ```cpp
+   uint64_t t0 = __rdtsc();
+   int r = parse(msg);        // the code being measured
+   uint64_t t1 = __rdtsc();
+   ```
 
-- **Start**: the first few instructions of `parse` may begin before `t0` is read.
-- **End**: when `t1` is read, the last few instructions of `parse` may not have finished.
-- **Result**: both edges move inward, so when the measured code is only tens of ns, the measurement comes out shorter than the real one.
+   - **Start**: the first few instructions of `parse` may begin before `t0` is read.
+   - **End**: when `t1` is read, the last few instructions of `parse` may not have finished.
+   - **Result**: both edges move inward, so when the measured code is only tens of ns, the measurement comes out shorter than the real one.
 
-**2. The fix: pin the edges with fences**
-- **`lfence`**: the instructions after it may not start until all the instructions before it have finished.
-- **`rdtscp`**: a variant of `rdtsc` that waits for all earlier instructions to execute and all earlier loads to complete before reading, but does not hold back later instructions.
-- The start and end marks look like this:
+2. **The fix: pin the edges with fences**
+   - **`lfence`**: the instructions after it may not start until all the instructions before it have finished.
+   - **`rdtscp`**: a variant of `rdtsc` that waits for all earlier instructions to execute and all earlier loads to complete before reading, but does not hold back later instructions.
+   - The start and end marks look like this:
 
-```cpp
-inline uint64_t tsc_begin() {      // start mark: read only after earlier instructions finish
-    _mm_lfence();
-    uint64_t t = __rdtsc();
-    _mm_lfence();                  // later instructions may not start early
-    return t;
-}
+   ```cpp
+   inline uint64_t tsc_begin() {      // start mark: read only after earlier instructions finish
+       _mm_lfence();
+       uint64_t t = __rdtsc();
+       _mm_lfence();                  // later instructions may not start early
+       return t;
+   }
 
-inline uint64_t tsc_end() {        // end mark: rdtscp waits for earlier instructions before reading
-    unsigned aux;
-    uint64_t t = __rdtscp(&aux);
-    _mm_lfence();                  // later instructions may not start early
-    return t;
-}
-```
+   inline uint64_t tsc_end() {        // end mark: rdtscp waits for earlier instructions before reading
+       unsigned aux;
+       uint64_t t = __rdtscp(&aux);
+       _mm_lfence();                  // later instructions may not start early
+       return t;
+   }
+   ```
 
-- **Start mark**: the first `lfence` lets the earlier code finish; the second keeps the measured code from starting before the read.
-- **End mark**: `rdtscp` waits for the measured code to finish before reading; the `lfence` after it keeps later code from starting early.
+   - **Start mark**: the first `lfence` lets the earlier code finish; the second keeps the measured code from starting before the read.
+   - **End mark**: `rdtscp` waits for the measured code to finish before reading; the `lfence` after it keeps later code from starting early.
 
-**3. Intel vs. AMD**
-- **Intel**: this behavior of `lfence` is defined in the manual.
-- **AMD**: `lfence` only waits like this once the operating system turns on a switch. Recent Linux and Windows do so by default; on older systems AMD recommends `mfence`.
-- **If earlier stores must also be visible to other cores**: the sequence Intel's manual gives is `mfence; lfence; rdtsc`.
+3. **Intel vs. AMD**
+   - **Intel**: this behavior of `lfence` is defined in the manual.
+   - **AMD**: `lfence` only waits like this once the operating system turns on a switch. Recent Linux and Windows do so by default; on older systems AMD recommends `mfence`.
+   - **If earlier stores must also be visible to other cores**: the sequence Intel's manual gives is `mfence; lfence; rdtsc`.
 
-**4. What fences cost, and when to use them**
-- **Extra overhead**: measured on an empty interval, the difference between two fenced reads goes from one jump to two, about 20 ns, one jump more than without fences.
-- **No more overlap**: fences stop the measured code from overlapping with the code around it, so what you measure is no longer exactly how it normally runs.
-- **Fences make the edges accurate, at the cost of a heavier measurement and code that no longer overlaps with its neighbors.**
-- **Which to use**:
-  - **Microbenchmarks**: for code of tens of ns, the edge error is as large as the code itself, so use fences.
-  - **Production hot path**: marks there measure whole spans of several µs, where an edge error of ten-odd ns is acceptable, so a plain `rdtsc` is the usual choice.
+4. **What fences cost, and when to use them**
+   - **Extra overhead**: measured on an empty interval, the difference between two fenced reads goes from one jump to two, about 20 ns, one jump more than without fences.
+   - **No more overlap**: fences stop the measured code from overlapping with the code around it, so what you measure is no longer exactly how it normally runs.
+   - **Fences make the edges accurate, at the cost of a heavier measurement and code that no longer overlaps with its neighbors.**
+   - **Which to use**:
+     - **Microbenchmarks**: for code of tens of ns, the edge error is as large as the code itself, so use fences.
+     - **Production hot path**: marks there measure whole spans of several µs, where an edge error of ten-odd ns is acceptable, so a plain `rdtsc` is the usual choice.
 
-**5. The compiler moves code too**
-- **Deleted entirely**: if nothing uses the result of the measured code, the compiler may remove it.
-- **Moved outside**: computations that don't touch memory may be moved outside the two reads.
-- **Fix**: make sure the result is used, for example by writing it to a `volatile` variable.
+5. **The compiler moves code too**
+   - **Deleted entirely**: if nothing uses the result of the measured code, the compiler may remove it.
+   - **Moved outside**: computations that don't touch memory may be moved outside the two reads.
+   - **Fix**: make sure the result is used, for example by writing it to a `volatile` variable.
 
 ### 1.4 rdtscp and Cores: Knowing Which Core You Read On
 
