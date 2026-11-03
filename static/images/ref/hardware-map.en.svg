@@ -79,7 +79,7 @@
   <text x="412" y="547" class="tag">#6 storage classes</text>
   <rect x="730" y="190" width="290" height="80" rx="6" class="buf"/>
   <text x="742" y="213" class="t">dTLB (data TLB, translation)</text>
-  <text x="742" y="231" class="s">virtual address → physical address</text>
+  <text x="742" y="231" class="s">miss: walk 4 levels from the root in CR3</text>
   <text x="742" y="248" class="tag">#6 2 MiB pages · #3 TLB shootdown</text>
   <text x="742" y="265" class="tag">Ref 2.1 TLB reach</text>
   <rect x="730" y="290" width="138" height="180" rx="6" class="buf"/>
@@ -225,6 +225,13 @@
   <rect x="740" y="1000" width="320" height="240" rx="8" class="mem"/>
   <text x="756" y="1024" class="t">Channel 2 …</text>
   <text x="756" y="1046" class="s">same as channel 0</text>
+  <rect x="756" y="1060" width="288" height="165" rx="6" class="box"/>
+  <text x="768" y="1083" class="t">Page tables (one per process)</text>
+  <text x="768" y="1101" class="s">a 4-level tree; CR3 holds the root</text>
+  <text x="768" y="1119" class="s">spread over channels like any data</text>
+  <text x="768" y="1137" class="s">entries get cached in L1/L2/L3,</text>
+  <text x="768" y="1155" class="s">so a TLB miss rarely comes this far</text>
+  <text x="768" y="1172" class="tag">#3 TLB shootdown</text>
   <rect x="1090" y="1000" width="490" height="140" rx="10" class="sock"/>
   <text x="1106" y="1026" class="h">CPU socket 1</text>
   <text x="1106" y="1050" class="s">its own cores, L3, controller and memory</text>

@@ -79,7 +79,7 @@
   <text x="412" y="547" class="tag">#6 存储类别</text>
   <rect x="730" y="190" width="290" height="80" rx="6" class="buf"/>
   <text x="742" y="213" class="t">dTLB（数据 TLB，地址翻译）</text>
-  <text x="742" y="231" class="s">虚拟地址 → 物理地址</text>
+  <text x="742" y="231" class="s">没命中：从 CR3 指的根往下走 4 级</text>
   <text x="742" y="248" class="tag">#6 2 MiB 大页 · #3 TLB shootdown</text>
   <text x="742" y="265" class="tag">速查 2.1 TLB 覆盖范围</text>
   <rect x="730" y="290" width="138" height="180" rx="6" class="buf"/>
@@ -225,6 +225,13 @@
   <rect x="740" y="1000" width="320" height="240" rx="8" class="mem"/>
   <text x="756" y="1024" class="t">通道 2 …</text>
   <text x="756" y="1046" class="s">结构同通道 0</text>
+  <rect x="756" y="1060" width="288" height="165" rx="6" class="box"/>
+  <text x="768" y="1083" class="t">页表（每个进程一份）</text>
+  <text x="768" y="1101" class="s">4 级的树，CR3 指着根那一页</text>
+  <text x="768" y="1119" class="s">和普通数据一样散在各通道里</text>
+  <text x="768" y="1137" class="s">页表项会被缓存进 L1/L2/L3，</text>
+  <text x="768" y="1155" class="s">TLB 没命中多半不用真来这里</text>
+  <text x="768" y="1172" class="tag">进程线程 4.2 · #3 TLB shootdown</text>
   <rect x="1090" y="1000" width="490" height="140" rx="10" class="sock"/>
   <text x="1106" y="1026" class="h">CPU 插槽 1</text>
   <text x="1106" y="1050" class="s">自己的核、L3、内存控制器和内存</text>
