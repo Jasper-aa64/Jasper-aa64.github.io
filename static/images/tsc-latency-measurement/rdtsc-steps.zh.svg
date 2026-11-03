@@ -47,5 +47,5 @@
 <text class="lab" x="730.2" y="513" text-anchor="end" fill="#cf222e" font-weight="700">情况 B：中间碰上一次跳变</text>
 <text class="lab" x="730.2" y="533" text-anchor="end">读数差 36 → 换算 10 ns（实际 5 ns，多算）</text>
 <text class="tk" x="524.8" y="356.0" fill="#1a7f37">同一拍里再读：只 +1</text>
-<text class="ft" x="40" y="580">AMD Ryzen 5 5600GT 上实测的跳法（TSC 3.593 GHz）；别的机器步长可能不同，先连读几次看看。</text>
+<text class="ft" x="40" y="580">实测的跳法（TSC 3.593 GHz）。步长因机器而异，先连读几次看看。</text>
 </svg>

@@ -47,5 +47,5 @@
 <text class="lab" x="730.2" y="513" text-anchor="end" fill="#cf222e" font-weight="700">Case B: a jump falls in between</text>
 <text class="lab" x="730.2" y="533" text-anchor="end">difference 36 → 10 ns (really 5 ns: too long)</text>
 <text class="tk" x="524.8" y="356.0" fill="#1a7f37">read again within one step: only +1</text>
-<text class="ft" x="40" y="580">Step pattern measured on an AMD Ryzen 5 5600GT (TSC 3.593 GHz); other machines may step differently, so read back-to-back a few times first.</text>
+<text class="ft" x="40" y="580">Measured step pattern (TSC 3.593 GHz). The step size varies by machine, so read back-to-back a few times first.</text>
 </svg>

@@ -19,7 +19,7 @@ To find out how long it takes from receiving a market-data update to sending an 
 
 The TSC is a 64-bit counter in every logical core, cleared at power-on and counting up from then on. It has no box of its own on the <a href="/maps/hardware-map.en.html" target="_blank" rel="noopener">hardware map</a>; it is just a register in the core.
 
-On early CPUs the TSC followed the core clock: it slowed down when the core slowed down and stopped in deep sleep, which made it useless for timing. Today's CPUs have an invariant TSC: it runs at a fixed rate whether the core is throttled, asleep or in Turbo. The rate is usually close to the CPU's nominal frequency; on the machine used in this post it is 3.593 GHz. On Linux, `constant_tsc` and `nonstop_tsc` among the flags in `/proc/cpuinfo` mean you have this kind.
+On early CPUs the TSC followed the core clock: it slowed down when the core slowed down and stopped in deep sleep, which made it useless for timing. Today's CPUs have an invariant TSC: it runs at a fixed rate whether the core is throttled, asleep or in Turbo. The rate is usually close to the CPU's nominal frequency, for example 3.593 GHz. On Linux, `constant_tsc` and `nonstop_tsc` among the flags in `/proc/cpuinfo` mean you have this kind.
 
 So **the TSC counts time, not the cycles the core actually ran**. With the core in Turbo at 4.5 GHz and the TSC running at 3.0 GHz, 100 TSC ticks are 33 ns, during which the core ran 150 cycles. To count core cycles, use perf's `cycles` event, which comes from the performance counters, not the TSC.
 
@@ -57,7 +57,7 @@ inline uint64_t rdtsc() noexcept {
 **3. The reading moves in steps**
 
 - By frequency, one tick is 1 / 3.593 GHz ≈ 0.28 ns.
-- But on the AMD machine used here, the reading jumps only about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns).
+- But measured, the reading jumps only about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns).
 - Read again within the same 10 ns and you get only 1 more. That 1 is there so readings never repeat, not because 0.28 ns really passed.
 - **The staircase is how the counter itself updates, unrelated to how fast `rdtsc` reads**: even if a read took no time, you'd see the same steps. 3.593 GHz ÷ 36 ≈ 100 MHz, so the reading appears to follow a roughly 100 MHz reference clock, adding 36 per tick (inferred from the numbers, not from documentation).
 
@@ -103,7 +103,7 @@ inline uint64_t tsc_end() {        // end mark: rdtscp waits for earlier instruc
 
 This behavior of `lfence` is defined by Intel. On AMD, `lfence` only waits like this once the operating system turns on a switch, which recent Linux and Windows do by default; on older systems AMD recommends `mfence`. If you also need earlier stores to be visible to other cores, the sequence Intel's manual gives is `mfence; lfence; rdtsc`.
 
-Fences have a cost. On this machine, the difference between two fenced reads goes from one jump to two, about 20 ns; and the fences stop the measured code from overlapping with the code around it, so what you measure is no longer exactly how it normally runs. **Fences make the edges accurate, at the cost of a heavier measurement and code that no longer overlaps with its neighbors.** So use fences for short code of tens of ns (microbenchmarks); for marks on a production hot path, which measure whole spans of several µs where an edge error of ten-odd ns is acceptable, a plain `rdtsc` is the usual choice.
+Fences have a cost. Measured, the difference between two fenced reads goes from one jump to two, about 20 ns; and the fences stop the measured code from overlapping with the code around it, so what you measure is no longer exactly how it normally runs. **Fences make the edges accurate, at the cost of a heavier measurement and code that no longer overlaps with its neighbors.** So use fences for short code of tens of ns (microbenchmarks); for marks on a production hot path, which measure whole spans of several µs where an edge error of ten-odd ns is acceptable, a plain `rdtsc` is the usual choice.
 
 The compiler moves code too. If nothing uses the result of the measured code, the compiler may delete it entirely, or move computations that don't touch memory outside the reads. In a microbenchmark, make sure the result is used, for example by writing it to a `volatile` variable.
 
