@@ -66,9 +66,13 @@ inline uint64_t rdtsc() noexcept {
 **4. What it does to measurements**
 
 - You can't measure `rdtsc` itself precisely: two back-to-back reads differ by 36 almost every time, exactly one jump, so all you can see is that a read takes at most about 10 ns.
-- **A single measurement shorter than 10–20 ns mostly reads quantization error**: 5 ns of code may show a difference of 1 (inside one step) or 36 (a jump in between); see the figure.
+- Any single measurement can come out only two ways: the interval crossed n jumps, or n + 1 (cases A and B in the figure). So **the error is at most one jump, about 10 ns, no matter how long the code runs**.
+- What matters is how much of the measured time those 10 ns are: timing 1 µs of code, the error is about 1%; 100 ns, about 10%; 5 ns, the error is bigger than the code itself. **That is why a single measurement shorter than 10–20 ns mostly reads quantization error.**
 - The reading also includes the reads themselves: with nothing between two reads, the difference is still about 36. That part is roughly fixed, so measure an empty region first and subtract the floor.
-- To measure short code: run it many times and divide the total, or measure many times and look at the median and percentiles, not single runs.
+- Two ways to measure short code:
+  - Run it 1000 times between the two reads and divide by 1000. The error is still one jump, but per run it shrinks to about 0.01 ns.
+  - Measure many times and take the **mean, not the median**. Where the start falls within a step is random, so 5 ns of code crosses a jump half the time, and the average comes out at (1 + 36) / 2 = 18.5 ticks ≈ 5.2 ns, close to the truth. The median gets pulled to one of the two outcomes: 3 ns of code crosses a jump only 30% of the time, so the median is 1 tick, read as 0.28 ns.
+- Save medians and percentiles such as p99 for intervals much longer than a jump, such as a full processing path of hundreds of ns to a few µs, where quantization is a few percent.
 - Errors from out-of-order execution are a separate matter; see 1.3.
 
 ### 1.3 Out-of-Order Execution: rdtsc Doesn't Wait for Earlier Instructions
