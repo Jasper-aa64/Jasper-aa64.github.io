@@ -58,6 +58,15 @@ Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a 
    - But measured on AMD Zen parts (Ryzen, EPYC), the reading jumps only about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns). Intel parts usually show no fixed step; back-to-back differences vary. A few back-to-back reads tell you which kind your machine is.
    - Read again within the same 10 ns and you get only 1 more. That 1 is there so readings never repeat, not because 0.28 ns really passed.
    - **The staircase is how the counter itself updates, unrelated to how fast `rdtsc` reads**: even if a read took no time, you'd see the same steps. 3.593 GHz ÷ 36 ≈ 100 MHz, so the reading appears to follow a roughly 100 MHz reference clock, adding 36 per tick (inferred from the numbers, not from documentation).
+   - **Why it doesn't step on every tick**:
+     - **The requirement**: the TSC must run at the same rate and agree across all cores, and keep running while cores slow down or sleep (1.1).
+     - **The core's own clock can't do that**: it changes frequency and stops in sleep.
+     - **A separate 3.6 GHz clock isn't worth it either**: every core would have to keep it running all the time, which costs power, and the cores would have to agree to within 0.28 ns.
+     - **What is done instead**: the TSC follows a slow but always-on reference clock and adds a fixed amount on every tick of it (36 here), catching up a whole tick's worth at once.
+     - **Intel works the same way**: its manual states in CPUID leaf `0x15` that "TSC frequency = crystal frequency × a ratio". Intel readings show no steps, so it must subdivide between ticks; how is not published.
+   - **Can it get finer**: a single TSC read resolves one step; that is set by hardware and software can't change it. Going finer leaves two routes:
+     - **Don't rely on one read**: repeat and divide, or average many runs (block 4 below); what you resolve is the average.
+     - **Count core cycles instead of the TSC**: use the performance counter (PMU) event for unhalted core cycles, read with `rdpmc`, which adds 1 every cycle. The cost: the kernel must set up the counter and allow user-space reads, which virtual machines often don't; and it counts cycles, not time, so once the core changes frequency it no longer converts to nanoseconds (1.1). This is how latencies of a few cycles per instruction get measured.
 
    <a href="/images/tsc-latency-measurement/rdtsc-steps.en.svg" target="_blank" rel="noopener"><img src="/images/tsc-latency-measurement/rdtsc-steps.en.svg" alt="Horizontal axis: real time 0–40 ns; vertical axis: rdtsc reading. Ideally the reading rises by 1 every 0.28 ns, a straight line; in reality it is a staircase, jumping by 36 about every 10 ns. Case A: 5 ns of code falls inside one step, readings 1036 and 1037, difference 1, converted to 0.28 ns: too short. Case B: the same 5 ns spans a jump, readings 1072 and 1108, difference 36, converted to 10 ns: too long." loading="lazy" decoding="async"></a>
 
