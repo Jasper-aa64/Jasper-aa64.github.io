@@ -137,11 +137,48 @@ Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a 
 
 ### 1.4 rdtscp and Cores: Knowing Which Core You Read On
 
-Besides the TSC, `rdtscp` also reads a register called `IA32_TSC_AUX` into ECX, which is the `aux` in the code above. Linux sets this register on each core to "NUMA node × 4096 + core number", and `getcpu` in the vDSO relies on it. If the two reads at start and end give different `aux` values, the thread was moved to another core in between: the span includes a migration ([#1](/posts/cpu-affinity-core-isolation-numa/) 1.1), and the two cores' readings may not line up exactly, so throw the sample away or mark it separately. A hot thread pinned to one core as in #1 never hits this.
+1. **`aux`: which core you read on, for free**
+   - **What it reads**: besides the TSC, `rdtscp` reads the `IA32_TSC_AUX` register into ECX, which is the `aux` in the code above.
+   - **What's in it**: Linux sets this register on each core to "NUMA node × 4096 + core number", and `getcpu` in the vDSO relies on it. Split apart:
 
-There is a more common case of comparing readings across cores: a producer on core 2 stamps a message as it writes it into a queue, the consumer on core 4 stamps it again when it takes it out, and the difference is how long the message sat in the queue. This works because of what 1.1 said: the cores of one machine have synchronized TSCs. In a virtual machine, the hypervisor may add an offset to the TSC, or skew it when a virtual CPU moves to another physical core, and then subtracting across cores is no longer reliable. The TSCs of two machines have nothing to do with each other and cannot be subtracted at all.
+   ```cpp
+   unsigned core = aux & 0xfff;   // low 12 bits: core number
+   unsigned node = aux >> 12;     // the rest: NUMA node
+   ```
 
-To check that a machine supports all this, look at CPUID: bit 27 of EDX in leaf `0x80000001` is `rdtscp`, and bit 8 of EDX in leaf `0x80000007` is invariant TSC. On Linux, `grep -o 'rdtscp\|constant_tsc\|nonstop_tsc' /proc/cpuinfo` is easier.
+2. **Catching migrations: drop the sample if the two `aux` differ**
+   - **How**: use `rdtscp` at both start and end, and compare the two `aux` values. `tsc_begin` in 1.3 uses `rdtsc`, which gives no `aux`, so when you want to catch migrations, switch the start read to `rdtscp` too:
+
+   ```cpp
+   unsigned a0, a1;
+   uint64_t t0 = __rdtscp(&a0);   // start: rdtscp itself waits for earlier code
+   _mm_lfence();                  // measured code may not start early
+   int r = parse(msg);
+   uint64_t t1 = __rdtscp(&a1);   // end
+   _mm_lfence();
+   bool migrated = (a0 != a1);    // moved to another core in between
+   ```
+
+   - **What a difference means**: the thread was moved to another core in between, so the span includes a migration ([#1](/posts/cpu-affinity-core-isolation-numa/) 1.1), and the two cores' readings may not line up exactly.
+   - **What to do**: throw the sample away, or mark it separately.
+   - **Hot threads**: pinned to one core as in #1, they never hit this.
+
+3. **Subtracting across cores: fine on one machine**
+   - **The case**: a producer on core 2 stamps a message as it writes it into a queue, the consumer on core 4 stamps it again when it takes it out, and the difference is how long the message sat in the queue.
+   - **Why it works**: as 1.1 said, the cores of one machine have synchronized TSCs.
+   - **Watch out**: the sync is not perfect. When the queueing time is very short, the difference can be a tiny negative number. That means the queueing time is within the sync error, not that the program is broken.
+
+4. **When you can't subtract**
+   - **Virtual machines**: the hypervisor may add an offset to the TSC, or skew it when a virtual CPU moves to another physical core, so subtracting across cores is no longer reliable.
+   - **Two machines**: their TSCs have nothing to do with each other and cannot be subtracted at all.
+
+5. **Checking that a machine supports this**
+   - **CPUID**: bit 27 of EDX in leaf `0x80000001` is `rdtscp`, and bit 8 of EDX in leaf `0x80000007` is invariant TSC.
+   - **On Linux it's easier**: check `/proc/cpuinfo` for these three flags.
+
+   ```bash
+   grep -o 'rdtscp\|constant_tsc\|nonstop_tsc' /proc/cpuinfo | sort -u
+   ```
 
 ### 1.5 Marks on the Hot Path: Record Ticks, Leave Conversion and Output to Another Thread
 
