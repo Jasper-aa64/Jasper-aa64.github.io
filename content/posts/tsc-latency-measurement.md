@@ -114,6 +114,8 @@ Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a 
 
    - **Start mark**: the first `lfence` lets the earlier code finish; the second keeps the measured code from starting before the read.
    - **End mark**: `rdtscp` waits for the measured code to finish before reading; the `lfence` after it keeps later code from starting early.
+   - **`rdtscp` only covers the front**: it waits for earlier instructions before reading, but does not hold back later ones, so the code after it may start executing before it reads. That is why it still needs an `lfence` after it.
+   - **When that second fence matters**: with back-to-back marks, one reading is both the end of one span and the start of the next (`t0`, `t1`, `t2` read in turn), so both sides must be pinned. When you time a single span and nothing after it is measured, it makes little difference, but it costs nothing to keep the same form everywhere.
 
 3. **Intel vs. AMD**
    - **Intel**: this behavior of `lfence` is defined in the manual.
