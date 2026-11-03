@@ -30,6 +30,90 @@ math: true
 
 硬件为什么这么做?因为真正把一个写提交到一条本核还没独占的缓存行上,代价很高:一致性协议(MESI)要给所有可能缓存了这一行的核发 **RFO**(Request For Ownership),等它们把副本作废,写才能落地。这一来一回要几十纳秒。要是流水线每遇到一次写都停下来等,流水线就白设计了。所以 store buffer 存在的唯一目的,是**把"指令做完了"和"写对所有人可见了"解耦**:指令一记进本子就退休,RFO 和真正的缓存更新在后台异步进行,行什么时候到手什么时候办。
 
+<svg viewBox="0 0 760 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="store buffer 夹在执行单元和 L1D 之间：写进队尾，指令就算做完；队头的写先向核 1 发失效请求，核 1 放进 invalidate queue 马上回 ACK；收齐 ACK、拿到独占权后，队头的写才进 L1D。x86 上先进先出，data 进 L1D 之后 ready 才轮到。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .sb-bg    { fill: #fbfaf7; }
+    .sb-panel { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
+    .sb-muted { fill: #6b6558; }
+    .sb-core  { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; }
+    .sb-buf   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.6; }
+    .sb-inbox { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.6; }
+    .sb-line  { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.2; }
+    .sb-slot  { fill: #ffffff; stroke: #6f8f3f; stroke-width: 1.2; }
+    .sb-empty { fill: none; stroke: #9db577; stroke-width: 1; stroke-dasharray: 4 3; }
+    .sb-arrow { stroke: #8a8474; stroke-width: 2; fill: none; marker-end: url(#ahsb); }
+    .sb-rfo   { stroke: #c15b3f; stroke-width: 2; fill: none; marker-end: url(#ahsb2); }
+    .sb-title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .sb-lbl   { fill: #3a372f; font-size: 11px; }
+    .sb-cap   { fill: #6b6558; font-size: 10.5px; }
+    .sb-red   { fill: #c15b3f; font-size: 10.5px; }
+    .sb-gap   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-panel { fill: #201f26; stroke: #3a3945; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-muted { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-core { fill: #2a2933; stroke: #47454f; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-buf { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-inbox { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-line { fill: #23262c; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-slot { fill: #201f26; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-empty { stroke: #5f7a3a; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-arrow { stroke: #9a9384; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-rfo { stroke: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-title { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-lbl { fill: #d7d3c8; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-cap { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-red { fill: #e0795b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .sb-gap { fill: #e0795b; }
+  </style>
+  <defs>
+    <marker id="ahsb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8a8474"/>
+    </marker>
+    <marker id="ahsb2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#c15b3f"/>
+    </marker>
+  </defs>
+  <rect class="sb-bg" x="0" y="0" width="760" height="410" rx="10"/>
+  <text class="sb-title" x="24" y="30">store buffer 夹在流水线和 L1D 之间：等 ACK 的是队头这条写</text>
+  <rect class="sb-panel" x="24" y="48" width="420" height="298" rx="8"/>
+  <text class="sb-muted" x="40" y="70" font-size="12" font-weight="700">核 0（写方）</text>
+  <rect class="sb-core" x="40" y="84" width="388" height="46" rx="6"/>
+  <text class="sb-lbl" x="52" y="104" font-weight="700">执行单元（流水线）</text>
+  <text class="sb-cap" x="52" y="120">写一进队尾就算做完，接着执行下一条</text>
+  <path class="sb-arrow" d="M234 130 L234 152"/>
+  <rect class="sb-buf" x="40" y="154" width="388" height="100" rx="6"/>
+  <text class="sb-lbl" x="52" y="174" font-weight="700">store buffer（本核私有，先进先出）</text>
+  <rect class="sb-empty" x="56" y="186" width="80" height="34" rx="4"/>
+  <rect class="sb-empty" x="148" y="186" width="80" height="34" rx="4"/>
+  <rect class="sb-slot" x="240" y="186" width="80" height="34" rx="4"/>
+  <text class="sb-lbl" x="280" y="207" text-anchor="middle">ready = 1</text>
+  <rect class="sb-slot" x="332" y="186" width="80" height="34" rx="4" stroke-width="2"/>
+  <text class="sb-lbl" x="372" y="207" text-anchor="middle" font-weight="700">data = 42</text>
+  <text class="sb-cap" x="280" y="240" text-anchor="middle">后进</text>
+  <text class="sb-cap" x="372" y="240" text-anchor="middle">队头</text>
+  <path class="sb-arrow" d="M372 254 L372 286"/>
+  <rect class="sb-line" x="40" y="288" width="388" height="46" rx="6"/>
+  <text class="sb-lbl" x="52" y="308" font-weight="700">L1D</text>
+  <text class="sb-cap" x="52" y="324">队头拿到这一行的独占权（M），才写进来</text>
+  <rect class="sb-panel" x="536" y="48" width="200" height="298" rx="8"/>
+  <text class="sb-muted" x="552" y="70" font-size="12" font-weight="700">核 1（有 data 的副本）</text>
+  <path class="sb-rfo" d="M428 178 L550 178"/>
+  <text class="sb-red" x="490" y="170" text-anchor="middle">失效请求</text>
+  <path class="sb-arrow" d="M552 204 L430 204"/>
+  <text class="sb-cap" x="490" y="222" text-anchor="middle">ACK</text>
+  <rect class="sb-inbox" x="552" y="154" width="168" height="62" rx="6"/>
+  <text class="sb-lbl" x="564" y="178" font-weight="700">invalidate queue</text>
+  <text class="sb-cap" x="564" y="198">先回 ACK，之后才作废</text>
+  <path class="sb-arrow" d="M636 216 L636 286"/>
+  <rect class="sb-line" x="552" y="288" width="168" height="46" rx="6"/>
+  <text class="sb-lbl" x="564" y="308" font-weight="700">L1D</text>
+  <text class="sb-cap" x="564" y="324">data 的旧副本 → I</text>
+  <text class="sb-gap" x="24" y="372">流水线不等 ACK；store buffer 满了，流水线才停。</text>
+  <text class="sb-cap" x="24" y="392" font-size="11">x86 上先进先出：data 进了 L1D，ready 才轮到，所以别的核不会先看到 ready。</text>
+</svg>
+
+> 图：store buffer 在执行单元和 L1D 之间排成一队。写进队尾，指令就退休；队头那条写要先让别的核作废副本、收齐 ACK，拿到这一行才进 L1D。所以要等 ACK 的是这条写，不是流水线；只有队满了，流水线才停下来。
+
 这就制造出一个缺口,这篇里所有关于内存序的内容都是它的后果:**在一段时间里——通常几十纳秒,对 4 GHz 的核来说相当漫长——一个写从线程 A 的角度看已经"发生"了,但别的核还看不到,因为它还躺在 A 私有的小本子里。**
 
 注意这里的不对称:线程 A 自己永远察觉不到这个缺口。A 写了 `x`,隔三条指令再读 `x`,CPU 会直接从 store buffer 里把值转发过来(叫 **store-to-load forwarding**,3.4 会再讲到它)——A 看自己的写,永远是程序顺序。缺口只能从*外面*看到:从别的核的角度,"A 的写指令退休"和"这个写在别处可见"之间,有一段真实的物理延迟。它不是 bug,也不是编译器搞的鬼,而是为了在 4 GHz 下活下去而缓冲写的直接、必然的后果。
