@@ -25,9 +25,9 @@ So **the TSC counts time, not the cycles the core actually ran**. With the core 
 
 Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a concern. The cores of one CPU start counting from the same reset, so their readings are synchronized; Linux also checks at boot, and if they are not, it prints `tsc: Marking TSC unstable` and switches to another clock source. 1.4 relies on this.
 
-### 1.2 rdtsc: About 10 ns per Read, but the Reading May Not Advance One Tick at a Time
+### 1.2 rdtsc: 6–12 ns per Read, and the Reading Only Jumps About Every 10 ns
 
-The instruction that reads the TSC is `rdtsc`. It puts the low 32 bits in EAX and the high 32 bits in EDX, which together form the 64-bit reading:
+The TSC is read with the `rdtsc` instruction. It dates from the 32-bit era, when one register couldn't hold 64 bits, so the result comes in two halves: the low 32 bits in EAX, the high 32 bits in EDX, joined to form the reading:
 
 ```cpp
 inline uint64_t rdtsc() noexcept {
@@ -37,11 +37,13 @@ inline uint64_t rdtsc() noexcept {
 }
 ```
 
-The compiler's own `__rdtsc()` (header `<x86intrin.h>`) does the same thing, and the compiler also knows which registers it changes, so prefer it.
+When you write the assembly yourself, don't drop `volatile`. Without it the compiler treats the asm as a computation with no inputs and a fixed result, so two reads can be merged into one: measured, Clang 18 `-O2` compiles "read twice and subtract" to returning 0. The compiler's own `__rdtsc()` (header `<x86intrin.h>`) compiles to the same instruction and is never merged, so prefer it.
 
-One `rdtsc` takes about 20–40 cycles, 6–12 ns. `clock_gettime` in user space (the vDSO) also reads the TSC, but adds a function call and the multiply-and-shift that converts to nanoseconds, hence 20–30 ns. Reading the TSC directly saves those two, and the conversion moves to after the fact.
+Why not just call `clock_gettime`? In user space (the vDSO) it also reads the TSC, but each call adds a function call and a multiply-and-shift to convert to nanoseconds, about 20–30 ns in total. `rdtsc` is only the read, about 20–40 cycles, 6–12 ns. **So on the hot path, record ticks only and convert later.**
 
-The resolution of the reading is not necessarily one tick (about 0.28 ns on this machine). Reading continuously on the AMD machine used here, the reading only really jumps about every 10 ns, by 36 each time; a second read within the same 10 ns window comes back only 1 higher than the previous one, so readings never repeat. The difference between two back-to-back `rdtsc` reads is almost always 36, exactly one jump, so all you can say is that a read takes at most about 10 ns. **A single measurement shorter than 10–20 ns mostly reads quantization error**; to measure short code, run it many times and look at the distribution.
+How short an interval the reading can resolve depends on how it actually advances. By frequency, one tick is 1 / 3.593 GHz ≈ 0.28 ns. But on the AMD machine used here, the reading doesn't go up by 1 every 0.28 ns; it jumps about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns). Read twice within the same 10 ns and the second read is only 1 higher: that 1 is there so readings never repeat, not because 0.28 ns really passed.
+
+That has two consequences. First, you can't measure `rdtsc` itself precisely on this machine: two back-to-back reads differ by 36 almost every time, exactly one jump, so all you can see is that a read takes at most about 10 ns. Second, **a single measurement shorter than 10–20 ns mostly reads quantization error**: a 5 ns piece of code may show a difference of 1 or of 36, depending on whether a jump fell in between. To measure code that short, run it many times and divide the total, or measure many times and look at the distribution.
 
 ### 1.3 Out-of-Order Execution: rdtsc Doesn't Wait for Earlier Instructions
 
