@@ -79,7 +79,12 @@ inline uint64_t rdtsc() noexcept {
 
 ### 1.3 Out-of-Order Execution: rdtsc Doesn't Wait for Earlier Instructions
 
-Two reads and a subtraction are not enough, because the CPU executes out of order (the "Rename + ROB" box on the hardware map). `rdtsc` does not wait for the instructions before it to finish, and instructions after it may start executing before it. So in this:
+**The problem**:
+- The CPU executes out of order (the "Rename + ROB" box on the hardware map). `rdtsc` reads without waiting for the instructions before it to finish, and instructions after it may start before it.
+- So with just two reads and a subtraction, both edges are fuzzy. When the measured code is only tens of ns, the number can come out shorter than the real one.
+
+**1. Why the edges are fuzzy**
+- Look at this:
 
 ```cpp
 uint64_t t0 = __rdtsc();
@@ -87,9 +92,14 @@ int r = parse(msg);        // the code being measured
 uint64_t t1 = __rdtsc();
 ```
 
-both edges are fuzzy: the first few instructions of `parse` may start before `t0` is read, and when `t1` is read the last few may not have finished. When the measured code is only tens of ns, the measured number can come out shorter than the real one.
+- **Start**: the first few instructions of `parse` may begin before `t0` is read.
+- **End**: when `t1` is read, the last few instructions of `parse` may not have finished.
+- Both edges move inward, so the measurement comes out short.
 
-The fix is to pin the edges with fences. `lfence` means: the instructions after it may not start until all the instructions before it have finished. `rdtscp` is a variant of `rdtsc` that waits for all earlier instructions to execute and all earlier loads to complete before reading, but does not hold back later instructions. So the start and end look like this:
+**2. The fix: pin the edges with fences**
+- **`lfence`**: the instructions after it may not start until all the instructions before it have finished.
+- **`rdtscp`**: a variant of `rdtsc` that waits for all earlier instructions to execute and all earlier loads to complete before reading, but does not hold back later instructions.
+- The start and end marks look like this:
 
 ```cpp
 inline uint64_t tsc_begin() {      // start mark: read only after earlier instructions finish
@@ -107,11 +117,26 @@ inline uint64_t tsc_end() {        // end mark: rdtscp waits for earlier instruc
 }
 ```
 
-This behavior of `lfence` is defined by Intel. On AMD, `lfence` only waits like this once the operating system turns on a switch, which recent Linux and Windows do by default; on older systems AMD recommends `mfence`. If you also need earlier stores to be visible to other cores, the sequence Intel's manual gives is `mfence; lfence; rdtsc`.
+- **Start mark**: the first `lfence` lets the earlier code finish; the second keeps the measured code from starting before the read.
+- **End mark**: `rdtscp` waits for the measured code to finish before reading; the `lfence` after it keeps later code from starting early.
 
-Fences have a cost. Measured, the difference between two fenced reads goes from one jump to two, about 20 ns; and the fences stop the measured code from overlapping with the code around it, so what you measure is no longer exactly how it normally runs. **Fences make the edges accurate, at the cost of a heavier measurement and code that no longer overlaps with its neighbors.** So use fences for short code of tens of ns (microbenchmarks); for marks on a production hot path, which measure whole spans of several µs where an edge error of ten-odd ns is acceptable, a plain `rdtsc` is the usual choice.
+**3. Intel vs. AMD**
+- **Intel**: this behavior of `lfence` is defined in the manual.
+- **AMD**: `lfence` only waits like this once the operating system turns on a switch. Recent Linux and Windows do so by default; on older systems AMD recommends `mfence`.
+- **If earlier stores must also be visible to other cores**: the sequence Intel's manual gives is `mfence; lfence; rdtsc`.
 
-The compiler moves code too. If nothing uses the result of the measured code, the compiler may delete it entirely, or move computations that don't touch memory outside the reads. In a microbenchmark, make sure the result is used, for example by writing it to a `volatile` variable.
+**4. What fences cost, and when to use them**
+- **Extra overhead**: measured on an empty interval, the difference between two fenced reads goes from one jump to two, about 20 ns, one jump more than without fences.
+- **No more overlap**: fences stop the measured code from overlapping with the code around it, so what you measure is no longer exactly how it normally runs.
+- **Fences make the edges accurate, at the cost of a heavier measurement and code that no longer overlaps with its neighbors.**
+- **Which to use**:
+  - **Microbenchmarks**: for code of tens of ns, the edge error is as large as the code itself, so use fences.
+  - **Production hot path**: marks there measure whole spans of several µs, where an edge error of ten-odd ns is acceptable, so a plain `rdtsc` is the usual choice.
+
+**5. The compiler moves code too**
+- **Deleted entirely**: if nothing uses the result of the measured code, the compiler may remove it.
+- **Moved outside**: computations that don't touch memory may be moved outside the two reads.
+- **Fix**: make sure the result is used, for example by writing it to a `volatile` variable.
 
 ### 1.4 rdtscp and Cores: Knowing Which Core You Read On
 
