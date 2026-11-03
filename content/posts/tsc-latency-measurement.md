@@ -27,8 +27,6 @@ Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a 
 
 ### 1.2 rdtsc: 6–12 ns per Read, and on AMD the Reading Only Jumps About Every 10 ns
 
-**The problem**:
-
 - The most direct way to time code is to read the TSC at both ends and subtract.
 - Whether that difference can be trusted depends on two things: how long one read takes, and how short an interval the reading can resolve.
 
@@ -79,12 +77,9 @@ inline uint64_t rdtsc() noexcept {
 
 ### 1.3 Out-of-Order Execution: rdtsc Doesn't Wait for Earlier Instructions
 
-**The problem**:
-- The CPU executes out of order (the "Rename + ROB" box on the hardware map). `rdtsc` reads without waiting for the instructions before it to finish, and instructions after it may start before it.
-- So with just two reads and a subtraction, both edges are fuzzy. When the measured code is only tens of ns, the number can come out shorter than the real one.
-
 **1. Why the edges are fuzzy**
-- Look at this:
+- **Out-of-order execution**: the CPU does not finish instructions one by one in program order (the "Rename + ROB" box on the hardware map). `rdtsc` reads without waiting for the instructions before it to finish, and instructions after it may start before it.
+- With just two reads and a subtraction, look at this:
 
 ```cpp
 uint64_t t0 = __rdtsc();
@@ -94,7 +89,7 @@ uint64_t t1 = __rdtsc();
 
 - **Start**: the first few instructions of `parse` may begin before `t0` is read.
 - **End**: when `t1` is read, the last few instructions of `parse` may not have finished.
-- Both edges move inward, so the measurement comes out short.
+- **Result**: both edges move inward, so when the measured code is only tens of ns, the measurement comes out shorter than the real one.
 
 **2. The fix: pin the edges with fences**
 - **`lfence`**: the instructions after it may not start until all the instructions before it have finished.
