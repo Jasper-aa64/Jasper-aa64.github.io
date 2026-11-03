@@ -25,7 +25,7 @@ So **the TSC counts time, not the cycles the core actually ran**. With the core 
 
 Counting at 3.6 GHz, 64 bits take about 160 years to wrap, so overflow is not a concern. The cores of one CPU start counting from the same reset, so their readings are synchronized; Linux also checks at boot, and if they are not, it prints `tsc: Marking TSC unstable` and switches to another clock source. 1.4 relies on this.
 
-### 1.2 rdtsc: 6–12 ns per Read, and the Reading Only Jumps About Every 10 ns
+### 1.2 rdtsc: 6–12 ns per Read, and on AMD the Reading Only Jumps About Every 10 ns
 
 **The problem**:
 
@@ -57,7 +57,7 @@ inline uint64_t rdtsc() noexcept {
 **3. The reading moves in steps**
 
 - By frequency, one tick is 1 / 3.593 GHz ≈ 0.28 ns.
-- But measured, the reading jumps only about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns).
+- But measured on AMD Zen parts (Ryzen, EPYC), the reading jumps only about every 10 ns, by 36 each time (36 × 0.28 ≈ 10 ns). Intel parts usually show no fixed step; back-to-back differences vary. A few back-to-back reads tell you which kind your machine is.
 - Read again within the same 10 ns and you get only 1 more. That 1 is there so readings never repeat, not because 0.28 ns really passed.
 - **The staircase is how the counter itself updates, unrelated to how fast `rdtsc` reads**: even if a read took no time, you'd see the same steps. 3.593 GHz ÷ 36 ≈ 100 MHz, so the reading appears to follow a roughly 100 MHz reference clock, adding 36 per tick (inferred from the numbers, not from documentation).
 
@@ -66,8 +66,9 @@ inline uint64_t rdtsc() noexcept {
 **4. What it does to measurements**
 
 - You can't measure `rdtsc` itself precisely: two back-to-back reads differ by 36 almost every time, exactly one jump, so all you can see is that a read takes at most about 10 ns.
-- Any single measurement can come out only two ways: the interval crossed n jumps, or n + 1 (cases A and B in the figure). So **the error is at most one jump, about 10 ns, no matter how long the code runs**.
-- What matters is how much of the measured time those 10 ns are: timing 1 µs of code, the error is about 1%; 100 ns, about 10%; 5 ns, the error is bigger than the code itself. **That is why a single measurement shorter than 10–20 ns mostly reads quantization error.**
+- Any single measurement can come out only two ways: the interval crossed n jumps, or n + 1 (cases A and B in the figure). So **a single measurement is off by at most one jump, about 10 ns, no matter how long the code runs**. How many jumps you cross depends on where the start lands within a step, which is random, so over many runs the over- and under-counts cancel and the mean has no bias.
+- What matters is how much of the measured time those 10 ns are: timing 1 µs of code, a single reading is off by at most 1%; 100 ns, by at most 10%, so one reading cannot tell 100 ns from 105 ns, and only averaging or repetition can (the two ways below); 5 ns, the error is bigger than the code itself. **So don't read single samples of code around 100 ns, and a single measurement shorter than 10–20 ns mostly reads quantization error.**
+- On an Intel part without steps, a single reading is not much better: without fences, out-of-order execution moves the read earlier or later by ten-odd cycles, and with fences each read gets heavier (1.3), so the edges carry about 10 ns of uncertainty anyway. **About 10 ns is the resolution of a single timestamp pair, not just an AMD quirk**; production marks time whole spans of hundreds of ns to several µs, where this is a few percent.
 - The reading also includes the reads themselves: with nothing between two reads, the difference is still about 36. That part is roughly fixed, so measure an empty region first and subtract the floor.
 - Two ways to measure short code:
   - Run it 1000 times between the two reads and divide by 1000. The error is still one jump, but per run it shrinks to about 0.01 ns.
