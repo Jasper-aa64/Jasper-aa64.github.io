@@ -31,7 +31,7 @@
   <rect x="40" y="130" width="300" height="40" rx="6" class="box"/>
   <text x="190" y="155" class="f" text-anchor="middle">核 0 放锁：写 locked_ = false</text>
   <line x1="190" y1="170" x2="190" y2="226" class="inv" marker-end="url(#ai)"/>
-  <text x="202" y="204" class="lab">① 失效请求：locked_ 已经是 false</text>
+  <text x="202" y="204" class="lab">① invalidate 请求：locked_ 已经是 false</text>
   <text x="1054" y="220" class="lab" text-anchor="end">核 1 的 ROB：左边老，右边新 →</text>
   <rect x="40" y="230" width="96" height="60" rx="5" class="ret"/>
   <text x="88.0" y="254" class="lab" text-anchor="middle">第 1 圈</text>
@@ -73,7 +73,7 @@
   <rect x="424" y="464" width="300" height="40" rx="6" class="box"/>
   <text x="574" y="489" class="f" text-anchor="middle">核 0 放锁：写 locked_ = false</text>
   <line x1="574" y1="504" x2="574" y2="560" class="inv" marker-end="url(#ai)"/>
-  <text x="586" y="538" class="lab">① 失效请求：locked_ 已经是 false</text>
+  <text x="586" y="538" class="lab">① invalidate 请求：locked_ 已经是 false</text>
   <rect x="40" y="564" width="96" height="60" rx="5" class="ret"/>
   <text x="88.0" y="588" class="lab" text-anchor="middle">第 1 圈</text>
   <text x="88.0" y="609" class="lab" text-anchor="middle">已退休</text>
@@ -84,7 +84,7 @@
   <text x="574.0" y="609" class="lab" text-anchor="middle">还没发出</text>
   <rect x="628" y="564" width="426" height="60" rx="5" class="empty"/>
   <text x="841" y="599" class="lab" text-anchor="middle">后面的指令还没进来</text>
-  <text x="40" y="660" class="f">① 失效请求来的时候，流水线里没有偷跑的读：上一次读已经退休，下一次还没发出，没东西要扔。</text>
+  <text x="40" y="660" class="f">① invalidate 请求来的时候，流水线里没有偷跑的读：上一次读已经退休，下一次还没发出，没东西要扔。</text>
   <text x="40" y="684" class="f">② pause 停完，下一次读直接拿到 false，退出循环。只剩这一次分支猜错。</text>
   <rect x="40" y="716" width="1020" height="104" rx="6" class="ban"/>
   <text x="60" y="742" class="t">代价</text>

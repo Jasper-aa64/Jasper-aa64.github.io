@@ -30,7 +30,7 @@ math: true
 
 硬件为什么这么做?因为真正把一个写提交到一条本核还没独占的缓存行上,代价很高:一致性协议(MESI)要给所有可能缓存了这一行的核发 **RFO**(Request For Ownership),等它们把副本作废,写才能落地。这一来一回要几十纳秒。要是流水线每遇到一次写都停下来等,流水线就白设计了。所以 store buffer 存在的唯一目的,是**把"指令做完了"和"写对所有人可见了"解耦**:指令一记进本子就退休,RFO 和真正的缓存更新在后台异步进行,行什么时候到手什么时候办。
 
-<svg viewBox="0 0 760 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="store buffer 夹在执行单元和 L1D 之间：写进队尾，指令就算做完；队头的写先向核 1 发失效请求，核 1 放进 invalidate queue 马上回 ACK；收齐 ACK、拿到独占权后，队头的写才进 L1D。x86 上先进先出，data 进 L1D 之后 ready 才轮到。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+<svg viewBox="0 0 760 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="store buffer 夹在执行单元和 L1D 之间：写进队尾，指令就算做完；队头的写先向核 1 发 invalidate 请求，核 1 放进 invalidate queue 马上回 ACK；收齐 ACK、拿到独占权后，队头的写才进 L1D。x86 上先进先出，data 进 L1D 之后 ready 才轮到。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
     .sb-bg    { fill: #fbfaf7; }
     .sb-panel { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
@@ -98,7 +98,7 @@ math: true
   <rect class="sb-panel" x="536" y="48" width="200" height="298" rx="8"/>
   <text class="sb-muted" x="552" y="70" font-size="12" font-weight="700">核 1（有 data 的副本）</text>
   <path class="sb-rfo" d="M428 178 L550 178"/>
-  <text class="sb-red" x="490" y="170" text-anchor="middle">失效请求</text>
+  <text class="sb-red" x="490" y="170" text-anchor="middle">invalidate 请求</text>
   <path class="sb-arrow" d="M552 204 L430 204"/>
   <text class="sb-cap" x="490" y="222" text-anchor="middle">ACK</text>
   <rect class="sb-inbox" x="552" y="154" width="168" height="62" rx="6"/>
@@ -204,9 +204,9 @@ store buffer 解释了为什么 *A 的* 写会延迟。接收方还有一个镜�
 
 > 图:A 的写一进自己的 store buffer 就退休了,但真正去拿缓存行的 RFO 是异步的。B 的 invalidate queue 吸收这个 RFO,不让 B 的流水线停下,于是一个抢在 B 自己收件箱前面的 load,仍可能看到写之前的值。两个缓冲存在的理由是同一个——别让流水线为一次跨核往返停下来——合起来就是 1.3 里四种乱序的全部物理原因。
 
-把这两个缓冲放回整块芯片上，一次写走过的地方如下图。失效请求经片上互连，只发给缓存里有这条行的核，谁有由 L3 旁的 snoop filter 记着；新值不会被推过去，读方要用时自己来取。图里出错的那一步，是读方先回了 ACK、还没处理失效，于是看到了新的 ready，却读到旧的 data：后一个读比前一个读还旧，属于读和读的乱序。x86 不允许它（1.3），ARM 允许，所以 ARM 上的 acquire 要用真正的指令（1.6）。
+把这两个缓冲放回整块芯片上，一次写走过的地方如下图。invalidate 请求经片上互连，只发给缓存里有这条行的核，谁有由 L3 旁的 snoop filter 记着；新值不会被推过去，读方要用时自己来取。图里出错的那一步，是读方先回了 ACK、还没处理失效，于是看到了新的 ready，却读到旧的 data：后一个读比前一个读还旧，属于读和读的乱序。x86 不允许它（1.3），ARM 允许，所以 ARM 上的 acquire 要用真正的指令（1.6）。
 
-<a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/store-path.zh.svg" alt="写（store）的路径，两个核。核 0 执行 data = 42，写先进 store buffer；失效请求经片上互连，snoop filter 只把它发给有副本的核 1；核 1 先放进 invalidate queue，马上回 ACK；核 0 收齐 ACK 才把 42 写进 L1D，接着写 ready。核 1 从核 0 取回 ready = 1，再读 data 时失效还没处理，读到旧值 0。下方说明：这是读和读乱序，x86 不允许，ARM 允许，修法是 ready 用 atomic，写 release、读 acquire。" loading="lazy" decoding="async"></a>
+<a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/store-path.zh.svg" alt="写（store）的路径，两个核。核 0 执行 data = 42，写先进 store buffer；invalidate 请求经片上互连，snoop filter 只把它发给有副本的核 1；核 1 先放进 invalidate queue，马上回 ACK；核 0 收齐 ACK 才把 42 写进 L1D，接着写 ready。核 1 从核 0 取回 ready = 1，再读 data 时失效还没处理，读到旧值 0。下方说明：这是读和读乱序，x86 不允许，ARM 允许，修法是 ready 用 atomic，写 release、读 acquire。" loading="lazy" decoding="async"></a>
 
 ### 1.3 四种乱序,以及 x86 留下的那一种
 

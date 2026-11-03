@@ -94,7 +94,7 @@
   <text x="894" y="313" class="t">Invalidate queue</text>
   <text x="894" y="331" class="s">失效队列</text>
   <text x="894" y="349" class="s">别的核发来的</text>
-  <text x="894" y="367" class="s">失效请求先排队</text>
+  <text x="894" y="367" class="s">invalidate 请求先排队</text>
   <text x="894" y="384" class="tag">#2 invalidate queue</text>
   <text x="894" y="401" class="tag">#2 acquire</text>
   <rect x="730" y="490" width="290" height="80" rx="6" class="cache"/>
@@ -179,7 +179,7 @@
   <text x="1480.0" y="375" class="s" text-anchor="middle">L2</text>
   <text x="1080" y="448" class="t">MESI：单写者 / 多读者</text>
   <text x="1080" y="472" class="s">同一条缓存行可以在多个核的 L1/L2 里各有一份副本。</text>
-  <text x="1080" y="490" class="s">谁要写，就得先让别人的副本作废（发失效请求）。</text>
+  <text x="1080" y="490" class="s">谁要写，就得先让别人的副本作废（发 invalidate 请求）。</text>
   <text x="1080" y="520" class="tag">MESI 专题</text>
   <text x="1080" y="538" class="tag">#2 伪共享（两个核抢同一行）</text>
   <text x="1080" y="556" class="tag">#4 缓存游标 · #5 读者越多写越贵</text>
@@ -189,7 +189,7 @@
   <text x="1094" y="630" class="t">每个核各有自己的 L1、L2</text>
   <text x="1094" y="652" class="s">（TLB、store buffer 也各有一份）</text>
   <path d="M1540,412 L1022,412" class="coh" marker-end="url(#arrG)"/>
-  <text x="1080" y="406" class="lab">别的核要写某一行：发失效请求，排进核心 0 的 invalidate queue</text>
+  <text x="1080" y="406" class="lab">别的核要写某一行：发 invalidate 请求，排进核心 0 的 invalidate queue</text>
   <path d="M1022,637 L1078,637" class="coh" marker-start="url(#arrG)" marker-end="url(#arrG)"/>
   <text x="1050.0" y="628" class="lab" text-anchor="middle" style="font-size:10.5px">一致性</text>
   <rect x="40" y="770" width="1520" height="64" rx="6" class="cache"/>
