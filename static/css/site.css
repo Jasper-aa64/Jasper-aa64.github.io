@@ -1469,6 +1469,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 .prose ol > li:has(> ul)::marker { font-family: inherit; font-size: 1em; font-weight: 700; color: var(--ink); }
 .prose ol > li:has(> ul) > strong:first-child,
 .prose ol > li:has(> ul) > p:first-child > strong:first-child { font-weight: 700; color: var(--ink); }
+.prose ol > li:has(> ul) > p:first-child { margin-bottom: .45em; }  /* title sits close to its own points */
+.prose ol > li:has(> ul) + li { margin-top: 1.2em; }               /* and a bit apart from the previous block */
 .prose blockquote {
   /* Callout box, as in the original theme: thick accent bar on the left, frosted panel. */
   margin: 1.4em 0 1.6em;
