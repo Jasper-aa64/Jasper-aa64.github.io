@@ -178,10 +178,11 @@ Where a time is read decides which clock it comes from, and the clock decides wh
 |---|---|---|---|---|
 | ① Function marks | TSC | Function entry, exit | One function by itself | Time between functions and threads |
 | ② Thread-boundary marks | TSC | T7–T12 | Software TTT, each processing and queueing leg | The NIC and kernel legs |
-| ③ NIC hardware timestamps | The NIC's clock | NIC receive, send | Wire-to-wire TTT, RTT | Comparing with T7 first needs the NIC clock tied to the system clock |
-| ④ Switch mirror + capture appliance | The appliance's clock | Switch in, out | Wire-to-wire TTT, RTT | Sees only packets; pair them by sequence number and order ID |
-| ⑤ Exchange timestamps | The exchange's clock against our own PTP-synced clock | Exchange send, our receive | Exchange to us (one way) | The error is the sync error, about 20 ns–1 µs; inside the exchange is out of reach |
+| ③ NIC hardware timestamps | The clock on the NIC (PHC), usually PTP-synced | NIC receive, send | Wire-to-wire TTT, RTT | Comparing with T7 first needs the NIC clock tied to the system clock |
+| ④ Switch mirror + capture appliance | The appliance's own clock, usually PTP- or GPS-synced | Switch in, out | Wire-to-wire TTT, RTT | Sees only packets; pair them by sequence number and order ID |
+| ⑤ Exchange timestamps | Two: the exchange's clock stamps the send time, ours stamps the receive time, both synced to UTC | Exchange send, our receive | Exchange to us (one way) | The error is both sides' sync errors added, about 20 ns–1 µs; some exchanges stamp only to the ms; inside the exchange is out of reach |
 
 - **Which to use**: for tuning your own code, ① and ②; for reporting TTT externally, ③ or ④; when you suspect the network or the exchange got slower, RTT and ⑤.
 - **When two points subtract directly**: when they are on the same clock. ① and ② are on this machine's TSC, ③ on the NIC, ④ on the capture appliance; comparing across clocks needs syncing first, and the error is the sync error.
+- **PTP is not a sixth method**: it is a clock-sync protocol (Precision Time Protocol). A master clock, usually fed by GPS, sends messages at intervals; each machine's NIC hardware-timestamps them, works out from the round trip how far its own clock is off, and steers it back. It only makes different devices' clocks tell the same time and measures no leg of the trading path itself. ③, ④ and ⑤ can be compared across devices because of it.
 - **Two things that don't take times**: `perf` tells you which function the time goes to (1.4), and the histogram turns the measured differences into percentiles (1.2, item 5).

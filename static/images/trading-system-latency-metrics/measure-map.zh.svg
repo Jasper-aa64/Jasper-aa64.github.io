@@ -98,23 +98,23 @@
 <text class="lb" x="804" y="308" fill="#0969da">处理</text>
 <line x1="840" y1="304" x2="862" y2="304" stroke="#bc4c00" stroke-width="3" stroke-linecap="round"/>
 <text class="lb" x="868" y="308" fill="#bc4c00">排队</text>
-<text class="rh" x="20" y="346">③ 网卡硬件时间戳 · 网卡的时钟：收包、发包时由网卡自己打 → 线上 TTT、RTT</text><text class="rd" x="20" y="364">两头都是网卡的时钟，直接相减；要和 T7 比（量内核那段），得先把网卡时钟和系统时钟对上</text>
+<text class="rh" x="20" y="346">③ 网卡硬件时间戳 · 网卡上的时钟（PTP 对时）：收包、发包时由网卡自己打 → 线上 TTT、RTT</text><text class="rd" x="20" y="364">两头都是网卡的时钟，直接相减；要和 T7 比（量内核那段），得先把网卡时钟和系统时钟对上</text>
 <line x1="213.0" y1="388" x2="859.0" y2="388" stroke="#9a6700" stroke-width="3" stroke-linecap="round"/>
 <circle cx="213.0" cy="388" r="4.5" fill="#9a6700"/>
 <path d="M859.0 388 L1042.0 388 L1042.0 400 L871.0 400" fill="none" stroke="#cf222e" stroke-width="2" marker-end="url(#arr)"/>
 <circle cx="859.0" cy="388" r="4.5" fill="#9a6700"/>
 <circle cx="859.0" cy="400" r="4.5" fill="#9a6700"/>
 <text class="lb" x="1048.0" y="398" fill="#cf222e">RTT</text>
-<text class="rh" x="20" y="430">④ 交换机镜像 + 抓包设备 · 设备自己的时钟：进出的包各复制一份给它 → 线上 TTT、RTT</text><text class="rd" x="20" y="448">在服务器外面，不占服务器的 CPU；只看得到包，要按行情序号、订单号配对</text>
+<text class="rh" x="20" y="430">④ 交换机镜像 + 抓包设备 · 设备自己的时钟（PTP / GPS 对时）：进出的包各复制一份给它 → 线上 TTT、RTT</text><text class="rd" x="20" y="448">在服务器外面，不占服务器的 CPU；只看得到包，要按行情序号、订单号配对</text>
 <line x1="144.0" y1="472" x2="928.0" y2="472" stroke="#8250df" stroke-width="3" stroke-linecap="round"/>
 <circle cx="144.0" cy="472" r="4.5" fill="#8250df"/>
 <path d="M928.0 472 L1042.0 472 L1042.0 484 L940.0 484" fill="none" stroke="#cf222e" stroke-width="2" marker-end="url(#arr)"/>
 <circle cx="928.0" cy="472" r="4.5" fill="#8250df"/>
 <circle cx="928.0" cy="484" r="4.5" fill="#8250df"/>
 <text class="lb" x="1048.0" y="482" fill="#cf222e">RTT</text>
-<text class="rh" x="20" y="514">⑤ 交易所时间戳 · PTP 对过时的时钟：行情里带着交易所发出的时间 → 交易所到我们这一段</text><text class="rd" x="20" y="532">两台机器、两套时钟，误差就是对时的误差，约 20 ns–1 µs；交易所内部（T1–T6）量不到</text>
+<text class="rh" x="20" y="514">⑤ 交易所时间戳 · 两套对到 UTC 的时钟：交易所打发出时间，自己打收到时间 → 交易所到我们这一段</text><text class="rd" x="20" y="532">误差是两边对时误差之和，约 20 ns–1 µs；有的交易所时间戳只到 ms；交易所内部（T1–T6）量不到</text>
 <line x1="60.0" y1="556" x2="213.0" y2="556" stroke="#1a7f37" stroke-width="3" stroke-linecap="round"/>
 <circle cx="60.0" cy="556" r="4.5" fill="#1a7f37"/>
 <circle cx="213.0" cy="556" r="4.5" fill="#1a7f37"/>
-<text class="ft" x="20" y="604">同一个时钟上的两个点才能直接相减，不同时钟要先对时。量到的差值都送进直方图，再读分位数（1.2）。</text>
+<text class="ft" x="20" y="604">同一个时钟上的两个点才能直接相减，不同时钟要先对时（PTP 做的就是这件事）。量到的差值都送进直方图，再读分位数（1.2）。</text>
 </svg>

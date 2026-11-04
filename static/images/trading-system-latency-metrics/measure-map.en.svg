@@ -98,23 +98,23 @@
 <text class="lb" x="804" y="308" fill="#0969da">processing</text>
 <line x1="874" y1="304" x2="896" y2="304" stroke="#bc4c00" stroke-width="3" stroke-linecap="round"/>
 <text class="lb" x="902" y="308" fill="#bc4c00">queueing</text>
-<text class="rh" x="20" y="346">③ NIC hardware timestamps · the NIC's clock: stamped by the NIC on receive and send → wire-to-wire TTT, RTT</text><text class="rd" x="20" y="364">Both ends on the NIC's clock, subtract directly; comparing with T7 (the kernel leg) first needs the NIC clock tied to the system clock</text>
+<text class="rh" x="20" y="346">③ NIC hardware timestamps · the NIC's clock (PTP-synced): stamped by the NIC on receive and send → wire-to-wire TTT, RTT</text><text class="rd" x="20" y="364">Both ends on the NIC's clock, subtract directly; comparing with T7 (the kernel leg) first needs the NIC clock tied to the system clock</text>
 <line x1="213.0" y1="388" x2="859.0" y2="388" stroke="#9a6700" stroke-width="3" stroke-linecap="round"/>
 <circle cx="213.0" cy="388" r="4.5" fill="#9a6700"/>
 <path d="M859.0 388 L1042.0 388 L1042.0 400 L871.0 400" fill="none" stroke="#cf222e" stroke-width="2" marker-end="url(#arr)"/>
 <circle cx="859.0" cy="388" r="4.5" fill="#9a6700"/>
 <circle cx="859.0" cy="400" r="4.5" fill="#9a6700"/>
 <text class="lb" x="1048.0" y="398" fill="#cf222e">RTT</text>
-<text class="rh" x="20" y="430">④ Switch mirror + capture appliance · its own clock: a copy of every packet in and out → wire-to-wire TTT, RTT</text><text class="rd" x="20" y="448">Outside the server, costs it no CPU; it only sees packets, so pair them by sequence number and order ID</text>
+<text class="rh" x="20" y="430">④ Switch mirror + capture appliance · its own clock (PTP/GPS-synced): a copy of every packet → wire-to-wire TTT, RTT</text><text class="rd" x="20" y="448">Outside the server, costs it no CPU; it only sees packets, so pair them by sequence number and order ID</text>
 <line x1="144.0" y1="472" x2="928.0" y2="472" stroke="#8250df" stroke-width="3" stroke-linecap="round"/>
 <circle cx="144.0" cy="472" r="4.5" fill="#8250df"/>
 <path d="M928.0 472 L1042.0 472 L1042.0 484 L940.0 484" fill="none" stroke="#cf222e" stroke-width="2" marker-end="url(#arr)"/>
 <circle cx="928.0" cy="472" r="4.5" fill="#8250df"/>
 <circle cx="928.0" cy="484" r="4.5" fill="#8250df"/>
 <text class="lb" x="1048.0" y="482" fill="#cf222e">RTT</text>
-<text class="rh" x="20" y="514">⑤ Exchange timestamps · PTP-synced clocks: data carries the exchange's send time → the exchange-to-us leg</text><text class="rd" x="20" y="532">Two machines, two clocks: the error is the sync error, about 20 ns–1 µs; inside the exchange (T1–T6) is out of reach</text>
+<text class="rh" x="20" y="514">⑤ Exchange timestamps · two UTC-synced clocks: the exchange stamps the send, we stamp the receive → exchange to us</text><text class="rd" x="20" y="532">The error is both sides' sync errors added, about 20 ns–1 µs; some exchanges stamp only to the ms; T1–T6 are out of reach</text>
 <line x1="60.0" y1="556" x2="213.0" y2="556" stroke="#1a7f37" stroke-width="3" stroke-linecap="round"/>
 <circle cx="60.0" cy="556" r="4.5" fill="#1a7f37"/>
 <circle cx="213.0" cy="556" r="4.5" fill="#1a7f37"/>
-<text class="ft" x="20" y="604">Only two dots on the same clock subtract directly; different clocks need syncing first. Every difference goes into a histogram for percentiles (1.2).</text>
+<text class="ft" x="20" y="604">Only two dots on the same clock subtract directly; different clocks need syncing first (which is what PTP does). Every difference goes into a histogram for percentiles (1.2).</text>
 </svg>
