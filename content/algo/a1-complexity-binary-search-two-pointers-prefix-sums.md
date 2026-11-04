@@ -39,7 +39,15 @@ With $n$ up to $2 \times 10^5$, $O(n^2)$ is $4 \times 10^{10}$ operations and ce
 | `lower_bound` on a `vector` | $O(\log n)$ | |
 | `std::lower_bound` on a `set` | $O(n)$ | `set` iterators are not random access; call the member `s.lower_bound(x)` |
 
-**Many time-limit failures are not a wrong algorithm but a wrong interface.** Besides the `set` row, two more are common: `memset` of a $10^6$ array in every test case, which costs $T \times 10^6$ over $T$ cases; and heavy I/O without unsynchronising. For large input, start with `ios::sync_with_stdio(false); cin.tie(nullptr);` and end lines with `'\n'`, not `endl` (which flushes every time).
+**Many time-limit failures are not a wrong algorithm but a wrong interface.** The `set` row is one; two more are common:
+
+1. **`memset` in every test case**
+   - **Cost**: clearing a $10^6$ array per case costs $T \times 10^6$ over $T$ cases. With $T$ up to $10^4$ that is $10^{10}$, a certain timeout.
+   - **Fix**: clear only the first $n$ entries this case uses, e.g. `fill(a, a + n + 1, 0)`, or allocate per case, e.g. `vector<int> a(n + 1)`.
+2. **Heavy I/O without unsynchronising**
+   - **Why it is slow**: by default `cin` / `cout` stay in sync with C's `scanf` / `printf`, so they cannot buffer large blocks on their own; `cin` is also tied to `cout`, flushing output before every read.
+   - **Fix**: start with `ios::sync_with_stdio(false); cin.tie(nullptr);`. After that, do not mix in `scanf` / `printf`.
+   - **Line endings**: use `'\n'`, not `endl`. `endl` flushes the buffer every time.
 
 ## 2. Binary search: a boundary on a monotone predicate
 
