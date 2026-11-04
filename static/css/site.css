@@ -705,6 +705,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   line-height: 1;
   letter-spacing: -.015em;
 }
+#recent .home-sec__head h2 { font-size: clamp(24px, 2.6vw, 32px); }
 .home-sec__more {
   display: inline-flex;
   gap: 6px;

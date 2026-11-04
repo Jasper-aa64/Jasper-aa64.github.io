@@ -3,6 +3,7 @@ title: "低时延交易 —— 上下文切换、页表与 TLB"
 date: 2026-11-04
 slug: "low-latency-context-switch-page-table-tlb"
 list_after: "low-latency-memory-latency-bandwidth"
+recent: false
 description: "线程切换和进程切换的直接开销都在 1–5 µs，两者在这一步只差要不要改写 CR3，真正的差别在切换之后 TLB 和缓存还热不热。页表每个进程一份，CR3 和 TLB 每个核一份，PCID 让换进程不必清空 TLB。TLB 没有 MESI，改页表要发 IPI 通知此刻 CR3 还指着这份页表的核，绑核和 isolcpus 都挡不住；热路径上 free 一大块内存、munmap、透明大页合并、NUMA 自动平衡、fork 都会触发它。最后是怎么看出来。"
 summary: "线程比进程轻，轻在切换之后 TLB 和缓存还能接着用，不在切换本身。TLB 没有 MESI：同一个进程里任何一个线程改了页表，此刻还装着这份页表的核都要被打断一次，绑核和 isolcpus 挡不住，所以热路径进程跑起来以后地址空间只读不改。"
 chapter: 1

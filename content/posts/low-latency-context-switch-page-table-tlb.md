@@ -3,6 +3,7 @@ title: "Low-Latency Trading — Context Switches, Page Tables and the TLB"
 date: 2026-11-04
 slug: "low-latency-context-switch-page-table-tlb"
 list_after: "low-latency-memory-latency-bandwidth"
+recent: false
 description: "A thread switch and a process switch both cost 1–5 µs directly, and at that step they differ only in whether CR3 is rewritten; the real difference comes afterwards, in whether the TLB and caches are still warm. Page tables are per process, CR3 and the TLB are per core, and PCID lets a process switch skip flushing the TLB. The TLB has no MESI: changing a page table means sending an IPI to every core whose CR3 still points at it, which neither pinning nor isolcpus can stop. On the hot path, freeing a big block, munmap, transparent huge page collapsing, automatic NUMA balancing and fork all trigger it. Finally, how to see it happening."
 summary: "Threads are lighter than processes because the TLB and caches stay usable after the switch, not because the switch itself is cheaper. The TLB has no MESI: when any thread in a process changes the page tables, every core still holding that page table gets interrupted, and pinning and isolcpus cannot prevent it, so once a hot-path process is running its address space is read-only."
 chapter: 1

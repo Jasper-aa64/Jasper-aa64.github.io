@@ -89,8 +89,9 @@
     <a class="home-sec__more" href="{{ "archives/" | relLangURL }}">{{ i18n "viewArchive" }} <span aria-hidden="true">→</span></a>
   </header>
   <div class="card-list">
-    {{/* Light-pass posts (front matter `light: true`) keep their number but stay off this list. */}}
-    {{ $cards := slice }}{{ range $recent }}{{ if not .Params.light }}{{ $cards = $cards | append . }}{{ end }}{{ end }}
+    {{/* Light-pass posts (front matter `light: true`) keep their number but stay off this list;
+         `recent: false` keeps any other post off it too (user 2026-11-04: the context-switch topic). */}}
+    {{ $cards := slice }}{{ range $recent }}{{ if not (or .Params.light (eq .Params.recent false)) }}{{ $cards = $cards | append . }}{{ end }}{{ end }}
     {{ range first 8 $cards }}{{ partial "post-card.html" . }}{{ end }}
   </div>
 </section>
