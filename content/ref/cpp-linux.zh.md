@@ -22,7 +22,7 @@ toc: true
 
 | 段 | 放什么 | 权限 | 大小怎么定 | `/proc/<pid>/maps` 里 |
 |---|---|---|---|---|
-| 内核空间 | 内核代码和数据、各进程的页表、各线程的内核栈 | 用户态不能访问 | 高 128 TiB | 不显示 |
+| 内核空间 | 内核代码和数据、各进程的页表、各线程的内核栈 | [用户态](/zh/ref/user-kernel-mode/)不能访问 | 高 128 TiB | 不显示 |
 | 主线程的栈 | 局部变量、参数、返回地址 | `rw-` | 上限 `ulimit -s`，默认 8 MiB | `[stack]` |
 | vDSO | `clock_gettime` 这类不进内核的系统调用 | `r-x` | 一两页 | `[vvar]` `[vdso]` |
 | mmap 区 | `.so`、大块 malloc、其他线程的栈、文件映射、共享内存 | 看映射 | 用多少映射多少 | 文件名，或者没有名字 |
@@ -222,6 +222,7 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 | [线程同步](/zh/ref/thread-sync/) | 互斥锁、条件变量、信号量、读写锁、死锁 | 进程地图：线程共享的段 |
 | [线程池和 future](/zh/ref/thread-pool-future/) | `std::thread`、promise、`async`、手写线程池 | 进程地图：每个线程的栈 |
 | **进程和文件** | | |
+| [用户态和内核态](/zh/ref/user-kernel-mode/) | 特权级、三种入口、进出时硬件和内核各做什么、回到哪一条、代价 | 进程地图：内核空间 |
 | [进程和线程](/zh/ref/process-thread-fork/) | `fork`、写时复制、共享与独占、进程状态 | 进程地图、从源码到进程：`execve` |
 | [进程间通信](/zh/ref/ipc/) | 管道、共享内存、信号、Unix socket | 进程地图：mmap 区；IO 地图 |
 | [文件 IO](/zh/ref/file-io/) | fd 三层结构、重定向、stdio 缓冲、inode、fsync | IO 地图：写文件 |
