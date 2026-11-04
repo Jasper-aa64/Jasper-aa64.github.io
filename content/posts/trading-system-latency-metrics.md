@@ -104,6 +104,14 @@ Saying a trading system has "3 µs latency" carries no information by itself. 3 
    - **This is called coordinated omission**: the measurement stalls along with the system under test, so the slow samples that should have appeared during the stall are never recorded.
    - **Fix**: start from the arrival time of the message (T7, or the NIC timestamp), not from when processing begins (T9). In load tests, measure from the planned send time, not from when the request actually went out.
 
+> **How a p99 is actually measured: from marks to numbers**
+>
+> 1. **Mark**: read the TSC once when a message arrives (T7) and keep it with the message; read it again when the order is written out (T12). The hot path only reads ticks: no conversion, no formatting, no locks, no allocation ([#20](/posts/tsc-latency-measurement/) 1.5).
+> 2. **Leave the hot path**: push the tick difference into an SPSC queue, and the hot thread goes straight back to the next message.
+> 3. **Aggregate**: the logging thread converts ticks to ns and adds them to the fixed-width histogram (item 5 above). Each sample costs one division and one increment, no sorting.
+> 4. **Report**: periodically read p50, p99, p999 and max from the histogram, together with the sample count and the load at the time (item 2). Precision is one bucket width; for samples beyond the histogram's range only the maximum is known.
+> 5. **Two easy mistakes**: start the clock at arrival, or queueing is hidden (item 6); collect enough samples, at least tens of thousands for p999 (item 4).
+
 ### 1.3 Where to Mark: Functions Within a Component, Queueing Between Components
 
 1. **Within a component: a pair of marks around each key function**
