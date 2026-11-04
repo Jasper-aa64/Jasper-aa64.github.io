@@ -19,7 +19,7 @@ math: true
 
 | 题目 | 答到哪一层 | 本站 |
 |---|---|---|
-| ★ `vector` 扩容 | 容量满了就申请一块更大的内存（libstdc++ 是 2 倍，MSVC 是 1.5 倍），把元素搬过去，释放旧的，所以 `push_back` 均摊 O(1)。搬完以后旧的迭代器、指针、引用全部失效。元素的移动构造是 `noexcept` 才用移动，否则用拷贝，为的是扩容中途抛异常时原数组还完好。知道大小就先 `reserve` | [STL 容器](/zh/ref/stl-containers/) |
+| ★ `vector` 扩容 | 容量满了就申请一块更大的内存（libstdc++ 是 2 倍，MSVC 是 1.5 倍），把元素搬过去，释放旧的，所以 `push_back` 均摊 O(1)。搬完以后旧的迭代器、指针、引用全部失效。元素的移动构造是 `noexcept` 才用移动，否则用拷贝，为的是扩容中途抛异常时原数组还完好。追问“延迟尖峰怎么避免”：均摊 O(1) 是平均，扩容那一次是 O(n)，大块还要缺页、`munmap`，可达几 ms；办法是启动时 `reserve` 到上限并把页先碰一遍，每轮 `clear()` 复用，上限确定就用定长环形缓冲区，必须能长就换 `deque` 这种不搬旧元素的结构 | [STL 容器](/zh/ref/stl-containers/#vector-growth) |
 | ★ `map` 和 `unordered_map` | `map` 是红黑树，有序，查找 O(log n)；`unordered_map` 是哈希表，桶数组加链表节点，平均 O(1)，最坏 O(n)。元素数超过“桶数 × 负载因子（默认 1）”就 rehash，所有元素重新分桶，迭代器失效，但指向元素的指针和引用不失效。热路径上按代码查找，能用数组下标就别用哈希表 | [STL 容器](/zh/ref/stl-containers/)、[三种有序结构](/zh/ref/skiplist-rbtree-bplustree/) |
 | ★ `shared_ptr` 怎么实现 | 对象指针加一个控制块，控制块里有强引用计数、弱引用计数和删除器。计数用原子操作增减，所以线程安全的是计数本身，不是指向的对象。`make_shared` 把对象和控制块一次分配。两个对象互相持有 `shared_ptr` 会循环引用、永远不释放，其中一边改成 `weak_ptr` | [shared_ptr](/zh/ref/shared-ptr/)、[unique_ptr 和 weak_ptr](/zh/ref/unique-ptr-weak-ptr/) |
 | ★ `unique_ptr` 的开销 | 独占所有权，只能移动不能拷贝。用默认删除器时和裸指针一样大，解引用也一样快，所以没有理由用裸指针管理所有权 | [unique_ptr 和 weak_ptr](/zh/ref/unique-ptr-weak-ptr/) |
