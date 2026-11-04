@@ -189,6 +189,36 @@
       inner.style.setProperty("--pad", pad + "px");
       inner.style.setProperty("--bt", Math.max(4, Math.round(rr.top - br.bottom)) + "px");
     };
+    // Filters listed by number, low to high (user 2026-11-04), instead of the page's newest-first order.
+    // Numbered posts go by number; a topic post goes right after the post it names in `list_after`,
+    // otherwise after the last post dated on or before it, so it keeps its place between the same neighbours.
+    var ascending = { "lowlatency/ch1": true };
+    var ascOrder = function (key, sub) {
+      var cards = entries.filter(function (el) { return el.dataset.series === key && el.dataset.sub === sub; });
+      var bySlug = {};
+      cards.forEach(function (el) { bySlug[el.dataset.slug] = el; });
+      var out = cards.filter(function (el) { return el.dataset.num; })
+        .sort(function (a, b) { return a.dataset.num - b.dataset.num; });
+      var topics = cards.filter(function (el) { return !el.dataset.num; })
+        .sort(function (a, b) { return a.dataset.date < b.dataset.date ? -1 : a.dataset.date > b.dataset.date ? 1 : 0; });
+      var anchored = topics.filter(function (el) { return bySlug[el.dataset.after]; });
+      topics.filter(function (el) { return !bySlug[el.dataset.after]; }).forEach(function (el) {
+        var i = out.length;
+        while (i > 0 && out[i - 1].dataset.date > el.dataset.date) i--;
+        out.splice(i, 0, el);
+      });
+      anchored.forEach(function (el) {
+        var i = out.indexOf(bySlug[el.dataset.after]) + 1;
+        while (i < out.length && out[i].dataset.after === el.dataset.after) i++;
+        out.splice(i, 0, el);
+      });
+      return out.concat(entries.filter(function (el) { return out.indexOf(el) < 0; }));
+    };
+    var reorder = function (order) {
+      var now = Array.prototype.slice.call(list.querySelectorAll(":scope > .card"));
+      if (order.every(function (el, i) { return now[i] === el; })) return;
+      order.forEach(function (el) { list.appendChild(el); });
+    };
     var first = true;
     var apply = function (key, sub, push) {
       if (!tops.some(function (b) { return b.dataset.filter === key; })) { key = "all"; sub = ""; }
@@ -221,6 +251,7 @@
       }
 
       var show = function () {
+        if (list) reorder(ascending[key + "/" + sub] ? ascOrder(key, sub) : entries);
         var shown = 0;
         entries.forEach(function (el) {
           var vis = key === "all" || (el.dataset.series === key && (!sub || el.dataset.sub === sub));

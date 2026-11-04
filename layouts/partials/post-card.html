@@ -3,7 +3,8 @@
 {{ $s := partial "series.html" . }}
 {{ $foreign := ne .Language.Lang site.Language.Lang }}
 {{ $thumb := partial "thumb.html" . }}
-<article class="card{{ if $thumb }} has-thumb{{ end }}" data-series="{{ $s.key }}" data-sub="{{ $s.sub }}">
+{{- /* data-num / data-date / data-slug / data-after: the Blog page's 一、低延迟系统开发 filter lists by number, low to high (site.js). */ -}}
+<article class="card{{ if $thumb }} has-thumb{{ end }}" data-series="{{ $s.key }}" data-sub="{{ $s.sub }}"{{ if eq $s.key "lowlatency" }} data-num="{{ strings.TrimPrefix "#" $s.num }}" data-date="{{ .Date.Format `2006-01-02` }}" data-slug="{{ .Params.slug | default .File.TranslationBaseName }}"{{ with .Params.list_after }} data-after="{{ . }}"{{ end }}{{ end }}>
   <a class="card__link" href="{{ .RelPermalink }}" aria-label="{{ i18n "readAria" }}: {{ .Title }}"></a>
   <div class="card__main">
     <div class="card__meta">
