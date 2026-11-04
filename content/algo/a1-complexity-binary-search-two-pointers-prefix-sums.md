@@ -96,7 +96,10 @@ int min_speed(const vector<int>& piles, long long h) {
 
 Eating as fast as the largest pile always finishes, so the upper bound is that plus one. The cost is $O(n \log V)$, with $V$ the largest pile.
 
-The signals: the problem asks for "the smallest possible maximum", "the largest possible minimum" or "the least amount needed", and checking a given answer is easy.
+> **Signals for binary search on the answer**: both of these hold.
+>
+> - **The question**: it asks for "the smallest possible maximum", "the largest possible minimum" or "the least amount needed".
+> - **Easy to check**: given a candidate answer, deciding whether it works is easy.
 
 On real numbers, do not stop on an epsilon; run a fixed 100 iterations. Each one halves the interval, so 100 is far more precision than needed, and floating-point error can never cause an endless loop.
 
