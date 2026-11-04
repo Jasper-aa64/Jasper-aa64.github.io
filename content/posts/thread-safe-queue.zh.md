@@ -1,6 +1,7 @@
 ---
 title: "交易系统笔记 #18：线程安全队列"
 date: 2026-10-27
+list_after: "cpu-affinity-core-isolation-numa"
 slug: "thread-safe-queue"
 description: "无锁 SPSC 环靠的是每个下标只有一个写者。这个前提一被打破，就要换写法：消费者空了要睡，用一把锁加两个条件变量写阻塞队列，醒来要再查条件，条件不在锁里改就会丢失唤醒；几个生产者往一个环里写，rte_ring 先用 CAS 抢位置、再按顺序发布，一个生产者停住后面全停；Disruptor 用 fetch_add 抢号、每一格标圈数，生产者不互相等，消费者停在空洞前。最后是队列满了的三种做法：阻塞、丢弃、覆盖。"
 summary: "从一把锁到多生产者：阻塞队列的条件变量和丢失唤醒，rte_ring 的两对下标和按顺序发布，Disruptor 的可用标记，以及队列满了该阻塞、丢弃还是覆盖。"

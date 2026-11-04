@@ -1,6 +1,7 @@
 ---
 title: "交易系统笔记 #20：用 TSC 测延迟"
 date: 2026-11-02
+list_after: "cpu-affinity-core-isolation-numa"
 slug: "tsc-latency-measurement"
 description: "想知道一段代码花了多久，最直接的办法是在两头各读一次 TSC。可 TSC 数的是按固定频率走的时间，不是核心跑了多少周期；rdtsc 不等前面的指令做完，测短区间要加栅栏，栅栏又让测量本身变重；rdtscp 顺带告诉你读数时在哪个核，跨核比较读数靠的是各核 TSC 同步。热路径上只记 tick，换算和输出交给别的线程。"
 summary: "TSC 读到的是什么、什么时候读到、在哪个核上读到，热路径上打点该怎么记，以及 tick 怎么换算成 ns：频率从哪来、怎么自己校准。"

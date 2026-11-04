@@ -1,6 +1,7 @@
 ---
 title: "Trading System Notes #21: Measuring Trading-System Performance"
 date: 2026-11-03
+list_after: "cpu-affinity-core-isolation-numa"
 slug: "trading-system-latency-metrics"
 description: "A latency figure first has to say which leg it covers: TTT runs from receiving market data to sending the order, software marks only reach thread boundaries, and the NIC and kernel legs need hardware timestamps; RTT is mostly network and exchange. Report the distribution: both the mean and p99 can miss a 0.2% spike. Marking every thread boundary and joining the records per message shows whether time goes into processing or into queueing."
 summary: "What TTT and RTT each cover, why to report p50, p99 and p999 instead of the mean, how marks at thread boundaries separate processing from queueing, and how to use the latency table as a budget."

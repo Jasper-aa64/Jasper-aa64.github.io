@@ -1,6 +1,7 @@
 ---
 title: "Trading System Notes #20: Measuring Latency with the TSC"
 date: 2026-11-02
+list_after: "cpu-affinity-core-isolation-numa"
 slug: "tsc-latency-measurement"
 description: "The most direct way to time a piece of code is to read the TSC at both ends. But the TSC counts time at a fixed rate, not the cycles the core actually ran; rdtsc does not wait for earlier instructions to finish, so short regions need fences, and fences make the measurement itself heavier; rdtscp also tells you which core you read on, and comparing readings across cores relies on the cores' TSCs being synchronized. On the hot path, record ticks only and leave conversion and output to another thread."
 summary: "What a TSC reading means, when it is taken, which core it is taken on, how to record timestamps on the hot path, and how ticks become ns: where the frequency comes from and how to calibrate it yourself."

@@ -1,6 +1,7 @@
 ---
 title: "Trading System Notes #19: Scheduling Policies, Priority Inversion and Kernel Tuning"
 date: 2026-10-29
+list_after: "cpu-affinity-core-isolation-numa"
 slug: "scheduling-priority-inversion-kernel-tuning"
 description: "Normal scheduling only guarantees a share, so a hot thread on a shared core can wait out a time slice of several ms; a real-time priority makes it run as soon as it is ready, but brings RT throttling, starved kernel threads and same-core spin deadlocks. When a high-priority and a low-priority thread share a lock, a thread in between can make the wait unbounded: that is priority inversion, fixed by priority inheritance or priority ceilings, and more thoroughly by never sharing locks with low-priority threads. Then kernel preemption modes, PREEMPT_RT, a layer-by-layer checklist from BIOS to sysctl, and tuned."
 summary: "Who runs first and for how long: scheduling classes and time slices, three traps of real-time priorities, two fixes for priority inversion, why HFT often skips PREEMPT_RT, and which knobs a low-latency box turns from BIOS to sysctl."

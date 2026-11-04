@@ -39,7 +39,14 @@
     </div>
   </div>
   <div class="card-list" data-list>
-    {{ range sort (sort $posts "Title" "desc") "Date" "desc" }}{{ partial "post-card.html" . }}{{ end }}
+    {{/* Newest first, except posts with front matter `list_after: "<slug>"`: they are listed right below that post
+         (user 2026-11-04: #18–#21 go after #1), keeping the same newest-first order among themselves. */}}
+    {{ $sorted := sort (sort $posts "Title" "desc") "Date" "desc" }}
+    {{ range $sorted }}{{ if not .Params.list_after }}
+      {{ partial "post-card.html" . }}
+      {{ $anchor := .Params.slug | default .File.TranslationBaseName }}
+      {{ range $sorted }}{{ if eq .Params.list_after $anchor }}{{ partial "post-card.html" . }}{{ end }}{{ end }}
+    {{ end }}{{ end }}
   </div>
   <p class="empty-note" data-empty hidden>{{ i18n "emptyFilter" }}</p>
 

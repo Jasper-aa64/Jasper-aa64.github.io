@@ -1,6 +1,7 @@
 ---
 title: "Trading System Notes #18: Thread-Safe Queues"
 date: 2026-10-27
+list_after: "cpu-affinity-core-isolation-numa"
 slug: "thread-safe-queue"
 description: "A lock-free SPSC ring works because each index has exactly one writer. Once that stops being true, the code has to change: a consumer with nothing to do should sleep, so a blocking queue uses one mutex and two condition variables, rechecks its condition after waking, and loses wakeups if the condition is changed outside the mutex; several producers sharing one ring make rte_ring claim a slot with CAS and publish in claim order, so one stalled producer stalls the rest; Disruptor claims with fetch_add and marks each slot with its lap, so producers never wait for each other and the consumer stops at the gap. Last, the three things a full queue can do: block, drop, or overwrite."
 summary: "From one mutex to many producers: condition variables and lost wakeups in a blocking queue, rte_ring's two pairs of indices and in-order publishing, Disruptor's availability flags, and whether a full queue should block, drop, or overwrite."

@@ -1,6 +1,7 @@
 ---
 title: "交易系统笔记 #19：调度策略、优先级反转与内核调优"
 date: 2026-10-29
+list_after: "cpu-affinity-core-isolation-numa"
 slug: "scheduling-priority-inversion-kernel-tuning"
 description: "普通调度只保证份额，同一个核上的热线程可能要等对方一个几 ms 的时间片；实时优先级让它一就绪就跑，但会碰上 RT 限流、饿死内核线程和同核自旋死等。高优先级线程和低优先级线程共用一把锁时，中间的线程插进来会让等待没有上界，这是优先级反转，修法是优先级继承和优先级天花板，更彻底的是热线程不和低优先级线程共用锁。最后是内核抢占模式、PREEMPT_RT，以及从 BIOS 到 sysctl 的一张按层清单和 tuned。"
 summary: "谁先跑、跑多久：调度类和时间片，实时优先级的三个坑，优先级反转的两种修法，PREEMPT_RT 为什么 HFT 常常不用，以及一台低延迟机器从 BIOS 到 sysctl 要动哪些开关。"
