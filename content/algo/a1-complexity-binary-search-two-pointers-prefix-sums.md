@@ -155,7 +155,12 @@ The second one relies on all elements being positive: then a larger window has a
 
 ### 3.3 The other kind: closing in from both ends of a sorted array
 
-To find two numbers summing to $t$ in a sorted array, start one pointer at each end: if the sum is too small move the left one right, if too large move the right one left. Nothing is missed: when the sum exceeds $t$, `a[r]` plus any remaining `a[l']` ($l' \ge l$) is even larger, so `r` can be discarded; symmetrically for `l`. Three-sum is one loop over the first number plus this squeeze on the rest, $O(n^2)$.
+To find two numbers summing to $t$ in a sorted array, start one pointer at each end: if the sum is too small move the left one right, if too large move the right one left. Each step discards one index that cannot be part of any solution, so nothing is missed:
+
+- **When the sum exceeds $t$, $r$ can go**: every remaining $l' \in [l, r)$ has $a_{l'} \ge a_l$, so $a_{l'} + a_r \ge a_l + a_r > t$. $r$ has already been paired with the smallest remaining number and the sum is still too large, so no partner works and `r--` loses no solution.
+- **When the sum is below $t$, $l$ can go**: every remaining $r' \in (l, r]$ has $a_l + a_{r'} \le a_l + a_r < t$. $l$ has already been paired with the largest remaining number and the sum is still too small, so `l++` loses no solution either.
+
+Three-sum is one loop over the first number plus this squeeze on the rest, $O(n^2)$.
 
 ## 4. Prefix sums and difference arrays
 
