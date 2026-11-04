@@ -183,12 +183,27 @@ long long count_sum_k(const vector<int>& a, long long k) {
 }
 ```
 
-The initial 0 in `seen` accounts for subarrays starting at the beginning. Negative numbers are fine here, because nothing relies on monotonicity. That is exactly the line between this and a sliding window:
+The initial 0 in `seen` accounts for subarrays starting at the beginning. Negative numbers are fine here, yet a sliding window would fail. The two methods rest on different things:
 
-> **Prefix sums plus a hash map, or a sliding window**: check for negative numbers.
+1. **A sliding window rests on the window sum being monotone**
+   - **The window sum must move with the window size**: extending the right end $r$ raises the sum, advancing the left end $l$ lowers it. This holds only when every element is positive.
+   - **Monotonicity is what lets the left end only move right**: when the sum overshoots, move $l$ right; the sum can only drop, closing in on the target. A discarded left end paired with any later $r$ only gives a larger sum, so it cannot be a solution and nothing is missed (3.2).
+   - **With negatives, discarding a left end goes wrong**: a later negative can pull the sum back down, so the discarded left end was still usable.
+   - **Example**: $a = [3, -2, 1]$, find a subarray summing to 2; the answer is the whole array. At $r = 0$ the window sees a sum of 3, larger than 2, and throws the 3 away; it cannot know the later $-2$ would bring the sum back to 2, so the solution is missed.
+2. **Prefix sums plus a hash map rest on an equation**
+   - **A range sum equal to $k$ becomes a lookup of one prefix sum**: the sum of $[l, r)$ is $S_r - S_l$, so
+
+     $$S_r - S_l = k \iff S_l = S_r - k$$
+
+   - **While scanning right ends, count the matching left ends**: a hash map records how often each earlier prefix sum appeared; at each $r$, look up the count of $S_r - k$ in $O(1)$.
+   - **It only asks whether the equation holds**: whether values rise or fall, whether there are negatives, whether the array is sorted, none of it matters.
+   - **Example**: again $a = [3, -2, 1]$, $k = 2$. The prefix sums are $0, 3, 1, 2$. At the last one, $S_3 = 2$, we look for $S_l = 0$; the map holds one ($S_0$), so the count is 1, the whole array.
+   - **It only answers questions that can be written as an equation**: "sum equal to $k$" works; "shortest subarray with sum at least $k$" is an inequality, and with negatives it needs prefix sums plus a monotonic queue (A2).
+
+> **Prefix sums plus a hash map, or a sliding window**: first check for negative numbers.
 >
-> - **Negatives present**: use prefix sums and a hash map, which do not rely on monotonicity.
-> - **All positive**: only then does a sliding window work, since the window sum grows with the window.
+> - **With negatives, use prefix sums and a hash map**: the monotonicity a sliding window needs is gone, and discarding left ends loses solutions.
+> - **With all positives, either works**: a sliding window needs $O(1)$ extra space, prefix sums plus a hash map need $O(n)$.
 
 2D prefix sums: $S_{i,j}$ is the sum of the top-left $i \times j$ rectangle. By inclusion-exclusion,
 
