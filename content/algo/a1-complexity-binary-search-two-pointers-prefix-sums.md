@@ -190,8 +190,8 @@ The initial 0 in `seen` accounts for subarrays starting at the beginning. Negati
    - **Monotonicity is what lets the left end only move right**: when the sum overshoots, move $l$ right; the sum can only drop, closing in on the target. A discarded left end paired with any later $r$ only gives a larger sum, so it cannot be a solution and nothing is missed (3.2).
    - **With negatives, discarding a left end goes wrong**: a later negative can pull the sum back down, so the discarded left end was still usable.
    - **Example**: $a = [3, -2, 1]$, find a subarray summing to 2; the answer is the whole array. At $r = 0$ the window sees a sum of 3, larger than 2, and throws the 3 away; it cannot know the later $-2$ would bring the sum back to 2, so the solution is missed.
-2. **Prefix sums plus a hash map rest on an equation**
-   - **A range sum equal to $k$ becomes a lookup of one prefix sum**: the sum of $[l, r)$ is $S_r - S_l$, so
+2. **Prefix sums plus a hash map rest on prefix sums turning the problem into an equation**
+   - **Prefix sums turn "find a subarray" into "find one prefix sum"**: with $S_i = a_0 + a_1 + \dots + a_{i-1}$, the sum of $[l, r)$ is $S_r - S_l$. Asking which range sums to $k$ becomes asking whether some earlier $S_l$ equals $S_r - k$:
 
      $$S_r - S_l = k \iff S_l = S_r - k$$
 
