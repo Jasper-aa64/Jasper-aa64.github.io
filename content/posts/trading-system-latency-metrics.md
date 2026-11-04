@@ -167,3 +167,21 @@ Saying a trading system has "3 µs latency" carries no information by itself. 3 
      - **One thread switch**: 1–5 µs, the whole budget at once.
      - **One thrown exception**: 1–2 µs, same.
    - **So the hot path doesn't enter the kernel, doesn't take locks that may sleep, doesn't allocate, and doesn't throw**: not because these are slow on average, but because a single occurrence doesn't fit in the budget.
+
+### 1.5 Measurement Methods at a Glance: What Measures Which Leg
+
+Where a time is read decides which clock it comes from, and the clock decides which two points can be subtracted directly. Here are the five ways of getting a time covered so far, placed on one path:
+
+<a href="/images/trading-system-latency-metrics/measure-map.en.svg" target="_blank" rel="noopener"><img src="/images/trading-system-latency-metrics/measure-map.en.svg" alt="Across the top is one path: exchange, switch, NIC, kernel or bypass, market data thread (T7, T8), queue, trade engine (T9, T10), queue, order gateway (T11, T12), kernel, NIC, switch, exchange. Below are five rows, where a dot is where a time is read and a line is the leg two dots subtract to: 1 function time, on the TSC, around individual functions in each thread; 2 thread boundaries, on the TSC, six dots T7 to T12, with processing and queueing legs in different colors; 3 NIC hardware timestamps, from the inbound NIC to the outbound NIC, plus an RTT loop from the outbound NIC to the exchange and back; 4 switch mirror plus capture appliance, from the inbound switch to the outbound switch, also with an RTT loop; 5 exchange timestamps, from the exchange to the NIC, relying on PTP sync." loading="lazy" decoding="async"></a>
+
+| Method | Clock | Where the time is read | Leg it measures | What it misses, what to watch |
+|---|---|---|---|---|
+| ① Function marks | TSC | Function entry, exit | One function by itself | Time between functions and threads |
+| ② Thread-boundary marks | TSC | T7–T12 | Software TTT, each processing and queueing leg | The NIC and kernel legs |
+| ③ NIC hardware timestamps | The NIC's clock | NIC receive, send | Wire-to-wire TTT, RTT | Comparing with T7 first needs the NIC clock tied to the system clock |
+| ④ Switch mirror + capture appliance | The appliance's clock | Switch in, out | Wire-to-wire TTT, RTT | Sees only packets; pair them by sequence number and order ID |
+| ⑤ Exchange timestamps | The exchange's clock against our own PTP-synced clock | Exchange send, our receive | Exchange to us (one way) | The error is the sync error, about 20 ns–1 µs; inside the exchange is out of reach |
+
+- **Which to use**: for tuning your own code, ① and ②; for reporting TTT externally, ③ or ④; when you suspect the network or the exchange got slower, RTT and ⑤.
+- **When two points subtract directly**: when they are on the same clock. ① and ② are on this machine's TSC, ③ on the NIC, ④ on the capture appliance; comparing across clocks needs syncing first, and the error is the sync error.
+- **Two things that don't take times**: `perf` tells you which function the time goes to (1.4), and the histogram turns the measured differences into percentiles (1.2, item 5).

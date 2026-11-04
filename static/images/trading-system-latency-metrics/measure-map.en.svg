@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 622" width="1100" height="622" font-family="Helvetica, Arial, sans-serif">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#57606a"/></marker><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#cf222e"/></marker></defs>
+<style>.h{font-size:18px;font-weight:700;fill:#1f2328}.b{font-size:14px;font-weight:700;fill:#1f2328}.bs{font-size:13px;font-weight:700;fill:#1f2328}.s{font-size:12px;fill:#57606a}.t{font-size:12px;fill:#0969da}.q{font-size:11px;fill:#57606a}.rh{font-size:13.5px;font-weight:700;fill:#1f2328}.rd{font-size:12px;fill:#57606a}.tl{font-size:11px;fill:#1f2328}.lb{font-size:11.5px}.ft{font-size:12.5px;fill:#57606a}</style>
+<rect width="1100" height="622" fill="#ffffff"/>
+<rect x="20" y="142" width="80" height="430" fill="#f6f8fa" opacity="0.55"/>
+<rect x="114" y="142" width="60" height="430" fill="#fff8e6" opacity="0.55"/>
+<rect x="188" y="142" width="50" height="430" fill="#fff8e6" opacity="0.55"/>
+<rect x="252" y="142" width="60" height="430" fill="#f6f8fa" opacity="0.55"/>
+<rect x="326" y="142" width="116" height="430" fill="#eaf5ff" opacity="0.55"/>
+<rect x="478" y="142" width="116" height="430" fill="#eaf5ff" opacity="0.55"/>
+<rect x="630" y="142" width="116" height="430" fill="#eaf5ff" opacity="0.55"/>
+<rect x="760" y="142" width="60" height="430" fill="#f6f8fa" opacity="0.55"/>
+<rect x="834" y="142" width="50" height="430" fill="#fff8e6" opacity="0.55"/>
+<rect x="898" y="142" width="60" height="430" fill="#fff8e6" opacity="0.55"/>
+<rect x="972" y="142" width="100" height="430" fill="#f6f8fa" opacity="0.55"/>
+<text class="h" x="20" y="36">What measures which leg: a dot is where a time is read, a line is the leg two dots subtract to</text>
+<rect x="20" y="62" width="80" height="80" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text class="bs" x="60.0" y="98" text-anchor="middle">Exchange</text>
+<text class="s" x="60.0" y="118" text-anchor="middle">sends data</text>
+<rect x="114" y="62" width="60" height="80" rx="8" fill="#fff8e6" stroke="#bf8700" stroke-width="1.5"/>
+<text class="bs" x="144.0" y="107" text-anchor="middle">Switch</text>
+<rect x="188" y="62" width="50" height="80" rx="8" fill="#fff8e6" stroke="#bf8700" stroke-width="1.5"/>
+<text class="bs" x="213.0" y="107" text-anchor="middle">NIC</text>
+<rect x="252" y="62" width="60" height="80" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text class="bs" x="282.0" y="98" text-anchor="middle">Kernel</text>
+<text class="s" x="282.0" y="118" text-anchor="middle">or bypass</text>
+<rect x="326" y="62" width="116" height="80" rx="8" fill="#eaf5ff" stroke="#0969da" stroke-width="1.5"/>
+<text class="b" x="384.0" y="86" text-anchor="middle">Market data</text>
+<text class="t" x="384.0" y="110" text-anchor="middle">T7 UDP read</text>
+<text class="t" x="384.0" y="129" text-anchor="middle">T8 queue write</text>
+<rect x="478" y="62" width="116" height="80" rx="8" fill="#eaf5ff" stroke="#0969da" stroke-width="1.5"/>
+<text class="b" x="536.0" y="86" text-anchor="middle">Trade engine</text>
+<text class="t" x="536.0" y="110" text-anchor="middle">T9 queue read</text>
+<text class="t" x="536.0" y="129" text-anchor="middle">T10 queue write</text>
+<rect x="630" y="62" width="116" height="80" rx="8" fill="#eaf5ff" stroke="#0969da" stroke-width="1.5"/>
+<text class="b" x="688.0" y="86" text-anchor="middle">Order gateway</text>
+<text class="t" x="688.0" y="110" text-anchor="middle">T11 queue read</text>
+<text class="t" x="688.0" y="129" text-anchor="middle">T12 TCP write</text>
+<rect x="760" y="62" width="60" height="80" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text class="bs" x="790.0" y="107" text-anchor="middle">Kernel</text>
+<rect x="834" y="62" width="50" height="80" rx="8" fill="#fff8e6" stroke="#bf8700" stroke-width="1.5"/>
+<text class="bs" x="859.0" y="107" text-anchor="middle">NIC</text>
+<rect x="898" y="62" width="60" height="80" rx="8" fill="#fff8e6" stroke="#bf8700" stroke-width="1.5"/>
+<text class="bs" x="928.0" y="107" text-anchor="middle">Switch</text>
+<rect x="972" y="62" width="100" height="80" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text class="bs" x="1022.0" y="98" text-anchor="middle">Exchange</text>
+<text class="s" x="1022.0" y="118" text-anchor="middle">match, reply</text>
+<line x1="101" y1="102.0" x2="112" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="175" y1="102.0" x2="186" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="239" y1="102.0" x2="250" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="313" y1="102.0" x2="324" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="443" y1="102.0" x2="476" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<text class="q" x="460.0" y="94.0" text-anchor="middle">queue</text>
+<line x1="595" y1="102.0" x2="628" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<text class="q" x="612.0" y="94.0" text-anchor="middle">queue</text>
+<line x1="747" y1="102.0" x2="758" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="821" y1="102.0" x2="832" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="885" y1="102.0" x2="896" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<line x1="959" y1="102.0" x2="970" y2="102.0" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+<text class="rh" x="20" y="178">① Function time · TSC: a pair of marks around one function → how long that function takes</text><text class="rd" x="20" y="196">Inside a component; one TSC read is about 6–12 ns; can't see time between functions or threads</text>
+<line x1="340" y1="220" x2="376" y2="220" stroke="#0969da" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="340" cy="220" r="4.5" fill="#0969da"/>
+<circle cx="376" cy="220" r="4.5" fill="#0969da"/>
+<line x1="392" y1="220" x2="428" y2="220" stroke="#0969da" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="392" cy="220" r="4.5" fill="#0969da"/>
+<circle cx="428" cy="220" r="4.5" fill="#0969da"/>
+<line x1="492" y1="220" x2="528" y2="220" stroke="#0969da" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="492" cy="220" r="4.5" fill="#0969da"/>
+<circle cx="528" cy="220" r="4.5" fill="#0969da"/>
+<line x1="544" y1="220" x2="580" y2="220" stroke="#0969da" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="544" cy="220" r="4.5" fill="#0969da"/>
+<circle cx="580" cy="220" r="4.5" fill="#0969da"/>
+<line x1="644" y1="220" x2="680" y2="220" stroke="#0969da" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="644" cy="220" r="4.5" fill="#0969da"/>
+<circle cx="680" cy="220" r="4.5" fill="#0969da"/>
+<line x1="696" y1="220" x2="732" y2="220" stroke="#0969da" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="696" cy="220" r="4.5" fill="#0969da"/>
+<circle cx="732" cy="220" r="4.5" fill="#0969da"/>
+<text class="rh" x="20" y="262">② Thread boundaries · TSC: one read at each of T7–T12 → software TTT, plus each processing and queueing leg</text><text class="rd" x="20" y="280">Subtract across cores directly on one machine; the NIC and kernel legs are not included</text>
+<line x1="348" y1="304" x2="420" y2="304" stroke="#0969da" stroke-width="3" stroke-linecap="round"/>
+<line x1="420" y1="304" x2="500" y2="304" stroke="#bc4c00" stroke-width="3" stroke-linecap="round"/>
+<line x1="500" y1="304" x2="572" y2="304" stroke="#0969da" stroke-width="3" stroke-linecap="round"/>
+<line x1="572" y1="304" x2="652" y2="304" stroke="#bc4c00" stroke-width="3" stroke-linecap="round"/>
+<line x1="652" y1="304" x2="724" y2="304" stroke="#0969da" stroke-width="3" stroke-linecap="round"/>
+<circle cx="348" cy="304" r="4.5" fill="#1f2328"/>
+<text class="tl" x="348" y="321" text-anchor="middle">T7</text>
+<circle cx="420" cy="304" r="4.5" fill="#1f2328"/>
+<text class="tl" x="420" y="321" text-anchor="middle">T8</text>
+<circle cx="500" cy="304" r="4.5" fill="#1f2328"/>
+<text class="tl" x="500" y="321" text-anchor="middle">T9</text>
+<circle cx="572" cy="304" r="4.5" fill="#1f2328"/>
+<text class="tl" x="572" y="321" text-anchor="middle">T10</text>
+<circle cx="652" cy="304" r="4.5" fill="#1f2328"/>
+<text class="tl" x="652" y="321" text-anchor="middle">T11</text>
+<circle cx="724" cy="304" r="4.5" fill="#1f2328"/>
+<text class="tl" x="724" y="321" text-anchor="middle">T12</text>
+<line x1="776" y1="304" x2="798" y2="304" stroke="#0969da" stroke-width="3" stroke-linecap="round"/>
+<text class="lb" x="804" y="308" fill="#0969da">processing</text>
+<line x1="874" y1="304" x2="896" y2="304" stroke="#bc4c00" stroke-width="3" stroke-linecap="round"/>
+<text class="lb" x="902" y="308" fill="#bc4c00">queueing</text>
+<text class="rh" x="20" y="346">③ NIC hardware timestamps · the NIC's clock: stamped by the NIC on receive and send → wire-to-wire TTT, RTT</text><text class="rd" x="20" y="364">Both ends on the NIC's clock, subtract directly; comparing with T7 (the kernel leg) first needs the NIC clock tied to the system clock</text>
+<line x1="213.0" y1="388" x2="859.0" y2="388" stroke="#9a6700" stroke-width="3" stroke-linecap="round"/>
+<circle cx="213.0" cy="388" r="4.5" fill="#9a6700"/>
+<path d="M859.0 388 L1042.0 388 L1042.0 400 L871.0 400" fill="none" stroke="#cf222e" stroke-width="2" marker-end="url(#arr)"/>
+<circle cx="859.0" cy="388" r="4.5" fill="#9a6700"/>
+<circle cx="859.0" cy="400" r="4.5" fill="#9a6700"/>
+<text class="lb" x="1048.0" y="398" fill="#cf222e">RTT</text>
+<text class="rh" x="20" y="430">④ Switch mirror + capture appliance · its own clock: a copy of every packet in and out → wire-to-wire TTT, RTT</text><text class="rd" x="20" y="448">Outside the server, costs it no CPU; it only sees packets, so pair them by sequence number and order ID</text>
+<line x1="144.0" y1="472" x2="928.0" y2="472" stroke="#8250df" stroke-width="3" stroke-linecap="round"/>
+<circle cx="144.0" cy="472" r="4.5" fill="#8250df"/>
+<path d="M928.0 472 L1042.0 472 L1042.0 484 L940.0 484" fill="none" stroke="#cf222e" stroke-width="2" marker-end="url(#arr)"/>
+<circle cx="928.0" cy="472" r="4.5" fill="#8250df"/>
+<circle cx="928.0" cy="484" r="4.5" fill="#8250df"/>
+<text class="lb" x="1048.0" y="482" fill="#cf222e">RTT</text>
+<text class="rh" x="20" y="514">⑤ Exchange timestamps · PTP-synced clocks: data carries the exchange's send time → the exchange-to-us leg</text><text class="rd" x="20" y="532">Two machines, two clocks: the error is the sync error, about 20 ns–1 µs; inside the exchange (T1–T6) is out of reach</text>
+<line x1="60.0" y1="556" x2="213.0" y2="556" stroke="#1a7f37" stroke-width="3" stroke-linecap="round"/>
+<circle cx="60.0" cy="556" r="4.5" fill="#1a7f37"/>
+<circle cx="213.0" cy="556" r="4.5" fill="#1a7f37"/>
+<text class="ft" x="20" y="604">Only two dots on the same clock subtract directly; different clocks need syncing first. Every difference goes into a histogram for percentiles (1.2).</text>
+</svg>
