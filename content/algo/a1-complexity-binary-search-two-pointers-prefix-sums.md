@@ -109,7 +109,12 @@ On real numbers, do not stop on an epsilon; run a fixed 100 iterations. Each one
 
 Enumerating all subarrays is $O(n^2)$. Two pointers get $O(n)$ when the left end of a valid window never moves back as the right end advances. The left end then takes at most $n$ steps in total, and each element enters and leaves the window once.
 
-That monotonicity comes from validity surviving a shrink. Take "no repeated character in the window": if a window has no repeats, neither does any smaller window inside it. So when extending the right end creates a repeat, move the left end right until it is gone; when the right end moves on, the left end never needs to go back, because going back makes a larger window, which can only be less valid. **To decide whether two pointers apply, ask whether validity survives shrinking the window: if it does, the left end only moves right.**
+That monotonicity comes from validity surviving a shrink. Take "no repeated character in the window": if a window has no repeats, neither does any smaller window inside it. So when extending the right end creates a repeat, move the left end right until it is gone; when the right end moves on, the left end never needs to go back, because going back makes a larger window, which can only be less valid. Whether two pointers apply comes down to this monotonicity:
+
+> **Signals for two pointers (sliding window)**: both of these hold.
+>
+> - **The question**: it asks for the longest or shortest contiguous subarray or substring satisfying some condition.
+> - **Monotone validity**: validity is monotone in the window size. For the longest window, a valid window stays valid when shrunk; for the shortest, it stays valid when extended (3.2). Then the left end only moves right, $O(n)$.
 
 ### 3.2 Two shapes: longest valid, shortest valid
 
@@ -173,7 +178,12 @@ long long count_sum_k(const vector<int>& a, long long k) {
 }
 ```
 
-The initial 0 in `seen` accounts for subarrays starting at the beginning. Negative numbers are fine here, because nothing relies on monotonicity. **With negatives, use prefix sums and a hash map; only with all-positive values does a sliding window work. That is the line between the two.**
+The initial 0 in `seen` accounts for subarrays starting at the beginning. Negative numbers are fine here, because nothing relies on monotonicity. That is exactly the line between this and a sliding window:
+
+> **Prefix sums plus a hash map, or a sliding window**: check for negative numbers.
+>
+> - **Negatives present**: use prefix sums and a hash map, which do not rely on monotonicity.
+> - **All positive**: only then does a sliding window work, since the window sum grows with the window.
 
 2D prefix sums: $S_{i,j}$ is the sum of the top-left $i \times j$ rectangle. By inclusion-exclusion,
 
@@ -218,7 +228,13 @@ vector<long long> apply_adds(int n, const vector<array<int, 3>>& ops) {
 }
 ```
 
-**Prefix sums and difference arrays are inverses: one accumulates points into ranges, the other splits ranges back into points.** So the operations decide: range adds with queries only at the end, use differences; a fixed array with many range-sum queries, use prefix sums; updates and queries interleaved, neither is enough and you need a Fenwick or segment tree (round B1).
+**Prefix sums and difference arrays are inverses: one accumulates points into ranges, the other splits ranges back into points.** So the operations decide:
+
+> **Differences, prefix sums or a tree**: look at how updates and queries arrive.
+>
+> - **Range adds, queries only at the end**: use differences.
+> - **Fixed array, many range-sum queries**: use prefix sums.
+> - **Updates and queries interleaved**: neither is enough; you need a Fenwick or segment tree (round B1).
 
 2D differences work the same way: to add $v$ to a sub-rectangle, change four corners: $+v$ at the top left, $-v$ just right of the top right, $-v$ just below the bottom left, $+v$ just beyond the bottom right; one 2D prefix sum rebuilds the grid.
 
