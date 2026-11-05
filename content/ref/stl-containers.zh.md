@@ -21,6 +21,98 @@ STL 由六部分组成：容器、算法、迭代器、函数对象、适配器�
 
 连续还带来一个好处：顺序遍历时，CPU 一次从内存取回 64 字节的一整条缓存行，后面十几个 `int` 跟着就到了，硬件预取器还会提前去取下一条（见[硬件地图](/zh/ref/cpu-memory/)）。所以哪怕中间插入要挪元素，几千个元素以内的 `vector` 往往仍然比链表快。
 
+**`vector` 不能原样跨进程传，原因也在这三个指针上。** 每个进程有自己的页表，同一个地址在两个进程里指向不同的东西。把 `vector` 对象那 24 B 原样交给另一个进程，不管是写进管道、socket，还是放进共享内存，对方拿到的都只是写入方进程里的三个地址。结构体整个放进共享段也一样：
+
+<svg viewBox="0 0 760 316" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="上：结构体里放 vector，共享段里只有 n 和 begin、end、end_of_storage 三个指针，begin 指向进程 A 私有堆上的元素 10、20、30，进程 B 看不见那块堆；下：结构体里放定长数组 int levels[4]，元素 10、20、30 就在共享段里" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .st9bg  { fill: #fbfaf7; }
+    .st9seg { fill: #f3f6ee; stroke: #6f8f3f; stroke-width: 1.3; stroke-dasharray: 6 4; }
+    .st9hp  { fill: #faf0ec; stroke: #c98a76; stroke-width: 1.3; stroke-dasharray: 6 4; }
+    .st9ptr { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .st9el  { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
+    .st9elh { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
+    .st9emp { fill: none; stroke: #b9c2cc; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    .st9ink { fill: #1c1b18; font-size: 13px; }
+    .st9mut { fill: #6b6558; font-size: 12px; }
+    .st9ttl { fill: #1c1b18; font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .st9ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .st9hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9seg { fill: #1f2619; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9hp { fill: #2a1f1d; stroke: #8f5a4c; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9ptr { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9el { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9elh { fill: #4a2f2c; stroke: #8f5a4c; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9emp { stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9ink, :root:is([data-theme="dark"], [data-theme="black"]) .st9ttl { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st9hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="st9a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="st9hd"/></marker></defs>
+  <rect class="st9bg" x="0" y="0" width="760" height="316" rx="10"/>
+  <text class="st9ttl" x="24" y="30">struct Book { uint32_t n; std::vector&lt;int&gt; levels; };</text>
+  <rect class="st9seg" x="24" y="44" width="380" height="88" rx="6"/>
+  <text class="st9mut" x="36" y="64">共享段（A、B 两个进程都映射了）</text>
+  <rect class="st9ptr" x="36" y="76" width="72" height="36" rx="4"/>
+  <text class="st9ink" x="72" y="99" text-anchor="middle">n = 3</text>
+  <rect class="st9ptr" x="112" y="76" width="80" height="36" rx="4"/>
+  <text class="st9ink" x="152" y="99" text-anchor="middle">begin</text>
+  <rect class="st9ptr" x="196" y="76" width="80" height="36" rx="4"/>
+  <text class="st9ink" x="236" y="99" text-anchor="middle">end</text>
+  <rect class="st9ptr" x="280" y="76" width="112" height="36" rx="4"/>
+  <text class="st9ink" x="336" y="99" text-anchor="middle">end_of_storage</text>
+  <rect class="st9hp" x="456" y="44" width="280" height="88" rx="6"/>
+  <text class="st9mut" x="468" y="64">进程 A 的私有堆（B 看不见）</text>
+  <rect class="st9elh" x="468" y="76" width="60" height="36" rx="4"/>
+  <text class="st9ink" x="498" y="99" text-anchor="middle">10</text>
+  <rect class="st9elh" x="532" y="76" width="60" height="36" rx="4"/>
+  <text class="st9ink" x="562" y="99" text-anchor="middle">20</text>
+  <rect class="st9elh" x="596" y="76" width="60" height="36" rx="4"/>
+  <text class="st9ink" x="626" y="99" text-anchor="middle">30</text>
+  <rect class="st9emp" x="660" y="76" width="60" height="36" rx="4"/>
+  <text class="st9mut" x="690" y="99" text-anchor="middle">空</text>
+  <path class="st9ln" d="M152,112 C152,170 498,170 498,115" marker-end="url(#st9a)"/>
+  <text class="st9mut" x="325" y="176" text-anchor="middle">begin 存的是元素在进程 A 里的绝对地址</text>
+  <text class="st9ttl" x="24" y="214">struct Book { uint32_t n; int levels[4]; };</text>
+  <rect class="st9seg" x="24" y="228" width="380" height="72" rx="6"/>
+  <text class="st9mut" x="36" y="248">共享段（A、B 两个进程都映射了）</text>
+  <rect class="st9ptr" x="36" y="256" width="72" height="34" rx="4"/>
+  <text class="st9ink" x="72" y="278" text-anchor="middle">n = 3</text>
+  <rect class="st9el" x="112" y="256" width="64" height="34" rx="4"/>
+  <text class="st9ink" x="144" y="278" text-anchor="middle">10</text>
+  <rect class="st9el" x="180" y="256" width="64" height="34" rx="4"/>
+  <text class="st9ink" x="212" y="278" text-anchor="middle">20</text>
+  <rect class="st9el" x="248" y="256" width="64" height="34" rx="4"/>
+  <text class="st9ink" x="280" y="278" text-anchor="middle">30</text>
+  <rect class="st9emp" x="316" y="256" width="64" height="34" rx="4"/>
+  <text class="st9mut" x="348" y="278" text-anchor="middle">空</text>
+  <text class="st9mut" x="430" y="256">元素就在段里，段里没有存任何地址；</text>
+  <text class="st9mut" x="430" y="278">levels[i] 用各自进程的映射地址当场算出</text>
+</svg>
+
+`levels` 这个对象本身在结构体里，也就在共享段里；它管的元素却是进程 A `push_back` 时从自己的堆上分配的，那块堆只映射在 A 的页表里。进程 B 照着 `begin` 去读，读的是自己地址空间里的同一个地址，读到垃圾或者段错误。就算让元素也分配在共享段里，`begin` 存的仍是按 A 的映射地址算出的绝对地址，而同一个共享段在两个进程里的起始地址多半不同（见 [IPC 的 3.1 节](/zh/ref/ipc/)）。Boost.Interprocess 的容器为此把元素分配在段里，并把指针换成 `offset_ptr`：它存的是“目标地址减去自己所在的地址”，段映射到哪里，这个差值都不变。
+
+下面那种写法没有这个问题，因为**数组不是指针**。`int levels[4]` 就是 4 个 `int` 本身，`sizeof` 是 16，内存里没有任何一处存着“开头的地址”。表达式里用到数组时，编译器会把它换成第一个元素的地址（数组到指针的转换，decay），这个地址是用数组当前所在的位置当场算出来的：A 把段映射在地址 X，`levels[3]` 算出来是 X + 16；B 映射在地址 Y，算出来是 Y + 16，两边落在同一个元素上。只有函数参数里的数组真的是指针：`void f(int a[])` 和 `void f(int* a)` 完全等价，函数里 `sizeof(a)` 是 8。
+
+所以**能直接放进共享内存的，是只看这块字节就能完整描述的类型：里面没有地址，也不拥有段外的内存。**
+
+| 能直接放 | 不能直接放 | 不能放的原因 |
+|---|---|---|
+| `int32_t`、`uint64_t`、`double`、`enum` | 指针、引用 | 存的是本进程的地址 |
+| 定长数组 `T[N]`、`std::array<T, N>` | `vector`、`deque`、`map`、`unordered_map` | 元素在堆上，对象里存的是指向堆的指针 |
+| 定长字符数组，比如 `char name[16]` | `std::string` | 长字符串在堆上；短字符串也存了一个指向自己内部缓冲区的指针（见 [5.2](#sso)） |
+| 只由上面这些组成的 `struct` | 有虚函数的类 | 对象里的 vptr 指向本进程的虚表，两个进程的加载地址一般不同 |
+| 无锁的 `std::atomic<int>`、`std::atomic<uint64_t>` | `std::shared_ptr`、`std::function` | `shared_ptr` 存着指向控制块的指针，`std::function` 可能把闭包放在堆上 |
+| 设了 `PTHREAD_PROCESS_SHARED` 的 `pthread_mutex_t` | `std::mutex` | 标准不保证 `std::mutex` 能跨进程用 |
+
+替换的办法照着上表来：`vector` 换成“定长数组 + 计数”，`string` 换成 `char[N]`，指针换成相对段首的偏移量；实在要用动态容器，就用 Boost.Interprocess。走管道或 socket 时发的是元素本身：先发 `size()`，再发 `data()` 开始的 `size() * sizeof(T)` 字节，对方收到后自己建一个 `vector`，前提是 `T` 也属于上表的左列。
+
+还有两个容易漏的条件：
+
+- **`static_assert(std::is_trivially_copyable_v<Book>)` 只是必要条件**：一个裸指针成员也满足 trivially copyable，结构体里有没有指针还得自己查。
+- **两边对同一块字节的布局要理解一致**：用同一份结构体定义，用定宽类型（写 `uint32_t`，不写 `long`，`long` 在 Linux 上是 8 B、在 Windows 上是 4 B），对齐和填充也要一样，所以两边最好用同一个编译器、同一套编译选项。
+
 ### 1.2 扩容：翻倍，均摊 O(1) {#vector-growth}
 
 容量用完以后，`push_back` 没法在原地把内存变大：后面的地址可能已经给了别人。它只能分配一块更大的新内存，把旧元素搬过去，再释放旧的。从空 `vector` 开始一个个 `push_back`，实测容量的变化是：
