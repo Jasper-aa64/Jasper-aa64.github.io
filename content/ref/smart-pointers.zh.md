@@ -259,6 +259,12 @@ lock addl $1, 8(%rdx)                    # 多线程：原子加 1
 
 问 `shared_ptr` 线程安不安全，先分清楚它涉及的三样东西。它们放在不同的地方，安全与否也各不相同：
 
+| 是什么 | 安全吗 |
+|---|---|
+| ① 控制块里的计数 | 安全，增减是原子的 |
+| ② `shared_ptr` 变量本身，也就是那两个指针 | 不安全，同一个变量有人写，别人就不能同时读写 |
+| ③ 对象指针指向的对象 | 不安全，`shared_ptr` 不管对象里的数据 |
+
 <svg viewBox="0 0 760 286" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="线程 A、线程 B 各有自己的 shared_ptr 变量，全局变量 g_cfg 被 A 和 B 同时读写；三个变量都指向同一块内存，里面是 Config 对象和控制块。控制块里的计数原子加减，安全；同一个变量 g_cfg 被同时读写，要同步；对象内容 shared_ptr 不管。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
     .sp3bg  { fill: #fbfaf7; }
