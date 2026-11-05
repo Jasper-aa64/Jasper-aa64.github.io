@@ -22,6 +22,17 @@ svg { display: block; width: 100%; height: auto; }
 button { font: inherit; font-size: 14px; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
 button:hover { border-color: var(--hl); color: var(--hl); }
 button:disabled { opacity: .4; cursor: default; border-color: var(--line); color: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-left: auto; font-size: 13.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend b { display: inline-grid; place-items: center; min-width: 22px; height: 20px; border-radius: 4px; border: 1.5px solid; font: 700 12.5px Consolas, Menlo, monospace; }
+.lM { background: #ffebe9; border-color: #cf222e !important; color: #a40e26; }
+.lE { background: #fbefff; border-color: #8250df !important; color: #6639ba; }
+.lS { background: #dafbe1; border-color: #1a7f37 !important; color: #116329; }
+.lI { background: #f6f8fa; border-color: #8c959f !important; border-style: dashed !important; color: #6e7781; }
+.dark .lM { background: #4a1d22; border-color: #f85149 !important; color: #ffa198; }
+.dark .lE { background: #2e2148; border-color: #a371f7 !important; color: #d2a8ff; }
+.dark .lS { background: #12301c; border-color: #3fb950 !important; color: #7ee787; }
+.dark .lI { background: #26252d; border-color: #6e6a7a !important; color: #a19caf; }
 </style>
 </head>
 <body>
@@ -105,6 +116,14 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
       .pend { stroke: #cf222e; stroke-width: 2; fill: none; stroke-dasharray: 6 4; } .dark .pend { stroke: #ff7b72; } .dark .mk-ar { fill: #ff7b72; }
       .cur .go, .cur .pend { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 1.1s ease-out forwards; }
       .hl { fill: none; stroke: #bf3989; stroke-width: 2.5; stroke-dasharray: 7 5; } .dark .hl { stroke: #ff7bb0; }
+      .st.mM { fill: #ffebe9; stroke: #cf222e; stroke-width: 1.6; } .stt.mM { fill: #a40e26; }
+      .st.mE { fill: #fbefff; stroke: #8250df; stroke-width: 1.6; } .stt.mE { fill: #6639ba; }
+      .st.mS { fill: #dafbe1; stroke: #1a7f37; stroke-width: 1.6; } .stt.mS { fill: #116329; }
+      .st.mI { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1.4; stroke-dasharray: 4 3; } .stt.mI { fill: #6e7781; }
+      .dark .st.mM { fill: #4a1d22; stroke: #f85149; } .dark .stt.mM { fill: #ffa198; }
+      .dark .st.mE { fill: #2e2148; stroke: #a371f7; } .dark .stt.mE { fill: #d2a8ff; }
+      .dark .st.mS { fill: #12301c; stroke: #3fb950; } .dark .stt.mS { fill: #7ee787; }
+      .dark .st.mI { fill: #26252d; stroke: #6e6a7a; } .dark .stt.mI { fill: #a19caf; }
     </style>
   </defs>
   <rect x="0" y="0" width="1100" height="762" class="bgr"/>
@@ -145,36 +164,36 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   <rect x="54" y="400" width="422" height="28" rx="4" class="row"/>
   <text x="68" y="419.5" class="code">data</text>
   <text x="140" y="419.5" class="code">0</text>
-  <rect x="246" y="404" width="74" height="20" rx="4" class="st"/>
-  <text x="283" y="418.5" class="stt" text-anchor="middle">S</text>
+  <rect x="200" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="237" y="418.5" class="stt mS" text-anchor="middle">S</text>
   </g>
   <g data-from="4" data-to="6" data-step="4">
   <rect x="54" y="400" width="422" height="28" rx="4" class="row"/>
   <text x="68" y="419.5" class="code">data</text>
   <text x="140" y="419.5" class="code">42</text>
-  <rect x="246" y="404" width="74" height="20" rx="4" class="st"/>
-  <text x="283" y="418.5" class="stt" text-anchor="middle">M</text>
+  <rect x="200" y="404" width="74" height="20" rx="4" class="st mM"/>
+  <text x="237" y="418.5" class="stt mM" text-anchor="middle">M</text>
   </g>
   <g data-from="0" data-to="3">
   <rect x="54" y="436" width="422" height="28" rx="4" class="row"/>
   <text x="68" y="455.5" class="code">ready</text>
   <text x="140" y="455.5" class="code">0</text>
-  <rect x="246" y="440" width="74" height="20" rx="4" class="st"/>
-  <text x="283" y="454.5" class="stt" text-anchor="middle">E</text>
+  <rect x="200" y="440" width="74" height="20" rx="4" class="st mE"/>
+  <text x="237" y="454.5" class="stt mE" text-anchor="middle">E</text>
   </g>
   <g data-from="4" data-to="4" data-step="4">
   <rect x="54" y="436" width="422" height="28" rx="4" class="row"/>
   <text x="68" y="455.5" class="code">ready</text>
   <text x="140" y="455.5" class="code">1</text>
-  <rect x="246" y="440" width="74" height="20" rx="4" class="st"/>
-  <text x="283" y="454.5" class="stt" text-anchor="middle">M</text>
+  <rect x="200" y="440" width="74" height="20" rx="4" class="st mM"/>
+  <text x="237" y="454.5" class="stt mM" text-anchor="middle">M</text>
   </g>
   <g data-from="5" data-to="6" data-step="5">
   <rect x="54" y="436" width="422" height="28" rx="4" class="row"/>
   <text x="68" y="455.5" class="code">ready</text>
   <text x="140" y="455.5" class="code">1</text>
-  <rect x="246" y="440" width="74" height="20" rx="4" class="st"/>
-  <text x="283" y="454.5" class="stt" text-anchor="middle">S</text>
+  <rect x="200" y="440" width="74" height="20" rx="4" class="st mS"/>
+  <text x="237" y="454.5" class="stt mS" text-anchor="middle">S</text>
   </g>
   <g data-from="4" data-to="6" data-step="4">
   <g data-from="4" data-to="4">
@@ -209,30 +228,30 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   <rect x="624" y="400" width="422" height="28" rx="4" class="row"/>
   <text x="638" y="419.5" class="code">data</text>
   <text x="710" y="419.5" class="code">0</text>
-  <rect x="816" y="404" width="74" height="20" rx="4" class="st"/>
-  <text x="853" y="418.5" class="stt" text-anchor="middle">S</text>
+  <rect x="770" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="807" y="418.5" class="stt mS" text-anchor="middle">S</text>
   </g>
   <g data-from="6" data-to="6" data-step="6">
   <rect x="624" y="400" width="422" height="28" rx="4" class="bad"/>
   <text x="638" y="419.5" class="code">data</text>
   <text x="710" y="419.5" class="code">0</text>
-  <rect x="816" y="404" width="74" height="20" rx="4" class="st"/>
-  <text x="853" y="418.5" class="stt" text-anchor="middle">S</text>
-  <text x="900" y="419.5" class="red">invalidate 还没处理</text>
+  <rect x="770" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="807" y="418.5" class="stt mS" text-anchor="middle">S</text>
+  <text x="856" y="419.5" class="red">invalidate 还没处理</text>
   </g>
   <g data-from="0" data-to="4">
   <rect x="624" y="436" width="422" height="28" rx="4" class="row"/>
   <text x="638" y="455.5" class="code">ready</text>
   <text x="710" y="455.5" class="code">无</text>
-  <rect x="816" y="440" width="74" height="20" rx="4" class="st"/>
-  <text x="853" y="454.5" class="stt" text-anchor="middle">I</text>
+  <rect x="770" y="440" width="74" height="20" rx="4" class="st mI"/>
+  <text x="807" y="454.5" class="stt mI" text-anchor="middle">I</text>
   </g>
   <g data-from="5" data-to="6" data-step="5">
   <rect x="624" y="436" width="422" height="28" rx="4" class="row"/>
   <text x="638" y="455.5" class="code">ready</text>
   <text x="710" y="455.5" class="code">1</text>
-  <rect x="816" y="440" width="74" height="20" rx="4" class="st"/>
-  <text x="853" y="454.5" class="stt" text-anchor="middle">S</text>
+  <rect x="770" y="440" width="74" height="20" rx="4" class="st mS"/>
+  <text x="807" y="454.5" class="stt mS" text-anchor="middle">S</text>
   </g>
   <rect x="610" y="496" width="450" height="40" rx="6" class="cache"/>
   <text x="835" y="521" class="f" text-anchor="middle">L2（本核私有）</text>
@@ -294,6 +313,7 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   <p class="note" id="note" hidden><b>⑥ 会不会发生，看 CPU 允许哪些乱序</b><br>后读的 data 比先读的 ready 还旧，这是读和读乱序（LoadLoad）。x86 不允许它，硬件保证 ⑥ 读到 42。ARM 允许：读 ready 要用 acquire，后面的读才会等失效处理完。ARM 还允许两个写乱序（StoreStore），ready 可能先于 data 被别的核看见，所以写 ready 要用 release。x86 上这段代码也是错的：ready 不是 atomic，编译器可以把循环里的读提到循环外，或者调换两个写。修法：std::atomic&lt;bool&gt; ready，写 release，读 acquire。</p>
   <div class="btns">
     <button id="prev">上一步</button><button id="next">下一步</button><button id="play">自动播放</button><button id="reset">重来</button>
+    <div class="legend"><span><b class="lM">M</b>已修改</span><span><b class="lE">E</b>独占</span><span><b class="lS">S</b>共享</span><span><b class="lI">I</b>无效</span></div>
   </div>
 </div>
 </div>
