@@ -1644,6 +1644,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 /* Figures */
 .prose img {
   display: block;
+  /* Illustrations and screenshots sit at a comfortable reading size, not stretched to the column. */
+  max-width: min(100%, 560px);
   height: auto;
   margin: 0 auto;
   border-radius: 12px;
