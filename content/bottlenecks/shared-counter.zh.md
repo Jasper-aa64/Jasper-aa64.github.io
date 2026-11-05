@@ -13,4 +13,4 @@ source: "skills/performance-patterns/patterns/per-cpu-stats.md"
 >   - 共享库不方便持有全局数组：用 `__thread` 线程局部变量，线程退出或定期刷到全局。
 > - **已经分桶了还在抢**：查是不是刷新太频繁，比如每个请求刷一次，拉长间隔。
 > - **验证**：总数在任意时刻只是近似值，要确认业务能接受；`lock` 指令从热路径消失；c2c 上该行 HITM 下降。
-> - **原理**：一次写的价钱从哪来，见 [MESI 专题第 5 节](/zh/posts/low-latency-mesi-cache-coherence/#5-一次写的钱花在哪)；计数器按线程分片、事后合并，见 [MESI 专题第 6 节](/zh/posts/low-latency-mesi-cache-coherence/#6-三个旧结论同一台机器)；两个核都写的那个计数器，见 [#4 1.2](/zh/posts/lock-free-queue-logger-micro-batching/#12-相减别计数那个让两个核打起来的计数器)。
+> - **原理**：一次写的价钱从哪来，见 [MESI 专题第 5 节](/zh/posts/low-latency-mesi-cache-coherence/#5-一次写的钱花在哪)；计数器按线程分片、事后合并，见 [MESI 专题第 6 节](/zh/posts/low-latency-mesi-cache-coherence/#6-三个旧结论同一台机器)；两个核都写的那个计数器，见 [#4 1.2](/zh/posts/lock-free-queue-logger-micro-batching/#size-from-indices)。
