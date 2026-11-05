@@ -72,12 +72,14 @@
   <text x="816" y="188" class="t">栈 · 单调栈</text>
   <text x="816" y="206" class="s">下一个更大的数</text>
   <text x="816" y="224" class="s">单调队列：滑窗最值</text>
+  <text x="816" y="242" class="tag"><a href="/zh/algo/a2-stack-monotonic-stack-heap/" target="_blank" rel="noopener"><tspan>A2（上）第 2 节</tspan></a></text>
   </g>
   <g id="a_hp">
   <rect x="996" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="1008" y="188" class="t">堆 · 哈希表</text>
   <text x="1008" y="206" class="s">Top-K；动态取最值</text>
   <text x="1008" y="224" class="s">查有没有、数几次</text>
+  <text x="1008" y="242" class="tag"><a href="/zh/algo/a2-stack-monotonic-stack-heap/" target="_blank" rel="noopener"><tspan>A2（上）第 3 节</tspan></a></text>
   </g>
   <g id="a_gr">
   <rect x="1188" y="164" width="180" height="94" rx="6" class="hot"/>

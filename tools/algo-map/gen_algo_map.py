@@ -178,6 +178,10 @@ A1 = 'a1-complexity-binary-search-two-pointers-prefix-sums'
 for nid, sec in (('a_cx', 1), ('a_bs', 2), ('a_tp', 3), ('a_ps', 4)):
     algo_post(nid, 'A1', A1, sec)
 
+A2A = 'a2-stack-monotonic-stack-heap'
+for nid, sec in (('a_st', 2), ('a_hp', 3)):   # zh only until the English version is written
+    NODES[nid]['zh']['tags'] = NODES[nid]['zh']['tags'] + [[('A2（上）第 %d 节' % sec, '/zh/algo/%s/' % A2A)]]
+
 # ---------------------------------------------------------------- band B: quick pass (know what it solves)
 B = [
     ('b_seg', 0, 0, ('树状数组 · 线段树', ['区间查、区间改', '都是 O(log n)'],
