@@ -2,7 +2,7 @@
 title: "shared_ptr 和 enable_shared_from_this"
 date: 2026-11-02
 slug: "shared-ptr"
-description: "shared_ptr 是对象加一块存计数的控制块；复制它是拷两个指针加一次计数加 1，多线程时是一次原子操作。成员函数里要拿到自己的 shared_ptr，不能用 shared_ptr(this) 另起一个控制块，要继承 enable_shared_from_this 再调 shared_from_this()。"
+description: "shared_ptr 是对象加一块存计数的控制块；复制它是拷两个指针加一次计数加 1，多线程时是一次原子操作。多线程下只有计数是安全的：同一个 shared_ptr 变量一边赋值一边读、改它指向的对象，都要另加同步。成员函数里要拿到自己的 shared_ptr，不能用 shared_ptr(this) 另起一个控制块，要继承 enable_shared_from_this 再调 shared_from_this()。"
 summary: "shared_ptr 的计数在控制块里，make_shared 只分配一次；成员函数里要延长自己的寿命，用 shared_from_this() 共用外面那个控制块，自己另起一个会析构两次。"
 toc: true
 group: cpplinux
@@ -121,7 +121,45 @@ lock addl $1, 8(%rdx)                    # 多线程：原子加 1
 
 `__libc_single_threaded` 是 glibc 维护的标志，进程还没起第二个线程时为真。一旦有了多个线程，每次复制（以及每次销毁时的减 1）都是一次 `lock` 原子操作：没有别的核在抢时约 5–10 ns；几个核同时复制同一个对象的 `shared_ptr` 时，计数所在的缓存行在核之间来回搬（缓存行乒乓），一次要几十到上百 ns。所以频繁调用的函数不要按值传 `shared_ptr`：只是用一下、不需要“拥有”，就传 `const std::shared_ptr<T>&`，或者直接传 `T&` / `T*`。
 
-## 3. 场景：对象要活到回调执行完 {#shared-from-this-why}
+## 3. 多线程下安不安全：只有计数是安全的 {#shared-ptr-threads}
+
+问 `shared_ptr` 线程安不安全，要分开说三样东西：控制块里的计数、`shared_ptr` 变量本身（那两个指针）、它指向的对象。**只有计数是线程安全的，另外两样都要自己加同步。**
+
+| 几个线程同时做什么 | 安全吗 | 原因 |
+|---|---|---|
+| 各拿一份 `shared_ptr`（指向同一个对象），各自复制、销毁 | 安全 | 计数的加减是第 2 节那条 `lock` 原子指令，最后放手的那个线程析构对象，只析构一次 |
+| 都只读同一个 `shared_ptr` 变量，比如都从它复制一份 | 安全 | 读两个指针不改变量本身，给计数加 1 是原子的 |
+| 一个线程给同一个 `shared_ptr` 变量赋值，另一个线程同时读它 | 数据竞争 | 赋值和复制都要先动两个指针、再改计数，这几步合起来不是原子的 |
+| 通过各自的 `shared_ptr` 同时改指向的对象 | 数据竞争 | `shared_ptr` 只管对象什么时候析构，不管对象里的数据 |
+
+第三行最容易答错。例子是一份会被后台线程换掉的全局配置：
+
+```cpp
+std::shared_ptr<Config> g_cfg;                  // 全局配置
+
+g_cfg = std::make_shared<Config>(load());       // 线程 A：换一份新配置
+auto c = g_cfg;                                 // 线程 B：同时复制一份来用
+```
+
+线程 B 的复制分两步：先读出两个指针，再给控制块里的计数加 1。线程 A 的赋值如果正好夹在这两步中间，它把旧配置的计数从 1 减到 0，旧配置连同控制块被释放，线程 B 接着去加 1 的就是一块已经释放的内存。线程 B 还可能读到一个新的对象指针配一个旧的控制块指针。
+
+**修法都是让“读写这个变量”的几步变成一个整体：**
+
+- **C++20 起用 `std::atomic<std::shared_ptr<Config>>`**：线程 A 调 `g_cfg.store(p)`，线程 B 调 `g_cfg.load()`，读和写各是一次原子操作。
+- **C++20 之前用 `std::atomic_load(&g_cfg)` 和 `std::atomic_store(&g_cfg, p)`**：这对自由函数作用在普通的 `shared_ptr` 变量上，C++20 起标为不推荐（deprecated）。
+- **用一把互斥锁保护这个变量**：读的一方在锁里复制出一份，出了锁再用这份副本，配置对象本身不用锁着。
+
+前两种在 libstdc++ 里都不是无锁的：GCC 16 实测 `std::atomic<std::shared_ptr<int>>::is_lock_free()` 返回 `false`，内部还是靠锁。
+
+还有三点常被追问：
+
+- **`use_count()` 在多线程下只能当参考**：读到的那一刻，别的线程可能已经复制或者放掉了一份，所以不能用 `use_count() == 1` 判断“只有我在用，可以放心改”。
+- **析构函数在最后放手的那个线程里执行**：哪个线程把计数减到 0，就由哪个线程析构对象。析构要释放大块内存或者关文件时，这段时间就算在那个线程头上。
+- **`weak_ptr` 要用 `lock()` 取对象**：`lock()` 把“检查对象还活着”和“计数加 1”做成一次原子操作，先 `expired()` 再用中间有窗口，见 [unique_ptr 和 weak_ptr 的 3.2 节](/zh/ref/unique-ptr-weak-ptr/#lock)。
+
+## 4. 成员函数里拿到自己的 `shared_ptr`：`enable_shared_from_this` {#shared-from-this}
+
+### 4.1 场景：对象要活到回调执行完 {#shared-from-this-why}
 
 一个 `Session` 对象代表和服务器的一条连接，由 `shared_ptr` 管理。`Session::send_request()` 把请求发出去，服务器要过一会儿（比如几十 µs）才回包。程序不会停下来等，而是先登记一个函数，意思是“回包到了就调用它”。这种先登记、以后由别人来调用的函数叫**回调**。登记完，`send_request()` 立刻返回，程序接着干别的。负责“看到回包到了，就调用登记过的回调”的，通常是一个一直在转的循环，叫**事件循环**。
 
@@ -137,7 +175,7 @@ lock addl $1, 8(%rdx)                    # 多线程：原子加 1
 
 难点在于：回调是在 `send_request()` 这个成员函数里登记的，函数里手上只有 `this`，一个裸指针（`Session*`），不是 `shared_ptr`。怎么从 `this` 得到一份和外面**共用同一个计数**的 `shared_ptr`？
 
-## 4. 错误写法：`shared_ptr<Session>(this)` 另起一个控制块 {#shared-this-wrong}
+### 4.2 错误写法：`shared_ptr<Session>(this)` 另起一个控制块 {#shared-this-wrong}
 
 ```cpp
 void send_request() {
@@ -148,7 +186,7 @@ void send_request() {
 
 用裸指针构造 `shared_ptr` 时，它不知道这个对象已经有人管了，就新建一个控制块，计数从 1 开始。于是两个计数各数各的：时刻 3 外面那份数到 0，对象析构；回调这份还是 1，指着已经析构的对象；时刻 5 它也数到 0，再 delete 一次。GCC 13 实测程序直接 abort（`munmap_chunk(): invalid pointer`），ASan 报 bad-free。
 
-## 5. 正确写法：继承 `enable_shared_from_this`，调 `shared_from_this()` {#shared-from-this-right}
+### 4.3 正确写法：继承 `enable_shared_from_this`，调 `shared_from_this()` {#shared-from-this-right}
 
 ```cpp
 std::vector<std::function<void()>> g_loop;     // 假装是事件循环：登记的回调先存起来，回包到了再调用
@@ -176,10 +214,10 @@ void demo() {
 
 **这是 CRTP。** `enable_shared_from_this` 是一个往子类里注入功能的 CRTP 基类（见 [#8 的 1.3.2 节](/zh/posts/crtp-static-polymorphism/)）：子类什么都不写，就多了 `shared_from_this()`。基类里的 `weak_ptr` 成员和 `shared_from_this()` 的返回值都要写成 `Session`，所以模板参数传的是子类自己。基类如果不是模板，只能存、只能返回 `shared_ptr<基类>`，每次用都要先 `static_pointer_cast` 转回 `shared_ptr<Session>`，转错了就是未定义行为。
 
-## 6. 三个坑 {#shared-from-this-pitfalls}
+### 4.4 用 `shared_from_this()` 的三个坑 {#shared-from-this-pitfalls}
 
 都在 GCC 13 上实测过：
 
 - **对象必须已经归 `shared_ptr` 管。** 对栈上的对象调用，或者在构造函数里调用（这时 `make_shared` 还没填 `weak_ptr`），C++17 起抛 `std::bad_weak_ptr`，更早的标准是未定义行为。
 - **必须 `public` 继承。** 私有继承时 `shared_ptr` 看不见这个基类，`weak_ptr` 没人填，同样抛 `bad_weak_ptr`。
-- **对象变大，调用不免费。** 对象多一个 `weak_ptr`（两个指针，16 B；实测 `sizeof(Session)` 是 24，含对齐填充）；每次 `shared_from_this()` 都是 第 2 节那次原子加。所以它用在连接管理这种冷路径上（Asio 风格的异步服务器里，回调常写成 `[self = shared_from_this()]`），每秒要处理几百万条消息的循环里不这么做。
+- **对象变大，调用不免费。** 对象多一个 `weak_ptr`（两个指针，16 B；实测 `sizeof(Session)` 是 24，含对齐填充）；每次 `shared_from_this()` 都是第 2 节那次原子加。所以它用在连接管理这种冷路径上（Asio 风格的异步服务器里，回调常写成 `[self = shared_from_this()]`），每秒要处理几百万条消息的循环里不这么做。
