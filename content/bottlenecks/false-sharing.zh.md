@@ -13,4 +13,4 @@ source: "skills/performance-patterns/patterns/false-sharing.md"
 >   - 再按访问模式重排：每个线程常写的字段各占一行，多线程只读的字段可以共用一行，很少碰的字段填空位。
 > - **更彻底的做法**：把线程私有的字段挪进每线程一份的结构体。
 > - **验证**：c2c 前后对比；用 `_Static_assert` 守住结构体大小。
-> - **原理**：[#2 第 2 节 伪共享](/zh/posts/memory-ordering-false-sharing-dependency-chains/#2-伪共享这里从来就不是正确性问题)；两个核各写自己的变量时，这条行的状态怎么来回变，见 [MESI 专题第 6 节](/zh/posts/low-latency-mesi-cache-coherence/#6-三个旧结论同一台机器)；让对象独占整条行的 `alignas(64)` 见 [#6 1.3](/zh/posts/alignment-layout-cache-dram-geometry/#13-alignas主动把对齐调大)。
+> - **原理**：[#2 第 2 节 伪共享](/zh/posts/memory-ordering-false-sharing-dependency-chains/#false-sharing)；两个核各写自己的变量时，这条行的状态怎么来回变，见 [MESI 专题第 6 节](/zh/posts/low-latency-mesi-cache-coherence/#6-三个旧结论同一台机器)；让对象独占整条行的 `alignas(64)` 见 [#6 1.3](/zh/posts/alignment-layout-cache-dram-geometry/#13-alignas主动把对齐调大)。
