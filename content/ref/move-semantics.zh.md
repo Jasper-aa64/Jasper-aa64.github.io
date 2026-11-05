@@ -306,62 +306,30 @@ public:
 
 调用者传左值，参数 `s` 由拷贝得到，再移动进 `name_`：一次拷贝加一次移动；传右值，`s` 由移动得到，再移动进去：两次移动，没有拷贝。一个函数同时照顾了两种调用者，代价是比分别写 `const std::string&` 和 `std::string&&` 两个重载多一次移动，对 `std::string` 这类移动很便宜的类型通常值得。`Buf::operator=(Buf o)` 用的也是这个思路。
 
-## 5. 模板里的 T&&：万能引用和完美转发
+## 5. 模板里的 T&&：完美转发怎么用
 
-### 5.1 万能引用：T 要靠推导得出 {#forwarding-ref}
+**一个函数自己不用这些参数，只是把它们原样交给另一个函数或构造函数时，就用完美转发。** “原样”的意思是：调用者传进来的是左值，交出去还是左值，会被拷贝；传进来的是临时对象，交出去还是右值，能被移动。写法是固定的一套，套上去就行。
 
-在函数模板里，`template <class T> void f(T&& t)` 的 `T&&` 不是右值引用，而是**万能引用**（标准里叫转发引用，forwarding reference）：传左值进来，`T` 推导成 `U&`；传右值进来，`T` 推导成 `U`。所以它左值右值都能接。`auto&& x = ...` 也是一样。
-
-这个特殊规则只在 `T` 需要推导、而且形式恰好是 `T&&` 时才生效。`void f(std::vector<T>&& v)`、`void f(const T&& t)`、类模板成员函数里已经定下来的 `T&&`，都是普通的右值引用，只接右值。
-
-### 5.2 引用折叠：出现一个 & 就是左值引用 {#collapsing}
-
-`T` 推导成 `U&` 以后，参数类型 `T&&` 就成了 `U& &&`，引用的引用。C++ 用引用折叠把它化简成一个引用：
-
-| 组合 | 结果 |
-|---|---|
-| `U& &` | `U&` |
-| `U& &&` | `U&` |
-| `U&& &` | `U&` |
-| `U&& &&` | `U&&` |
-
-两个都是 `&&` 才得到 `&&`，只要有一个 `&` 就是 `&`。所以传左值时参数是 `U&`，传右值时是 `U&&`，万能引用就是这么“万能”的。
-
-### 5.3 std::forward：把参数按原来的类别转出去 {#forward}
-
-万能引用解决了“接”，没解决“转”：按 1.2 节，参数 `t` 有名字，在函数体里它永远是左值。直接把 `t` 传给下一层，右值也会被当成左值，本来可以移动的变成了拷贝：
+### 5.1 套用的写法 {#forward}
 
 ```cpp
-void sink(const std::string&) { std::puts("  copy into sink"); }
-void sink(std::string&&)      { std::puts("  move into sink"); }
+// 一个参数
+template <class T>
+void f(T&& t) { g(std::forward<T>(t)); }
 
-template <class T> void by_name(T&& t)  { sink(t); }                  // t 有名字，是左值
-template <class T> void forward_(T&& t) { sink(std::forward<T>(t)); } // 按原来的类别转出去
+// 任意个参数
+template <class... Args>
+void f(Args&&... args) { g(std::forward<Args>(args)...); }
+
+// 泛型 lambda：参数写 auto&&，forward 的尖括号里写 decltype(参数名)
+auto h = [](auto&&... a) { g(std::forward<decltype(a)>(a)...); };
 ```
 
-```text
-by_name(s):
-  copy into sink
-by_name(std::move(s)):
-  copy into sink
-forward_(s):
-  copy into sink
-forward_(std::string("x")):
-  move into sink
-```
+三处要对上：参数写成 `T&&`，`T` 让编译器推导；交出去时写 `std::forward<T>(t)`，尖括号里就是参数声明里的那个 `T`；参数包在 `std::forward<Args>(args)` 后面加 `...`，每个参数各自转发。
 
-`by_name(std::move(s))` 传进去的明明是将亡值，到 `sink` 那里却成了拷贝，原因就是 `t` 有名字。
+### 5.2 例子：替别人构造对象 {#forward-construct}
 
-`std::forward<T>(t)` 能把它恢复过来，是因为它做的就是 `static_cast<T&&>(t)`，而 `T` 里记着调用者传进来的是左值还是右值（5.1）。再经过 5.2 的引用折叠，两种情况分别是：
-
-| 调用 | `T` 推导成 | `T&&` 折叠成 | `std::forward<T>(t)` 是 | `sink` 选中 |
-|---|---|---|---|---|
-| `forward_(s)` | `std::string&` | `std::string&` | 左值 | 拷贝 |
-| `forward_(std::string("x"))` | `std::string` | `std::string&&` | 将亡值 | 移动 |
-
-**`std::move` 无条件转成右值，`std::forward` 按调用者传进来的类别原样还原。** 所以 `std::move` 用在“这个对象后面不再用了”的地方，`std::forward` 只用在万能引用的参数上。
-
-完美转发最常见的用处是“替别人构造对象”的函数：`std::make_unique`、`std::make_shared`、`vector::emplace_back` 都要把一串参数原样交给 `T` 的构造函数。写一个简化版：
+`std::make_unique`、`std::make_shared`、`vector::emplace_back` 都是这一类：它们收一串参数，原样交给 `T` 的构造函数。一个简化版的 `make_unique`：
 
 ```cpp
 template <class T, class... Args>
@@ -371,6 +339,104 @@ std::unique_ptr<T> my_make_unique(Args&&... args) {
 auto p = my_make_unique<std::string>(3, 'z');   // *p == "zzz"
 ```
 
-可变参数包里每个参数各自推导、各自转发，传进来的临时对象到了 `T` 的构造函数那里仍然是右值，能被移动。`emplace_back` 比 `push_back` 好在这里：它直接在 vector 的内存里用这些参数构造元素，连“先构造一个临时对象再移动进去”的那次移动都省了。
+自己写容器、对象池时也一样。下面是一个定长缓冲区，`emplace_back` 用 placement new 在自己的内存上直接构造元素（省略了越界检查）。`N` 是一个在构造、拷贝、移动时各打印一行的类：
+
+```cpp
+struct N {
+    N(int)          { std::puts("  ctor"); }
+    N(const N&)     { std::puts("  copy"); }
+    N(N&&) noexcept { std::puts("  move"); }
+};
+
+template <class T, std::size_t Cap>
+class FixedBuf {
+    alignas(T) std::byte mem_[Cap * sizeof(T)];
+    std::size_t n_ = 0;
+public:
+    template <class... Args>
+    T& emplace_back(Args&&... args) {
+        T* p = ::new (mem_ + n_ * sizeof(T)) T(std::forward<Args>(args)...);
+        ++n_;
+        return *p;
+    }
+    void push_back(T x) { emplace_back(std::move(x)); }
+    ~FixedBuf() {
+        for (std::size_t i = 0; i < n_; ++i)
+            std::launder(reinterpret_cast<T*>(mem_ + i * sizeof(T)))->~T();
+    }
+};
+
+FixedBuf<N, 4> buf;
+buf.emplace_back(1);
+buf.push_back(N(1));
+```
+
+```text
+emplace_back(1):
+  ctor
+push_back(N(1)):
+  ctor
+  move
+```
+
+`push_back` 收到的是一个已经构造好的 `N`，还要再移动进缓冲区；`emplace_back` 收到的是构造参数，直接在缓冲区里构造。**`emplace_back` 比 `push_back` 好就好在这里：连那一次移动都省了。**
+
+### 5.3 例子：包一层再调用 {#forward-wrap}
+
+给任意函数加一层日志、计时或加锁，也要把参数原样交下去。要调的函数 `f` 本身也用万能引用接，这样传一个带状态的 lambda 进来时不会多拷一份；`std::invoke` 让普通函数、lambda、成员函数指针都能这样调：
+
+```cpp
+template <class F, class... Args>
+decltype(auto) logged(const char* name, F&& f, Args&&... args) {
+    std::printf("call %s\n", name);
+    return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+}
+void keep(N) {}
+
+N n(1);
+logged("keep", keep, n);
+logged("keep", keep, N(2));
+```
+
+```text
+logged(keep, n):
+call keep
+  copy
+logged(keep, N(2)):
+  ctor
+call keep
+  move
+```
+
+`n` 是左值，到 `keep` 那里是拷贝；`N(2)` 是临时对象，到 `keep` 那里是移动。和不包这一层、直接调 `keep` 的结果完全一样，这就是“完美”的意思。
+
+### 5.4 套的时候会错的地方 {#forwarding-ref}
+
+- **忘了写 `std::forward`，右值也会变成拷贝**：参数 `t` 有名字，在函数体里是左值（1.2）。直接写 `g(t)`，调用者传进来的临时对象也会被当成左值拷贝一份。
+- **只有 `T` 要推导、写法又恰好是 `T&&` 时，才是万能引用**：`void f(std::vector<T>&& v)`、`void f(const T&& t)`，以及类模板里成员函数的 `T&&`（`T` 在类实例化时就定了），都是普通的右值引用，传左值进去编译不过。
+- **同一个参数只 `forward` 一次**：转发出去的如果是右值，接收方可能已经把它的资源拿走了，再用一次就是在用被移走的对象（3.3）。
+- **构造函数写成万能引用，会抢走拷贝构造**：
+
+```cpp
+struct Person {
+    std::string name;
+    template <class S> Person(S&& s) : name(std::forward<S>(s)) {}
+};
+Person a("x");
+Person b(a);   // error: no matching function for call to 'std::string::basic_string(Person&)'
+```
+
+`a` 是非 `const` 的左值，模板推导出 `S = Person&`，是精确匹配；拷贝构造要的是 `const Person&`，还得加一层 `const`。重载决议于是选了模板，拿一个 `Person` 去构造 `std::string`，编译报错。C++20 可以加约束把这种情况挡掉：`template <class S> requires std::constructible_from<std::string, S>`，这样 `Person b(a);` 就会回到拷贝构造。**只有一个参数、目的就是把它存下来时，更简单的是 4.2 的按值接收再移动**：不用写模板，也没有这个坑。
+
+### 5.5 原理：forward 为什么能还原类别 {#collapsing}
+
+`std::forward<T>(t)` 做的就是 `static_cast<T&&>(t)`，而 `T` 里记着调用者传进来的是左值还是右值。传左值时，`T` 推导成 `U&`，`T&&` 就是 `U& &&`。C++ 的引用折叠规则是：两个都是 `&&` 才得到 `&&`，只要有一个 `&` 就是 `&`，所以它折叠成 `U&`。传右值时，`T` 推导成 `U`，`T&&` 就是 `U&&`。以 `f(T&& t)` 收一个 `std::string` 为例：
+
+| 调用 | `T` 推导成 | `T&&` 折叠成 | `std::forward<T>(t)` 是 |
+|---|---|---|---|
+| `f(s)` | `std::string&` | `std::string&` | 左值，会被拷贝 |
+| `f(std::string("x"))` | `std::string` | `std::string&&` | 将亡值，能被移动 |
+
+`std::move` 和它的区别：**`std::move` 无条件转成右值，`std::forward` 按调用者传进来的类别原样还原。**
 
 本页代码都在 GCC 16.2 `-std=c++20 -O2 -Wall -Wextra` 下编译运行过，输出是实际结果。
