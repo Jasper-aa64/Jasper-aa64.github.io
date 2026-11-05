@@ -350,7 +350,16 @@ forward_(std::string("x")):
   move into sink
 ```
 
-`by_name(std::move(s))` 传进去的明明是将亡值，到 `sink` 那里却成了拷贝。`std::forward<T>(t)` 就是 `static_cast<T&&>(t)`，配合引用折叠：传左值时 `T` 是 `U&`，`T&&` 折叠成 `U&`，转出去还是左值；传右值时 `T` 是 `U`，转出去是 `U&&`，恢复成右值。**`std::move` 是无条件转成右值，`std::forward` 是按调用者传进来的类别原样还原**，所以前者用在“我不再用它了”，后者只用在万能引用的参数上。
+`by_name(std::move(s))` 传进去的明明是将亡值，到 `sink` 那里却成了拷贝，原因就是 `t` 有名字。
+
+`std::forward<T>(t)` 能把它恢复过来，是因为它做的就是 `static_cast<T&&>(t)`，而 `T` 里记着调用者传进来的是左值还是右值（5.1）。再经过 5.2 的引用折叠，两种情况分别是：
+
+| 调用 | `T` 推导成 | `T&&` 折叠成 | `std::forward<T>(t)` 是 | `sink` 选中 |
+|---|---|---|---|---|
+| `forward_(s)` | `std::string&` | `std::string&` | 左值 | 拷贝 |
+| `forward_(std::string("x"))` | `std::string` | `std::string&&` | 将亡值 | 移动 |
+
+**`std::move` 无条件转成右值，`std::forward` 按调用者传进来的类别原样还原。** 所以 `std::move` 用在“这个对象后面不再用了”的地方，`std::forward` 只用在万能引用的参数上。
 
 完美转发最常见的用处是“替别人构造对象”的函数：`std::make_unique`、`std::make_shared`、`vector::emplace_back` 都要把一串参数原样交给 `T` 的构造函数。写一个简化版：
 
