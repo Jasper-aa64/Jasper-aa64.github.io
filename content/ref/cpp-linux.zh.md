@@ -233,6 +233,6 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 | [socket 编程](/zh/ref/socket-programming/) | 服务端和客户端的调用、回显服务器、Reactor | IO 地图：socket |
 | [HTTP 和 HTTPS](/zh/ref/http-basics/) | 一次请求的全过程、状态码、Cookie、TLS 握手 | IO 地图：TCP/IP 协议栈之上 |
 | **数据结构** | | |
-| [STL 容器](/zh/ref/stl-containers/) | vector 扩容、deque、红黑树 map、哈希桶 | 进程地图：堆 |
+| [STL 容器](/zh/ref/stl-containers/) | vector 扩容、deque、红黑树 map、哈希桶、pointer chasing | 进程地图：堆 |
 | [LRU 缓存](/zh/ref/lru-cache/) | 哈希表加双向链表、`splice`、带哨兵的手写链表 | IO 地图：页缓存怎么淘汰 |
 | [跳表、红黑树、B+ 树](/zh/ref/skiplist-rbtree-bplustree/) | 三种有序结构的原理和用处（std::map、Redis、InnoDB） | — |
