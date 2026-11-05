@@ -307,6 +307,11 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 
 `payload` 能安全地传过去，靠的只是 `ready` 上这一对 release/acquire。交易系统里的单生产者单消费者（SPSC）环形队列都是这个形状：一个原子下标负责同步，其余都是普通变量。
 
+回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
+
+<iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
+
 ### 1.6 价钱：x86 上几乎免费，ARM 上要专门的指令 {#cost}
 
 同样的内存序，在不同 CPU 上编出来的指令不同：
@@ -333,6 +338,32 @@ ARM 的硬件四种乱序都可能做，所以 acquire/release 要用专门的 `
 
 MESI 作废的单位是**缓存行**，x86 上一行是 64 字节。两个线程各写各的 `int`，两个 `int` 却恰好落在同一行里（比如结构体里相邻的两个字段），A 每写一次自己的变量，B 缓存里的整行就被作废；B 写自己的变量时，又要把这一行的独占权从 A 那里拿回来。这一行就在两个核之间来回搬，每次几十纳秒。这叫**伪共享**：两个变量在逻辑上毫无关系，“共享”只是内存布局造成的。
 
+**例子：两个线程各加各的计数器。**
+
+```cpp
+struct Counters {
+  std::atomic<uint64_t> a{0};   // 只有线程 1 写
+  std::atomic<uint64_t> b{0};   // 只有线程 2 写；和 a 挨着，落在同一条缓存行里
+};
+Counters c;
+
+// 线程 1，绑在核 0
+for (int i = 0; i < 100'000'000; ++i)
+  c.a.store(c.a.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+
+// 线程 2，绑在核 1
+for (int i = 0; i < 100'000'000; ++i)
+  c.b.store(c.b.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+```
+
+这里用 `std::atomic` 加 `relaxed`，只是为了让编译器每一轮都真的读写内存（1.4），x86 上编出来是普通的 `mov`，没有 `lock` 前缀，也没有屏障。每个变量只有一个线程写，代码完全正确。慢在这一条缓存行的独占权上：
+
+1. 核 0 读、写 `a`，要拿到这一行的独占权（M）。
+2. 核 1 读、写 `b`，是同一行，于是发请求把整行要过去，核 0 那一份变成 I。
+3. 核 0 下一轮读 `a`，本地已经没有这一行，只能等它从核 1 搬回来。
+
+**本来是 L1 命中、1 ns 左右的一次自增，变成了一次几十纳秒的跨核搬运**，而且每一轮都可能来一次。把 `a`、`b` 分到两条缓存行上（2.3），同样的循环通常快几倍到十几倍。只跑一个线程时两种布局一样快，这也是伪共享难查的原因：单线程的测试测不出来，要多核同时写才冒出来，用 `perf c2c` 能看到具体是哪一行（{{% bottleneck-ref "false-sharing" "plain" %}}）。
+
 ### 2.2 伪共享和读到旧值是两回事 {#not-stale-read}
 
 两者都涉及缓存行被作废，很容易混在一起：
@@ -347,6 +378,17 @@ MESI 作废的单位是**缓存行**，x86 上一行是 64 字节。两个线程
 最后一行最能说明区别：两个计数器各自只被一个线程写，没有原子操作，也没有数据竞争，只要在同一行里照样来回搬。**一致性协议不知道变量之间有没有关系，它只知道两个核都要同一条 64 字节缓存行的独占权。**
 
 ### 2.3 修法：一个热变量独占一条缓存行 {#padding}
+
+2.1 的例子，只要让两个字段各占一条缓存行：
+
+```cpp
+struct Counters {
+  alignas(64) std::atomic<uint64_t> a{0};
+  alignas(64) std::atomic<uint64_t> b{0};   // b 从下一条缓存行开始
+};
+```
+
+每个线程一个计数器的数组也一样，给元素类型加 `alignas(64)`：
 
 ```cpp
 struct alignas(64) PaddedCounter {

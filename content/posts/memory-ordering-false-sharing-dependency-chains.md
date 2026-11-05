@@ -316,6 +316,11 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 
 `payload` is an ordinary, non-atomic `int`. It's safe *only* because it's carried across by the release/acquire pair on `ready` — this is the standard shape of every SPSC (single-producer single-consumer) ring buffer you'll find in a trading system: one atomic index for synchronization, everything else plain.
 
+Back to the example from the animation in 1.2, now with a release store to `ready` and an acquire load of it. The hardware has the same two buffers; **the only additions are the two ordering constraints in steps 2 and 6**, one for the writer and one for the reader.
+
+<iframe src="/maps/release-acquire.en.html" title="release / acquire, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
+
 ### 1.6 Why x86 Barely Charges for This, and ARM Does
 
 Go back to the "forbid three, allow one" table in 1.3. Acquire and release only need to forbid reorderings that x86-TSO *already* forbids on every plain `mov` — LoadLoad, LoadStore, StoreStore. So on x86, a `memory_order_acquire` load and a `memory_order_release` store compile down to an ordinary load and an ordinary store; the hardware was already going to honor that ordering. **Acquire/release is nearly free on x86** — that's not a coincidence, it's the whole reason the C++ model has separate `acquire`/`release` orderings instead of just relaxed-or-nothing.

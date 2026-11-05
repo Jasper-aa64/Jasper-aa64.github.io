@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>release / acquire：分步看</title>
+<link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
+<style>
+:root { --bg:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --card:#f6f8fa; --hl:#bf3989; }
+.dark { --bg:#17161b; --fg:#e9e7ef; --muted:#a19caf; --line:#3a3945; --card:#1f1e25; --hl:#ff7bb0; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
+body { font: 15px/1.65 PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, sans-serif; }
+.wrap { max-width: 1100px; margin: 0 auto; }
+svg { display: block; width: 100%; height: auto; }
+.panel { box-sizing: border-box; margin: 0 12px 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.head { font-weight: 700; color: var(--hl); display: flex; align-items: center; gap: 8px; }
+.num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 13px; }
+.txt { margin: 6px 0 0; }
+.note { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 14px; }
+.note b { color: var(--fg); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+button { font: inherit; font-size: 14px; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+button:hover { border-color: var(--hl); color: var(--hl); }
+button:disabled { opacity: .4; cursor: default; border-color: var(--line); color: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-left: auto; font-size: 13.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend b { display: inline-grid; place-items: center; min-width: 22px; height: 20px; border-radius: 4px; border: 1.5px solid; font: 700 12.5px Consolas, Menlo, monospace; }
+.lM { background: #ffebe9; border-color: #cf222e !important; color: #a40e26; }
+.lE { background: #fbefff; border-color: #8250df !important; color: #6639ba; }
+.lS { background: #dafbe1; border-color: #1a7f37 !important; color: #116329; }
+.lI { background: #f6f8fa; border-color: #8c959f !important; border-style: dashed !important; color: #6e7781; }
+.dark .lM { background: #4a1d22; border-color: #f85149 !important; color: #ffa198; }
+.dark .lE { background: #2e2148; border-color: #a371f7 !important; color: #d2a8ff; }
+.dark .lS { background: #12301c; border-color: #3fb950 !important; color: #7ee787; }
+.dark .lI { background: #26252d; border-color: #6e6a7a !important; color: #a19caf; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 762" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif" id="sp" role="img" aria-label="加上 release / acquire：同一段代码为什么读到 42">
+  <defs>
+    <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#bc4c00" class="mk-ai"/>
+    </marker>
+    <marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a7f37" class="mk-aa"/>
+    </marker>
+    <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0969da" class="mk-ad"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#57606a" class="mk-ag"/>
+    </marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8250df" class="mk-ap"/>
+    </marker>
+    <style>
+      .t    { font-size: 15px; font-weight: 600; fill: #1f2328; }
+      .s    { font-size: 12.5px; fill: #57606a; }
+      .h    { font-size: 21px; font-weight: 700; fill: #1f2328; }
+      .f    { font-size: 13px; fill: #1f2328; }
+      .lab  { font-size: 12px; fill: #57606a; }
+      .code { font-family: Consolas, Menlo, monospace; font-size: 13.5px; fill: #1f2328; }
+      .cm   { font-family: Consolas, Menlo, monospace; font-size: 13px; fill: #6e7781; }
+      .box  { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .cache{ fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.2; }
+      .buf  { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+      .iq   { fill: #fff1e5; stroke: #fb8f44; stroke-width: 1.2; }
+      .ban  { fill: #f6f8fa; stroke: #57606a; stroke-width: 1.2; }
+      .slot { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+      .empty{ fill: none; stroke: #afb8c1; stroke-width: 1.2; stroke-dasharray: 4 3; }
+      .row  { fill: #ffffff; stroke: #54aeff; stroke-width: 1; }
+      .bad  { fill: #ffebe9; stroke: #cf222e; stroke-width: 1.4; }
+      .st   { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1; }
+      .stt  { font-family: Consolas, Menlo, monospace; font-size: 12.5px; font-weight: 700; fill: #1f2328; }
+      .red  { font-size: 12.5px; font-weight: 700; fill: #cf222e; }
+      .line { stroke: #8c959f; stroke-width: 1.5; fill: none; }
+      .inv  { stroke: #bc4c00; stroke-width: 2; fill: none; }
+      .ack  { stroke: #1a7f37; stroke-width: 2; fill: none; }
+      .data { stroke: #0969da; stroke-width: 2; fill: none; }
+      .dt   { font-size: 13px; font-weight: 700; fill: #ffffff; }
+    </style>
+    <style>
+      .t { font-size: 16.5px; } .f { font-size: 14.5px; } .s { font-size: 14px; } .lab { font-size: 13.5px; }
+      .code { font-size: 15px; } .cm { font-size: 14.5px; } .stt { font-size: 13.5px; } .red { font-size: 14px; }
+      .h { font-size: 23px; }
+      .bgr { fill: #ffffff; }
+      [data-from] { transition: opacity .35s; }
+      .hide { opacity: 0; pointer-events: none; }
+      .cur .row, .cur .slot, .cur .bad { stroke: #bf3989; stroke-width: 2.8; }
+      .cur circle { transform-box: fill-box; transform-origin: center; animation: pulse 1s ease-in-out 2; }
+      @keyframes pulse { 50% { transform: scale(1.35); } }
+      .cur .inv, .cur .ack, .cur .data { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 1.1s ease-out forwards; }
+      @keyframes draw { to { stroke-dashoffset: 0; } }
+      .dark .bgr { fill: #17161b; }
+      .dark .t, .dark .h, .dark .f, .dark .code, .dark .stt { fill: #e9e7ef; }
+      .dark .s, .dark .lab, .dark .cm { fill: #a19caf; }
+      .dark .box { fill: #201f26; stroke: #47454f; }
+      .dark .cache { fill: #142231; stroke: #2f6fae; }
+      .dark .buf { fill: #352d12; stroke: #9a7b1c; }
+      .dark .iq { fill: #382315; stroke: #b5642a; }
+      .dark .ban { fill: #1f1e25; stroke: #47454f; }
+      .dark .slot { fill: #26252d; stroke: #6e6a7a; }
+      .dark .empty { stroke: #55525f; }
+      .dark .row { fill: #1a2230; stroke: #2f6fae; }
+      .dark .bad { fill: #3d1d1f; stroke: #e5534b; }
+      .dark .st { fill: #2a2933; stroke: #55525f; }
+      .dark .red { fill: #ff7b72; }
+      .dark .line { stroke: #6e6a7a; }
+      .dark .inv { stroke: #f0883e; } .dark .mk-ai { fill: #f0883e; }
+      .dark .ack { stroke: #3fb950; } .dark .mk-aa { fill: #3fb950; }
+      .dark .data { stroke: #58a6ff; } .dark .mk-ad { fill: #58a6ff; }
+      .dark circle[fill="#1f2328"] { fill: #6e6a7a; }
+      .dark .cur .row, .dark .cur .slot, .dark .cur .bad { stroke: #ff7bb0; }
+      .go { stroke: #57606a; stroke-width: 2; fill: none; } .dark .go { stroke: #a19caf; } .dark .mk-ag { fill: #a19caf; }
+      .pend { stroke: #cf222e; stroke-width: 2; fill: none; stroke-dasharray: 6 4; } .dark .pend { stroke: #ff7b72; } .dark .mk-ar { fill: #ff7b72; }
+      .cur .go, .cur .pend { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 1.1s ease-out forwards; }
+      .hl { fill: none; stroke: #bf3989; stroke-width: 2.5; stroke-dasharray: 7 5; } .dark .hl { stroke: #ff7bb0; }
+      .st.mM { fill: #ffebe9; stroke: #cf222e; stroke-width: 1.6; } .stt.mM { fill: #a40e26; }
+      .st.mE { fill: #fbefff; stroke: #8250df; stroke-width: 1.6; } .stt.mE { fill: #6639ba; }
+      .st.mS { fill: #dafbe1; stroke: #1a7f37; stroke-width: 1.6; } .stt.mS { fill: #116329; }
+      .st.mI { fill: #f6f8fa; stroke: #8c959f; stroke-width: 1.4; stroke-dasharray: 4 3; } .stt.mI { fill: #6e7781; }
+      .dark .st.mM { fill: #4a1d22; stroke: #f85149; } .dark .stt.mM { fill: #ffa198; }
+      .dark .st.mE { fill: #2e2148; stroke: #a371f7; } .dark .stt.mE { fill: #d2a8ff; }
+      .dark .st.mS { fill: #12301c; stroke: #3fb950; } .dark .stt.mS { fill: #7ee787; }
+      .dark .st.mI { fill: #26252d; stroke: #6e6a7a; } .dark .stt.mI { fill: #a19caf; }
+    </style>
+    <style>
+      .acq { stroke: #8250df; stroke-width: 2.4; fill: none; } .dark .acq { stroke: #a371f7; } .dark .mk-ap { fill: #a371f7; }
+      .cur .acq { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 1.1s ease-out forwards; }
+      .ok { font-size: 14px; font-weight: 700; fill: #1a7f37; } .dark .ok { fill: #3fb950; }
+      .pl { font-size: 14px; font-weight: 700; fill: #8250df; } .dark .pl { fill: #a371f7; }
+      .dark circle[fill="#8250df"] { fill: #8957e5; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1100" height="762" class="bgr"/>
+  <text x="40" y="40" class="h">加上 release / acquire：同一段代码为什么读到 42</text>
+  <rect x="40" y="62" width="1020" height="104" rx="6" class="ban"/>
+  <text x="60" y="86" class="cm">// 开始时：data = 0，ready = false</text>
+  <text x="60" y="110" class="cm">// 核 0（写）</text>
+  <text x="60" y="132" class="code">data = 42;</text>
+  <text x="60" y="154" class="code">ready.store(true, release);</text>
+  <text x="630" y="110" class="cm">// 核 1（读）</text>
+  <text x="630" y="132" class="code">while (!ready.load(acquire)) {}</text>
+  <text x="630" y="154" class="code">use(data);   // 读到 42</text>
+  <rect x="40" y="184" width="450" height="46" rx="6" class="box"/>
+  <text x="56" y="213" class="t">核 0 · 写方</text>
+  <text x="474" y="213" class="s" text-anchor="end">写 data，再 release 写 ready</text>
+  <rect x="40" y="248" width="215" height="100" rx="6" class="iq"/>
+  <text x="54" y="270" class="t">invalidate queue</text>
+  <rect x="275" y="248" width="215" height="100" rx="6" class="buf"/>
+  <text x="289" y="270" class="t">store buffer</text>
+  <rect x="54" y="280" width="150" height="24" rx="4" class="empty"/>
+  <text x="54" y="336" class="s">这次没用上</text>
+  <rect x="289" y="280" width="150" height="24" rx="4" class="empty"/>
+  <rect x="289" y="308" width="150" height="24" rx="4" class="empty"/>
+  <g data-from="1" data-to="3" data-step="1">
+  <rect x="289" y="280" width="150" height="24" rx="4" class="slot"/>
+  <text x="364" y="297" class="code" text-anchor="middle">data = 42</text>
+  </g>
+  <g data-from="2" data-to="3" data-step="2">
+  <rect x="289" y="308" width="150" height="24" rx="4" class="slot"/>
+  <text x="364" y="325" class="code" text-anchor="middle">ready = 1</text>
+  </g>
+  <g data-from="1" data-to="1">
+  <text x="289" y="343" class="s">data 等 ACK</text>
+  </g>
+  <g data-from="2" data-to="3">
+  <text x="281" y="343" class="pl">release：ready 排在 data 后面</text>
+  </g>
+  <g data-from="4" data-to="7">
+  <text x="289" y="343" class="s">按顺序写进 L1D，已清空</text>
+  </g>
+  <rect x="40" y="366" width="450" height="112" rx="6" class="cache"/>
+  <text x="54" y="388" class="t">L1D（本核私有）</text>
+  <g data-from="0" data-to="3">
+  <rect x="54" y="400" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="419.5" class="code">data</text>
+  <text x="140" y="419.5" class="code">0</text>
+  <rect x="200" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="237" y="418.5" class="stt mS" text-anchor="middle">S</text>
+  </g>
+  <g data-from="4" data-to="6" data-step="4">
+  <rect x="54" y="400" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="419.5" class="code">data</text>
+  <text x="140" y="419.5" class="code">42</text>
+  <rect x="200" y="404" width="74" height="20" rx="4" class="st mM"/>
+  <text x="237" y="418.5" class="stt mM" text-anchor="middle">M</text>
+  </g>
+  <g data-from="7" data-to="7" data-step="7">
+  <rect x="54" y="400" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="419.5" class="code">data</text>
+  <text x="140" y="419.5" class="code">42</text>
+  <rect x="200" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="237" y="418.5" class="stt mS" text-anchor="middle">S</text>
+  </g>
+  <g data-from="0" data-to="3">
+  <rect x="54" y="436" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="455.5" class="code">ready</text>
+  <text x="140" y="455.5" class="code">0</text>
+  <rect x="200" y="440" width="74" height="20" rx="4" class="st mE"/>
+  <text x="237" y="454.5" class="stt mE" text-anchor="middle">E</text>
+  </g>
+  <g data-from="4" data-to="4" data-step="4">
+  <rect x="54" y="436" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="455.5" class="code">ready</text>
+  <text x="140" y="455.5" class="code">1</text>
+  <rect x="200" y="440" width="74" height="20" rx="4" class="st mM"/>
+  <text x="237" y="454.5" class="stt mM" text-anchor="middle">M</text>
+  </g>
+  <g data-from="5" data-to="7" data-step="5">
+  <rect x="54" y="436" width="422" height="28" rx="4" class="row"/>
+  <text x="68" y="455.5" class="code">ready</text>
+  <text x="140" y="455.5" class="code">1</text>
+  <rect x="200" y="440" width="74" height="20" rx="4" class="st mS"/>
+  <text x="237" y="454.5" class="stt mS" text-anchor="middle">S</text>
+  </g>
+  <rect x="40" y="496" width="450" height="40" rx="6" class="cache"/>
+  <text x="265" y="521" class="f" text-anchor="middle">L2（本核私有）</text>
+  <rect x="610" y="184" width="450" height="46" rx="6" class="box"/>
+  <text x="626" y="213" class="t">核 1 · 读方</text>
+  <text x="1044" y="213" class="s" text-anchor="end">acquire 读 ready，再读 data</text>
+  <rect x="610" y="248" width="215" height="100" rx="6" class="iq"/>
+  <text x="624" y="270" class="t">invalidate queue</text>
+  <rect x="845" y="248" width="215" height="100" rx="6" class="buf"/>
+  <text x="859" y="270" class="t">store buffer</text>
+  <rect x="624" y="280" width="150" height="24" rx="4" class="empty"/>
+  <g data-from="3" data-to="5" data-step="3">
+  <rect x="624" y="280" width="150" height="24" rx="4" class="slot"/>
+  <text x="699" y="297" class="f" text-anchor="middle">invalidate：data</text>
+  </g>
+  <g data-from="3" data-to="5">
+  <text x="624" y="336" class="s">已回 ACK，还没处理</text>
+  </g>
+  <g data-from="6" data-to="7">
+  <text x="624" y="336" class="pl">acquire：排着的请求已处理完</text>
+  </g>
+  <rect x="859" y="280" width="150" height="24" rx="4" class="empty"/>
+  <text x="859" y="336" class="s">这次没用上</text>
+  <rect x="610" y="366" width="450" height="112" rx="6" class="cache"/>
+  <text x="624" y="388" class="t">L1D（本核私有）</text>
+  <g data-from="0" data-to="2">
+  <rect x="624" y="400" width="422" height="28" rx="4" class="row"/>
+  <text x="638" y="419.5" class="code">data</text>
+  <text x="710" y="419.5" class="code">0</text>
+  <rect x="770" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="807" y="418.5" class="stt mS" text-anchor="middle">S</text>
+  </g>
+  <g data-from="3" data-to="5" data-step="3">
+  <rect x="624" y="400" width="422" height="28" rx="4" class="row"/>
+  <text x="638" y="419.5" class="code">data</text>
+  <text x="710" y="419.5" class="code">0</text>
+  <rect x="770" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="807" y="418.5" class="stt mS" text-anchor="middle">S</text>
+  <text x="856" y="419.5" class="s">作废还在排队</text>
+  </g>
+  <g data-from="6" data-to="6" data-step="6">
+  <rect x="624" y="400" width="422" height="28" rx="4" class="row"/>
+  <text x="638" y="419.5" class="code">data</text>
+  <text x="710" y="419.5" class="code">—</text>
+  <rect x="770" y="404" width="74" height="20" rx="4" class="st mI"/>
+  <text x="807" y="418.5" class="stt mI" text-anchor="middle">I</text>
+  <text x="856" y="419.5" class="pl">已作废</text>
+  </g>
+  <g data-from="7" data-to="7" data-step="7">
+  <rect x="624" y="400" width="422" height="28" rx="4" class="row"/>
+  <text x="638" y="419.5" class="code">data</text>
+  <text x="710" y="419.5" class="code">42</text>
+  <rect x="770" y="404" width="74" height="20" rx="4" class="st mS"/>
+  <text x="807" y="418.5" class="stt mS" text-anchor="middle">S</text>
+  <text x="856" y="419.5" class="ok">重新取到 42</text>
+  </g>
+  <g data-from="0" data-to="4">
+  <rect x="624" y="436" width="422" height="28" rx="4" class="row"/>
+  <text x="638" y="455.5" class="code">ready</text>
+  <text x="710" y="455.5" class="code">无</text>
+  <rect x="770" y="440" width="74" height="20" rx="4" class="st mI"/>
+  <text x="807" y="454.5" class="stt mI" text-anchor="middle">I</text>
+  </g>
+  <g data-from="5" data-to="7" data-step="5">
+  <rect x="624" y="436" width="422" height="28" rx="4" class="row"/>
+  <text x="638" y="455.5" class="code">ready</text>
+  <text x="710" y="455.5" class="code">1</text>
+  <rect x="770" y="440" width="74" height="20" rx="4" class="st mS"/>
+  <text x="807" y="454.5" class="stt mS" text-anchor="middle">S</text>
+  </g>
+  <rect x="610" y="496" width="450" height="40" rx="6" class="cache"/>
+  <text x="835" y="521" class="f" text-anchor="middle">L2（本核私有）</text>
+  <g data-from="1" data-to="1" data-step="1">
+  <path d="M150,128 H265 V292 H286" class="go" marker-end="url(#ag)"/>
+  </g>
+  <g data-from="1" data-to="1">
+  <circle cx="205" cy="128" r="11" fill="#1f2328"/>
+  <text x="205" y="132.5" class="dt" text-anchor="middle">1</text>
+  </g>
+  <g data-from="2" data-to="2" data-step="2">
+  <path d="M300,150 H500 V320 H443" class="acq" marker-end="url(#ap)"/>
+  </g>
+  <g data-from="2" data-to="2">
+  <circle cx="400" cy="150" r="11" fill="#8250df"/>
+  <text x="400" y="154.5" class="dt" text-anchor="middle">2</text>
+  </g>
+  <g data-from="3" data-to="3" data-step="3">
+  <rect x="40" y="650" width="1020" height="96" rx="6" class="hl"/>
+  <path d="M490,278 H510 V584" class="inv"/>
+  <path d="M590,584 V278 H606" class="inv" marker-end="url(#ai)"/>
+  <path d="M610,322 H570 V584" class="ack"/>
+  <path d="M530,584 V322 H494" class="ack" marker-end="url(#aa)"/>
+  </g>
+  <g data-from="3" data-to="3">
+  <circle cx="550" cy="430" r="11" fill="#bc4c00"/>
+  <text x="550" y="434.5" class="dt" text-anchor="middle">3</text>
+  </g>
+  <g data-from="4" data-to="4" data-step="4">
+  <path d="M439,306 H466 V398" class="go" marker-end="url(#ag)"/>
+  </g>
+  <g data-from="4" data-to="4">
+  <circle cx="450" cy="414" r="11" fill="#1f2328"/>
+  <text x="450" y="418.5" class="dt" text-anchor="middle">4</text>
+  </g>
+  <g data-from="5" data-to="5" data-step="5">
+  <line x1="265" y1="478" x2="265" y2="494" class="data"/>
+  <line x1="265" y1="536" x2="265" y2="584" class="data" marker-end="url(#ad)"/>
+  <line x1="835" y1="584" x2="835" y2="540" class="data" marker-end="url(#ad)"/>
+  <line x1="835" y1="496" x2="835" y2="482" class="data" marker-end="url(#ad)"/>
+  <text x="850" y="566" class="lab">ready 的行转给核 1</text>
+  </g>
+  <g data-from="5" data-to="5">
+  <circle cx="810" cy="562" r="11" fill="#0969da"/>
+  <text x="810" y="566.5" class="dt" text-anchor="middle">5</text>
+  </g>
+  <g data-from="7" data-to="7" data-step="7">
+  <line x1="265" y1="478" x2="265" y2="494" class="data"/>
+  <line x1="265" y1="536" x2="265" y2="584" class="data" marker-end="url(#ad)"/>
+  <line x1="835" y1="584" x2="835" y2="540" class="data" marker-end="url(#ad)"/>
+  <line x1="835" y1="496" x2="835" y2="482" class="data" marker-end="url(#ad)"/>
+  <text x="850" y="566" class="lab">data 的行转给核 1</text>
+  </g>
+  <g data-from="7" data-to="7">
+  <circle cx="810" cy="562" r="11" fill="#1a7f37"/>
+  <text x="810" y="566.5" class="dt" text-anchor="middle">7</text>
+  </g>
+  <g data-from="6" data-to="6" data-step="6">
+  <path d="M774,292 H800 V398" class="acq" marker-end="url(#ap)"/>
+  <text x="808" y="362" class="pl">acquire：先清队列</text>
+  </g>
+  <g data-from="6" data-to="6">
+  <circle cx="1020" cy="414" r="11" fill="#8250df"/>
+  <text x="1020" y="418.5" class="dt" text-anchor="middle">6</text>
+  </g>
+  <rect x="40" y="586" width="1020" height="40" rx="6" class="ban"/>
+  <text x="550" y="611" class="f" text-anchor="middle">片上互连（环或网格）：Read、RFO、invalidate 请求、ACK、缓存间转发的整条行，都走这里</text>
+  <line x1="550" y1="626" x2="550" y2="650" class="line"/>
+  <rect x="40" y="650" width="1020" height="96" rx="6" class="cache"/>
+  <text x="60" y="674" class="t">L3（全核共享）+ snoop filter</text>
+  <text x="60" y="698" class="s">snoop filter 记着每一行在哪些核里，invalidate 请求只发给有副本的核。</text>
+  <text x="60" y="720" class="s">新值不会被推过去：ready 和 data 都是核 1 自己来取的（第 5、7 步）。</text>
+</svg>
+<div class="panel" id="panel">
+  <div class="head" id="head"></div>
+  <p class="txt" id="txt"></p>
+  <p class="note" id="note" hidden><b>为什么这样就对了</b><br><b>release 管写方</b>：ready 不会比 data 先被别的核看见（第 2、4 步）。<b>acquire 管读方</b>：读到 ready 之后，排着的作废先处理完，后面读 data 拿不到旧值（第 6 步）。两边各管一半，少一个都不行：只有 release，核 1 照样可能从没作废的旧行里读到 0；只有 acquire，ready 可能比 data 先可见。</p>
+  <div class="btns">
+    <button id="prev">上一步</button><button id="next">下一步</button><button id="play">自动播放</button><button id="reset">重来</button>
+    <div class="legend"><span><b class="lM">M</b>已修改</span><span><b class="lE">E</b>独占</span><span><b class="lS">S</b>共享</span><span><b class="lI">I</b>无效</span></div>
+  </div>
+</div>
+</div>
+<script>
+(function () {
+  var root = document.documentElement, svg = document.getElementById('sp'), LAST = 7, k = 0, timer = null;
+  var D = {"texts": ["代码和上一个动画一样，只改了两处：写 ready 用 release，读 ready 用 acquire。开始时 data 在两个核的缓存里各有一份（S），ready 只在核 0 的缓存里（E）。点“下一步”或按键盘右方向键往下走。", "核 0 执行 data = 42。核 1 也有 data 这一行，得先让它作废，所以这个写先记进 store buffer，等 ACK。到这里和上一个动画一样。", "ready.store 带着 release：它前面的写（data = 42）被别的核看见之前，它不能被看见。ready 这一行只在核 0 里（E），本来可以直接写进 L1D，现在也只能进 store buffer，排在 data 后面。x86 的 store buffer 本来就按顺序往外写，release 编出来是普通的 mov；ARM 的写可以乱序可见，要用 stlr。", "核 0 发出 invalidate 请求，snoop filter 只转给核 1；核 1 把请求放进 invalidate queue，马上回 ACK。核 1 的 L1D 里 data 还是旧的 0，没有被标成无效。这一步也和上一个动画一样。", "核 0 收齐 ACK，先把 data = 42 写进 L1D（变成 M），然后才轮到 ready = 1（也变成 M）。release 要的就是这个先后：别的核看见 ready = 1 的时候，data = 42 一定已经可见了。", "核 1 用 acquire 读 ready：本地没有这一行，发 Read 请求，核 0 经互连把整行转过来，两边都变成 S。读到 1，退出循环。", "acquire 规定它后面的读不能跑到它前面去。在这个模型里，核 1 要先把 invalidate queue 里排着的请求处理完，再执行后面的读：data 这一行被作废，变成 I。x86 本来就禁止读和读乱序，acquire 编出来是普通的 mov；ARM 上要用 ldar。", "核 1 读 data：这一行已经是 I，未命中，发 Read 请求。核 0 手里是 M，经互连把整行转过来，两边都变成 S。读到 42。和上一个动画相比，多出来的只有第 2 步和第 6 步这两个顺序约束。"], "titles": ["开始之前", "写先进 store buffer", "release：ready 排在 data 后面", "invalidate 请求和 ACK", "收齐 ACK，按顺序写进 L1D", "acquire 读到 ready = 1", "acquire：先处理 invalidate queue", "读 data，拿到 42"], "step": "第 {k} 步，共 7 步：", "colors": {"1": "#1f2328", "2": "#8250df", "3": "#bc4c00", "4": "#1f2328", "5": "#0969da", "6": "#8250df", "7": "#1a7f37"}, "play": "自动播放", "pause": "暂停"};
+  var parts = svg.querySelectorAll('[data-from]');
+  svg.querySelectorAll('.inv, .ack, .data, .go, .pend, .acq').forEach(function (p) {
+    p.style.setProperty('--len', Math.ceil(p.getTotalLength ? p.getTotalLength() : 600));
+  });
+  function theme() {
+    var t = null;
+    try { if (window.parent !== window) t = window.parent.document.documentElement.dataset.theme; } catch (e) {}
+    if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    root.classList.toggle('dark', t !== 'light');
+  }
+  theme();
+  try { if (window.parent !== window) new MutationObserver(theme).observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+  function fit() {
+    try { if (window.frameElement) window.frameElement.style.height = document.body.scrollHeight + 'px'; } catch (e) {}
+  }
+  var head = document.getElementById('head'), txt = document.getElementById('txt'), note = document.getElementById('note');
+  var bPrev = document.getElementById('prev'), bNext = document.getElementById('next'), bPlay = document.getElementById('play');
+  var panel = document.getElementById('panel');
+  function fill(n) {
+    head.innerHTML = (n ? '<span class="num" style="background:' + D.colors[n] + '">' + n + '</span>' + D.step.replace('{k}', n) : '') + D.titles[n];
+    txt.textContent = D.texts[n];
+    note.hidden = n !== LAST;
+  }
+  function lock() {
+    panel.style.minHeight = '';
+    var h = 0;
+    for (var n = 0; n <= LAST; n++) { fill(n); h = Math.max(h, panel.offsetHeight); }
+    fill(k);
+    panel.style.minHeight = h + 'px';
+    fit();
+  }
+  function show(n) {
+    k = Math.max(0, Math.min(LAST, n));
+    parts.forEach(function (el) {
+      var on = k >= +el.dataset.from && k <= +el.dataset.to;
+      el.classList.toggle('hide', !on);
+      el.classList.remove('cur');
+      if (on && el.dataset.step !== undefined && +el.dataset.step === k) { void el.getBBox(); el.classList.add('cur'); }
+    });
+    fill(k);
+    bPrev.disabled = k === 0;
+    bNext.disabled = k === LAST;
+    fit();
+  }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } bPlay.textContent = D.play; }
+  function play() {
+    if (timer) { stop(); return; }
+    if (k === LAST) show(0);
+    bPlay.textContent = D.pause;
+    timer = setInterval(function () { if (k >= LAST) stop(); else show(k + 1); }, 2400);
+  }
+  bPrev.onclick = function () { stop(); show(k - 1); };
+  bNext.onclick = function () { stop(); show(k + 1); };
+  bPlay.onclick = play;
+  document.getElementById('reset').onclick = function () { stop(); show(0); };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') { stop(); show(k + 1); }
+    if (e.key === 'ArrowLeft') { stop(); show(k - 1); }
+  });
+  window.addEventListener('resize', lock);
+  window.addEventListener('load', lock);
+  show(0);
+  lock();
+})();
+</script>
+</body>
+</html>

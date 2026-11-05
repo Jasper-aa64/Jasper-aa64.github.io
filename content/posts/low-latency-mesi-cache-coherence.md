@@ -11,7 +11,7 @@ toc: true
 homepage: false
 ---
 
-Start with something counterintuitive. Two threads each increment their own counter. They share no variable at all; the two counters just happen to sit next to each other in one struct, on the same 64-byte cache line. That alone makes them over ten times slower than counters kept apart (measured in [#2](/posts/memory-ordering-false-sharing-dependency-chains/)). The threads share nothing, yet the hardware makes them drag each other down.
+Start with something counterintuitive. Two threads each increment their own counter. They share no variable at all; the two counters just happen to sit next to each other in one struct, on the same 64-byte cache line. That alone makes them several times, even over ten times, slower than counters kept apart (see [#2](/posts/memory-ordering-false-sharing-dependency-chains/)). The threads share nothing, yet the hardware makes them drag each other down.
 
 Explaining it means knowing how a multi-core CPU manages several copies of one cache line. Each core has its own L1 and L2 holding copies of memory; when two cores have both read a line, each holds a copy. As soon as one of them writes, the other copy is stale — and the hardware must guarantee no core keeps using a stale copy. That machinery is the cache coherence protocol, and the classic one is MESI.
 
