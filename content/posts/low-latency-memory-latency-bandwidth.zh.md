@@ -75,7 +75,7 @@ $$
 
 三样东西：
 
-- **乱序执行**：后面的 load 不等前面的 load 回来，就先发出去（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 讲过乱序和依赖链）。它能往后看多远，由 ROB 决定，见 1.3.2。
+- **乱序执行**：后面的 load 不等前面的 load 回来，就先发出去（依赖链见 [#9 第 3 节](/zh/posts/loop-optimization/#dependency-chains)）。它能往后看多远，由 ROB 决定，见 1.3.2。
 - **LFB**（line fill buffer，行填充缓冲；AMD 叫 MAB，论文里叫 MSHR）：L1D 用来记“哪些缺失还没回来”的小表，一个核 12–24 项。核自己发出的缺失，最多同时挂这么多。
 - **硬件预取器**：看出你在顺序走，它自己提前发请求，不占你的指令。L2 的预取器把请求挂在 L2 自己的未完成请求队列（L2 的 MSHR，30–60 项）里，所以能比 LFB 再多挂一批。
 

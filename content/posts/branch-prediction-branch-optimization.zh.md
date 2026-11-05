@@ -319,7 +319,7 @@ long long sum_unroll4(const int* a, unsigned n) {
 
 **分支上省了什么**：每 4 个元素才有一次回跳。可 1.3 讲过，固定往回跳的循环分支本来就几乎不会猜错，展开省下的主要是 `i++`、`cmp`、`jne` 这几条指令本身，猜错几乎没少。循环体里如果有一条难猜的 `if`，展开以后它变成 4 条，一条也没少。
 
-**真正的收益**：四个累加器 `s0`–`s3` 是四条独立的依赖链，可以同时跑（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 讲过的多累加器），这和分支无关。
+**真正的收益**：四个累加器 `s0`–`s3` 是四条独立的依赖链，可以同时跑（[#9 3.3](/zh/posts/loop-optimization/#fp-sum) 讲过的多累加器），这和分支无关。
 
 - 固定 4 次这种短循环，GCC `-O2` 自己就会全部展开，不用手写。
 - 让编译器展开：GCC 写 `#pragma GCC unroll 4`，`#pragma unroll` 是 Clang 的写法。

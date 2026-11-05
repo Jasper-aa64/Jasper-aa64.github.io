@@ -15,4 +15,4 @@ source: "skills/performance-patterns/patterns/fast-crc32c.md"
 > - **单核对比**（文档里的表）：Sapphire Rapids 上朴素标量约 23 GB/s，Chromium 的 AVX-512 版 65 GB/s，fusion 97 GB/s。
 > - **写新代码**：要用 CRC32C 就直接用现成的，不要自己写。
 > - **验证**：空缓冲区、种子 0 结果是 0；`crc32c(0, "123456789", 9) == 0xE3069283`。
-> - **原理**：单累加器的上限由指令延迟决定，拆成几条独立的链才能把执行单元用满，见 [#2 3.5 累加器该拆几个](/zh/posts/memory-ordering-false-sharing-dependency-chains/#accumulators)。
+> - **原理**：单累加器的上限由指令延迟决定，拆成几条独立的链才能把执行单元用满，见 [#9 3.4 累加器该拆几个](/zh/posts/loop-optimization/#accumulators)。

@@ -44,7 +44,8 @@ math: true
 | 框 | 文章 |
 |---|---|
 | 核、SMT、NUMA、核上的中断 | [#1 CPU 隔离与 NUMA](/zh/posts/cpu-affinity-core-isolation-numa/) |
-| 流水线与依赖链、寄存器、store buffer、invalidate queue、缓存行与伪共享 | [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/) |
+| store buffer、invalidate queue、缓存行与伪共享 | [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/) |
+| 流水线与依赖链、累加器个数、寄存器溢出 | [#9 循环优化](/zh/posts/loop-optimization/#dependency-chains) |
 | 缓存一致性 | [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/) |
 | 锁住内存、TLB shootdown | [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/) |
 | 多个核读写同一条行 | [#4 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) · [#16 自旋锁](/zh/posts/spinlock-implementation/) |
@@ -256,7 +257,7 @@ $$
 下面都是按一组典型数估的：内存延迟约 90 ns，一个核读内存约 35 GB/s，整颗芯片约 50 GB/s。
 
 1. **大数组顺序求和，向量化**。Q1：每条行都用满。Q4：预取器全力，一个核约 35 GB/s。带宽需求约 256 GB/s。取小，约 35 GB/s，卡在内存带宽上。4 个核一起扫，撞上整颗芯片的约 50 GB/s，每个核只分到 12 GB/s 左右。
-2. **同一个求和，换成 `float`、一个累加器**。带宽需求只有约 4 GB/s，比内存送得还慢。数据在 L1 还是在内存，速度几乎一样。要快，得拆依赖链（多个累加器，[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/)），换更快的内存没用。
+2. **同一个求和，换成 `float`、一个累加器**。带宽需求只有约 4 GB/s，比内存送得还慢。数据在 L1 还是在内存，速度几乎一样。要快，得拆依赖链（多个累加器，[#9 3.3](/zh/posts/loop-optimization/#fp-sum)），换更快的内存没用。
 3. **遍历一个散在堆上的链表**。Q4 只有 1，每个节点付一整次内存延迟，约 90 ns。100 万个节点约 90 ms。路很宽，只用了 0.7 GB/s。要快，只能让节点挨着放（数组、内存池），或者让它们一直留在缓存里。
 4. **热路径上一次查表落到内存**。一次约 90 ns，按 4 GHz 是 360 个周期，够 L1 命中 90 次。热路径上每条行情只碰几条行，字节数很小，怕的是这种有依赖的缺失（Q3、Q4），不是带宽。
 5. **同一颗芯片上另一个核在扫回测数据**。策略绑在隔离核上，热路径只碰几条行，带宽几乎不用，照样变慢，两条原因相乘。缺失变多：回测把 L3 冲掉，热路径原来在 L3 命中（约 10–30 ns）的行要去内存（约 90 ns）。每次缺失更慢：内存控制器被回测占满，热路径那几次缺失要排在它的请求后面，带载延迟可到空闲时的 2 倍以上，约 200 ns。核自己 L1/L2 里一直在用的行冲不掉（L3 是 inclusive 的芯片例外）。绑核只隔离了计算，没隔离 L3 和内存这段路。办法是把回测挪走，或者用 CAT 限它的 L3、MBA 限它的内存带宽。

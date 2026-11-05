@@ -2,11 +2,11 @@
 title: "交易系统笔记 #2：内存序与缓存行"
 date: 2026-09-15
 slug: "memory-ordering-false-sharing-dependency-chains"
-description: "为什么一个写不会马上被别的核看见（store buffer、invalidate queue），x86 为什么只允许 StoreLoad 乱序，release/acquire 怎么只在需要的地方补上顺序、在 x86 和 ARM 上各花多少钱；伪共享为什么和读到旧值是两回事；以及依赖链和累加器个数。"
-summary: "同一套缓存硬件带出两个不相干的问题。正确性：写先进 store buffer，别的核要过一段时间才看得见，靠 release/acquire 配对补上顺序。性能：就算每个值都读对了，两个核抢同一条缓存行（伪共享）、或者一条依赖链太长，照样慢，靠缓存行布局和拆依赖链解决。"
+description: "为什么一个写不会马上被别的核看见（store buffer、invalidate queue），x86 为什么只允许 StoreLoad 乱序，release/acquire 怎么只在需要的地方补上顺序、在 x86 和 ARM 上各花多少钱；伪共享为什么和读到旧值是两回事。"
+summary: "同一套缓存硬件带出两个不相干的问题。正确性：写先进 store buffer，别的核要过一段时间才看得见，靠 release/acquire 配对补上顺序。性能：就算每个值都读对了，两个核抢同一条缓存行（伪共享）照样慢，靠缓存行布局解决。"
 chapter: 1
 categories: [Systems]
-tags: [cpp, memory-model, atomics, cache-coherence, false-sharing, mesi, x86, hft, low-latency, pipelining]
+tags: [cpp, memory-model, atomics, cache-coherence, false-sharing, mesi, x86, hft, low-latency]
 toc: true
 homepage: false
 math: true
@@ -14,9 +14,7 @@ math: true
 
 线程 A 先写 `y = 1`、再写 `x = 1`，线程 B 看到 `x == 1` 以后去读 `y`，一定能读到 1 吗？另一个问题：两个线程各自累加自己的计数器，不共享任何变量，代码也没有 bug，为什么两个计数器挨着放在同一个结构体里时，循环会慢好几倍？
 
-两个问题背后是同一套硬件：每个核私有的缓存、64 字节的缓存行、让各核缓存保持一致的协议（MESI）。可它们是两类问题。**第一个问的是正确性：读到的值对不对，答案非对即错；第二个问的是性能：值都读对了，花了多少个周期。** 前者用 C++ 内存模型（`std::atomic`、`memory_order`）解决，后者用缓存行布局和指令安排解决，混在一起就会拿错工具。第 1 节讲正确性，第 2 节讲伪共享。
-
-第 3 节离开核与核之间，只看一个核的内部。store buffer 让写不用等跨核往返，流水线就能接着执行后面的指令；**流水线最终能跑多快，取决于指令之间的依赖**，这是第 3 节的内容，和缓存行无关。
+两个问题背后是同一套硬件：每个核私有的缓存、64 字节的缓存行、让各核缓存保持一致的协议（MESI）。可它们是两类问题。**第一个问的是正确性：读到的值对不对，答案非对即错；第二个问的是性能：值都读对了，花了多少个周期。** 前者用 C++ 内存模型（`std::atomic`、`memory_order`）解决，后者用缓存行布局解决，混在一起就会拿错工具。第 1 节讲正确性，第 2 节讲伪共享。单个核内部的依赖链，是“值都对、照样慢”的另一种情况，放在 [#9 循环优化](/zh/posts/loop-optimization/#dependency-chains) 第 3 节。
 
 ---
 
@@ -114,7 +112,9 @@ math: true
 
 代价是：**一个写从“指令做完了”到“别的核看得见”，中间隔着一段时间，通常几十纳秒。** 这段时间里，写还在 A 自己的 store buffer 里，别的核去读 `x`，读到的还是旧值。
 
-线程 A 自己感觉不到这段时间。A 写了 `x` 以后马上读 `x`，CPU 会直接从 store buffer 里把刚写的值转给这次读（store-to-load forwarding，3.4），所以 A 看自己的写永远是按程序顺序来的。**这段时间只有别的核才看得到**，它不是 bug，也不是编译器造成的，是硬件为了不让流水线停下来必然付的代价。后面讲的乱序，都是从这里来的。
+线程 A 自己感觉不到这段时间。A 写了 `x` 以后马上读 `x`，CPU 会直接从 store buffer 里把刚写的值转给这次读（store-to-load forwarding），所以 A 看自己的写永远是按程序顺序来的。**这段时间只有别的核才看得到**，它不是 bug，也不是编译器造成的，是硬件为了不让流水线停下来必然付的代价。后面讲的乱序，都是从这里来的。
+
+**转发有一个条件：这次读要的字节，必须完整地落在 store buffer 里的某一条写之内。** 读 4 字节、前面写过 8 字节且覆盖了这 4 字节，可以转发；写了 4 字节、紧接着从同一地址读 8 字节，一条写满足不了，转发失败，这次读要等写真正进了缓存才能完成，多等十几个周期。转发不会把几条写拼起来用。
 
 ### 1.2 invalidate queue：收到作废请求，先回 ACK 再处理 {#invalidate-queue}
 
@@ -419,108 +419,8 @@ L1、L2 是每个核私有的，L3 是同一颗 CPU 上所有核共享的，这�
 
 ---
 
-## 3. 依赖链：耗时由最长的那条链决定 {#dependency-chains}
-
-前两节的问题都出在核与核之间，这一节只看一个核。没有任何跨核的事情时，流水线也会停下来，原因是指令之间的依赖。
-
-现代 CPU 能同时执行好几条指令，但一条指令要等它的输入都算出来才能开始。**所以决定耗时的不是指令条数，而是最长的那条依赖链有多长**：链上的指令只能一条接一条地等。
-
-### 3.1 同样的运算，换个结合顺序 {#reassociate}
-
-```cpp
-// 一条链：mul -> add -> add，每一步都等上一步
-double chained(double a, double b, double c, double d) {
-  return ((a * b) + c) + d;
-}
-
-// c + d 不依赖乘法，可以和 a * b 同时算
-double parallel(double a, double b, double c, double d) {
-  double sum = c + d;
-  return (a * b) + sum;
-}
-```
-
-乘法和加法的延迟都按 4 个周期算：
-
-$$\text{chained} = 4 + 4 + 4 = 12,\qquad \text{parallel} = \max(4,\,4) + 4 = 8$$
-
-运算一样多，`parallel` 少了三分之一的时间。**做法就是把互不依赖的计算拆开，让 CPU 能同时算。** 浮点加法不满足结合律，换了顺序结果可能差最后几位，所以编译器默认不会替你这样改（除非加 `-ffast-math`），要手写。
-
-### 3.2 看不见的依赖：popcnt 的目标寄存器 {#false-dependency}
-
-有些指令会把目标寄存器当成输入，尽管结果和它原来的值无关。典型的是 Intel 好几代核（Sandy Bridge 到 Skylake 一带）上的 `popcnt`、`lzcnt`、`tzcnt`。一个每轮都写同一个目标寄存器的循环，就被串成了一条跨轮的链：
-
-```asm
-; rax 被当成输入，这一轮要等上一轮的 popcnt 写完 rax
-loop:
-    popcnt rax, rbx
-    ...
-    jmp loop
-
-; 先把目标寄存器清零：CPU 认得 xor 自己这个写法，知道它不依赖旧值，链就断了
-loop_fixed:
-    xor eax, eax
-    popcnt rax, rbx
-    ...
-    jmp loop_fixed
-```
-
-这种依赖在源码里看不出来，GCC、Clang 在针对这些核调优时会自动插入这条 `xor`。手写汇编或者 intrinsics 时，遇到一个“不该是链”的循环停顿得说不清，可以往这个方向查。
-
-### 3.3 拆得太多：寄存器不够，就溢出到栈上 {#spill}
-
-拆依赖链就是同时保留更多独立的中间值，每个都要占一个寄存器。x86-64 有 16 个通用寄存器，浮点和向量值放在 16 个 XMM/YMM 寄存器里（AVX-512 有 32 个 ZMM）。拆得太多，寄存器放不下，编译器就把多出来的值**溢出**到栈上，每轮多出几次读写内存。拆链本来是为了少等，拆过头反而又加上了内存访问。
-
-### 3.4 store-to-load forwarding：刚写的值直接从 store buffer 读回来 {#forwarding}
-
-1.1 提到，一个写后面紧跟着对同一地址的读，CPU 会直接从 store buffer 把值转给这次读，不用等写进缓存。条件是**这次读要的字节，必须完整地落在 store buffer 里的某一条写之内**：读 4 字节、前面写过 8 字节且覆盖了这 4 字节，可以转发；写了 4 字节、紧接着从同一地址读 8 字节，一条写满足不了，转发失败，这次读要等写真正进了缓存才能完成，多等十几个周期。转发不会把几条写拼起来用。
-
-### 3.5 累加器该拆几个：K = 延迟 × 吞吐 {#accumulators}
-
-3.1 的做法推广到循环，就是把一个累加器拆成 K 个，最后再合并：
-
-```cpp
-// 一个累加器：每次 += 都要等上一次，一条完全串行的链
-double dot_serial(const double *a, const double *b, size_t n) {
-  double acc = 0.0;
-  for (size_t i = 0; i < n; ++i) acc += a[i] * b[i];
-  return acc;
-}
-
-// K 个累加器：K 条互不依赖的链，只在最后合并一次
-template <size_t K>
-double dot_unrolled(const double *a, const double *b, size_t n) {
-  double acc[K] = {};
-  size_t i = 0;
-  for (; i + K <= n; i += K)
-    for (size_t k = 0; k < K; ++k)
-      acc[k] += a[i + k] * b[i + k];
-  for (; i < n; ++i) acc[0] += a[i] * b[i];   // 余下的几个
-  double total = 0.0;
-  for (double v : acc) total += v;
-  return total;
-}
-```
-
-K 要大到：一条链还在等上一次乘加的结果时，别的链能把执行单元填满。
-
-$$K = \text{一次乘加的延迟（周期）} \times \text{每周期能发射的乘加数}$$
-
-以乘加延迟 4 个周期、每周期能发射 2 个乘加（两个 FMA 单元）的核为例：
-
-| K | 每个元素平均周期 | 每周期乘加数 | 卡在哪 |
-|---|---|---|---|
-| 1 | 4 | 0.25 | 一条链，每 4 个周期出一个结果 |
-| 4 | 1 | 1 | 填满一个 FMA 单元 |
-| 8 | 0.5 | 2 | 两个 FMA 单元都满了 |
-| 16 | 0.5 | 2 | 不再提升，瓶颈从依赖链变成了执行单元 |
-
-**这是只看算术的上限。** 这个点积每次乘加要先读 `a[i]`、`b[i]` 两个数：每周期能读 2 个数的核，每周期最多做 1 次乘加，K = 4 就碰到读的上限；每周期能读 3 个数的较新的核，最多 1.5 次。数据不在 L1 里时，内存带宽会更早卡住。这就是 roofline 模型说的“算力受限还是访存受限”。公式给出算术上限，实际达到多少用 `perf` 测；K 再往上加没有收益，还会碰上 3.3 的寄存器溢出。
-
 ## 应用 {#in-practice}
 
-第 2 节的伪共享和第 3 节的依赖链，在实际优化里各对应一张卡片（{{% bottleneck-ref "false-sharing" "num" %}}、{{% bottleneck-ref "serial-accumulator" "num" %}}）：在 perf 里看到什么、怎么改、怎么验证。
+第 2 节的伪共享，在实际优化里对应“{{% bottleneck-ref "false-sharing" "plain" %}}”这张卡片：在 perf 里看到什么、怎么改、怎么验证。
 
 {{% bottleneck "false-sharing" %}}
-
-{{% bottleneck "serial-accumulator" %}}

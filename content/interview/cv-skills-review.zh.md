@@ -54,7 +54,7 @@ math: true
 | 题目 | 答到哪一层 | 本站 |
 |---|---|---|
 | ★ 热路径为什么不能 `malloc` | `malloc` 的耗时不确定：可能要抢锁、找合适的空闲块，还可能调 `brk` / `mmap` 进内核，第一次碰到新页还会缺页。内存池启动时一次分好固定大小的块，用 free list 管理，分配和释放都是 O(1)；arena 只往后顺序分配，到时候整体释放。实习里回测按交易日复用同一块内存，耗时降了约 44% | [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/)、[new 一次走到哪](/zh/ref/new-malloc-page-fault/) |
-| ★ 依赖链和多累加器（简历：拆分串行累加的依赖链） | 只用一个累加器时，每次加法都要等上一次的结果，被加法的延迟（约 4 周期）卡住，CPU 的两个加法单元大半时间空着。拆成 4–8 个累加器各加各的，最后再合起来，吞吐就上去了。代价是浮点加法的顺序变了，末位会变，和研究侧对拍时要按容差比（[Python 与 C++](/zh/interview/python-cpp-consistency/) 1.1） | [#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) |
+| ★ 依赖链和多累加器（简历：拆分串行累加的依赖链） | 只用一个累加器时，每次加法都要等上一次的结果，被加法的延迟（约 4 周期）卡住，CPU 的两个加法单元大半时间空着。拆成 4–8 个累加器各加各的，最后再合起来，吞吐就上去了。代价是浮点加法的顺序变了，末位会变，和研究侧对拍时要按容差比（[Python 与 C++](/zh/interview/python-cpp-consistency/) 1.1） | [#9 3.3–3.4](/zh/posts/loop-optimization/#fp-sum) |
 | ★ 无分支写法（简历上写了） | 把依赖数据、猜不准的 `if` 改成 `cmov`、掩码或查表，不用猜就不会猜错。分支本来就猜得准时反而可能更慢：分支猜对了可以提前往下跑，`cmov` 必须等条件算出来 | [#7](/zh/posts/branch-prediction-branch-optimization/) |
 | ★ 数据布局 | 按访问模式摆数据：热字段放在一起、冷字段挪出去，一次处理只碰少数几条缓存行；按字段批量扫描时用 SoA（每个字段一个数组）比 AoS 更省带宽，也更好向量化 | [#6 内存对齐与布局](/zh/posts/alignment-layout-cache-dram-geometry/) |
 | 预取和预热 | 软件预取（`__builtin_prefetch`）提前几百 ns 把下一批数据要过来，提前太多会把还要用的行挤掉。预热是启动时把内存页都碰一遍、把热路径空跑几遍，让缺页、缓存和分支预测器都先热起来；实习里启动时预触内存页，消掉了首轮的缺页 | [#14 预取、预热与双缓冲](/zh/posts/prefetch-warmup-double-buffer/) |

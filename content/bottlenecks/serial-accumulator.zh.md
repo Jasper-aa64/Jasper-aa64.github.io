@@ -12,4 +12,4 @@ source: "skills/performance-patterns/patterns/parallel-accumulator.md"
 > - **尾巴**：不满一组的尾巴也要用多累加器，否则小输入又退回串行。
 > - **前提**：运算满足结合律（加、乘、min、max）。结果会差一个舍入误差；要求逐位一致就不能用。
 > - **验证**：输出在舍入误差内一致，IPC 至少翻倍。
-> - **原理**：[#9 循环优化 3.2](/zh/posts/loop-optimization/#32-浮点求和编译器不敢换顺序要多个累加器)；累加器个数的公式见 [#2 3.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#accumulators)；编译器替不替你拆，见[内存延迟与带宽 1.5.1](/zh/posts/low-latency-memory-latency-bandwidth/#151-向量化simd与多个累加器谁来做)；实测见 [perf 专题 4.6](/zh/posts/low-latency-perf-profiling/#demo-fix)。
+> - **原理**：[#9 循环优化 3.3](/zh/posts/loop-optimization/#fp-sum)；累加器个数的公式见 [#9 3.4](/zh/posts/loop-optimization/#accumulators)；编译器替不替你拆，见[内存延迟与带宽 1.5.1](/zh/posts/low-latency-memory-latency-bandwidth/#151-向量化simd与多个累加器谁来做)；实测见 [perf 专题 4.6](/zh/posts/low-latency-perf-profiling/#demo-fix)。
