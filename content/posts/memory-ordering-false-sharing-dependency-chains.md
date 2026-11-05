@@ -252,7 +252,7 @@ So there are now two independent buffering structures, one on each side of every
 
 Put the two buffers back on the whole chip and one store travels as below. The invalidation crosses the on-chip interconnect and goes only to cores whose caches hold the line, which the snoop filter next to L3 keeps track of; the new value is never pushed over, and the reader fetches it when it needs it. The step that goes wrong in the figure is the reader ACKing before it processes the invalidation, so it sees the new ready and still reads the old data: the later load returns something older than the earlier one, a load-load reordering. x86 forbids it (1.3) and ARM allows it, which is why an acquire on ARM takes a real instruction (1.6).
 
-<iframe src="/maps/store-path.en.html" title="The store path, step by step" loading="lazy" style="display:block;width:min(100%,760px);height:720px;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<iframe src="/maps/store-path.en.html" title="The store path, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,760px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/store-path.en.html" target="_blank" rel="noopener">Open in a new window</a> · <a href="/images/ref/store-path.en.svg" target="_blank" rel="noopener">Static full figure</a></p>
 
 ### 1.3 Four Reorderings, and the One x86 Keeps

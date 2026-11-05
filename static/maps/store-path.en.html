@@ -8,11 +8,11 @@
 <style>
 :root { --bg:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --card:#f6f8fa; --hl:#bf3989; }
 .dark { --bg:#17161b; --fg:#e9e7ef; --muted:#a19caf; --line:#3a3945; --card:#1f1e25; --hl:#ff7bb0; }
-html, body { margin: 0; background: var(--bg); color: var(--fg); }
+html, body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
 body { font: 15px/1.65 PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, sans-serif; }
 .wrap { max-width: 1100px; margin: 0 auto; }
 svg { display: block; width: 100%; height: auto; }
-.panel { margin: 0 12px 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.panel { box-sizing: border-box; margin: 0 12px 12px; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
 .head { font-weight: 700; color: var(--hl); display: flex; align-items: center; gap: 8px; }
 .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 13px; }
 .txt { margin: 6px 0 0; }
@@ -38,7 +38,10 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
       <path d="M0,0 L10,5 L0,10 z" fill="#0969da" class="mk-ad"/>
     </marker>
     <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8c959f" class="mk-ag"/>
+      <path d="M0,0 L10,5 L0,10 z" fill="#57606a" class="mk-ag"/>
+    </marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cf222e" class="mk-ar"/>
     </marker>
     <style>
       .t    { font-size: 15px; font-weight: 600; fill: #1f2328; }
@@ -98,6 +101,10 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
       .dark .data { stroke: #58a6ff; } .dark .mk-ad { fill: #58a6ff; }
       .dark circle[fill="#1f2328"] { fill: #6e6a7a; }
       .dark .cur .row, .dark .cur .slot, .dark .cur .bad { stroke: #ff7bb0; }
+      .go { stroke: #57606a; stroke-width: 2; fill: none; } .dark .go { stroke: #a19caf; } .dark .mk-ag { fill: #a19caf; }
+      .pend { stroke: #cf222e; stroke-width: 2; fill: none; stroke-dasharray: 6 4; } .dark .pend { stroke: #ff7b72; } .dark .mk-ar { fill: #ff7b72; }
+      .cur .go, .cur .pend { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 1.1s ease-out forwards; }
+      .hl { fill: none; stroke: #bf3989; stroke-width: 2.5; stroke-dasharray: 7 5; } .dark .hl { stroke: #ff7bb0; }
     </style>
   </defs>
   <rect x="0" y="0" width="1100" height="762" class="bgr"/>
@@ -123,8 +130,10 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   <g data-from="1" data-to="3" data-step="1">
   <rect x="289" y="282" width="150" height="28" rx="4" class="slot"/>
   <text x="364" y="301" class="code" text-anchor="middle">data = 42</text>
+  <g data-from="1" data-to="1">
   <circle cx="465" cy="296" r="11" fill="#1f2328"/>
   <text x="465" y="300.5" class="dt" text-anchor="middle">1</text>
+  </g>
   <text x="289" y="334" class="s">waiting for ACKs before L1D</text>
   </g>
   <g data-from="4" data-to="6">
@@ -168,8 +177,10 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   <text x="283" y="454.5" class="stt" text-anchor="middle">S</text>
   </g>
   <g data-from="4" data-to="6" data-step="4">
+  <g data-from="4" data-to="4">
   <circle cx="450" cy="414" r="11" fill="#1f2328"/>
   <text x="450" y="418.5" class="dt" text-anchor="middle">4</text>
+  </g>
   </g>
   <rect x="40" y="496" width="450" height="40" rx="6" class="cache"/>
   <text x="265" y="521" class="f" text-anchor="middle">L2 (private)</text>
@@ -184,8 +195,10 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   <g data-from="3" data-to="6" data-step="3">
   <rect x="624" y="282" width="150" height="28" rx="4" class="slot"/>
   <text x="699" y="301" class="f" text-anchor="middle">invalidate data</text>
+  <g data-from="3" data-to="3">
   <circle cx="800" cy="296" r="11" fill="#1a7f37"/>
   <text x="800" y="300.5" class="dt" text-anchor="middle">3</text>
+  </g>
   <text x="624" y="334" class="s">ACK sent, not processed</text>
   </g>
   <rect x="859" y="282" width="150" height="28" rx="4" class="empty"/>
@@ -223,30 +236,48 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   </g>
   <rect x="610" y="496" width="450" height="40" rx="6" class="cache"/>
   <text x="835" y="521" class="f" text-anchor="middle">L2 (private)</text>
-  <g data-from="5" data-to="6" data-step="5">
+  <g data-from="5" data-to="5" data-step="5">
   <line x1="265" y1="478" x2="265" y2="494" class="data"/>
   <line x1="265" y1="536" x2="265" y2="584" class="data" marker-end="url(#ad)"/>
   <line x1="835" y1="584" x2="835" y2="540" class="data" marker-end="url(#ad)"/>
   <line x1="835" y1="496" x2="835" y2="482" class="data" marker-end="url(#ad)"/>
+  <g data-from="5" data-to="5">
   <circle cx="810" cy="562" r="11" fill="#0969da"/>
   <text x="810" y="566.5" class="dt" text-anchor="middle">5</text>
+  </g>
   <text x="850" y="566" class="lab">ready's line moves to core 1</text>
   </g>
-  <g data-from="2" data-to="6" data-step="2">
+  <g data-from="2" data-to="2" data-step="2">
+  <rect x="40" y="650" width="1020" height="96" rx="6" class="hl"/>
   <path d="M490,278 H510 V584" class="inv"/>
   <path d="M590,584 V278 H606" class="inv" marker-end="url(#ai)"/>
+  <g data-from="2" data-to="2">
   <circle cx="550" cy="408" r="11" fill="#bc4c00"/>
   <text x="550" y="412.5" class="dt" text-anchor="middle">2</text>
   </g>
-  <g data-from="3" data-to="6" data-step="3">
+  </g>
+  <g data-from="3" data-to="3" data-step="3">
   <path d="M610,322 H570 V584" class="ack"/>
   <path d="M530,584 V322 H494" class="ack" marker-end="url(#aa)"/>
+  <g data-from="3" data-to="3">
   <circle cx="550" cy="452" r="11" fill="#1a7f37"/>
   <text x="550" y="456.5" class="dt" text-anchor="middle">3</text>
   </g>
+  </g>
+  <g data-from="1" data-to="1" data-step="1">
+  <path d="M150,128 H265 V296 H286" class="go" marker-end="url(#ag)"/>
+  </g>
+  <g data-from="4" data-to="4" data-step="4">
+  <path d="M439,296 H466 V398" class="go" marker-end="url(#ag)"/>
+  </g>
   <g data-from="6" data-to="6" data-step="6">
+  <path d="M774,296 H800 V398" class="pend" marker-end="url(#ar)"/>
+  </g>
+  <g data-from="6" data-to="6" data-step="6">
+  <g data-from="6" data-to="6">
   <circle cx="1020" cy="414" r="11" fill="#cf222e"/>
   <text x="1020" y="418.5" class="dt" text-anchor="middle">6</text>
+  </g>
   <text x="1046" y="388" class="red" text-anchor="end">core 1 reads the old 0 here</text>
   </g>
   <rect x="40" y="586" width="1020" height="40" rx="6" class="ban"/>
@@ -257,7 +288,7 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   <text x="60" y="698" class="s">The snoop filter records which cores hold each line, so invalidations go only to cores with a copy (②). It never pushes new</text>
   <text x="60" y="720" class="s">values into another core: core 1 fetches ready itself (⑤).</text>
 </svg>
-<div class="panel">
+<div class="panel" id="panel">
   <div class="head" id="head"></div>
   <p class="txt" id="txt"></p>
   <p class="note" id="note" hidden><b>Whether ⑥ can happen depends on which reorderings the CPU allows</b><br>data, read later, is older than ready, read earlier: a load-load reordering. x86 forbids it; the hardware makes ⑥ read 42. ARM allows it: ready must be read with acquire so later loads wait for the invalidation. ARM also lets two stores reorder, so ready may become visible before data, and the store to ready needs release. On x86 the code is still wrong: ready isn't atomic, so the compiler may hoist the load out of the loop or swap the two stores. Fix: std::atomic&lt;bool&gt; ready, release store, acquire load.</p>
@@ -269,9 +300,9 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
 <script>
 (function () {
   var root = document.documentElement, svg = document.getElementById('sp'), LAST = 6, k = 0, timer = null;
-  var D = {"texts": ["At the start, data is in both cores' caches (S) and ready only in core 0's (E). Press Next, or use the arrow keys.", "Core 0 runs data = 42: the store goes into the store buffer and retires; ready = true queues behind it.", "Core 0 already holds data (S) and only needs ownership, so no RFO for the data, just an invalidate; the snoop filter sends it to core 1 only.", "Core 1 puts the invalidation in its invalidate queue and ACKs at once. data in its L1D is untouched, still 0.", "With all ACKs in, core 0's data line turns M and 42 lands in L1D. ready is in core 0's cache only, so it is written next.", "Core 1 reads ready: the line isn't local, so it sends a Read; core 0 forwards the line cache to cache; the loop exits; both copies turn S.", "Core 1 reads data: an L1D hit, but the invalidation is still queued, so it reads the old 0."], "step": "Step {k} of 6", "step0": "Before it starts", "colors": {"1": "#1f2328", "2": "#bc4c00", "3": "#1a7f37", "4": "#1f2328", "5": "#0969da", "6": "#cf222e"}, "play": "Play", "pause": "Pause"};
+  var D = {"texts": ["Core 0 writes data = 42, then ready = true; core 1 waits for ready and then reads data, expecting 42. At the start, data is in both cores' caches (S, shared) and ready only in core 0's (E, exclusive). Press Next or the right arrow key.", "Core 0 runs data = 42. Core 1 also holds data's line, so core 0 can't change it until core 1's copy is invalidated. So the pipeline doesn't stall, the store is parked in the store buffer and the instruction retires; ready = true queues behind it.", "Core 0 already has data's bytes (S) and only lacks ownership, so it sends an invalidate, not an RFO. The request goes over the interconnect to the snoop filter next to L3, which knows only core 1 holds a copy and forwards it there only.", "Core 1 doesn't invalidate its copy right away: it puts the request in its invalidate queue and ACKs at once, so core 0 needn't wait. The price: core 1's L1D still holds the old data = 0, not marked invalid.", "With all ACKs in, data's line turns M (modified) and 42 moves from the store buffer into L1D. Then ready: that line is E, held by core 0 alone, so it is written straight away and turns M.", "Core 1's loop reads ready: the line isn't local, so it sends a Read. Core 0 holds it and forwards the whole line over the interconnect (cache to cache); both copies turn S. Core 1 sees ready = 1 and leaves the loop.", "Core 1 then reads data: an L1D hit. But data's invalidation is still waiting in the queue, so it reads the old 0, not 42."], "titles": ["Before it starts", "The store goes into the store buffer", "Core 0 sends an invalidate", "Core 1 queues it and ACKs at once", "All ACKs in: the store reaches L1D", "Core 1 reads ready = 1", "Core 1 reads the old data"], "step": "Step {k} of 6: ", "colors": {"1": "#1f2328", "2": "#bc4c00", "3": "#1a7f37", "4": "#1f2328", "5": "#0969da", "6": "#cf222e"}, "play": "Play", "pause": "Pause"};
   var parts = svg.querySelectorAll('[data-from]');
-  svg.querySelectorAll('.inv, .ack, .data').forEach(function (p) {
+  svg.querySelectorAll('.inv, .ack, .data, .go, .pend').forEach(function (p) {
     p.style.setProperty('--len', Math.ceil(p.getTotalLength ? p.getTotalLength() : 600));
   });
   function theme() {
@@ -288,6 +319,20 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
   }
   var head = document.getElementById('head'), txt = document.getElementById('txt'), note = document.getElementById('note');
   var bPrev = document.getElementById('prev'), bNext = document.getElementById('next'), bPlay = document.getElementById('play');
+  var panel = document.getElementById('panel');
+  function fill(n) {
+    head.innerHTML = (n ? '<span class="num" style="background:' + D.colors[n] + '">' + n + '</span>' + D.step.replace('{k}', n) : '') + D.titles[n];
+    txt.textContent = D.texts[n];
+    note.hidden = n !== LAST;
+  }
+  function lock() {
+    panel.style.minHeight = '';
+    var h = 0;
+    for (var n = 0; n <= LAST; n++) { fill(n); h = Math.max(h, panel.offsetHeight); }
+    fill(k);
+    panel.style.minHeight = h + 'px';
+    fit();
+  }
   function show(n) {
     k = Math.max(0, Math.min(LAST, n));
     parts.forEach(function (el) {
@@ -296,9 +341,7 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
       el.classList.remove('cur');
       if (on && el.dataset.step !== undefined && +el.dataset.step === k) { void el.getBBox(); el.classList.add('cur'); }
     });
-    head.innerHTML = k ? '<span class="num" style="background:' + D.colors[k] + '">' + k + '</span>' + D.step.replace('{k}', k) : D.step0;
-    txt.textContent = D.texts[k];
-    note.hidden = k !== LAST;
+    fill(k);
     bPrev.disabled = k === 0;
     bNext.disabled = k === LAST;
     fit();
@@ -318,9 +361,10 @@ button:disabled { opacity: .4; cursor: default; border-color: var(--line); color
     if (e.key === 'ArrowRight') { stop(); show(k + 1); }
     if (e.key === 'ArrowLeft') { stop(); show(k - 1); }
   });
-  window.addEventListener('resize', fit);
-  window.addEventListener('load', fit);
+  window.addEventListener('resize', lock);
+  window.addEventListener('load', lock);
   show(0);
+  lock();
 })();
 </script>
 </body>
