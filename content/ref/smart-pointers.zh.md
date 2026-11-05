@@ -257,33 +257,103 @@ lock addl $1, 8(%rdx)                    # 多线程：原子加 1
 
 ### 3.3 多线程下安不安全：只有计数是安全的 {#shared-ptr-threads}
 
-问 `shared_ptr` 线程安不安全，要分开说三样东西：控制块里的计数、`shared_ptr` 变量本身（那两个指针）、它指向的对象。**只有计数是线程安全的，另外两样都要自己加同步。**
+问 `shared_ptr` 线程安不安全，先分清楚它涉及的三样东西。它们放在不同的地方，安全与否也各不相同：
 
-| 几个线程同时做什么 | 安全吗 | 原因 |
-|---|---|---|
-| 各拿一份 `shared_ptr`（指向同一个对象），各自复制、销毁 | 安全 | 计数的加减是 3.2 那条 `lock` 原子指令，最后放手的那个线程析构对象，只析构一次 |
-| 都只读同一个 `shared_ptr` 变量，比如都从它复制一份 | 安全 | 读两个指针不改变量本身，给计数加 1 是原子的 |
-| 一个线程给同一个 `shared_ptr` 变量赋值，另一个线程同时读它 | 数据竞争 | 赋值和复制都要先动两个指针、再改计数，这几步合起来不是原子的 |
-| 通过各自的 `shared_ptr` 同时改指向的对象 | 数据竞争 | `shared_ptr` 只管对象什么时候析构，不管对象里的数据 |
+<svg viewBox="0 0 760 286" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="线程 A、线程 B 各有自己的 shared_ptr 变量，全局变量 g_cfg 被 A 和 B 同时读写；三个变量都指向同一块内存，里面是 Config 对象和控制块。控制块里的计数原子加减，安全；同一个变量 g_cfg 被同时读写，要同步；对象内容 shared_ptr 不管。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .sp3bg  { fill: #fbfaf7; }
+    .sp3p   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .sp3c   { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
+    .sp3t   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.3; }
+    .sp3box { fill: none; stroke: #6b6558; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .sp3warn { fill: none; stroke: #c0563f; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .sp3ink { fill: #1c1b18; font-size: 12px; }
+    .sp3mut { fill: #6b6558; font-size: 12px; }
+    .sp3red { fill: #b04a35; font-size: 12px; }
+    .sp3ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .sp3hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3p { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3c { fill: #4a2f2c; stroke: #8f5a4c; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3t { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3box { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3warn { stroke: #e08a74; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3ink { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3red { fill: #e08a74; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .sp3hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="sp3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="sp3hd"/></marker></defs>
+  <rect class="sp3bg" x="0" y="0" width="760" height="286" rx="10"/>
+  <text class="sp3mut" x="24" y="64">线程 A 自己的一份</text>
+  <rect class="sp3p" x="180" y="44" width="100" height="30"/>
+  <text class="sp3ink" x="230" y="63" text-anchor="middle">对象指针</text>
+  <rect class="sp3p" x="280" y="44" width="110" height="30"/>
+  <text class="sp3ink" x="335" y="63" text-anchor="middle">控制块指针</text>
+  <text class="sp3mut" x="24" y="116">线程 B 自己的一份</text>
+  <rect class="sp3p" x="180" y="96" width="100" height="30"/>
+  <text class="sp3ink" x="230" y="115" text-anchor="middle">对象指针</text>
+  <rect class="sp3p" x="280" y="96" width="110" height="30"/>
+  <text class="sp3ink" x="335" y="115" text-anchor="middle">控制块指针</text>
+  <text class="sp3mut" x="24" y="190">全局变量 g_cfg</text>
+  <text class="sp3mut" x="24" y="208">A 和 B 都直接读写它</text>
+  <rect class="sp3warn" x="170" y="164" width="230" height="50" rx="6"/>
+  <rect class="sp3p" x="180" y="174" width="100" height="30"/>
+  <text class="sp3ink" x="230" y="193" text-anchor="middle">对象指针</text>
+  <rect class="sp3p" x="280" y="174" width="110" height="30"/>
+  <text class="sp3ink" x="335" y="193" text-anchor="middle">控制块指针</text>
+  <text class="sp3red" x="170" y="234">② 同一个变量，A 赋值、B 同时复制：要同步</text>
+  <rect class="sp3box" x="464" y="64" width="278" height="68" rx="6"/>
+  <rect class="sp3t" x="470" y="70" width="120" height="56"/>
+  <text class="sp3ink" x="530" y="102" text-anchor="middle">Config 对象</text>
+  <rect class="sp3c" x="590" y="70" width="80" height="56"/>
+  <text class="sp3ink" x="630" y="102" text-anchor="middle">use = 3</text>
+  <rect class="sp3c" x="670" y="70" width="66" height="56"/>
+  <text class="sp3ink" x="703" y="102" text-anchor="middle">weak</text>
+  <path class="sp3ln" d="M390,59 C430,59 424,84 461,84" marker-end="url(#sp3a)"/>
+  <path class="sp3ln" d="M390,111 C428,111 424,98 461,98" marker-end="url(#sp3a)"/>
+  <path class="sp3ln" d="M400,189 C440,189 426,114 461,114" marker-end="url(#sp3a)"/>
+  <text class="sp3mut" x="470" y="156">① 计数：原子加减，安全</text>
+  <text class="sp3mut" x="470" y="178">③ 对象里的数据：shared_ptr 不管</text>
+  <text class="sp3mut" x="24" y="268">线程 A、B 自己的那份是不同的变量，只共用控制块里的计数；g_cfg 是同一个变量，A 和 B 都在直接读写它。</text>
+</svg>
 
-第三行最容易答错。例子是一份会被后台线程换掉的全局配置：
+- **① 控制块里的计数是线程安全的**：指向同一个对象的所有 `shared_ptr` 共用这一个计数，不管它们在哪个线程里，复制一份就 +1，销毁一份就 −1。标准库知道这个计数一定会被几个线程同时改，所以用 3.2 里那条 `lock` 原子指令来加减它。最后放手的那个线程把它减到 0、析构对象，对象只会析构一次。
+- **② `shared_ptr` 变量本身不是线程安全的**：一个 `shared_ptr` 变量就是两个指针，和一个装着两个指针的普通 `struct` 没有区别。标准库对它的保证和对一个 `int` 变量一样：几个线程同时读它（包括同时从它复制）没问题，只要有一个线程在写它，别的线程就不能同时读写。
+- **③ 指向的对象不受保护**：`shared_ptr` 只管对象什么时候析构，不管对象里的数据。两个线程通过各自的 `shared_ptr` 同时改 `Config` 的成员，照样是数据竞争，要对象自己加锁。
+
+**判断的关键是：几个线程用的是不是同一个 `shared_ptr` 变量。** 每个线程拿着自己的一份时，各是各的变量，只是指向同一个对象，它们之间唯一共用的是计数，而计数是原子的，所以安全。几个线程直接读写同一个变量时，比如一个全局的 `shared_ptr`、一个对象的成员，就落到了第 ② 条。
 
 ```cpp
-std::shared_ptr<Config> g_cfg;                  // 全局配置
+auto cfg = std::make_shared<Config>();
+std::thread t1([cfg] { use(*cfg); });   // 按值捕获：t1 有自己的一份，安全
+std::thread t2([cfg] { use(*cfg); });   // t2 也有自己的一份，安全
 
-g_cfg = std::make_shared<Config>(load());       // 线程 A：换一份新配置
-auto c = g_cfg;                                 // 线程 B：同时复制一份来用
+std::shared_ptr<Config> g_cfg;          // 全局变量：两个线程都直接读写它
+// 线程 A：g_cfg = std::make_shared<Config>(load());   换一份新配置
+// 线程 B：auto c = g_cfg;                              同时复制一份来用，数据竞争
 ```
 
-线程 B 的复制分两步：先读出两个指针，再给控制块里的计数加 1。线程 A 的赋值如果正好夹在这两步中间，它把旧配置的计数从 1 减到 0，旧配置连同控制块被释放，线程 B 接着去加 1 的就是一块已经释放的内存。线程 B 还可能读到一个新的对象指针配一个旧的控制块指针。
+**为什么计数是原子的还不够。** 线程 B 的 `auto c = g_cfg;` 分两步：先从 `g_cfg` 读出控制块的地址，再给那个控制块的计数 +1。线程 A 的赋值也分两步：先把 `g_cfg` 的两个指针改成新配置的，再给旧控制块的计数 −1。两边的 +1、−1 各自都是原子的，可 B 的“读地址”和“+1”之间有空隙，A 的赋值能插进来：
 
-**修法都是让“读写这个变量”的几步变成一个整体：**
+| 时刻 | 线程 B：`auto c = g_cfg;` | 线程 A：`g_cfg = 新配置;` | 旧配置 |
+|---|---|---|---|
+| 1 | 读出 `g_cfg` 里的控制块地址，是旧配置的 | | 计数 1，只有 `g_cfg` 这一份 |
+| 2 | | 把 `g_cfg` 的两个指针改成新配置的 | 计数还是 1 |
+| 3 | | 给旧控制块 −1，减到 0：析构旧配置，释放控制块 | 已经释放 |
+| 4 | 给时刻 1 读到的旧控制块 +1 | | 写进了已经释放的内存 |
+| 5 | 拿着旧配置的地址去用 | | 用的是已经析构的对象 |
 
-- **C++20 起用 `std::atomic<std::shared_ptr<Config>>`**：线程 A 调 `g_cfg.store(p)`，线程 B 调 `g_cfg.load()`，读和写各是一次原子操作。
-- **C++20 之前用 `std::atomic_load(&g_cfg)` 和 `std::atomic_store(&g_cfg, p)`**：这对自由函数作用在普通的 `shared_ptr` 变量上，C++20 起标为不推荐（deprecated）。
-- **用一把互斥锁保护这个变量**：读的一方在锁里复制出一份，出了锁再用这份副本，配置对象本身不用锁着。
+**原子的只是计数这一个整数，不是“读出指针、再加计数”这一整套。** 要修，就得把这一整套变成一个整体，让赋值插不进来：
+
+- **C++20 起用 `std::atomic<std::shared_ptr<Config>>`**：线程 A 调 `g_cfg.store(p)`，线程 B 调 `g_cfg.load()`。`load()` 把读指针和加计数做成一次不可分割的操作，`store()` 插不到中间。
+- **C++20 之前用 `std::atomic_load(&g_cfg)` 和 `std::atomic_store(&g_cfg, p)`**：作用和上面一样，只是作用在普通的 `shared_ptr` 变量上，C++20 起标为不推荐（deprecated）。
+- **用一把互斥锁保护这个变量**：读的一方在锁里复制出一份，出了锁再用这份副本；写的一方在锁里赋值。锁只护住复制和赋值的那一下，用配置的时候不用锁着。
 
 前两种在 libstdc++ 里都不是无锁的：GCC 16 实测 `std::atomic<std::shared_ptr<int>>::is_lock_free()` 返回 `false`，内部还是靠锁。
+
+三条合起来，就是“后台换配置”的常见写法。配置对象做成只读的 `std::shared_ptr<const Config>`，发布以后谁也不改它，第 ③ 条就不用操心；全局那个变量用 `atomic<shared_ptr>` 或者锁来读写，管住第 ② 条；读的线程先 `load()` 出自己的一份再用，就算写的线程这时已经换上了新配置，它手里这份也还活着，靠的是第 ① 条。**要改配置，就新建一份、改好，再整个换上去，而不是在原来那份上改。**
 
 还有三点常被追问：
 
