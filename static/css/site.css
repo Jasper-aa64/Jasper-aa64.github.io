@@ -1650,6 +1650,8 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   margin: 0 auto;
   border-radius: 12px;
 }
+/* Diagrams drawn as SVG files carry their own text, so they keep the full column width. */
+.prose img[src$=".svg"] { max-width: 100%; }
 .prose p:has(> img:only-child), .prose p:has(> a:only-child > img) { margin: 2.2em 0; }
 .prose a:has(> img) { display: block; text-decoration: none; }
 .prose a:has(> img) img { border: 1px solid var(--rule); transition: transform .5s var(--ease), box-shadow .5s var(--ease); }
