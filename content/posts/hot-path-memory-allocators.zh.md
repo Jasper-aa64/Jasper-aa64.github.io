@@ -59,7 +59,7 @@ static constexpr std::size_t kInvalidIndex = -1;  // 链表结束标记
 
 `mlockall(MCL_CURRENT | MCL_FUTURE)` 告诉内核：这个进程现在持有的每一页、以后会持有的每一页，都常驻内存——永不换出。听上去很完整。其实不然，因为一个细节：**`munmap` 不是给一页解锁，而是把锁所依附的整个映射拆掉**。 glibc 把大于 `M_MMAP_THRESHOLD`（默认 128 KB）的分配走 `mmap` 而不是堆，`free()` 这块内存时立刻对它调 `munmap`——这块分配一释放，`mlockall` 给过的保证就悄无声息地没了。
 
-！[前后对比：台座上一个用链子锁住的保险箱；之后同一个台座上箱子整个不见了——只剩那条仍然锁着的链子和挂锁悬在它原来的位置](/images/hot-path-allocators/torn-down-not-unlocked.jpg)
+![前后对比：台座上一个用链子锁住的保险箱；之后同一个台座上箱子整个不见了——只剩那条仍然锁着的链子和挂锁悬在它原来的位置](/images/hot-path-allocators/torn-down-not-unlocked.jpg)
 
 堵上这个漏洞要三次 `mallopt` 调用，每一次堵住一条不同的回内核的路：
 
