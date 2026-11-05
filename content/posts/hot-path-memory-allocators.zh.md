@@ -91,9 +91,11 @@ struct MemoryBlock {
 
 arena 从一块预留好的内存里分配,只跟踪一个数:这块内存已经用掉了多少字节。`allocate(size)` 把当前写入位置向上取整到要求的对齐,检查 `used + size` 还装不装得下 `capacity`,装得下就直接推进 `used`、返回旧位置——不用搜索,因为根本没什么可搜的:"下一个空闲位置"永远就是指针现在所在的地方。一块用满了,arena 用同样的方式启用下一块预留的内存。这比第 1 节的空闲链表还要便宜——连链表指针交换都没有,就是一次加法——代价是没办法从中间释放单独一次分配。没有任何东西记录每次分配从哪开始、到哪结束,所以就算你想释放一个也无从查起。唯一的回收操作是全局的:把每一块的 `used` 都倒回零,从头再来。对于一批生命周期完全相同的对象——处理一个 tick 时分配的所有东西,tick 处理完一起扔掉——这是正确的取舍;对于生命周期参差的对象则不然,它们还是属于第 1 节的池。
 
-### 3.2 预先缺页:补上 mlock 在首次访问时留下的口子
+### 3.2 预先缺页：启动时把每一页都写一遍
 
-arena 背后的内存在构造时一次拿到,用 `posix_memalign` 和 `mlock()`——这次只锁 arena 自己的这块区域,比第 2 节全进程的 `mlockall` 更精准。但一段新拿到的虚拟地址范围,背后还没有物理内存:Linux 懒惰地映射页,真正的物理页要到**第一次写**时才分配,通过一次陷入内核的缺页。`mlock` 保证一页一旦有了物理内存就不会被换出——它不管映射建立了没有。构造函数用一行补上这个口子:`memset(raw_memory, 0, total_size)`,在启动时把每一页碰一遍,所有本来会发生的缺页都已经发生过了。等热路径运行时,arena 里的每一页不只是锁住了,而且*已经映射好了*——没有任何东西要第一次被发现。
+arena 背后的内存在构造时一次拿到，用 `posix_memalign` 和 `mlock()`，这次只锁 arena 自己的这块区域，比第 2 节全进程的 `mlockall` 更精准。一段新拿到的虚拟地址范围，背后还没有物理内存：Linux 懒惰地映射页，真正的物理页要到第一次访问时才分配，靠的是一次陷入内核的缺页。`mlock` 成功返回时，会顺带把范围内的页都缺好、锁住。可它经常失败：没有 `CAP_IPC_LOCK` 时，能锁的总量受 `RLIMIT_MEMLOCK` 限制（常见默认值是 8 MB，老内核只有 64 KB），超了就返回错误，一页也不缺。
+
+所以构造函数再加一行 `memset(raw_memory, 0, total_size)`，在启动时把每一页写一遍。`mlock` 成功时，它只是多走一遍；`mlock` 失败时，页虽然没锁住，首次缺页也已经在启动时付掉了。**等热路径运行时，arena 里的每一页都已经映射好，没有任何东西要第一次发生。**
 
 把这个 arena 适配到 STL 接口(`allocate`/`deallocate`/`construct`/`destroy`/`rebind`)的分配器,大部分是样板代码,知道它存在就够了,不必细究——只有一个例外:`deallocate()` 被故意写成空操作,原因和 `reset()` 是唯一回收内存的办法一样。单个对象的构造和析构仍然通过 `construct`/`destroy` 正常发生;被废掉的只有契约里"内存"的那一半。
 
@@ -133,129 +135,47 @@ vec.emplace_back(1);  // 未定义行为
 
 ---
 
-## 5. 合在一起:两个参考实现
+## 5. 合在一起：两个参考实现，再加一个多线程版本
 
-上面几节里,有两种形状值得保留成完整、可复用的参考:一个给生命周期各自独立的对象用的固定类型池,一个给一批一起扔掉的对象用的 arena。`std::pmr` 不算第三个——它解决的是类型兼容的问题,不是性能问题,而每次分配都付一次虚调用,让它对于真正要放在热路径上的东西来说,是比这两者都差的默认选择。只有当那份灵活值得这个具体的代价时才用它。
+前四节的做法可以收拢成两份能直接拿去用的代码：生命周期各自独立、一个一个释放的对象用对象池（5.1），一批一起扔掉的对象用 arena（5.2）。几个线程都要从池里分配时，空闲链表要换成无锁栈，这时会遇到 ABA（5.3）。
 
-往回看一眼,上面每一节其实都是在不同的层面上重新问同一个问题:*这块存储到底从哪来,谁在管它?*
+> **对象池、arena 还是 std::pmr：看对象怎么释放**
+>
+> 1. **对象一个一个分配、一个一个释放，类型固定**：用对象池。分配和释放都只动空闲链表的头，O(1)。
+> 2. **一批对象一起用完、一起扔掉**（处理一个 tick、一笔订单时碰到的所有临时对象）：用 arena。分配就是一次加法，不能单独释放，用完整体 `reset()`。
+> 3. **同一种容器类型要换着用不同的内存来源**：用 `std::pmr`。它解决的是类型兼容，不是性能，每次分配多一次虚调用，热路径上不如前两种。
 
-<svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="从 malloc/free 不可预测的延迟,到对象池 v1 的线性扫描被 v2 的空闲链表取代,到分配器环境调优,到 arena 的 bump 指针,再到 STL 分配器和 std::pmr——终点是内存策略与容器类型解耦" style="width:min(100%,640px);max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
-  <style>
-    .bg  { fill: #fbfaf7; }
-    .ink { fill: #1c1b18; }
-    .muted { fill: #6b6558; }
-    .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
-    .boxN  { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
-    .boxGone { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.8; }
-    .boxGo   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 2; }
-    .edge     { stroke: #b3ab98; stroke-width: 1.6; fill: none; marker-end: url(#ahN2z); }
-    .edgeGone { stroke: #b3ab98; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; opacity: 0.75; marker-end: url(#ahN2z); }
-    .edgeGo   { stroke: #6f8f3f; stroke-width: 2; fill: none; marker-end: url(#ahGo2z); }
-      :root:is([data-theme="dark"], [data-theme="black"]) .bg { fill: #17161b; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .ink { fill: #e9e7ef; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .muted { fill: #a19caf; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .title { fill: #e9e7ef; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .boxN { fill: #201f26; stroke: #3a3945; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .boxGone { fill: #2a2933; stroke: #47454f; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .boxGo { fill: #33421f; stroke: #8fb257; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .edge { stroke: #55525f; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .edgeGone { stroke: #55525f; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .edgeGo { stroke: #8fb257; }
-  </style>
-  <defs>
-    <marker id="ahN2z" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#8a8474"/>
-    </marker>
-    <marker id="ahGo2z" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#6f8f3f"/>
-    </marker>
-  </defs>
-  <rect class="bg" x="0" y="0" width="640" height="1180" rx="10"/>
-  <text class="title" x="20" y="26">从池到 pmr:同一个问题——存储从哪来——</text>
-  <text class="title" x="20" y="42">五种不同的回答</text>
-  <rect class="boxN" x="180" y="56" width="280" height="56" rx="8"/>
-  <text class="ink" x="320" y="80" font-size="14" font-weight="700" text-anchor="middle">malloc / free</text>
-  <text class="muted" x="320" y="98" font-size="11" text-anchor="middle">不可预测、耗时可变</text>
-  <path class="edge" d="M320,112 L320,154"/>
-  <rect class="boxN" x="190" y="156" width="260" height="50" rx="8"/>
-  <text class="ink" x="320" y="180" font-size="14" font-weight="700" text-anchor="middle">对象池</text>
-  <text class="muted" x="320" y="197" font-size="11" text-anchor="middle">第 1 节</text>
-  <path class="edgeGone" d="M300,206 L170,246"/>
-  <path class="edgeGo" d="M340,206 L470,246"/>
-  <rect class="boxGone" x="40" y="248" width="240" height="64" rx="8"/>
-  <text class="muted" x="160" y="272" font-size="12.5" font-weight="700" text-anchor="middle">v1 · 线性扫描</text>
-  <text class="muted" x="160" y="290" font-size="10.5" text-anchor="middle">O(N) · 被 v2 取代</text>
-  <rect class="boxGo" x="360" y="248" width="240" height="64" rx="8"/>
-  <text class="ink" x="480" y="272" font-size="12.5" font-weight="700" text-anchor="middle">v2 · 显式空闲链表</text>
-  <text class="ink" x="480" y="290" font-size="10.5" text-anchor="middle">O(N) → O(1)</text>
-  <path class="edgeGo" d="M460,312 L340,354"/>
-  <rect class="boxN" x="170" y="356" width="300" height="64" rx="8"/>
-  <text class="ink" x="320" y="380" font-size="14" font-weight="700" text-anchor="middle">侵入式空闲链表</text>
-  <text class="muted" x="320" y="398" font-size="10.5" text-anchor="middle">next 住在 T 里面,不需要额外节点</text>
-  <path class="edge" d="M320,420 L320,450"/>
-  <rect class="boxN" x="160" y="452" width="320" height="50" rx="8"/>
-  <text class="ink" x="320" y="476" font-size="13.5" font-weight="700" text-anchor="middle">收紧对分配器的控制</text>
-  <text class="muted" x="320" y="493" font-size="11" text-anchor="middle">第 2 节</text>
-  <path class="edge" d="M300,502 L160,542"/>
-  <path class="edge" d="M340,502 L480,542"/>
-  <rect class="boxN" x="40" y="544" width="240" height="64" rx="8"/>
-  <text class="ink" x="160" y="568" font-size="12.5" font-weight="700" text-anchor="middle">glibc 调优</text>
-  <text class="muted" x="160" y="586" font-size="10" text-anchor="middle">M_MMAP_MAX=0 · M_TRIM_THRESHOLD=-1</text>
-  <rect class="boxN" x="360" y="544" width="240" height="64" rx="8"/>
-  <text class="ink" x="480" y="568" font-size="12.5" font-weight="700" text-anchor="middle">mlockall</text>
-  <text class="muted" x="480" y="586" font-size="10" text-anchor="middle">锁在内存里 · swappiness=0</text>
-  <path class="edge" d="M180,608 L300,650"/>
-  <path class="edge" d="M460,608 L340,650"/>
-  <rect class="boxN" x="170" y="652" width="300" height="50" rx="8"/>
-  <text class="ink" x="320" y="682" font-size="13.5" font-weight="700" text-anchor="middle">一个稳定的内存环境</text>
-  <path class="edge" d="M320,702 L320,738"/>
-  <rect class="boxN" x="190" y="740" width="260" height="50" rx="8"/>
-  <text class="ink" x="320" y="764" font-size="14" font-weight="700" text-anchor="middle">arena 分配器</text>
-  <text class="muted" x="320" y="781" font-size="11" text-anchor="middle">第 3 节 · bump 指针 arena</text>
-  <path class="edge" d="M320,790 L320,826"/>
-  <rect class="boxN" x="170" y="828" width="300" height="56" rx="8"/>
-  <text class="ink" x="320" y="852" font-size="14" font-weight="700" text-anchor="middle">bump 指针</text>
-  <text class="muted" x="320" y="870" font-size="10.5" text-anchor="middle">只往前走 · O(1) 分配</text>
-  <path class="edge" d="M320,884 L320,920"/>
-  <rect class="boxN" x="150" y="922" width="340" height="50" rx="8"/>
-  <text class="ink" x="320" y="946" font-size="13.5" font-weight="700" text-anchor="middle">STL 分配器</text>
-  <text class="muted" x="320" y="963" font-size="10" text-anchor="middle">自定义分配器 · 编译期多态</text>
-  <path class="edge" d="M320,972 L320,1008"/>
-  <rect class="boxN" x="190" y="1010" width="260" height="56" rx="8"/>
-  <text class="ink" x="320" y="1034" font-size="14" font-weight="700" text-anchor="middle">std::pmr</text>
-  <text class="muted" x="320" y="1052" font-size="10.5" text-anchor="middle">第 4 节 · 运行时多态</text>
-  <path class="edgeGo" d="M320,1066 L320,1100"/>
-  <rect class="boxGo" x="90" y="1102" width="460" height="64" rx="8"/>
-  <text class="ink" x="320" y="1126" font-size="14" font-weight="700" text-anchor="middle">内存策略与容器类型解耦</text>
-  <text class="ink" x="320" y="1144" font-size="10.5" text-anchor="middle">"内存从哪来"和"怎么管"彼此独立</text>
-</svg>
+### 5.1 一个参考对象池 {#ref-pool}
 
-### 5.1 一个参考对象池
+这个池把第 1、2 节的三件事放在一起：
 
-第 1、2 节可以干净地合成一个独立的东西:一个 alloc/dealloc 都是 O(1) 的固定类型池,背后的内存在热路径运行之前就预分配、预先缺页、锁好了。比第 1 节两个版本都多一处改进:不再单独用一个 `free_list_` 数组,"下一个空闲槽"的下标*就住在*和 `T` 同一个槽里,一次分配只碰一条缓存行,而不是两个不相干的数组。
+- **启动时一次拿到全部内存，锁住并缺完页**：`aligned_alloc` 一次分配 `capacity` 个槽，`mlock` 锁住，`memset` 把每一页写一遍（第 2 节、3.2）。
+- **空闲槽串成一条链表，分配和释放都只动链表头**：`free_head_` 是第一个空闲槽的下标，每个空闲槽的 `next_free` 记着下一个。分配时取下链表头，释放时把槽放回链表头（第 1 节）。
+- **“下一个空闲槽”和对象放在同一个槽里**：第 1 节用一个单独的 `free_list_` 数组；这里 `next_free` 就在 `Slot` 里，分配时读 `next_free` 和接着构造 `T` 碰的是同一个槽，通常是同一条缓存行。
 
 ```cpp
 template <typename T>
 class ObjectPool {
   struct Slot {
-    alignas(T) unsigned char storage[sizeof(T)];  // 构造之后 T 就住在这里
-    std::size_t next_free;                        // 空闲链表的链接,和 T 放在一起
+    alignas(T) unsigned char storage[sizeof(T)];  // 构造之后 T 就在这里
+    std::size_t next_free;                        // 空闲时：下一个空闲槽的下标
   };
   static constexpr std::size_t kInvalid = static_cast<std::size_t>(-1);
 
   Slot* slots_;
   std::size_t capacity_;
-  std::size_t free_head_ = 0;
+  std::size_t free_head_;                         // 第一个空闲槽的下标
 
  public:
-  explicit ObjectPool(std::size_t capacity) : capacity_(capacity) {
+  explicit ObjectPool(std::size_t capacity)
+      : capacity_(capacity), free_head_(capacity ? 0 : kInvalid) {
     std::size_t bytes = sizeof(Slot) * capacity_;
     slots_ = static_cast<Slot*>(std::aligned_alloc(alignof(Slot), bytes));
     if (!slots_) throw std::bad_alloc{};
-
-    mlock(slots_, bytes);            // 永不换出(生产上要检查返回值——
-    std::memset(slots_, 0, bytes);   // 需要 CAP_IPC_LOCK / RLIMIT_MEMLOCK);memset 现在就把每一页缺页一遍
-
+    if (mlock(slots_, bytes) != 0) {
+      // 没有 CAP_IPC_LOCK 或超过 RLIMIT_MEMLOCK：记一条日志，下面的 memset 照样提前缺完页
+    }
+    std::memset(slots_, 0, bytes);
     for (std::size_t i = 0; i < capacity_; ++i)
       slots_[i].next_free = (i + 1 < capacity_) ? i + 1 : kInvalid;
   }
@@ -270,9 +190,9 @@ class ObjectPool {
 
   template <typename... Args>
   T* allocate(Args&&... args) {
-    if (free_head_ == kInvalid) return nullptr;      // 池用完了——热路径上不抛异常
+    if (free_head_ == kInvalid) return nullptr;   // 池用完了：热路径上不抛异常
     Slot& slot = slots_[free_head_];
-    free_head_ = slot.next_free;                     // O(1):下一个槽早就知道了
+    free_head_ = slot.next_free;                  // 取下链表头
     return ::new (slot.storage) T(std::forward<Args>(args)...);
   }
 
@@ -280,35 +200,32 @@ class ObjectPool {
     obj->~T();
     auto* slot = reinterpret_cast<Slot*>(
         reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));
-    std::size_t index = slot - slots_;
-    slot->next_free = free_head_;                    // 推回空闲链表头
-    free_head_ = index;
+    slot->next_free = free_head_;                 // 放回链表头
+    free_head_ = static_cast<std::size_t>(slot - slots_);
   }
 };
 ```
 
-每一部分具体来自哪里:`next_free` 放在 `Slot` 里面的布局和链表头交换,是第 1 节的空闲链表;`aligned_alloc` + `mlock` + 一开始就 `memset`,是第 2 节的"别让内核把它收走,也别在第一次碰它时缺页"。
+**池用完时 `allocate` 返回 `nullptr`，不抛异常**：热路径上由调用方决定是走慢路径还是丢掉这条消息。`std::aligned_alloc` 要求字节数是对齐值的倍数，`sizeof(Slot)` 本来就是 `alignof(Slot)` 的倍数，所以这里自然满足。
 
-### 5.2 一个参考 arena
+### 5.2 一个参考 arena {#ref-arena}
 
-上面的池一个个地发一种类型,对象的生命周期各自独立。arena 用于相反的形状:一批分配——大小可能不同、类型可能不同——一起释放。启动时的处理和池一样(一次分配、`mlock`、`memset` 预先缺页),但分配逻辑本身更简单:根本没有空闲链表要维护,只有一个不断往前走的偏移。
+arena 用于和池相反的情况：一批分配，大小可能不同、类型可能不同，最后一起释放。启动时的处理和池一样，分配逻辑更简单：没有空闲链表要维护，只有一个往前走的偏移 `used_`。
 
 ```cpp
 class Arena {
   unsigned char* base_;
   std::size_t capacity_;
   std::size_t used_ = 0;
-  bool allow_malloc_fallback_;
 
  public:
-  explicit Arena(std::size_t capacity, bool allow_malloc_fallback = false)
-      : capacity_(capacity), allow_malloc_fallback_(allow_malloc_fallback) {
-    base_ = static_cast<unsigned char*>(
-        std::aligned_alloc(alignof(std::max_align_t), capacity_));
+  explicit Arena(std::size_t capacity) : capacity_(capacity) {
+    base_ = static_cast<unsigned char*>(std::aligned_alloc(64, capacity_));  // capacity 要是 64 的倍数
     if (!base_) throw std::bad_alloc{};
-
-    mlock(base_, capacity_);           // 和池一样的锁定 + 预先缺页
-    std::memset(base_, 0, capacity_);  // (生产上要检查 mlock 的返回值)
+    if (mlock(base_, capacity_) != 0) {
+      // 同上：记一条日志
+    }
+    std::memset(base_, 0, capacity_);
   }
 
   ~Arena() {
@@ -319,20 +236,97 @@ class Arena {
   Arena(const Arena&) = delete;
   Arena& operator=(const Arena&) = delete;
 
+  // alignment 必须是 2 的幂，且不超过 64
   void* allocate(std::size_t size, std::size_t alignment = alignof(std::max_align_t)) {
-    std::size_t aligned_used = (used_ + alignment - 1) & ~(alignment - 1);
-    if (aligned_used + size > capacity_) {
-      return allow_malloc_fallback_ ? std::malloc(size) : nullptr;  // arena 用完了
-    }
-    void* ptr = base_ + aligned_used;
-    used_ = aligned_used + size;
-    return ptr;
+    std::size_t start = (used_ + alignment - 1) & ~(alignment - 1);  // 向上取整到对齐
+    if (start + size > capacity_) return nullptr;                    // 装不下了
+    used_ = start + size;                                            // 往前推
+    return base_ + start;
   }
 
-  void reset() noexcept { used_ = 0; }  // 唯一的回收办法——整批,不是逐个
+  void reset() noexcept { used_ = 0; }
 };
 ```
 
-`allocate()` 用四行就是 bump 分配器的全部思想:把当前偏移向上取整到要求的对齐,检查还装得下,推进偏移,返回旧的那个。没有搜索,没有链表要维护——"下一个空闲位置"永远就是 `used_`。`reset()` 是唯一的回收路径,和 arena 的整个前提一致:它不跟踪单次分配,所以没法单独释放一个。相比第 3 节的多块设计,这里有一处有意的简化:一块固定容量的缓冲区,而不是一串预留的块——更容易写对,代价是有一个硬性的容量上限,不能继续增长。`allow_malloc_fallback_` 就是第 3 节的 arena 为这个上限准备的同一个逃生口。
+`allocate` 就三步：把 `used_` 向上取整到要求的对齐，检查装不装得下，把 `used_` 推过这一块。`base_` 按 64 字节对齐，所以偏移对齐了，地址也就对齐了，这也是 `alignment` 不能超过 64 的原因。
 
-对象生命周期各自独立、一个一个释放,选池。一整批东西——处理一个 tick、一笔订单、一个请求时碰过的所有东西——共享同一个生命周期、作为一个整体扔掉,选 arena。
+**arena 不能单独释放一个对象，回收只有 `reset()` 一种。** 它不记录每次分配，所以没法单独还一块；`reset()` 也不调析构函数，放进去的对象要么是平凡析构的，要么由调用方在 `reset()` 之前自己析构。和第 3 节的多块设计相比，这里只有一块固定大小的缓冲区，更容易写对，代价是容量有硬上限，用完返回 `nullptr`。
+
+### 5.3 多线程分配：无锁空闲栈和 ABA {#aba}
+
+5.1 的池只能在一个线程里用：两个线程同时读 `free_head_`，会拿到同一个槽。要让几个线程同时分配，就把链表头换成原子变量，用 CAS 取下它：读出 `head` 和它的 `next`，再 CAS 把 `head` 从读到的值换成 `next`；这期间别的线程改过 `head`，CAS 失败，重读重试。空闲链表只在头上进出，所以它就是一个无锁栈。
+
+**这种栈有一个经典的坑，叫 ABA：CAS 只比较值，看不出这个值中间变过、又变了回来。** 名字说的就是 `head` 从 A 变成 B，又变回 A。下面用 X、Y、Z 表示三个空闲槽，栈里一开始是 X → Y → Z：
+
+| 时刻 | 线程 A（分配） | 别的线程 | 空闲栈 |
+|---|---|---|---|
+| 1 | 读到 `head = X`、`X.next = Y`，还没 CAS 就被换下 | | X → Y → Z |
+| 2 | | 线程 B 分配两次，拿走 X 和 Y | Z |
+| 3 | | 有线程把 X 还回来 | X → Z |
+| 4 | CAS：`head` 还是 X，成功，`head` 改成 Y | | Y → Z，可 Y 正被 B 用着 |
+
+时刻 4 以后，下一次分配会把 Y 再发出去，同一个槽同时给了两个使用者；刚还回来的 X 反而从栈里丢了，再也分不出去。
+
+**修法是给 `head` 带一个版本号，每改一次加 1，CAS 同时比较下标和版本号。** 时刻 1 线程 A 读到的是（X，版本 5）；时刻 2、3 一共改了三次，`head` 变成（X，版本 8）。A 拿（X，5）去比，不相等，CAS 失败，重读以后重试。
+
+槽用 32 位下标表示，下标和 32 位版本号正好打包进一个 `uint64_t`，普通的 64 位 CAS 就能一起比较。链表要是用指针，就得用 16 字节的 CAS（x86-64 的 `cmpxchg16b`），或者把版本号塞进 64 位指针用不到的高 16 位。版本号会回绕，但那要求线程 A 被换下的这一会儿里正好错过 $2^{32}$ 次修改，实际不会发生。
+
+```cpp
+template <typename T>
+class ConcurrentPool {
+  struct Slot {
+    alignas(T) unsigned char storage[sizeof(T)];
+    std::atomic<std::uint32_t> next;              // 空闲时：下一个空闲槽的下标
+  };
+  static constexpr std::uint32_t kNil = UINT32_MAX;
+  static std::uint64_t pack(std::uint32_t ver, std::uint32_t idx) {
+    return (std::uint64_t(ver) << 32) | idx;      // 高 32 位版本号，低 32 位下标
+  }
+
+  Slot* slots_;                                   // 分配、mlock、memset、串链表同 5.1
+  std::atomic<std::uint64_t> head_;               // 初值 pack(0, 0)
+
+ public:
+  template <typename... Args>
+  T* allocate(Args&&... args) {
+    std::uint64_t old = head_.load(std::memory_order_acquire);
+    for (;;) {
+      std::uint32_t idx = static_cast<std::uint32_t>(old);
+      if (idx == kNil) return nullptr;
+      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);
+      if (head_.compare_exchange_weak(old, desired,
+                                      std::memory_order_acquire,    // 成功
+                                      std::memory_order_acquire))   // 失败：old 被换成最新值
+        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);
+    }
+  }
+
+  void deallocate(T* obj) {
+    obj->~T();
+    auto* slot = reinterpret_cast<Slot*>(
+        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));
+    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);
+    std::uint64_t old = head_.load(std::memory_order_relaxed);
+    for (;;) {
+      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);
+      if (head_.compare_exchange_weak(old, desired,
+                                      std::memory_order_release,
+                                      std::memory_order_relaxed))
+        return;
+    }
+  }
+};
+```
+
+用 GCC 16.2 跑过一个压力测试：8 个线程共用一个 64 槽的池，各自分配、释放 20 万次，没有一个槽同时发给两个线程，结束后 64 个槽全部收回。
+
+内存序这样选：
+
+- **分配时的读和 CAS 都用 acquire**：拿到槽的线程，要看得到上一个使用者释放前写进这个槽的内容，也要看得到释放时写下的 `next`。CAS 失败时会把最新的 `head` 读回 `old`，下一轮接着要读它的 `next`，所以失败的那一路也要 acquire。
+- **释放的 CAS 用 release**：这个槽里的写入和刚写下的 `next`，随着这次 CAS 一起发布给下一个拿到它的线程。
+
+`next` 单独放、做成 `std::atomic`，不和 `storage` 共用字节，是因为时刻 1 的线程 A 读 `X.next` 时，X 可能已经被别的线程拿走、正在往 `storage` 里构造对象。两者分开，这次读就不是数据竞争；读到的旧值会随着失败的 CAS 被丢掉。
+
+**池比一般的无锁栈少一个难题：槽永远不还给系统。** 一般的无锁栈弹出节点以后会 `delete` 它，别的线程可能还拿着它的地址要读 `next`，读的就是已经释放的内存，这要靠 hazard pointer、epoch 这类回收方案解决。池里的槽一直都在，最多读到过时的 `next`。

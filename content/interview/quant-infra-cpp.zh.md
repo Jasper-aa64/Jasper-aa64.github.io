@@ -89,9 +89,9 @@ toc: true
 
 **分配**是从栈顶弹出：读 `head` 和 `head->next`，CAS 把 `head` 换成 `next`。**回收**只有一个线程，把槽压回栈顶。栈空时要扩容，这是慢路径，用一把互斥锁保护就够了，快路径仍然无锁。
 
-追问几乎一定是 **ABA**：线程 A 读到 `head = X`、`next = Y`，还没 CAS 就被换下；线程 B 弹走 X 和 Y，回收线程又把 X 压回去。A 回来 CAS 发现 `head` 还是 X，成功了，栈顶却成了已经被 B 拿走的 Y。解法是给 `head` 带一个版本号，每次修改加 1，CAS 比较的是指针和版本号一起（打包进 64 位，或用 16 字节的 CAS）。内存序：弹出的 CAS 用 acquire，压入用 release，保证拿到槽的线程看得到上一个使用者写完的内容。
+追问几乎一定是 **ABA**：CAS 只比较值，`head` 从 X 变成别的、又变回 X，CAS 看不出来。线程 A 读到 `head = X`、`next = Y` 后被换下，别的线程拿走 X 和 Y、又把 X 还回来，A 回来 CAS 成功，栈顶却成了正被别人用着的 Y。解法是给 `head` 带一个版本号，每次修改加 1，CAS 同时比较下标和版本号（32 位下标加 32 位版本号打包进 64 位，或用 16 字节的 CAS）。内存序：弹出的 CAS 用 acquire，压入用 release，保证拿到槽的线程看得到上一个使用者写完的内容。
 
-本站：[内存池与分配器](/zh/posts/hot-path-memory-allocators/)讲了池和空闲链表，无锁栈和 ABA 待补。
+本站：[内存池与分配器](/zh/posts/hot-path-memory-allocators/)第 1 节讲池和空闲链表，[5.3](/zh/posts/hot-path-memory-allocators/#aba) 有 ABA 的时刻表和无锁版本的完整代码。
 
 ### 2.2 优化 SPSC 场景下的移动平均 {#sma}
 
