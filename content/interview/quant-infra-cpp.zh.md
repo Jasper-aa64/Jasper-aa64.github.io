@@ -21,7 +21,7 @@ toc: true
 |---|---|---|
 | 常见的 UB | 有符号整数溢出、数组越界、空指针解引用、读未初始化的变量、数据竞争、违反严格别名。编译器假设它们不发生：比如 `x + 1 > x` 直接折成 `true`，循环变量是 `int` 时不再考虑溢出，可以放心展开和向量化 | 待补，散见[类型双关](/zh/posts/type-punning-calls-compiler-hints/) |
 | 严格别名 | 两个不同类型的指针（`char`、`unsigned char`、`std::byte` 除外）被认为不指向同一个对象，所以编译器写完一个以后不必重读另一个。用 `float*` 去读 `int` 的内存是 UB，开 `-O2` 后结果可能和 `-O0` 不同；合法的写法是 `memcpy` 或 `std::bit_cast`，编出来通常只有一条 `mov` | [四种 cast](/zh/ref/cpp-casts/)、[类型双关](/zh/posts/type-punning-calls-compiler-hints/) |
-| UAF（释放后使用） | 对象释放后还通过旧指针访问。那块内存可能已经分给了别人，表现随机，往往在很远的地方才出错。查：AddressSanitizer；防：用 `unique_ptr`、`shared_ptr` 把所有权写进类型，观察者用 `weak_ptr::lock()` | [unique_ptr 和 weak_ptr](/zh/ref/unique-ptr-weak-ptr/) |
+| UAF（释放后使用） | 对象释放后还通过旧指针访问。那块内存可能已经分给了别人，表现随机，往往在很远的地方才出错。查：AddressSanitizer；防：用 `unique_ptr`、`shared_ptr` 把所有权写进类型，观察者用 `weak_ptr::lock()` | [智能指针](/zh/ref/smart-pointers/) |
 | 副作用和求值顺序 | `i = i++ + 1` 这类在 C++17 以前是 UB。C++17 规定了 `=` 右边先算、`<<` 和 `>>` 从左到右、`a[b]` 先算 `a`；但函数的几个实参之间的顺序仍然不定，只是不再交错 | 待补 |
 | 小端和字节序 | x86 和 ARM（默认）都是小端：低字节放低地址。网络字节序是大端，收发时用 `htons` / `ntohl` 转。判断本机：C++20 的 `std::endian::native` | [socket 编程](/zh/ref/socket-programming/) |
 | 模板 | 两阶段名字查找、特化和偏特化、变参模板、SFINAE 到 concepts；每种实参实例化一份代码，代价是编译时间和体积 | 待补 |

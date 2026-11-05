@@ -2,6 +2,7 @@
 title: "shared_ptr and enable_shared_from_this"
 date: 2026-11-02
 slug: "shared-ptr"
+translationKey: "smart-pointers"
 description: "A shared_ptr is the object plus a control block holding the count; copying one copies two pointers and adds 1 to the count, which is an atomic operation once there are threads. To get your own shared_ptr inside a member function, don't start a second control block with shared_ptr(this); inherit enable_shared_from_this and call shared_from_this()."
 summary: "The count lives in the control block and make_shared allocates once; to keep yourself alive from a member function, shared_from_this() shares the outside control block, while a second control block destroys the object twice."
 toc: true

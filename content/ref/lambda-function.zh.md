@@ -149,7 +149,7 @@ std::function<int()> make_counter() {
 }
 ```
 
-异步回调是同一个问题换了个样子：登记一个按引用捕获局部变量（或者捕获了 `this`）的回调，函数返回了，回调要过一会儿才执行，那时它引用的东西早已销毁。解决办法是让闭包自己持有它要的东西：按值捕获；对象由 `shared_ptr` 管的，捕获一份 `shared_ptr`，成员函数里用 `shared_from_this()` 拿（见 [shared_ptr 那页](/zh/ref/shared-ptr/#shared-from-this-right)）。
+异步回调是同一个问题换了个样子：登记一个按引用捕获局部变量（或者捕获了 `this`）的回调，函数返回了，回调要过一会儿才执行，那时它引用的东西早已销毁。解决办法是让闭包自己持有它要的东西：按值捕获；对象由 `shared_ptr` 管的，捕获一份 `shared_ptr`，成员函数里用 `shared_from_this()` 拿（见 [智能指针那页](/zh/ref/smart-pointers/#shared-from-this-right)）。
 
 ### 2.3 [=] 和 [&]：捕获了什么，没捕获什么 {#default-capture}
 

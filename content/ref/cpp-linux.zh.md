@@ -216,8 +216,7 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 | **内存** | | |
 | [new 一次走到哪](/zh/ref/new-malloc-page-fault/) | `operator new`、malloc、`brk` / `mmap`、第一次写时缺页 | 进程地图：堆、mmap 区 |
 | [函数调用栈帧](/zh/ref/stack-frame/) | 返回地址、寄存器传参、RVO、栈溢出 | 进程地图：栈 |
-| [unique_ptr 和 weak_ptr](/zh/ref/unique-ptr-weak-ptr/) | 独占所有权、删除器、打破循环引用 | 进程地图：堆 |
-| [shared_ptr](/zh/ref/shared-ptr/) | 控制块、复制的代价、线程安全、`enable_shared_from_this` | 进程地图：堆 |
+| [智能指针](/zh/ref/smart-pointers/) | `unique_ptr` 独占和删除器、`shared_ptr` 的控制块和线程安全、`weak_ptr` 打破循环引用、`enable_shared_from_this` | 进程地图：堆 |
 | **并发** | | |
 | [线程同步](/zh/ref/thread-sync/) | 互斥锁、条件变量、信号量、读写锁、死锁 | 进程地图：线程共享的段 |
 | [线程池和 future](/zh/ref/thread-pool-future/) | `std::thread`、promise、`async`、手写线程池 | 进程地图：每个线程的栈 |

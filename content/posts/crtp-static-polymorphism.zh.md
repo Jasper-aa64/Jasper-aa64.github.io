@@ -174,7 +174,7 @@ struct Price : EqualityOps<Price> {
 };
 ```
 
-`!=` 这个例子在 C++20 里已经不需要了：写了 `==`，编译器自动支持 `!=`。标准库里至今常用的同类例子是 `std::enable_shared_from_this<T>`：`class Session : public std::enable_shared_from_this<Session>`，子类什么都不写，就多了一个成员函数 `shared_from_this()`，在成员函数里返回一个指向自己、和外面共用引用计数的 `std::shared_ptr<Session>`。基类要把返回类型写成 `shared_ptr<Session>`，就得知道子类是谁，所以用 CRTP。它解决什么问题、错误写法会怎样，见[shared_ptr 和 enable_shared_from_this](/zh/ref/shared-ptr/#shared-from-this-right)。
+`!=` 这个例子在 C++20 里已经不需要了：写了 `==`，编译器自动支持 `!=`。标准库里至今常用的同类例子是 `std::enable_shared_from_this<T>`：`class Session : public std::enable_shared_from_this<Session>`，子类什么都不写，就多了一个成员函数 `shared_from_this()`，在成员函数里返回一个指向自己、和外面共用引用计数的 `std::shared_ptr<Session>`。基类要把返回类型写成 `shared_ptr<Session>`，就得知道子类是谁，所以用 CRTP。它解决什么问题、错误写法会怎样，见[智能指针的 enable_shared_from_this 一节](/zh/ref/smart-pointers/#shared-from-this-right)。
 
 #### 1.3.3 每个子类一份独立的静态成员
 
