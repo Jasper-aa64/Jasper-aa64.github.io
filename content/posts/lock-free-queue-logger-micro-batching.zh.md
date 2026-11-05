@@ -8,6 +8,7 @@ chapter: 1
 categories: [Systems]
 tags: [cpp, lock-free, wait-free, spsc, ring-buffer, atomics, logging, micro-batching, hft, low-latency]
 toc: true
+math: true
 homepage: false
 ---
 
