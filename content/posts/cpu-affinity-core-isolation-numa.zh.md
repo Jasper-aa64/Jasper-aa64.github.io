@@ -251,7 +251,7 @@ echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo   # 关掉睿频
 
 > 图：打杂核（0、1 号）吸收设备中断和内核杂事；3 号核用启动参数清出来，再把热线程绑上去；访问节点 1 的内存要经过 UPI，每次约多 50 ns。
 
-### 3.2 first-touch：页落在第一次写它的核所在的节点 {#first-touch}
+### 3.2 无意中跨 NUMA：first-touch 把页放在第一次写它的核所在的节点 {#first-touch}
 
 `malloc(1GB)` 返回时，Linux 并没有真的分配 1 GB 物理内存，只是在地址空间里留出一段虚拟地址。某一页第一次被写时，触发缺页，内核才分配物理页，而且默认放在**执行这次写的核所在的节点**上，这叫 first-touch。
 
