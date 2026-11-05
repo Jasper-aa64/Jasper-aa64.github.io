@@ -40,6 +40,18 @@ pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
 
 `cpu_set_t` 是一个位掩码，每一位代表一个核，`CPU_ZERO`、`CPU_SET` 是操作它的宏。`pthread_setaffinity_np` 是 glibc 的封装，用 `pthread_t` 指定线程，`_np` 表示 non-portable，不是 POSIX 标准；它底下调用的系统调用是 `sched_setaffinity`，用线程 ID 指定，传 `0` 表示调用者自己。命令行上对应的是 `taskset -c 3 ./app`。
 
+新线程默认继承创建者的 affinity，先在创建者允许的核上跑起来，到自己调 `pthread_setaffinity_np` 时才迁到目标核。要连这一次迁移也省掉，就在创建时把 affinity 写进线程属性，线程从第一条指令起就在目标核上：
+
+```cpp
+pthread_attr_t attr;
+pthread_attr_init(&attr);
+pthread_attr_setaffinity_np(&attr, sizeof(set), &set);   // set 同上，只含 3 号核
+pthread_create(&tid, &attr, hot_loop, arg);
+pthread_attr_destroy(&attr);
+```
+
+`std::thread` 没有传线程属性的入口，所以热线程要么用 `pthread_create` 这样创建，要么在线程函数的第一行就调 `pthread_setaffinity_np`。
+
 **绑核只管住了你的线程，挡不住别人来这个核。** 线程钉在 3 号核以后，3 号核上的时钟中断、软中断、内核线程、别的用户进程照样在，照样会打断它。要让这个核上只剩你，还得把别人挡在外面，这是隔离要做的事。
 
 ### 1.3 隔离：把别的打断一类一类赶走 {#isolation}
@@ -82,57 +94,6 @@ pthread_setaffinity_np(pthread_self(), sizeof(set), &set);
 ### 1.5 选核：别用 0 号核，热核放在网卡那一侧 {#core-layout}
 
 0 号核是 Linux 的启动 CPU，很多杂事默认落在它上面：RCU 的宽限期线程、默认工作队列、一些迁不走的中断、计时。别的核全隔离了，这些杂事也还集中在 0 号核，有时溢到 1 号核。所以**0、1 号核留给打杂，热线程放在别的核上**。双路机器上，热核还要选在网卡所在的那颗 CPU 上，否则每个包都要跨一次插槽（第 3 节）。选核之前先用 `lscpu -e=CPU,CORE,SOCKET,NODE` 看清楚每个逻辑 CPU 属于哪个物理核、哪个插槽。
-
-### 1.6 一个“绑核并启动线程”封装里的四个坑 {#pin-wrapper}
-
-下面是一个常见的写法，删减过：
-
-```cpp
-inline bool setThreadCore(int core_id) noexcept {
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(core_id, &cpuset);
-    return pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) == 0;
-}
-
-template <typename T, typename... A>
-inline auto createAndStartThread(int core_id, const std::string& name, T&& func, A&&... args) noexcept {
-    auto t = new std::thread([&]() {
-        if (core_id >= 0 && !setThreadCore(core_id)) { /* 打印错误，exit(EXIT_FAILURE) */ }
-        std::forward<T>(func)((std::forward<A>(args))...);
-    });
-    std::this_thread::sleep_for(1s);   // 指望一秒之内 affinity 已经设好
-    return t;
-}
-```
-
-`setThreadCore` 本身没问题，问题都在外层：
-
-- **lambda 按引用捕获了参数，函数返回后这些引用就悬空了**：`[&]` 捕获的 `core_id`、`func`、`args...` 都是 `createAndStartThread` 的参数，新线程可能在函数返回之后才开始执行，那时它们所在的栈帧已经没了。
-- **`sleep_for(1s)` 只是把竞态盖住了**：主线程返回时，新线程可能还没执行到 `setThreadCore`。睡一秒通常够，但不保证，还白白拖慢启动。应该让新线程设好 affinity 以后通知主线程，主线程等到通知再返回。
-- **`new` 出来的 `std::thread` 没人 `delete`，也没约定谁来 `join`**：一个 `std::thread` 析构时如果还是 joinable，程序直接 `std::terminate`。
-- **新线程最初还是跑在别的核上**：它继承创建者的 affinity，先在打杂核上跑起来，执行到 `setThreadCore` 才迁到目标核。它的栈在这段时间里被第一次写到，按 3.2 的 first-touch，这些页可能落在别的 NUMA 节点上。
-
-改过的版本：参数按值存进 lambda，用 `std::promise` 等新线程设好 affinity，返回 `std::jthread`，析构时自动 `join`：
-
-```cpp
-template <typename F, typename... A>
-std::jthread start_on_core(int core_id, F&& func, A&&... args) {
-    std::promise<bool> pinned;
-    auto ok = pinned.get_future();
-    std::jthread t([core_id, p = std::move(pinned),
-                    f = std::forward<F>(func),
-                    tup = std::make_tuple(std::forward<A>(args)...)]() mutable {
-        bool good = core_id < 0 || setThreadCore(core_id);
-        p.set_value(good);
-        if (good) std::apply(std::move(f), std::move(tup));
-    });
-    if (!ok.get()) throw std::runtime_error("setThreadCore failed");
-    return t;
-}
-```
-
-第四个坑要彻底去掉，得绕开 `std::thread`，直接用 `pthread_create`，创建前用 `pthread_attr_setaffinity_np` 把 affinity 写进线程属性。这样线程从第一条指令起就在目标核上。
 
 ---
 
