@@ -204,7 +204,7 @@ store buffer 解释了为什么 *A 的* 写会延迟。接收方还有一个镜�
 
 把这两个缓冲放回整块芯片上，一次写走过的地方如下图。invalidate 请求经片上互连，只发给缓存里有这条行的核，谁有由 L3 旁的 snoop filter 记着；新值不会被推过去，读方要用时自己来取。图里出错的那一步，是读方先回了 ACK、还没处理失效，于是看到了新的 ready，却读到旧的 data：后一个读比前一个读还旧，属于读和读的乱序。x86 不允许它（1.3），ARM 允许，所以 ARM 上的 acquire 要用真正的指令（1.6）。
 
-<iframe src="/maps/store-path.zh.html" title="写的路径：分步动画" loading="lazy" style="display:block;width:100%;aspect-ratio:1100/1030;border:1px solid var(--rule);border-radius:12px;background:#fff"></iframe>
+<iframe src="/maps/store-path.zh.html" title="写的路径：分步动画" loading="lazy" style="display:block;width:min(100%,760px);height:720px;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/store-path.zh.html" target="_blank" rel="noopener">在新窗口打开</a> · <a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener">静态全图</a></p>
 
 ### 1.3 四种乱序,以及 x86 留下的那一种
