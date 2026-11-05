@@ -127,81 +127,102 @@ math: true
 
 x86 硬件保证读和读不乱序，所以在 x86 上，invalidate queue 造不成可见的乱序；ARM 这类弱序 CPU 不保证，两种都会出现。
 
-<svg viewBox="0 0 760 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="写方核的 store buffer 和读方核的 invalidate queue,在写指令退休和写对别处可见之间制造出一个可见性缺口" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+<svg viewBox="0 0 760 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="核 A 写 x = 1：写进 store buffer，指令退休，发出 invalidate 请求；核 B 把请求放进 invalidate queue，立刻回 ACK；核 B 读 x，队列里的请求还没处理，L1D 里还是旧值 0" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
-    .bg    { fill: #fbfaf7; }
-    .panel { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
-    .ink   { fill: #1c1b18; }
-    .muted { fill: #6b6558; }
-    .core  { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; }
-    .buf   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.6; }
-    .inbox { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.6; }
-    .line  { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.2; }
-    .arrow { stroke: #8a8474; stroke-width: 2; fill: none; marker-end: url(#ahz); }
-    .rfo   { stroke: #c15b3f; stroke-width: 2; fill: none; marker-end: url(#ahz2); }
-    .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
-    .lbl   { fill: #3a372f; font-size: 11px; }
-    .cap   { fill: #6b6558; font-size: 10.5px; }
-    .gap   { fill: #c15b3f; font-size: 11px; font-weight: 700; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .bg { fill: #17161b; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .panel { fill: #201f26; stroke: #3a3945; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .ink { fill: #e9e7ef; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .muted { fill: #a19caf; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .core { fill: #2a2933; stroke: #47454f; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .buf { fill: #33421f; stroke: #8fb257; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .inbox { fill: #4a2f2c; stroke: #8f5a4c; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .line { fill: #23262c; stroke: #3f4650; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .arrow { stroke: #9a9384; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .rfo { stroke: #e0795b; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .title { fill: #e9e7ef; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .lbl { fill: #d7d3c8; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .cap { fill: #a19caf; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .gap { fill: #e0795b; }
+    .iq2bg { fill: #fbfaf7; }
+    .iq2pn { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
+    .iq2cd { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; }
+    .iq2sb { fill: #fff3c4; stroke: #c9a227; stroke-width: 1.4; }
+    .iq2q  { fill: #fbe3d4; stroke: #d0773f; stroke-width: 1.4; }
+    .iq2l1 { fill: #e3f0fb; stroke: #6aa7d8; stroke-width: 1.4; }
+    .iq2sl { fill: #ffffff; stroke: #8a8474; stroke-width: 1.2; }
+    .iq2bad { fill: #fde7e4; stroke: #c84b3a; stroke-width: 1.4; }
+    .iq2t  { fill: #1c1b18; font-size: 14px; font-weight: 700; }
+    .iq2h  { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .iq2x  { fill: #1c1b18; font-size: 12.5px; }
+    .iq2m  { fill: #6b6558; font-size: 12px; }
+    .iq2c  { fill: #1c1b18; font-size: 13px; font-family: 'JetBrains Mono', Consolas, ui-monospace, monospace; }
+    .iq2r  { fill: #c84b3a; font-size: 12px; font-weight: 700; }
+    .iq2go { stroke: #6b6558; stroke-width: 2; fill: none; }
+    .iq2in { stroke: #d0773f; stroke-width: 2.2; fill: none; }
+    .iq2ak { stroke: #3f8f4a; stroke-width: 2.2; fill: none; }
+    .iq2rd { stroke: #3a7dc0; stroke-width: 2.2; fill: none; }
+    .iq2n  { font-size: 12px; font-weight: 700; fill: #ffffff; }
+    .iq2ah-go { fill: #6b6558; } .iq2ah-in { fill: #d0773f; } .iq2ah-ak { fill: #3f8f4a; } .iq2ah-rd { fill: #3a7dc0; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2pn { fill: #201f26; stroke: #3a3945; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2cd { fill: #2a2933; stroke: #47454f; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2sb { fill: #3a3216; stroke: #a8892a; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2q { fill: #3d2618; stroke: #c06b37; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2l1 { fill: #16263a; stroke: #3f78ad; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2sl { fill: #26252d; stroke: #6e6a7a; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2bad { fill: #3d1d1f; stroke: #e5655a; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2t, :root:is([data-theme="dark"], [data-theme="black"]) .iq2h, :root:is([data-theme="dark"], [data-theme="black"]) .iq2x, :root:is([data-theme="dark"], [data-theme="black"]) .iq2c { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2m { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2r { fill: #ff7b72; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2go { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2ah-go { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2in { stroke: #f0883e; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2ah-in { fill: #f0883e; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2ak { stroke: #56c26a; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2ah-ak { fill: #56c26a; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2rd { stroke: #58a6ff; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .iq2ah-rd { fill: #58a6ff; }
   </style>
   <defs>
-    <marker id="ahz" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#8a8474"/>
-    </marker>
-    <marker id="ahz2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#c15b3f"/>
-    </marker>
+    <marker id="iq2go" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="iq2ah-go"/></marker>
+    <marker id="iq2in" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="iq2ah-in"/></marker>
+    <marker id="iq2ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="iq2ah-ak"/></marker>
+    <marker id="iq2rd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="iq2ah-rd"/></marker>
   </defs>
-  <rect class="bg" x="0" y="0" width="760" height="460" rx="10"/>
-  <text class="title" x="24" y="30">为什么 A 的写已经"退休",B 还能读到旧的 x</text>
-  <rect class="panel" x="24" y="48" width="320" height="230" rx="8"/>
-  <text class="muted" x="40" y="70" font-size="12" font-weight="700">核 A(写方)</text>
-  <rect class="core" x="40" y="86" width="120" height="46" rx="6"/>
-  <text class="lbl" x="50" y="106">x = 1</text>
-  <text class="cap" x="50" y="122">写指令</text>
-  <rect class="buf" x="40" y="148" width="270" height="46" rx="6"/>
-  <text class="lbl" x="50" y="168" font-weight="700">store buffer("小本子")</text>
-  <text class="cap" x="50" y="184">x=1 记进本子——指令就在这里退休</text>
-  <path class="arrow" d="M100 132 L100 148"/>
-  <path class="rfo" d="M310 171 C 350 171, 372 200, 392 228"/>
-  <text class="cap" x="316" y="214" fill="#c15b3f">RFO 异步发出</text>
-  <text class="gap" x="40" y="240">A 已经认为 x=1 做完了。</text>
-  <text class="gap" x="40" y="256">别的核还一个都看不到。</text>
-  <rect class="panel" x="416" y="48" width="320" height="230" rx="8"/>
-  <text class="muted" x="432" y="70" font-size="12" font-weight="700">核 B(读方)</text>
-  <rect class="inbox" x="432" y="86" width="270" height="46" rx="6"/>
-  <text class="lbl" x="442" y="106" font-weight="700">invalidate queue("收件箱")</text>
-  <text class="cap" x="442" y="122">x 的 RFO 躺在这里,确认已立刻回给 A</text>
-  <rect class="core" x="432" y="148" width="120" height="46" rx="6"/>
-  <text class="lbl" x="442" y="168">读 x</text>
-  <text class="cap" x="442" y="184">可能在收件箱清空前就执行</text>
-  <path class="arrow" d="M492 132 L492 148"/>
-  <text class="gap" x="432" y="240">B 的读要是抢在自己的收件箱前面,</text>
-  <text class="gap" x="432" y="256">读到的仍是旧的缓存值 x。</text>
-  <rect class="panel" x="220" y="300" width="320" height="140" rx="8"/>
-  <text class="title" x="236" y="324" font-size="12.5">什么能补上这个缺口</text>
-  <text class="cap" x="236" y="346" font-size="11">默认什么都不能——这个缺口就是硬件的正常行为。</text>
-  <text class="cap" x="236" y="364" font-size="11">x86-TSO 禁止它和其他地址的读写乱序</text>
-  <text class="cap" x="236" y="380" font-size="11">(StoreStore / LoadLoad / LoadStore)——</text>
-  <text class="cap" x="236" y="396" font-size="11">但正是从这个缺口生出来的 StoreLoad 乱序,</text>
-  <text class="cap" x="236" y="412" font-size="11" font-weight="700">是 x86 唯一允许的。1.5 讲怎么补上它。</text>
+  <rect class="iq2bg" x="0" y="0" width="760" height="480" rx="10"/>
+  <text class="iq2t" x="20" y="32">写的一方有 store buffer，读的一方有 invalidate queue</text>
+  <rect class="iq2pn" x="20" y="50" width="310" height="350" rx="10"/>
+  <text class="iq2h" x="38" y="76">核 A（写方）</text>
+  <rect class="iq2cd" x="38" y="90" width="274" height="40" rx="6"/>
+  <text class="iq2c" x="56" y="115">x = 1;</text>
+  <path class="iq2go" d="M175,130 V158" marker-end="url(#iq2go)"/>
+  <circle cx="200" cy="144" r="10" fill="#6b6558"/><text class="iq2n" x="200" y="148" text-anchor="middle">1</text>
+  <text class="iq2m" x="216" y="148">写进 store buffer</text>
+  <rect class="iq2sb" x="38" y="162" width="274" height="80" rx="6"/>
+  <text class="iq2h" x="52" y="184">store buffer</text>
+  <rect class="iq2sl" x="52" y="196" width="110" height="30" rx="4"/>
+  <text class="iq2c" x="107" y="216" text-anchor="middle">x = 1</text>
+  <text class="iq2m" x="172" y="208">指令到这里</text>
+  <text class="iq2m" x="172" y="224">就算执行完了</text>
+  <rect class="iq2l1" x="38" y="262" width="274" height="60" rx="6"/>
+  <text class="iq2h" x="52" y="284">L1D</text>
+  <text class="iq2x" x="52" y="308">x = 0，收齐 ACK 才写成 1</text>
+  <text class="iq2m" x="38" y="352">A 自己读 x，从 store buffer</text>
+  <text class="iq2m" x="38" y="370">直接拿到 1；别的核还看不到。</text>
+  <rect class="iq2pn" x="430" y="50" width="310" height="350" rx="10"/>
+  <text class="iq2h" x="448" y="76">核 B（读方）</text>
+  <rect class="iq2q" x="448" y="162" width="274" height="80" rx="6"/>
+  <text class="iq2h" x="462" y="184">invalidate queue</text>
+  <rect class="iq2sl" x="462" y="196" width="130" height="30" rx="4"/>
+  <text class="iq2x" x="527" y="216" text-anchor="middle">作废 x</text>
+  <text class="iq2r" x="604" y="216">还没处理</text>
+  <rect class="iq2l1" x="448" y="262" width="274" height="60" rx="6"/>
+  <text class="iq2h" x="462" y="284">L1D</text>
+  <rect class="iq2bad" x="462" y="292" width="246" height="24" rx="4"/>
+  <text class="iq2x" x="474" y="309">x = 0（旧值，还没被作废）</text>
+  <rect class="iq2cd" x="448" y="344" width="274" height="40" rx="6"/>
+  <text class="iq2c" x="466" y="369">r = x;</text>
+  <text class="iq2r" x="560" y="369">读到 0</text>
+  <path class="iq2rd" d="M680,344 V324" marker-end="url(#iq2rd)"/>
+  <circle cx="700" cy="334" r="10" fill="#3a7dc0"/><text class="iq2n" x="700" y="338" text-anchor="middle">4</text>
+  <path class="iq2in" d="M312,190 H446" marker-end="url(#iq2in)"/>
+  <circle cx="340" cy="174" r="10" fill="#d0773f"/><text class="iq2n" x="340" y="178" text-anchor="middle">2</text>
+  <text class="iq2m" x="356" y="178">invalidate x</text>
+  <path class="iq2ak" d="M448,224 H316" marker-end="url(#iq2ak)"/>
+  <circle cx="340" cy="242" r="10" fill="#3f8f4a"/><text class="iq2n" x="340" y="246" text-anchor="middle">3</text>
+  <text class="iq2m" x="356" y="246">先回 ACK</text>
+  <text class="iq2x" x="20" y="428">① A 的写进 store buffer，指令退休。② A 发出作废 x 的请求。③ B 把请求放进队列，马上回 ACK。</text>
+  <text class="iq2x" x="20" y="450">④ B 读 x：请求还在队列里没处理，L1D 里的 x 没被作废，读到旧值 0。</text>
+  <text class="iq2m" x="20" y="470">两个缓冲都是为了不让流水线等一次跨核往返；它们造成的乱序见上表。</text>
 </svg>
 
-> 图：A 的写一进自己的 store buffer 就退休了，去拿缓存行的请求在后台进行。B 把作废请求放进 invalidate queue、先回 ACK，于是 B 抢在处理它之前的读，仍可能看到写之前的值。两个缓冲存在的理由相同：别让流水线为一次跨核往返停下来。
+> 图：A 的写进了自己的 store buffer，指令就退休了；B 收到作废请求，先放进 invalidate queue、马上回 ACK。B 在处理这条请求之前读 x，读到的还是旧值。两个缓冲存在的理由相同：别让流水线为一次跨核往返停下来。
 
 把这两个缓冲放回整块芯片上，一次写要走过的路径如下，按步骤点下去看。invalidate 请求经片上互连，只发给缓存里有这一行的核，谁有由 L3 旁的 snoop filter 记着；新值不会被推过去，读方要用时自己来取。最后一步，读方已经看到了新的 `ready`，读 `data` 却拿到旧值，这就是读和读的乱序。
 
