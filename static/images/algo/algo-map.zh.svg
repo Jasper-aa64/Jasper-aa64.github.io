@@ -79,67 +79,77 @@
   <text x="1008" y="188" class="t">堆 · 哈希表</text>
   <text x="1008" y="206" class="s">Top-K；动态取最值</text>
   <text x="1008" y="224" class="s">查有没有、数几次</text>
-  <text x="1008" y="242" class="tag"><a href="/zh/algo/a2-stack-monotonic-stack-heap/" target="_blank" rel="noopener"><tspan>A2（上）第 3 节</tspan></a></text>
+  <text x="1008" y="242" class="tag"><a href="/zh/algo/a2-stack-monotonic-stack-heap/" target="_blank" rel="noopener"><tspan>A2 上第 3 节</tspan></a><tspan>、</tspan><a href="/zh/algo/a2-hash-greedy-bits/" target="_blank" rel="noopener"><tspan>下第 1 节</tspan></a></text>
   </g>
   <g id="a_gr">
   <rect x="1188" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="1200" y="188" class="t">排序 · 贪心</text>
   <text x="1200" y="206" class="s">排序后取局部最优</text>
   <text x="1200" y="224" class="s">交换论证说明对</text>
+  <text x="1200" y="242" class="tag"><a href="/zh/algo/a2-hash-greedy-bits/" target="_blank" rel="noopener"><tspan>A2（下）第 2 节</tspan></a></text>
   </g>
   <g id="a_bit">
   <rect x="1380" y="164" width="180" height="94" rx="6" class="hot"/>
   <text x="1392" y="188" class="t">位运算</text>
   <text x="1392" y="206" class="s">lowbit；枚举子集</text>
   <text x="1392" y="224" class="s">异或的性质</text>
+  <text x="1392" y="242" class="tag"><a href="/zh/algo/a2-hash-greedy-bits/" target="_blank" rel="noopener"><tspan>A2（下）第 3 节</tspan></a></text>
   </g>
   <g id="a_srch">
   <rect x="36" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="48" y="294" class="t">搜索 · 回溯</text>
   <text x="48" y="312" class="s">BFS：最少步数</text>
   <text x="48" y="330" class="s">DFS：枚举 + 剪枝</text>
+  <text x="48" y="348" class="tag"><a href="/zh/algo/a3-search-backtracking-trees/" target="_blank" rel="noopener"><tspan>A3 第 1–2 节</tspan></a></text>
   </g>
   <g id="a_tree">
   <rect x="228" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="240" y="294" class="t">树</text>
   <text x="240" y="312" class="s">遍历 · 直径 · LCA</text>
   <text x="240" y="330" class="s">递归返回值的设计</text>
+  <text x="240" y="348" class="tag"><a href="/zh/algo/a3-search-backtracking-trees/" target="_blank" rel="noopener"><tspan>A3 第 3–4 节</tspan></a></text>
   </g>
   <g id="a_graph">
   <rect x="420" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="432" y="294" class="t">图 · 最短路</text>
   <text x="432" y="312" class="s">Dijkstra · 拓扑排序</text>
   <text x="432" y="330" class="s">有负权：Bellman-Ford</text>
+  <text x="432" y="348" class="tag"><a href="/zh/algo/a4-graphs-shortest-path-topo-dsu/" target="_blank" rel="noopener"><tspan>A4 第 1–3 节</tspan></a></text>
   </g>
   <g id="a_dsu">
   <rect x="612" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="624" y="294" class="t">并查集</text>
   <text x="624" y="312" class="s">动态加边问连通</text>
   <text x="624" y="330" class="s">Kruskal 最小生成树</text>
+  <text x="624" y="348" class="tag"><a href="/zh/algo/a4-graphs-shortest-path-topo-dsu/" target="_blank" rel="noopener"><tspan>A4 第 4 节</tspan></a></text>
   </g>
   <g id="a_dp1">
   <rect x="804" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="816" y="294" class="t">DP：线性 · 背包</text>
   <text x="816" y="312" class="s">先定状态的含义</text>
   <text x="816" y="330" class="s">再写转移和边界</text>
+  <text x="816" y="348" class="tag"><a href="/zh/algo/a5-dynamic-programming/" target="_blank" rel="noopener"><tspan>A5 第 1–3 节</tspan></a></text>
   </g>
   <g id="a_dp2">
   <rect x="996" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="1008" y="294" class="t">DP：区间 · 树 · 状压</text>
   <text x="1008" y="312" class="s">按长度、子树、集合</text>
   <text x="1008" y="330" class="s">状压：n 到 20 左右</text>
+  <text x="1008" y="348" class="tag"><a href="/zh/algo/a5-dynamic-programming/" target="_blank" rel="noopener"><tspan>A5 第 4–6 节</tspan></a></text>
   </g>
   <g id="a_str">
   <rect x="1188" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="1200" y="294" class="t">字符串</text>
   <text x="1200" y="312" class="s">KMP · 哈希 · Trie</text>
   <text x="1200" y="330" class="s">01-Trie：最大异或</text>
+  <text x="1200" y="348" class="tag"><a href="/zh/algo/a6-strings-and-design/" target="_blank" rel="noopener"><tspan>A6 第 1 节</tspan></a></text>
   </g>
   <g id="a_design">
   <rect x="1380" y="270" width="180" height="94" rx="6" class="hot"/>
   <text x="1392" y="294" class="t">设计题</text>
   <text x="1392" y="312" class="s">LRU · 订单簿 · 限流</text>
   <text x="1392" y="330" class="s">考数据结构选型</text>
+  <text x="1392" y="348" class="tag"><a href="/zh/algo/a6-strings-and-design/" target="_blank" rel="noopener"><tspan>A6 第 2 节</tspan></a></text>
   </g>
   <g id="b_seg">
   <rect x="36" y="432" width="180" height="94" rx="6" class="cold"/>

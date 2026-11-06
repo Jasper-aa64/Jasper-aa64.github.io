@@ -178,9 +178,28 @@ A1 = 'a1-complexity-binary-search-two-pointers-prefix-sums'
 for nid, sec in (('a_cx', 1), ('a_bs', 2), ('a_tp', 3), ('a_ps', 4)):
     algo_post(nid, 'A1', A1, sec)
 
-A2A = 'a2-stack-monotonic-stack-heap'
-for nid, sec in (('a_st', 2), ('a_hp', 3)):   # zh only until the English version is written
-    NODES[nid]['zh']['tags'] = NODES[nid]['zh']['tags'] + [[('A2（上）第 %d 节' % sec, '/zh/algo/%s/' % A2A)]]
+# A2–A6: zh only until the English versions are written; one tag line per box, several posts joined by "、"
+ZH_POSTS = {
+    'a_st':     [('A2（上）第 2 节', 'a2-stack-monotonic-stack-heap')],
+    'a_hp':     [('A2 上第 3 节', 'a2-stack-monotonic-stack-heap'), ('下第 1 节', 'a2-hash-greedy-bits')],
+    'a_gr':     [('A2（下）第 2 节', 'a2-hash-greedy-bits')],
+    'a_bit':    [('A2（下）第 3 节', 'a2-hash-greedy-bits')],
+    'a_srch':   [('A3 第 1–2 节', 'a3-search-backtracking-trees')],
+    'a_tree':   [('A3 第 3–4 节', 'a3-search-backtracking-trees')],
+    'a_graph':  [('A4 第 1–3 节', 'a4-graphs-shortest-path-topo-dsu')],
+    'a_dsu':    [('A4 第 4 节', 'a4-graphs-shortest-path-topo-dsu')],
+    'a_dp1':    [('A5 第 1–3 节', 'a5-dynamic-programming')],
+    'a_dp2':    [('A5 第 4–6 节', 'a5-dynamic-programming')],
+    'a_str':    [('A6 第 1 节', 'a6-strings-and-design')],
+    'a_design': [('A6 第 2 节', 'a6-strings-and-design')],
+}
+for nid, items in ZH_POSTS.items():
+    segs = []
+    for k, (label, slug) in enumerate(items):
+        if k:
+            segs.append(('、', None))
+        segs.append((label, '/zh/algo/%s/' % slug))
+    NODES[nid]['zh']['tags'] = NODES[nid]['zh']['tags'] + [segs]
 
 # ---------------------------------------------------------------- band B: quick pass (know what it solves)
 B = [
