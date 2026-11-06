@@ -46,7 +46,7 @@
   <rect x="60" y="190" width="280" height="80" rx="6" class="box"/>
   <text x="72" y="213" class="t">Branch predictor (BPU)</text>
   <text x="72" y="231" class="s">BTB · RAS · direction predictor</text>
-  <text x="72" y="249" class="s">guesses where the next instruction is</text>
+  <text x="72" y="249" class="s">guesses the next fetch address</text>
   <text x="72" y="266" class="tag">#7 branch prediction</text>
   <rect x="60" y="290" width="280" height="80" rx="6" class="box"/>
   <text x="72" y="313" class="t">Fetch</text>
@@ -108,6 +108,7 @@
   <text x="56" y="702" class="s">Caches and memory move data in whole 64 B cache lines</text>
   <text x="56" y="720" class="tag">#2 · #6 how many lines one access touches</text>
   <path d="M200,270 L200,288" class="line" marker-end="url(#arr)"/>
+  <text x="208" y="284" class="lab">next fetch address</text>
   <path d="M200,370 L200,388" class="line" marker-end="url(#arr)"/>
   <path d="M60,530 L56,530 L56,340 L58,340" class="line" marker-end="url(#arr)"/>
   <path d="M340,430 L370,430 L370,230 L398,230" class="line" marker-end="url(#arr)"/>
