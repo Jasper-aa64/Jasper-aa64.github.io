@@ -1,6 +1,6 @@
 ---
 title: "Trading System Architecture: Map, Times, How to Split"
-description: "Which threads and data structures a market data message passes through on its way from the NIC to an order and back as a fill; roughly how long each stage takes; and how industrial systems split threads, where they put queues, and where they must join."
+description: "Which threads and data structures a market data message passes through on its way from the NIC to an order and back as a fill; roughly how long each stage takes; and how industrial systems split threads, where they put queues, and where they must join; and how backtest and live factor values are reconciled value by value."
 date: 2026-10-20
 lastmod: 2026-11-07
 slug: "trading-architecture"
@@ -8,11 +8,12 @@ weight: 15
 toc: true
 ---
 
-This page is an architecture map to keep open, and a companion to the [hardware map](/ref/cpu-memory/): that page follows one memory access through the hardware, this one follows one market data message through the threads. It has three parts, in the order "where → how fast → how to split":
+This page is an architecture map to keep open, and a companion to the [hardware map](/ref/cpu-memory/): that page follows one memory access through the hardware, this one follows one market data message through the threads. The first three parts go in the order "where → how fast → how to split"; part 4 is about factor computation:
 
 1. [Architecture map](#map): the boxes a message passes through on its way to a fill, and which post covers each box.
 2. [Times](#numbers): roughly how long each stage takes, to tell which stage is worth optimising. They are orders of magnitude, not measurements of any one system.
 3. [How to split](#rules): how industrial systems split threads, where they put queues, and where they have to join.
+4. [Factor computation](#factors): how backtest and live compute the same value.
 
 When a later post covers a new component, it goes here.
 
@@ -112,7 +113,9 @@ The backlog sits in the rings and queues: backlog = (arrival rate − service ra
 
 A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often keeps them from taking the producer's line on every message ([#5 1.6.5](/posts/spmc-shared-memory-broadcast-ring/#165-how-should-a-reader-wait)).
 
-### 3.7 Backtest and Live: One Codebase, Reconciled Value by Value Every Day {#replay}
+## 4. Factor Computation {#factors}
+
+### 4.1 Backtest and Live: One Codebase, Reconciled Value by Value Every Day {#replay}
 
 1. **Backtest and live must compute the same factor value**
    - **A backtest result only counts if it holds live**: when a researcher shows in a backtest that a factor works, that assumes the live system computes the same values. If the two differ and live performance is worse, you cannot tell whether the strategy stopped working or the factor was computed wrong.
