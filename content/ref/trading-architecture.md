@@ -1,6 +1,6 @@
 ---
 title: "Trading System Architecture: Map, Times, How to Split"
-description: "Which threads and data structures a market data message passes through on its way from the NIC to an order and back as a fill; roughly how long each stage takes; and how industrial systems split threads, where they put queues, and where they must join; and how backtest and live factor values are reconciled value by value."
+description: "Which threads and data structures a market data message passes through on its way from the NIC to an order and back as a fill; roughly how long each stage takes; how industrial systems split threads, where they put queues, and where they must join; and how backtest and live factor values are reconciled value by value."
 date: 2026-10-20
 lastmod: 2026-11-07
 slug: "trading-architecture"
