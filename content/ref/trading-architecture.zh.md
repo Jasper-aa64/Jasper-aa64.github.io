@@ -34,6 +34,8 @@ toc: true
 7. 决策线程里，策略定买什么、卖什么、撤哪些，过事前风控，交给订单管理；大单拆成小单按时间发。
 8. 下单网关编码成协议发出去，经券商柜台到交易所。
 
+回测时，第 1–4 步换成回放器：按交易日读历史行情，按时间顺序一条条喂给同一个 `on_tick`，第 5 步往后的因子代码不变（[4.1](#replay)）。
+
 ### 1.2 一笔回报的路：成交 → 持仓 → 策略 {#fill}
 
 1. 交易所撮合以后发出回报：确认、成交、撤单都算。回报经柜台回到下单网关。
@@ -127,11 +129,93 @@ toc: true
    struct Factor {
        void on_tick(const Tick& t);   // 来一条行情，更新内部状态
        double value() const;          // 读当前的因子值
+       void reset();                  // 换交易日，清掉内部状态
    };
    ```
+   <svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="上面一行是实盘：交易所组播经网卡进来，行情接入线程解码成 Tick，分片线程来一条调一次 on_tick；下面一行是回测：历史行情（实盘录像或数据商文件）由回放器按交易日、按时间排序，一条条构造 Tick 调用；两行都指向右边同一个 Factor，它只有 on_tick、value、reset 三个函数；回测一天喂完调 reset 再读下一天；因子里的时间只用行情自带的交易所时间" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+     <style>
+       .rp0bg  { fill: #fbfaf7; }
+       .rp0u   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+       .rp0d   { fill: #f3efe6; stroke: #b8ab8c; stroke-width: 1.3; }
+       .rp0m   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.5; }
+       .rp0ink { fill: #1c1b18; font-size: 12.5px; }
+       .rp0sm  { fill: #1c1b18; font-size: 11.5px; }
+       .rp0mut { fill: #6b6558; font-size: 12px; }
+       .rp0ttl { fill: #1c1b18; font-size: 14px; font-weight: 700; }
+       .rp0hd  { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+       .rp0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+       .rp0lp  { stroke: #8c7a52; stroke-width: 1.3; stroke-dasharray: 5 4; fill: none; }
+       .rp0hh  { fill: #6b6558; }
+       .rp0hp  { fill: #8c7a52; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0bg { fill: #17161b; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0u { fill: #23262c; stroke: #3f4650; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0d { fill: #2a2721; stroke: #6b6250; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0m { fill: #33421f; stroke: #8fb257; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0ink, :root:is([data-theme="dark"], [data-theme="black"]) .rp0sm, :root:is([data-theme="dark"], [data-theme="black"]) .rp0ttl, :root:is([data-theme="dark"], [data-theme="black"]) .rp0hd { fill: #e9e7ef; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0mut { fill: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0ln { stroke: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0hh { fill: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0lp { stroke: #b8ab8c; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0hp { fill: #b8ab8c; }
+     </style>
+     <defs>
+       <marker id="rp0ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="rp0hh"/></marker>
+       <marker id="rp0ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="rp0hp"/></marker>
+     </defs>
+     <rect class="rp0bg" x="0" y="0" width="760" height="340" rx="10"/>
+     <text class="rp0ttl" x="24" y="32">喂法不同，因子是同一个</text>
+     <text class="rp0hd" x="24" y="100">实盘</text>
+     <rect class="rp0u" x="70" y="70" width="120" height="50" rx="6"/>
+     <text class="rp0ink" x="130" y="91" text-anchor="middle">交易所组播</text>
+     <text class="rp0sm" x="130" y="109" text-anchor="middle">网卡收包</text>
+     <rect class="rp0u" x="215" y="70" width="140" height="50" rx="6"/>
+     <text class="rp0ink" x="285" y="91" text-anchor="middle">行情接入线程</text>
+     <text class="rp0sm" x="285" y="109" text-anchor="middle">解码成 Tick</text>
+     <rect class="rp0u" x="380" y="70" width="130" height="50" rx="6"/>
+     <text class="rp0ink" x="445" y="91" text-anchor="middle">分片线程</text>
+     <text class="rp0sm" x="445" y="109" text-anchor="middle">来一条调一次</text>
+     <path class="rp0ln" d="M190 95 H211" marker-end="url(#rp0ah)"/>
+     <path class="rp0ln" d="M355 95 H376" marker-end="url(#rp0ah)"/>
+     <text class="rp0hd" x="24" y="240">回测</text>
+     <rect class="rp0d" x="70" y="210" width="120" height="50" rx="6"/>
+     <text class="rp0ink" x="130" y="231" text-anchor="middle">历史行情</text>
+     <text class="rp0sm" x="130" y="249" text-anchor="middle">录像或数据商文件</text>
+     <rect class="rp0d" x="215" y="210" width="140" height="50" rx="6"/>
+     <text class="rp0ink" x="285" y="231" text-anchor="middle">回放器</text>
+     <text class="rp0sm" x="285" y="249" text-anchor="middle">按交易日、按时间排序</text>
+     <rect class="rp0d" x="380" y="210" width="130" height="50" rx="6"/>
+     <text class="rp0ink" x="445" y="231" text-anchor="middle">逐条构造 Tick</text>
+     <text class="rp0sm" x="445" y="249" text-anchor="middle">一条条调用</text>
+     <path class="rp0ln" d="M190 235 H211" marker-end="url(#rp0ah)"/>
+     <path class="rp0ln" d="M355 235 H376" marker-end="url(#rp0ah)"/>
+     <path class="rp0lp" d="M445 260 V280 H285 V264" marker-end="url(#rp0ap)"/>
+     <text class="rp0mut" x="365" y="298" text-anchor="middle">一天喂完 → reset() → 读下一天</text>
+     <rect class="rp0m" x="560" y="115" width="180" height="100" rx="8"/>
+     <text class="rp0hd" x="650" y="140" text-anchor="middle">Factor（只有一份）</text>
+     <text class="rp0sm" x="578" y="164">on_tick(t)：更新状态</text>
+     <text class="rp0sm" x="578" y="184">value()：读因子值</text>
+     <text class="rp0sm" x="578" y="204">reset()：换交易日</text>
+     <path class="rp0ln" d="M510 95 C535 95 535 150 556 150" marker-end="url(#rp0ah)"/>
+     <path class="rp0ln" d="M510 235 C535 235 535 182 556 182" marker-end="url(#rp0ah)"/>
+     <text class="rp0mut" x="24" y="326">因子里的“现在”一律用 t.exch_time，不读系统时钟；需要前一天数据的，reset() 之后先预热。</text>
+   </svg>
+
    - **因子不知道自己在回测还是实盘里**：它只管来一条行情、更新一次状态。行情从哪来，由调用它的那一层决定。
-   - **实盘这样调**：行情接入线程把收到的组播包解码成 `Tick`，分片线程拿到后调 `on_tick`（[1.1](#tick)）。
-   - **回测这样调**：回放器按交易日读历史行情，按时间顺序一条条构造 `Tick`，调的是同一个 `on_tick`。
+   - **实盘这样调**：行情接入线程把收到的组播包解码成 `Tick`，分片线程拿到一条就调一次 `on_tick`（[1.1](#tick)）。
+   - **回测这样调**：回放器按交易日读历史行情，按时间顺序一条条构造 `Tick`，调的是同一个 `on_tick`；一天喂完，调 `reset()`，再读下一天。
+   ```cpp
+   // 实盘：分片线程从队列里读，来一条调一次
+   while (running)
+       if (queue.read(t)) factor.on_tick(t);
+
+   // 回测：按交易日读历史行情，按时间顺序调同一个函数
+   for (Date d : days) {
+       factor.reset();
+       for (const Tick& t : load_day(d)) factor.on_tick(t);
+   }
+   ```
+   - **喂的顺序要和实盘一样**：只用到一只股票的因子，可以每只股票单独跑完一天；截面因子要把全市场的行情按交易所时间归并成一条流（同一时刻按序号排），和实盘到达的顺序一致。
+   - **因子里的“现在”一律用行情自带的时间**：实盘的“现在”是墙上时间，回测的“现在”是这条行情的时间。因子里要是读了系统时钟，回测时拿到的是今天的时间，窗口和 bar 边界全错，**所以因子里只用 `t.exch_time`**。
    - **研究和实盘各写一份，迟早会分叉**：研究用 Python 写一份、实盘用 C++ 再写一份，细节总会不一样，例如一份跳过 NaN、一份没跳，或者一份按收盘价算、一份按最新价算。
    - **只有一份代码，“两份代码写得不一样”这个原因就没了**。
 
