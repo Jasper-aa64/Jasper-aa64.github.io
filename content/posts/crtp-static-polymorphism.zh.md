@@ -1,9 +1,9 @@
 ---
 title: "交易系统笔记 #8：CRTP 与静态多态"
 date: 2026-10-12
-lastmod: 2026-11-02
+lastmod: 2026-11-07
 slug: "crtp-static-polymorphism"
-description: "CRTP（奇异递归模板）：子类把自己当模板参数传给基类，基类在编译期就知道子类是谁。它为什么合法、编译出来和虚函数差在哪（GCC 真实汇编，含推测性去虚化）、三种用途、四个坑（基类抄错静默 UB、同名无限递归、不完整类型、没有共同基类）、和虚函数怎么选，以及 C++23 deducing this。后半篇讲 CRTP 之外的写法（variant、按类型分批、Mixin）和静态、动态多态怎么选。"
+description: "CRTP（奇异递归模板）：子类把自己当模板参数传给基类，基类在编译期就知道子类是谁。它为什么合法、编译出来和虚函数差在哪（GCC 真实汇编，含推测性去虚化）、三种用途、四个坑（基类抄错静默 UB、同名无限递归、不完整类型、没有共同基类）、和虚函数怎么选、交易系统里用在哪（行情解析、回调、策略引擎，和按配置选的因子这个反例），以及 C++23 deducing this。后半篇讲 CRTP 之外的写法（variant、按类型分批、Mixin）和静态、动态多态怎么选。"
 summary: "基类写流程、子类填细节，虚函数在运行时选，CRTP 在编译期选。省下的不只是一次间接跳转：调用能整个内联，对象里也没有 vptr。代价是 Base<A> 和 Base<B> 毫无关系，放不进同一个容器。"
 chapter: 1
 categories: [Systems]
@@ -259,7 +259,74 @@ GCC 报 `invalid use of incomplete type 'struct C'`。原因就是 1.1 节说的
 
 类型在编译期能定、在热路径上，用 CRTP；要放进一个容器、要运行时加类型，用虚函数。更完整的权衡（代码膨胀、编译时间、运行时从编好的类型里挑一个）见[第 4 节](#polymorphism)。
 
-### 1.6 C++23 的替代写法：deducing this
+### 1.6 交易系统里用在哪：一条行情经过的三处
+
+判断用不用 CRTP，看两件事：**类型是不是部署时就定了，调用是不是在每条消息都要过的热路径上**。两条都满足，换成 CRTP 省下的内联才值钱。顺着一条行情从进来到发单走一遍，满足这两条的地方集中在三处。
+
+#### 1.6.1 行情解析：公共流程写一次，每家交易所只写解码
+
+开头的行情网关就是这一处。收包、查序号、断档补包每家都一样，写在基类模板里；解码格式每家不同，由子类实现：
+
+```cpp
+template <typename Derived>
+struct FeedHandler {
+    void on_packet(const Packet& p) {
+        check_seq(p.seq);                          // 公共：查序号，断档就去补
+        static_cast<Derived*>(this)->decode(p);    // 每家不同：解码
+    }
+};
+
+struct SzseHandler : FeedHandler<SzseHandler> {
+    void decode(const Packet& p) { /* 按深交所的格式解 */ }
+};
+```
+
+一个进程接哪家交易所，部署时就定了，运行时不会换；每个包都要过 `decode`，全市场一天几亿次。**`decode` 内联进 `on_packet` 以后，查序号和解码能被编译器当成一段代码来优化**。
+
+#### 1.6.2 解析完通知盘口和策略：通知谁，做成模板参数
+
+解析出一条委托，要通知订单簿；订单簿更新完，要通知策略。常见写法是存一个函数指针或者虚接口，交易系统里常把“通知谁”直接做成模板参数：
+
+```cpp
+template <typename Listener>
+struct OrderBook {
+    Listener& listener;
+    void on_add(const Order& o) {
+        /* 更新这一档的量 */
+        listener.on_book_update(*this);   // 编译期就知道调的是谁
+    }
+};
+
+OrderBook<MyStrategy> book{strategy};
+```
+
+这里没有“子类把自己传给基类”，严格说不是 CRTP，但做的是同一件事：**调用目标在编译期绑定**。从解出一条委托到策略看到盘口变化，中间的调用都能内联，一次间接跳转都没有。
+
+#### 1.6.3 策略引擎：一个进程只跑一种策略
+
+```cpp
+template <typename Strategy>
+struct Engine {
+    Strategy strat;
+    void on_market_data(const Tick& t) {
+        strat.on_tick(t);                                  // 内联
+        if (strat.want_order()) gateway.send(strat.order());
+    }
+};
+
+int main() { Engine<MarketMaker> e; e.run(); }   // 这个进程只跑做市策略
+```
+
+换策略就换一个编译出来的可执行文件，引擎按策略类型实例化。**从收行情到发单，整条热路径编译器都看得见，能一路内联下去**；代价是每种策略各编一份，运行时不能切换。
+
+#### 1.6.4 反例：按配置选的因子列表，还是虚函数
+
+研究员在配置里写“今天算这 30 个因子”，程序启动时读了配置才知道要创建哪些因子，类型是运行时定的。这些因子还要放进同一个 `vector` 逐个调用，而 `FactorBase<A>` 和 `FactorBase<B>` 毫无关系，放不进同一个容器（1.4.4）。所以这里用虚函数。**一次因子计算本身就有不少活，多一次虚调用占比很小，用虚函数也不亏**。
+
+> **用不用 CRTP：先问类型什么时候定、调用有多密**
+> 部署时就定、每条消息都要过的，比如行情解析、回调盘口和策略、策略引擎，用 CRTP 或模板参数换内联。运行时按配置选、要放进同一个容器的，比如因子列表、插件，用虚函数；类型集合固定、又要运行时选的，用 `std::variant`（[第 2 节](#virtual-alternatives)）。
+
+### 1.7 C++23 的替代写法：deducing this
 
 C++23 允许把 `this` 写成成员函数的第一个显式参数（explicit object parameter，常叫 deducing this），类型由编译器按调用的对象推导。基类于是不用模板参数也能拿到子类类型：
 
