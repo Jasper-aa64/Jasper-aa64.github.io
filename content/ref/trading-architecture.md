@@ -2,7 +2,7 @@
 title: "Trading System Architecture: Map, Times, How to Split"
 description: "Which threads and data structures a market data message passes through on its way from the NIC to an order and back as a fill; roughly how long each stage takes; and how industrial systems split threads, where they put queues, and where they must join."
 date: 2026-10-20
-lastmod: 2026-10-27
+lastmod: 2026-11-07
 slug: "trading-architecture"
 weight: 15
 toc: true
@@ -112,6 +112,59 @@ The backlog sits in the rings and queues: backlog = (arrival rate − service ra
 
 A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often keeps them from taking the producer's line on every message ([#5 1.6.5](/posts/spmc-shared-memory-broadcast-ring/#165-how-should-a-reader-wait)).
 
-### 3.7 Replay Through the Same Code {#replay}
+### 3.7 Backtest and Live: One Codebase, Reconciled Value by Value Every Day {#replay}
 
-Feed the recorded data, in its original order, back through the same factor code; only when offline results match live results value for value can the replay be trusted. It is also the regression test after a code change: on the same day of data, not a single output value may change.
+1. **Backtest and live must compute the same factor value**
+   - **A backtest result only counts if it holds live**: when a researcher shows in a backtest that a factor works, that assumes the live system computes the same values. If the two differ and live performance is worse, you cannot tell whether the strategy stopped working or the factor was computed wrong.
+   - **Example**: for one stock at 10:00:00 the factor is 0.82 in the backtest and 0.79 live. The entry threshold is 0.8, so the backtest opens a position at that moment and live does not; from that trade on, the two P&Ls no longer match.
+   - **The difference comes from five places**: different code, different input data, a different time convention, a different floating-point evaluation order, and different state. The steps below rule them out one at a time.
+
+2. **One codebase: the factor has a single `on_tick` entry point**
+   ```cpp
+   struct Factor {
+       void on_tick(const Tick& t);   // one message in, update internal state
+       double value() const;          // read the current factor value
+   };
+   ```
+   - **The factor does not know whether it is in a backtest or live**: it only takes one message and updates its state once. Where the messages come from is decided by the layer that calls it.
+   - **Live calls it like this**: the feed thread decodes the multicast packets into `Tick`s, and the shard thread calls `on_tick` on each ([1.1](#tick)).
+   - **The backtest calls it like this**: a replayer reads historical data one trading day at a time, builds `Tick`s in time order and calls the same `on_tick`.
+   - **Two implementations, one for research and one for live, drift apart sooner or later**: with one in Python and another in C++, details end up different, for example one skips NaN and the other does not, or one uses the close price and the other the last price.
+   - **With one codebase, "the two implementations differ" is no longer a possible cause**.
+
+3. **Daily reconciliation: replay what live recorded, after the close**
+   - **During the session, store both the inputs and the outputs**: the recorder reads every message live received from the broadcast ring and stores it as is ([1.4](#side)), together with the receive time; the shard threads log every factor value they compute.
+   - **The recording is what live actually saw**: a dropped message is not in it, a late message is stored in its late position, and a recovered message is stored at the moment it was recovered. So the replay input is exactly the live input.
+   - **After the close, replay the recording**: the replayer reads the recording, feeds it to the same `on_tick`, and gets a second series of factor values.
+   - **Compare value by value, keyed by message sequence number**: line the two series up by message and compare each pair.
+      - **Same binary, same input: the results should be bit-identical**: the threshold can be 0, and a single differing bit means something in the system is nondeterministic.
+      - **Only a comparison with a research prototype in another language needs a tolerance**: a relative error of 1e-9, say, because the two sides evaluate floating point in different orders anyway.
+   - **Example**: 5000 stocks, a snapshot about every 3 s, 4 trading hours: about 14400 ÷ 3 × 5000 ≈ 24 million values, a few seconds to a few tens of seconds to compare.
+   - **Then compare the recording with the vendor's historical file**: researchers usually backtest on the vendor's files, not on live recordings. This step finds where the two inputs themselves differ, and it is the step that turns up differences most often.
+   - **It is also the regression test after a code change**: on the same day's recording, the output must not change by a single bit; where a change is intended, it should appear only in the factors that were meant to change.
+
+4. **When they do not match, check these four places first**
+   - **Different data: drops, reordering, vendor conventions**:
+      - **Drops**: multicast runs over UDP; one lost packet and live is missing a message. Until it is recovered, live has already computed on data with a gap; the vendor's historical file is the complete version, filled in afterwards. For example, if the 10:00:03 snapshot is lost, the next snapshot's volume increment covers 6 s, and the factor jumps at that point.
+      - **Reordering**: packets from different channels arrive in no fixed order; live processes them in arrival order, while the historical file is sorted by the exchange's sequence numbers. A factor on one stock is unaffected; a market-wide factor that merges several channels is.
+      - **Vendor conventions**: historical files may have bad data corrected afterwards, and field units or rounding may differ from the exchange's raw feed, for example a turnover field with the fractions of a yuan dropped.
+   - **Different time convention: receive time or exchange time, and how bars are cut**:
+      - **A message carries two times**: the exchange's timestamp and the time this machine received it. Live has both; historical files usually have only the exchange time.
+      - **Cutting bars by receive time pushes messages near a boundary into the next bar**: a message stamped 09:59:59.990 by the exchange may arrive at 10:00:00.002. By receive time it goes into the 10:00 bar; by exchange time it belongs to 09:59. The two bars then differ by one message, and so do their average price and volume.
+      - **The fix is to cut bars by exchange time on both sides**.
+   - **Different floating-point evaluation order: compiler flags, target machine, join order**:
+      - **Floating-point addition is not associative**: in double, `(1e16 + 1) - 1e16` is 0 and `(1e16 - 1e16) + 1` is 1; reorder the operations and the last digits, or even the whole result, can change.
+      - **`-ffast-math` lets the compiler reorder operations**: with it, the compiler rewrites sums into vectorised partial sums and assumes NaN never occurs, so the result can depend on whether the flag is on.
+      - **A different target machine can change the result too**: with `-ffast-math`, the vector width decides how the partial sums are grouped (AVX2 holds 4 doubles, AVX-512 holds 8); when the target supports FMA, GCC by default fuses `a * b + c` into one FMA instruction, which rounds once instead of twice.
+      - **Add in a fixed order at the join**: cross-sectional scoring sums the shards' results ([3.4](#barrier)). Adding in "whoever finishes first" order gives a different order every day; adding in stock-code order gives the same result every time.
+      - **Rolling windows amplify the difference**: each step differs a little, and the longer the window, the more it accumulates.
+      - **The fix is the same compiler flags for backtest and live, ideally the very same executable**.
+   - **Different state: overnight warm-up, intraday restarts**:
+      - **Factors carry state**: a 20-minute rolling mean needs the previous 20 minutes of data; an EMA depends on all the data before it.
+      - **A different warm-up makes the opening stretch disagree**: for example, live warms up each morning on the previous day's last 400 snapshots while the backtest starts from the day's first message; the factor values after the open differ until the window has rolled past.
+      - **An intraday restart breaks the state**: live crashes at 10:30 and restarts, with its state either reset or restored from a checkpoint, while the backtest runs straight through.
+      - **The fix is to make the warm-up length and the restart recovery fixed rules**: the backtest follows the same rules, and a restart must be reproducible in the backtest.
+
+5. **Conclusion**
+   - **Value-by-value reconciliation turns "it does not match" into a few causes you can rule out one by one**: one codebase rules out code differences, the same input rules out data differences, exchange time on both sides rules out time differences, the same binary and a fixed join order rule out evaluation-order differences, and fixed warm-up and restart rules rule out state differences.
+   - **A difference that survives all of these is a problem with the strategy itself**.
