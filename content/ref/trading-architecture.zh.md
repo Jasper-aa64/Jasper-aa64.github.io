@@ -371,6 +371,7 @@ math: true
    - **规则一句话：委托加，成交和撤单减**：成交和撤单都按委托号找到原来那笔挂单，扣掉对应的量，扣到 0 就删掉。沪深每类消息的处理不一样，见 [IV：A 股业务知识 8.1](/zh/interview/a-share-business/#81-每类消息怎么改盘口)。
 
 3. **因子怎么用订单簿：订单簿一直维护着，因子按需去读**
+
    <svg viewBox="0 0 760 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="逐笔先进订单簿，订单簿一直维护着；盘口类因子读订单簿的前几档，深度类和排队类因子读更深的档和每档的排队；逐笔类因子不经过订单簿，直接读这条逐笔；订单簿下方虚线框：定时取前十档，用于对拍和给研究侧合成快照" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
      <style>
        .ob7bg  { fill: #fbfaf7; }
