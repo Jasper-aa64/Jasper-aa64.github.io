@@ -778,6 +778,10 @@ using EthStrategy = DecisionNode<IsPositionSafe<50>,  MomentumBlock<350>, Action
 
 ## 应用 {#in-practice}
 
+第 2 部分的消除分支，在实际优化里对应“{{% bottleneck-ref "unpredictable-branch" "plain" %}}”这张卡片：perf 里看到什么、怎么定位到那一行、什么时候改、什么时候别改。
+
+{{% bottleneck "unpredictable-branch" %}}
+
 3.2 节的冷热分离，在实际优化里对应“{{% bottleneck-ref "cold-path" "plain" %}}”这张卡片：什么样的调用算冷、怎么标、怎么确认。
 
 {{% bottleneck "cold-path" %}}

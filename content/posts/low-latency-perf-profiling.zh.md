@@ -100,7 +100,7 @@ $$\text{分支失败率} = \frac{\text{branch-misses}}{\text{branches}}$$
 几个数合起来判：
 
 > - IPC < 1 且缓存缺失率 > 3%：内存瓶颈，看数据布局、分块、预取（见[内存延迟与带宽专题](/zh/posts/low-latency-memory-latency-bandwidth/)）。
-> - IPC < 1 且分支失败率 > 3%：分支问题，消掉分支、改用条件传送（`cmov`）、加预测提示（见 [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/)）。
+> - IPC < 1 且分支失败率 > 3%：分支问题，消掉分支、改用条件传送（`cmov`）、加预测提示（见 [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/)，{{% bottleneck-ref "unpredictable-branch" %}}）。
 > - 内核态 > 30%：减少系统调用，批量或异步做 I/O。
 > - IPC ≥ 3 且缺失率低：CPU 已经用得很充分，瓶颈在别处。
 > - 都不明显：转到 record 和 report。

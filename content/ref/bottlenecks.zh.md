@@ -13,7 +13,7 @@ math: true
 
 用 [perf](/zh/posts/low-latency-perf-profiling/) 找到热点以后，下一步是认出它是哪种瓶颈、照什么办法改。这一页把常见的瓶颈各写成一张卡片：信号是在 perf 里或源码里看到什么，原因是为什么慢，修法是怎么改，验证是怎么确认改对了，原理链到站内讲这个机制的文章。
 
-这些内容属于 Intel 开源的 performance-patterns（[intel/intel-performance-skills](https://github.com/intel/intel-performance-skills)，提交 3e33aec，MIT 许可）。卡片里的阈值和加速倍数都是原文写的，没有在自己的机器上复测；串行累加除外，[perf 专题 4.6](/zh/posts/low-latency-perf-profiling/#demo-fix) 实测过。
+这些内容属于 Intel 开源的 performance-patterns（[intel/intel-performance-skills](https://github.com/intel/intel-performance-skills)，提交 3e33aec，MIT 许可）。卡片里的阈值和加速倍数都是原文写的，没有在自己的机器上复测；串行累加除外，[perf 专题 4.6](/zh/posts/low-latency-perf-profiling/#demo-fix) 实测过。难预测的分支这一张不在原文里，是按本站 [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/) 写的，平衡点是 #7 实测的。
 
 ## 1. 从信号找瓶颈：查找表 {#lookup}
 
