@@ -58,6 +58,7 @@ toc: true
 | 框 | 文章 |
 |---|---|
 | 热线程绑核、网卡中断别打到热核 | [#1 CPU 隔离与 NUMA](/zh/posts/cpu-affinity-core-isolation-numa/) |
+| 绑核按 L3 分组（AMD 的 CCX）、AMD 和 Intel 的内存序 | 本页 [3.7](#ccx) |
 | 跨核交接为什么要几十纳秒、伪共享 | [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/) · [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/) · [速查 2.6](/zh/ref/cpu-memory/#cross-core) |
 | 热路径不现分配内存（订单、消息对象） | [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/) |
 | 分片队列（SPSC）、异步日志 | [#4 无锁队列与 Micro-Batching](/zh/posts/lock-free-queue-logger-micro-batching/) |
@@ -114,6 +115,27 @@ toc: true
 ### 3.6 旁路不许拖住热路径 {#side-rule}
 
 热线程打日志、交给落盘，只往队列或环里写一条就走（[#4](/zh/posts/lock-free-queue-logger-micro-batching/)）；格式化、写盘、推送都在别的线程。不赶时间的读者不要死循环盯着最新槽位，隔一会读一批，省得每条都把生产者要写的那一行抢走一次（[#5 1.6.5](/zh/posts/spmc-shared-memory-broadcast-ring/#165-读者该怎么等)）。
+
+### 3.7 绑核按 L3 分组：AMD 的核是一组一组的 {#ccx}
+
+1. **跨核交接多贵，看两个核共用哪一层缓存**
+   - **交接走的是共用的那层缓存**：生产者写完一条，读者来取，这条缓存行要从一个核搬到另一个核（[速查 2.6](/zh/ref/cpu-memory/#cross-core)）。两个核共用的缓存离得越近，搬一趟越便宜。
+   - **Intel 的一颗 CPU，一般所有核共用一块 L3**：同一颗 CPU 里随便挑两个核，交接的代价差不多。
+2. **AMD 把核分成一组一组（CCX），每组一块 L3**
+   - **怎么分**：Zen 3 起常见一组 8 个核，共用 32 MB L3；EPYC 服务器上有好几组到十几组，各组通过 Infinity Fabric 连到中间的 IO 芯片。
+   - **组内交接便宜，跨组贵几倍**：同组两个核交接约 15–30 ns；跨组要绕过 IO 芯片，约 80–150 ns。
+   - **L3 总量大，但每个核只用得上自己那组的**：一颗 EPYC 标着几百 MB L3，一个线程的工作集能放下的，只有它那一组的 32 MB。
+   - **怎么看分组**：`lscpu -e` 的 `L1d:L1i:L2:L3` 那一列，最后一个数（L3 编号）相同的核在一组；也可以看 `/sys/devices/system/cpu/cpu0/cache/index3/shared_cpu_list`，或者用 `lstopo` 画出来。BIOS 里还能把每组 L3 当成一个 NUMA 节点报给系统。
+   - **桌面机上看不出来**：本站 [#5](/zh/posts/spmc-shared-memory-broadcast-ring/) 的实测在一台 Zen 3 桌面机上，6 个核在同一组里，量到的都是组内的代价；同样的读者放到 EPYC 上跨组，每一趟要贵几倍。
+3. **内存序上，AMD 和 Intel 一样**
+   - **都是 x86-TSO**：同一份 acquire/release 的代码，编出来的指令一样，行为也一样，不用为 AMD 另写。
+   - **要另外注意的是 ARM**：ARM 是弱内存序，acquire/release 要编成专门的指令（`ldar`/`stlr`）。内存序写错的代码，在 x86 上可能碰巧是对的，换到 ARM 上才出错。
+
+> **上了 AMD 的机器，绑核按组排**
+> 1. **先看分组**：`lscpu -e` 或 `lstopo`，弄清哪些核共用一块 L3。
+> 2. **互相交接的线程放进同一组**：接入线程和它喂的分片线程，广播环的生产者和守着最新槽位的读者。
+> 3. **不交接的可以分到不同组**：不同分片之间不交接（[3.2](#shard)），各占一组都行；落盘、监控这些旁路读者放到别的组，跨组的代价落在它们身上。
+> 4. **工作集按一组的 L3 算**：别按整颗 CPU 标的总量算。
 
 ## 4. 因子计算 {#factors}
 
