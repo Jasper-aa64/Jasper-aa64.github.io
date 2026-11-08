@@ -320,26 +320,26 @@ struct MarketMaker : StrategyBase<MarketMaker> {
 
 #### 1.6.3 因子计算：上线的因子编译期拼好
 
-- **每个因子只有更新逻辑不同**：计数、取值这些公共部分写在基类模板里，每个因子实现自己的 `update`。
+- **每个因子只有自己的 `on_tick` 不同**：每条行情进来，基类先调子类的 `on_tick`，更新这个因子自己的状态（比如滚动窗口里的和），再做计数这些公共部分。
 - **上线的因子部署时就定了**：是研究定下来的那几个，可以在编译期拼成一个 `tuple`。
-- **每条行情都要过**：一条行情过所有因子，每个 `update` 都能内联，中间没有一次间接调用。
+- **每条行情都要过**：一条行情过所有因子，每个因子的 `on_tick` 都能内联，中间没有一次间接调用。
 - **研究时不用 CRTP**：要读了配置才知道创建哪些因子，还要放进同一个容器（1.4.4），所以用虚函数，把虚调用提到循环外（第 2 节的按类型分批）。
 
 ```cpp
 template <typename Derived>
 struct FactorBase {
-    void on_tick(const Tick& t) {
-        static_cast<Derived*>(this)->update(t);    // 每个因子不同：更新
+    void on_market_data(const Tick& t) {
+        static_cast<Derived*>(this)->on_tick(t);   // 每个因子不同：更新自己的状态
         ++count_;                                  // 公共：计数
     }
     long count_ = 0;
 };
 
-struct Momentum : FactorBase<Momentum> { void update(const Tick& t) { /* ... */ } };
-struct Spread   : FactorBase<Spread>   { void update(const Tick& t) { /* ... */ } };
+struct Momentum : FactorBase<Momentum> { void on_tick(const Tick& t) { /* ... */ } };
+struct Spread   : FactorBase<Spread>   { void on_tick(const Tick& t) { /* ... */ } };
 
 std::tuple<Momentum, Spread> factors;                               // 上线的因子集合
-std::apply([&](auto&... f) { (f.on_tick(t), ...); }, factors);      // 每个都能内联
+std::apply([&](auto&... f) { (f.on_market_data(t), ...); }, factors);   // 每个都能内联
 ```
 
 ### 1.7 C++23 的替代写法：deducing this
