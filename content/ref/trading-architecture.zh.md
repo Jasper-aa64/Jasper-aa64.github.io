@@ -17,7 +17,7 @@ math: true
 4. [因子一致性](#factors)：从同一份代码到每天对账，让回测和实盘的因子逐值相同，策略上了实盘不会因为因子算错而失效。
 5. [实盘](#live)：实盘和回测差在哪，上线前怎么验，盘中出事怎么办。
 6. [AMD 和 Intel](#ccx)：差在核分组，绑核要按组排；内存序一样。
-7. [订单簿](#book)：用逐笔合成每只股票的盘口，价格档用数组、委托号用哈希表，和快照逐档比。
+7. [订单簿](#book)：用逐笔合成每只股票的订单簿，因子按需读前几档或直接读逐笔；价格档用数组、委托号用哈希表，和快照逐档比。
 
 后面讲到新的组件，都补在这一页。
 
@@ -361,16 +361,81 @@ math: true
 
      $$\underbrace{\text{快照}(t)}_{\text{每 3 秒一张}} = \underbrace{\text{订单簿}(t) \text{ 的前十档}}_{\text{盘口}} + \text{累计成交量、成交额}$$
 
-   - **合成订单簿就是按第一个式子自己算**：算出来的前十档，在快照时刻应该和快照一样，这就是第 4 条的对拍。
+   - **合成订单簿就是按第一个式子自己算**：算出来的前十档，在快照时刻应该和快照一样，这就是第 5 条的对拍。
    - **快照不是谁加工过的盘口**：它是交易所自己拍的，用快照算因子就是直接用交易所给的十档；合成订单簿才是自己用逐笔推出来的。
    - **本页代码里的 `Tick` 泛指一条行情消息**：可以是一张快照，也可以是一条逐笔。
 
-2. **合成订单簿：拿逐笔在本地把盘口一笔笔维护出来**
-   - **快照太粗**：约 3 秒一张，只有十档。因子想每来一条逐笔就更新，就得自己维护一本盘口。
-   - **在架构里的位置**：分片线程拿到一条逐笔，先更新这只股票的盘口，再更新因子（[1.1](#tick) 第 5 步）。所以盘口和因子一样，只有一个线程写，不用加锁。
+2. **合成订单簿：拿逐笔在本地把订单簿一笔笔维护出来**
+   - **快照太粗**：约 3 秒一张，只有十档。因子想每来一条逐笔就更新，就得自己维护一本订单簿。
+   - **在架构里的位置**：分片线程拿到一条逐笔，先更新这只股票的订单簿，再更新因子（[1.1](#tick) 第 5 步，那里说的盘口就是这本订单簿）。所以订单簿和因子一样，只有一个线程写，不用加锁。
    - **规则一句话：委托加，成交和撤单减**：成交和撤单都按委托号找到原来那笔挂单，扣掉对应的量，扣到 0 就删掉。沪深每类消息的处理不一样，见 [IV：A 股业务知识 8.1](/zh/interview/a-share-business/#81-每类消息怎么改盘口)。
 
-3. **数据结构：价格档用数组，委托号用哈希表**
+3. **因子怎么用订单簿：订单簿一直维护着，因子按需去读**
+   <svg viewBox="0 0 760 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="逐笔先进订单簿，订单簿一直维护着；盘口类因子读订单簿的前几档，深度类和排队类因子读更深的档和每档的排队；逐笔类因子不经过订单簿，直接读这条逐笔；订单簿下方虚线框：定时取前十档，用于对拍和给研究侧合成快照" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+     <style>
+       .ob7bg  { fill: #fbfaf7; }
+       .ob7u   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+       .ob7d   { fill: #f3efe6; stroke: #b8ab8c; stroke-width: 1.3; }
+       .ob7m   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.5; }
+       .ob7x   { fill: none; stroke: #8c7a52; stroke-width: 1.3; stroke-dasharray: 5 4; }
+       .ob7ink { fill: #1c1b18; font-size: 12.5px; }
+       .ob7sm  { fill: #1c1b18; font-size: 11.5px; }
+       .ob7mut { fill: #6b6558; font-size: 12px; }
+       .ob7hd  { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+       .ob7ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+       .ob7lp  { stroke: #8c7a52; stroke-width: 1.3; stroke-dasharray: 5 4; fill: none; }
+       .ob7hh  { fill: #6b6558; }
+       .ob7hp  { fill: #8c7a52; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7bg { fill: #17161b; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7u { fill: #23262c; stroke: #3f4650; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7d { fill: #2a2721; stroke: #6b6250; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7m { fill: #33421f; stroke: #8fb257; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7x { stroke: #b8ab8c; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7ink, :root:is([data-theme="dark"], [data-theme="black"]) .ob7sm, :root:is([data-theme="dark"], [data-theme="black"]) .ob7hd { fill: #e9e7ef; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7mut { fill: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7ln { stroke: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7hh { fill: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7lp { stroke: #b8ab8c; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .ob7hp { fill: #b8ab8c; }
+     </style>
+     <defs>
+       <marker id="ob7ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ob7hh"/></marker>
+       <marker id="ob7ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ob7hp"/></marker>
+     </defs>
+     <rect class="ob7bg" x="0" y="0" width="760" height="290" rx="10"/>
+     <rect class="ob7u" x="20" y="135" width="110" height="50" rx="6"/>
+     <text class="ob7hd" x="75" y="156" text-anchor="middle">逐笔</text>
+     <text class="ob7sm" x="75" y="174" text-anchor="middle">委托、成交、撤单</text>
+     <rect class="ob7m" x="200" y="55" width="150" height="70" rx="8"/>
+     <text class="ob7hd" x="275" y="84" text-anchor="middle">订单簿</text>
+     <text class="ob7sm" x="275" y="106" text-anchor="middle">一直维护，每条改一次</text>
+     <rect class="ob7d" x="520" y="30" width="220" height="40" rx="6"/>
+     <text class="ob7ink" x="630" y="55" text-anchor="middle">盘口类因子：不均衡、价差</text>
+     <rect class="ob7d" x="520" y="90" width="220" height="40" rx="6"/>
+     <text class="ob7ink" x="630" y="115" text-anchor="middle">深度类、排队类因子</text>
+     <rect class="ob7d" x="520" y="230" width="220" height="40" rx="6"/>
+     <text class="ob7ink" x="630" y="255" text-anchor="middle">逐笔类因子：主动大单、撤单占比</text>
+     <rect class="ob7x" x="190" y="165" width="170" height="46" rx="6"/>
+     <text class="ob7ink" x="275" y="184" text-anchor="middle">定时取前十档</text>
+     <text class="ob7sm" x="275" y="202" text-anchor="middle">对拍、给研究侧合成快照</text>
+     <path class="ob7ln" d="M130 150 C 165 150 165 95 196 95" marker-end="url(#ob7ah)"/>
+     <path class="ob7ln" d="M350 75 C 430 75 430 50 516 50" marker-end="url(#ob7ah)"/>
+     <text class="ob7mut" x="435" y="45" text-anchor="middle">读前几档（盘口）</text>
+     <path class="ob7ln" d="M350 105 C 430 105 430 110 516 110" marker-end="url(#ob7ah)"/>
+     <text class="ob7mut" x="435" y="130" text-anchor="middle">读更深的档、排队</text>
+     <path class="ob7lp" d="M275 125 V161" marker-end="url(#ob7ap)"/>
+     <path class="ob7ln" d="M130 172 C 160 172 160 250 200 250 H516" marker-end="url(#ob7ah)"/>
+     <text class="ob7mut" x="420" y="243" text-anchor="middle">直接读这条逐笔，不经过订单簿</text>
+   </svg>
+
+   - **盘口不是单独的一步，是去读订单簿的前几档**：盘口类因子直接读订单簿里买一、卖一的下标，往外看几档。不会每条逐笔都把前十档拷出来另存一份，那是白做功。
+   - **深度类、排队类因子读得更深**：比如前二十档的总量、买一那档排在前面的单有多少。快照给不了这些，只有自己的订单簿有。
+   - **逐笔类因子不经过订单簿**：主动大单净流入看的是这一笔成交谁主动、多大，直接读这条逐笔，和订单簿长什么样无关。
+   - **定时取前十档只在两处**：
+      - **对拍**：每到交易所快照时刻取一次，和快照比（第 5 条）。
+      - **给研究侧合成快照**：研究员的因子按快照写的，就每隔固定时间（比如 1 秒）从订单簿取一份前十档。比交易所的快照更密，时刻也能自己定。
+
+4. **数据结构：价格档用数组，委托号用哈希表**
    ```cpp
    struct Order { int32_t px; int64_t qty; bool is_bid; };   // 一笔挂单：价位下标、剩余量、方向
 
@@ -401,7 +466,7 @@ math: true
    - **每档只存总量就够大多数因子用**：要算某笔单排在这一档的第几位，才需要再按时间存每档的委托队列。
    - **例外：新股上市头几天没有涨跌幅限制**：价格范围定不下来，数组要开大一些，或者随价格变化往外扩。
 
-4. **怎么验：和交易所快照逐档比**
+5. **怎么验：和交易所快照逐档比**
    - **错了没人告诉你**：盘口重建错了，程序照样跑，因子照样出数。能拿来核对的只有交易所的快照，所以重建和对拍要一起做。
 
 > **合成的订单簿怎么验**
