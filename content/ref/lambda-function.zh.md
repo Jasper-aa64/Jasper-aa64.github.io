@@ -7,7 +7,7 @@ summary: "lambda 就是一个带 operator() 的类，按模板传进去和手写
 toc: true
 group: cpplinux
 topic: cpp
-weight: 106
+weight: 107
 ---
 
 排序时传一个比较规则，注册一个“数据到了就调用”的回调，开线程时告诉它要跑什么：这些地方都要把“一段代码”当成值传来传去。C++ 里最常用的写法是 lambda，存起来的时候常用 `std::function`。两样东西用起来很像，编译出来却差很多。

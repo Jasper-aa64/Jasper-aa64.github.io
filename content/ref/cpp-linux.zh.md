@@ -211,6 +211,7 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 | [虚函数](/zh/ref/virtual-functions/) | vptr、vtable、一次虚调用的代价、组合与继承 | 进程地图：`.rodata` 里的 vtable |
 | [对象布局](/zh/ref/object-layout/) | 对齐、填充、vptr 和 vtable、多重继承 | 进程地图：`.rodata` 里的 vtable |
 | [const 和 constexpr](/zh/ref/const-constexpr/) | `const` / `constexpr` / `consteval` / `constinit`，编译期查找表 | 进程地图：`.rodata`、`.data` |
+| [模板](/zh/ref/templates/) | 解决什么问题、实例化和它的代价、特化和偏特化、SFINAE 到 concepts、变参模板和折叠表达式 | 进程地图：`.text`（每种实参一份代码） |
 | [lambda 和 std::function](/zh/ref/lambda-function/) | 闭包对象、捕获、类型擦除和它的分配 | 进程地图：栈、堆 |
 | [四种 cast](/zh/ref/cpp-casts/) | 指针调整、`dynamic_cast` 查 typeinfo、严格别名 | 进程地图：`.rodata` |
 | **内存** | | |

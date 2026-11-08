@@ -29,7 +29,7 @@ math: true
 | ★ 虚函数怎么实现 | 每个有虚函数的对象开头有一个 vptr，指向它所属类的 vtable；同一个虚函数在父类和每个子类的表里都在同一格，所以调用时编译器只要“读 vptr → 读第几格 → 跳过去”。贵的地方主要不是这次间接跳转，而是编译器不知道调的是谁，没法内联。基类的析构函数要写成 virtual | [虚函数](/zh/ref/virtual-functions/)、[对象布局](/zh/ref/object-layout/) |
 | ★ CRTP 为什么能替代虚函数（简历上写了） | 子类把自己当模板参数传给基类，基类里 `static_cast<Derived*>(this)` 去调，编译期就知道调的是谁，能内联，对象里也没有 vptr。代价是 `Base<A>` 和 `Base<B>` 是两个不相关的类型，放不进同一个容器 | [CRTP 与静态多态](/zh/posts/crtp-static-polymorphism/) |
 | RVO 和 NRVO | C++17 起，返回一个纯右值（`return T(...)`）保证直接构造在调用方的位置上，不拷贝也不移动。返回具名局部变量（NRVO）编译器通常会做，但不保证。`return std::move(x);` 反而会挡住 NRVO | [返回值优化](/zh/posts/rvo-pure-functions/) |
-| 模板 | 每种模板实参实例化一份代码，代价是编译时间和代码体积；特化和偏特化给特定类型换实现；约束模板参数从 SFINAE 到 C++20 的 concepts | 待补 |
+| 模板 | 每种模板实参实例化一份代码，代价是编译时间和代码体积；特化和偏特化给特定类型换实现；约束模板参数从 SFINAE 到 C++20 的 concepts | [模板](/zh/ref/templates/) |
 
 ## 2. CPU 体系结构：缓存、MESI、store buffer、ROB、LFB、分支预测、TLB、NUMA {#cpu}
 

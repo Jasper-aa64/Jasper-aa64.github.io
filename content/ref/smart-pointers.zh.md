@@ -8,7 +8,7 @@ summary: "默认用 unique_ptr：所有权只有一份，大小和裸指针一�
 toc: true
 group: cpplinux
 topic: mem
-weight: 110
+weight: 111
 aliases: ["/posts/shared-ptr/", "/ref/shared-ptr/", "/ref/unique-ptr-weak-ptr/"]
 ---
 

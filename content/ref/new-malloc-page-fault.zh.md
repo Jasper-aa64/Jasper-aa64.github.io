@@ -7,7 +7,7 @@ summary: "new 拿到的是地址，不是内存。malloc 大多数时候在自�
 toc: true
 group: cpplinux
 topic: mem
-weight: 108
+weight: 109
 aliases: ["/posts/new-malloc-page-fault/"]
 ---
 

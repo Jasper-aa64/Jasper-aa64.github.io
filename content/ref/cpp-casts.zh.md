@@ -7,7 +7,7 @@ summary: "static_cast 是编译期的、会调整指针但不检查；dynamic_ca
 toc: true
 group: cpplinux
 topic: cpp
-weight: 107
+weight: 108
 ---
 
 C 只有一种强制转换 `(T)x`：数值截断是它，去掉 `const` 是它，把指针当成整数也是它，读代码的人看不出这一次是哪种。C++ 把它拆成四个关键字，每个只做一类事，写出来就看得到意图，用错了编译器能拦下一部分。下面挨个看它们做什么、编译出来是什么。
