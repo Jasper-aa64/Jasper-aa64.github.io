@@ -1,8 +1,9 @@
 ---
 title: "交易系统笔记 #1：CPU 隔离与 NUMA"
 date: 2026-09-09
+lastmod: 2026-11-09
 slug: "cpu-affinity-core-isolation-numa"
-description: "在一台多核服务器上清出一个核，让热线程独占它：迁移为什么贵，绑核和隔离各管什么，isolcpus、nohz_full、rcu_nocbs、irqaffinity 各赶走哪一类打断，超线程、C-state、睿频为什么也要关，以及 NUMA 的远端访存和 first-touch。"
+description: "在一台多核服务器上清出一个核，让热线程独占它：迁移为什么贵，绑核和隔离各管什么，isolcpus、nohz_full、rcu_nocbs、irqaffinity 各赶走哪一类打断，超线程、C-state、睿频为什么也要关，以及 NUMA 的远端访存和 first-touch，AMD 把核分组共用 L3 以后绑核怎么排。"
 summary: "低延迟系统怕的是抖动，不是平均值。目标是让热线程成为它那个物理核上唯一在跑的东西：绑核消掉迁移，隔离参数把调度、时钟中断、RCU 和设备中断赶到打杂核，关超线程、禁深睡、锁频率去掉核自身的波动，最后让热线程只碰本节点的内存。"
 chapter: 1
 categories: [Systems]
@@ -289,12 +290,37 @@ echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo   # 关掉睿频
 
 代价是跨分片的事要靠消息来做。比如风控要看全部合约的总持仓，就得由各策略线程把持仓变化发给风控线程，风控看到的汇总会晚一点。所以分片时要尽量把总是一起用的数据分到同一个线程，比如同一个标的的期货和期权。
 
+## 4. AMD 的核分组：同一颗 CPU 里，核和核之间也分远近 {#ccx}
+
+NUMA 讲的是内存离核有远有近。AMD 的 CPU 在一颗芯片里面又多了一层远近：哪几个核共用一块 L3。**绑核时只看插槽和节点不够，还要看核在哪一组。**
+
+### 4.1 CCX：几个核共用一块 L3，一个线程只用得上自己那组的 {#ccx-l3}
+
+- **Intel 的一颗 CPU，一般所有核共用一块 L3**：随便挑两个核，交接一条缓存行的代价差不多。
+- **AMD 把核分成一组一组，叫 CCX（core complex），每组共用一块 L3**：Zen 3 起常见一组 8 个核、32 MB。一组做在一块小芯片（CCD）上，EPYC 服务器一颗 CPU 里有十几块，都连到中间的 IO die 上，内存控制器也在 IO die 上。
+- **一个线程只用得上自己那组的 L3**：EPYC 的规格写着几百 MB 的 L3，那是十几组加起来的。工作集能不能放进 L3，要按一组的 32 MB 算。
+
+### 4.2 组内交接快，跨组要绕 IO die，慢几倍 {#ccx-handoff}
+
+- **两个核交接一条缓存行，走的是它们共用的那层缓存**（[速查 2.6](/zh/ref/cpu-memory/#cross-core)）：同组走自己那块 L3，约 15–30 ns；跨组没有共用的 L3，要经 IO die 绕过去，约 80–150 ns。
+- **SPSC 队列的两端就是一对交接的线程**：接入线程每写一条，分片线程就要把那条行拿过来一次。两个线程跨了组，每条消息都多付这几倍。
+- **跨组像一个缩小的跨 NUMA**：数据和交接都要走片间互联。EPYC 的 BIOS 有两个相关选项：
+  - **NPS（NUMA nodes per socket）**：把一颗 CPU 按内存控制器切成 1、2 或 4 个 NUMA 节点，first-touch 和 `membind`（3.2、3.3）就按切出来的节点生效。
+  - **L3 as NUMA**：把每个 CCX 报成一个 NUMA 节点，`numactl`、调度器就能直接按组绑。
+- **内存序上，AMD 和 Intel 一样**：两家都是 x86，内存模型都是 TSO，同一份同步代码不用为 AMD 另写。不一样的是 ARM，见[架构地图第 6 部分](/zh/ref/trading-architecture/#ccx)。
+
+> **上了 AMD 的机器，绑核按组排**
+> - **先看分组**：`lscpu -e=CPU,CORE,SOCKET,NODE,CACHE` 里 L3 编号相同的核在一组，或者用 `lstopo` 画出来。
+> - **互相交接的线程放进同一组**：接入线程和它喂的分片线程，SPSC 的两端。
+> - **不交接的分到别的组**：不同分片之间不交接（3.4 的 share-nothing），落盘、监控这些旁路也放到别的组，别和热线程抢同一块 L3。
+> - **工作集按一组的 L3 算**：别按整颗 CPU 标的总量算。
+
 ---
 
 > **把一个核清出来给热线程：配置清单**
 >
-> 1. **看拓扑**：`lscpu -e=CPU,CORE,SOCKET,NODE` 找出每个核的兄弟和所在节点，确认网卡在哪个节点（`/sys/class/net/<网卡>/device/numa_node`）。
+> 1. **看拓扑**：`lscpu -e=CPU,CORE,SOCKET,NODE,CACHE` 找出每个核的兄弟、所在节点和 L3 分组（AMD），确认网卡在哪个节点（`/sys/class/net/<网卡>/device/numa_node`）。
 > 2. **内核命令行**：`isolcpus=3-7 nohz_full=3-7 rcu_nocbs=3-7 irqaffinity=0,1 nmi_watchdog=0`，热核选在网卡那个节点上，避开 0、1 号核。
 > 3. **核自身**：热核的超线程兄弟下线；`idle=poll` 或限制 C-state，或在程序里持有 `/dev/cpu_dma_latency`；governor 设成 `performance`，关睿频，把频率钉死。
-> 4. **程序里**：每个热线程绑一个隔离核，一个核只放一个线程；热数据由用它的线程自己第一次写，或用 `membind` 分到本节点。
+> 4. **程序里**：每个热线程绑一个隔离核，一个核只放一个线程；互相交接的线程放进同一个 L3 组（第 4 节）；热数据由用它的线程自己第一次写，或用 `membind` 分到本节点。
 > 5. **验证**：`cyclictest` 或 `oslat` 测热核上的最大延迟，`/proc/interrupts` 看热核上的中断计数是否还在涨，`numastat -p` 看有没有跨节点分配。

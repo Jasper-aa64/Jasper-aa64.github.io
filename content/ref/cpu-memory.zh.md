@@ -44,7 +44,7 @@ math: true
 
 | 框 | 文章 |
 |---|---|
-| 核、SMT、NUMA、核上的中断 | [#1 CPU 隔离与 NUMA](/zh/posts/cpu-affinity-core-isolation-numa/) |
+| 核、SMT、NUMA、AMD 的核分组、核上的中断 | [#1 CPU 隔离与 NUMA](/zh/posts/cpu-affinity-core-isolation-numa/) |
 | store buffer、invalidate queue、缓存行与伪共享 | [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/) |
 | 流水线与依赖链、累加器个数、寄存器溢出 | [#9 循环优化](/zh/posts/loop-optimization/#dependency-chains) |
 | 缓存一致性 | [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/) |
