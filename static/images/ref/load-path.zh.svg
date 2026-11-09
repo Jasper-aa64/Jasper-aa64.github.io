@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 990" width="1100" height="990" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 1010" width="860" height="1010" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
@@ -26,9 +26,11 @@
       .dt   { font-size: 14px; font-weight: 700; fill: #ffffff; }
     </style>
   </defs>
-  <rect x="0" y="0" width="1100" height="990" fill="#ffffff"/>
+  <rect x="0" y="0" width="860" height="1010" fill="#ffffff"/>
   <text x="30" y="40" class="h">读（load）的路径</text>
-  <text x="30" y="66" class="s">按顺序走四步。中间一列是从发出 load 算起的累计延迟。</text>
+  <text x="30" y="66" class="s">按顺序走四步。右边一列是从发出 load 算起的累计延迟。</text>
+  <text x="30" y="86" class="s">页内偏移（bit 0–11）翻译前后不变，所以选组不用等 TLB，两件事同时做（VIPT）。</text>
+  <g transform="translate(0,20)">
   <!-- Step 1: the address splits; translation and set selection happen at the same time -->
   <circle cx="60" cy="130" r="14" class="dot"/>
   <text x="60" y="135" class="dt" text-anchor="middle">1</text>
@@ -45,9 +47,6 @@
   <text x="255" y="219" class="t" text-anchor="middle">TLB：虚拟页号 → 物理页号</text>
   <rect x="430" y="190" width="290" height="48" rx="6" class="cache"/>
   <text x="575" y="219" class="t" text-anchor="middle">L1D：用 bit 6–11 选出一组</text>
-  <text x="860" y="200" class="s">页内偏移（bit 0–11）翻译前后不变，</text>
-  <text x="860" y="219" class="s">所以选组不用等 TLB，</text>
-  <text x="860" y="238" class="s">两件事同时做（VIPT）。</text>
   <line x1="255" y1="238" x2="255" y2="286" class="line" marker-end="url(#arr)"/>
   <text x="264" y="267" class="lab">物理页号</text>
   <line x1="575" y1="238" x2="575" y2="286" class="line" marker-end="url(#arr)"/>
@@ -62,13 +61,12 @@
   <rect x="740" y="305" width="100" height="28" rx="14" class="pill"/>
   <text x="790" y="324" class="pt" text-anchor="middle">≈ 1 ns</text>
   <line x1="415" y1="350" x2="415" y2="418" class="line" marker-end="url(#arr)"/>
-  <text x="425" y="404" class="lab">没命中</text>
-  <line x1="415" y1="380" x2="858" y2="380" class="dash"/>
-  <rect x="860" y="352" width="220" height="100" rx="6" class="buf"/>
-  <text x="874" y="376" class="t">LFB（填充缓冲）：12–24 项</text>
-  <text x="874" y="398" class="s">没命中时先登记一项：</text>
-  <text x="874" y="416" class="s">“这条行已经去取了、还没回来”。</text>
-  <text x="874" y="434" class="s">一个核同时能挂的缺失最多这么多。</text>
+  <text x="405" y="404" class="lab" text-anchor="end">没命中</text>
+  <line x1="415" y1="385" x2="438" y2="385" class="dash"/>
+  <rect x="440" y="354" width="280" height="62" rx="6" class="buf"/>
+  <text x="452" y="373" class="t">LFB（填充缓冲）：12–24 项</text>
+  <text x="452" y="391" class="s">没命中先登记一项：这条行去取了、还没回来。</text>
+  <text x="452" y="408" class="s">一个核同时能挂的缺失最多这么多。</text>
   <rect x="110" y="420" width="610" height="62" rx="6" class="cache"/>
   <text x="130" y="446" class="t">L2（本核私有）</text>
   <text x="130" y="468" class="s">命中：先放进 L1D，再交给寄存器。</text>
@@ -100,13 +98,12 @@
   <text x="605" y="837" class="f" text-anchor="middle">行冲突 ≈ 40 ns</text>
   <rect x="740" y="806" width="100" height="28" rx="14" class="pill"/>
   <text x="790" y="825" class="pt" text-anchor="middle">≈ 70–120 ns</text>
-  <text x="860" y="815" class="s">一次内存访问的总时间，</text>
-  <text x="860" y="834" class="s">含一路上的排队和传输。</text>
   <!-- Step 4: the whole line comes back the same way -->
   <path d="M110,845 H96 V319 H106" class="back" marker-end="url(#arrb)"/>
   <circle cx="60" cy="915" r="14" class="dot"/>
   <text x="60" y="920" class="dt" text-anchor="middle">4</text>
-  <rect x="110" y="890" width="970" height="50" rx="6" class="ban"/>
+  <rect x="110" y="890" width="730" height="50" rx="6" class="ban"/>
   <text x="130" y="921" class="t">拿回来的永远是一整条 64 B 缓存行：原路返回（左边的蓝线），沿路放进 L3、L2、L1D。</text>
-  <text x="30" y="972" class="s">数字都是帮助理解的量级，不对应哪台机器。</text>
+  </g>
+  <text x="30" y="992" class="s">数字都是帮助理解的量级，不对应哪台机器。内存那一格是一次访问的总时间，含一路上的排队和传输。</text>
 </svg>
