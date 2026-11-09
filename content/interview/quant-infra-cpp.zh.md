@@ -91,7 +91,7 @@ toc: true
 
 追问几乎一定是 **ABA**：CAS 只比较值，`head` 从 X 变成别的、又变回 X，CAS 看不出来。线程 A 读到 `head = X`、`next = Y` 后被换下，别的线程拿走 X 和 Y、又把 X 还回来，A 回来 CAS 成功，栈顶却成了正被别人用着的 Y。解法是给 `head` 带一个版本号，每次修改加 1，CAS 同时比较下标和版本号（32 位下标加 32 位版本号打包进 64 位，或用 16 字节的 CAS）。内存序：弹出的 CAS 用 acquire，压入用 release，保证拿到槽的线程看得到上一个使用者写完的内容。
 
-本站：[内存池与分配器](/zh/posts/hot-path-memory-allocators/)第 1 节讲池和空闲链表，[5.3](/zh/posts/hot-path-memory-allocators/#aba) 有 ABA 的时刻表和无锁版本的完整代码。
+本站：[内存池与分配器](/zh/posts/hot-path-memory-allocators/)第 1 节讲池和空闲链表，[第 5 节](/zh/posts/hot-path-memory-allocators/#aba) 有 ABA 的时刻表和无锁版本的完整代码。
 
 ### 2.2 优化 SPSC 场景下的移动平均 {#sma}
 

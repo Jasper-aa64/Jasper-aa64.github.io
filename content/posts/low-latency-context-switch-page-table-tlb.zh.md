@@ -226,7 +226,7 @@ toc: true
 3. **谁付代价**
    - **发起的核**：同步等待，等最慢的那个核回话。
    - **收到 IPI 的核**：被打断一次，进内核、作废、回话，和一次中断差不多，约 1–5 µs，回来以后缓存还被挤过一遍。
-   - **结论**：**绑核和 `isolcpus` 都挡不住它。** 它们管的是调度器把任务放到哪，IPI 是硬件中断，不经过调度器（[#3](/zh/posts/hot-path-memory-allocators/) 第 2.2 节）。
+   - **结论**：**绑核和 `isolcpus` 都挡不住它。** 它们管的是调度器把任务放到哪，IPI 是硬件中断，不经过调度器（[#3](/zh/posts/hot-path-memory-allocators/#shootdown) 第 4.3 节）。
 
 ### 3.2 通知谁：此刻 CR3 还指着这份页表的核 {#who}
 
@@ -259,7 +259,7 @@ IPI 发给谁，不是“正在跑这个进程的核”，也不是“跑过它�
 
 | 来源 | 为什么会改页表 | 怎么避开 | 详见 |
 |---|---|---|---|
-| `free` 一大块内存 | 128 KiB 以上默认单独 `mmap`，`free` 时直接 `munmap`；空闲多了，glibc 还会缩堆、`madvise` 还页 | 启动时预分配，热路径用内存池；`mallopt` 关掉 mmap 和缩堆 | [#3](/zh/posts/hot-path-memory-allocators/) 第 2 节 |
+| `free` 一大块内存 | 128 KiB 以上默认单独 `mmap`，`free` 时直接 `munmap`；空闲多了，glibc 还会缩堆、`madvise` 还页 | 启动时预分配，热路径用内存池；`mallopt` 关掉 mmap 和缩堆 | [#3](/zh/posts/hot-path-memory-allocators/#keep-memory) 第 4 节 |
 | 运行期间 `munmap`、`mprotect`、`mremap` | 直接删映射、收紧权限、搬映射 | 映射在启动时做完，运行期间不动 | [new 一次走到哪](/zh/ref/new-malloc-page-fault/) |
 | `fork` | 父进程的可写页全改成只读（写时复制），之后谁先写谁换页 | 热路径进程运行期间不 `fork`，要起子进程在启动时起好 | [进程和线程](/zh/ref/process-thread-fork/)第 2.2 节 |
 | 透明大页的后台合并（`khugepaged`） | 把 512 个小页换成一个大页，旧的翻译要作废 | `transparent_hugepage=never`；要大页就自己申请 | [#19](/zh/posts/scheduling-priority-inversion-kernel-tuning/) 第 4.4 节 |
