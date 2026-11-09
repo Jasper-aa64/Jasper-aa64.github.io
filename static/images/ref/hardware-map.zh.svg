@@ -99,12 +99,14 @@
   <text x="894" y="401" class="tag">#2 acquire</text>
   <rect x="730" y="490" width="290" height="80" rx="6" class="cache"/>
   <text x="742" y="513" class="t">L1D 32 KiB · 8 路（数据缓存）</text>
-  <text x="742" y="531" class="s">LFB（line fill buffer，行填充缓冲）</text>
+  <text x="742" y="531" class="s">LFB（行填充缓冲）· L1 预取器</text>
   <text x="742" y="548" class="tag">#6 对齐 / 跨行 · 组相联</text>
-  <text x="742" y="565" class="tag">速查 2.3 LFB</text>
+  <text x="742" y="565" class="tag">速查 2.3 LFB · 预取器</text>
   <rect x="60" y="605" width="960" height="64" rx="6" class="cache"/>
   <text x="72" y="630" class="t">L2 512 KiB · 8 路（本核私有，指令和数据共用）</text>
   <text x="72" y="652" class="tag">#6 关键步长 64 KiB · #2 L1/L2 私有</text>
+  <text x="540" y="630" class="s">L2 预取器（streamer）：请求挂在 L2 的 MSHR（30–60 项），不占 LFB</text>
+  <text x="540" y="650" class="s">L1 预取器（next-line、按指令地址猜步长）占 LFB；都不跨 4 KiB 页</text>
   <text x="56" y="702" class="s">缓存和内存之间按 64 B 一整条“缓存行”搬运</text>
   <text x="56" y="720" class="tag">#2 · #6 一次访问碰几条行</text>
   <path d="M200,270 L200,288" class="line" marker-end="url(#arr)"/>
