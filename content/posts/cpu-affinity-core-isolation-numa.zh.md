@@ -64,7 +64,7 @@ pthread_attr_destroy(&attr);
 | 别的用户线程 | 调度器把它们放到这个核上，和热线程轮流跑 | `isolcpus=3` |
 | 周期时钟中断（tick） | 每秒 100–1000 次，做时间片统计和记账 | `nohz_full=3` |
 | RCU 回调 | 内核 RCU 机制回收旧数据时，要在某个核上执行回调 | `rcu_nocbs=3`（`nohz_full` 会自动带上） |
-| 设备中断 | 网卡每收一批包就打一次硬中断，接着还有软中断 | `irqaffinity=0,1`，再逐个设 `/proc/irq/N/smp_affinity`（1.6） |
+| 设备中断 | 网卡每收一批包就打一次硬中断，接着还有软中断 | `irqaffinity=0,1`，再逐个设 `/proc/irq/N/smp_affinity`（第 5 节） |
 | 每个核自带的内核线程 | `ksoftirqd/3`、`kworker/3:*` 有活时醒来 | 关不掉，把活源断掉，它们就一直睡着 |
 | NMI watchdog | 周期性的不可屏蔽中断，检查内核有没有卡死 | `nmi_watchdog=0` |
 
@@ -95,44 +95,6 @@ pthread_attr_destroy(&attr);
 ### 1.5 选核：别用 0 号核，热核放在网卡那一侧 {#core-layout}
 
 0 号核是 Linux 的启动 CPU，很多杂事默认落在它上面：RCU 的宽限期线程、默认工作队列、一些迁不走的中断、计时。别的核全隔离了，这些杂事也还集中在 0 号核，有时溢到 1 号核。所以**0、1 号核留给打杂，热线程放在别的核上**。双路机器上，热核还要选在网卡所在的那颗 CPU 上，否则每个包都要跨一次插槽（第 3 节）。选核之前先用 `lscpu -e=CPU,CORE,SOCKET,NODE` 看清楚每个逻辑 CPU 属于哪个物理核、哪个插槽。
-
-### 1.6 设备中断和 DMA：一个包怎么从网卡走到你的线程 {#interrupts}
-
-1.3 的表里，设备中断只占一行。它值得单独讲，因为**中断不归调度器管**：热线程的优先级设得再高，中断来了照样被打断，唯一的办法是让它落在别的核上。先把一个包从网卡走到线程的路走一遍，后面的绑法就好懂了。
-
-1. **DMA：网卡自己把包写进内存，CPU 一条指令都不用执行**
-   - **驱动先备好一个接收环**：内存里一圈描述符，每一项写着一块空缓冲区的物理地址，交给网卡。
-   - **包到了，网卡按下一项描述符把包直接写进那块缓冲区**，再把这一项标成“已填好”。这叫 DMA（direct memory access，直接内存访问）：搬数据的是网卡，不是 CPU。
-   - **DMA 写和缓存是一致的**：x86 上网卡写的那块内存要是在某个核的缓存里，那份旧副本会被作废。Intel 的 DDIO 还会把包直接写进 L3，核去读时在 L3 命中，不用去内存。
-   - **DMA 只管搬，不管通知**：包已经在内存里了，核还不知道。通知只有两种办法：网卡发中断，或者核自己去轮询描述符上的“已填好”标志（第 5 条）。
-
-2. **中断：网卡敲一下某个核，那个核放下手里的活去处理**
-   - **现代网卡用 MSI-X 发中断**：发中断就是往一个特殊地址写一下，中断控制器（APIC）把它投递到指定的核。每个接收队列有自己的中断号，投到哪个核，由 `/proc/irq/<号>/smp_affinity` 定。
-   - **核在两条指令之间停下**：保存现场，进内核跑中断处理函数，跑完再回来接着执行。整个过程调度器不参与，所以 `SCHED_FIFO` 99 也挡不住它。
-   - **代价不只是处理函数那段时间**：进出一次内核，处理函数的代码和数据挤掉一部分 L1，分支预测器的历史也被搅乱，回来以后的一段指令都在缺失，加起来一次约 1 到几 µs。一个收行情的核，每秒要挨几千次以上。
-
-3. **上半部和下半部：硬中断只登记，重活放到软中断**
-   - **上半部（硬中断）关着中断跑，所以要极短**：应答网卡，登记一件“稍后处理这个队列”的活，然后返回。
-   - **下半部（软中断 `NET_RX`）做重活**：从接收环里取包、建 `sk_buff`、走协议栈、放进 socket 的接收队列，最后唤醒在 `recv` 上等着的线程。
-   - **软中断默认在吃硬中断的那个核上跑**：硬中断返回时接着就跑；积压太多才交给这个核的 `ksoftirqd/N` 线程。**所以把中断号绑到 0 号核，软中断也跟着去了 0 号核**，热核上的 `ksoftirqd` 就一直睡着（1.3 表的最后一行）。
-   - **包多时一批包才一次中断**：驱动用 NAPI，来一次中断以后先关掉这个队列的中断，在软中断里轮询，把环里的包取完再打开。
-
-4. **网卡在哪个 NUMA 节点，中断就绑到那个节点的打杂核上**
-   - **描述符和包都在网卡那一侧的内存里**：在另一个插槽的核上处理，每次都是远端访问（第 3 节）。
-   - **多队列网卡（RSS）按流把包分到几个队列**：每个队列一个中断号。默认摊到很多核上换吞吐；低延迟的做法是把装着行情那条流的队列单独绑一个打杂核，其余队列绑到别处。
-
-5. **内核旁路：热路径上没有中断**
-   - **Solarflare 的 onload、ef_vi，或者 DPDK**：网卡的接收环直接映射到用户态，热线程忙轮询描述符上的“已填好”标志，看到新包就直接读。
-   - **DMA 还在，其余都不在了**：没有中断、软中断、协议栈，也没有系统调用和拷贝。走内核从包到 `recv` 返回约 5–20 µs，旁路约 1 µs 以内。
-   - **还剩几种核间中断绑不走**：残余的时钟中断、重调度、TLB shootdown（1.3 的最后一段），`/proc/interrupts` 里是 `LOC`、`RES`、`TLB` 这几行。
-
-> **把设备中断赶出热核：找、绑、验**
-> - **找**：`/proc/interrupts` 每行一个中断号，每列是一个核上的累计次数；`mpstat -P ALL 1` 看每个核的 `%irq`、`%soft`。
-> - **先停 irqbalance**：它每隔十几秒按负载重新分一遍中断，手动绑的会被改回去。
-> - **绑**：`echo 0-1 > /proc/irq/<号>/smp_affinity_list`，写的是核号列表，不用算十六进制掩码；下一次中断起生效。
-> - **验**：这个中断号的计数只在打杂核上涨，热核的 `%irq`、`%soft` 接近 0，两个都满足才算绑好。
-> - **`isolcpus` 不管中断**：另加启动参数 `irqaffinity=0,1`，把所有中断的默认目标设成打杂核。
-> - **有的中断写不动**：很多网卡和 NVMe 驱动的中断由内核托管（managed IRQ），写 `smp_affinity` 会失败；用 `isolcpus=managed_irq,3-7` 让内核分配时避开隔离核，或者减少队列数。
 
 ---
 
@@ -353,12 +315,200 @@ NUMA 讲的是内存离核有远有近。AMD 的 CPU 在一颗芯片里面又多
 > - **不交接的分到别的组**：不同分片之间不交接（3.4 的 share-nothing），落盘、监控这些旁路也放到别的组，别和热线程抢同一块 L3。
 > - **工作集按一组的 L3 算**：别按整颗 CPU 标的总量算。
 
+## 5. 设备中断和 DMA：一个包怎么从网卡走到你的线程 {#interrupts}
+
+1.3 的表里，设备中断只占一行，可它和别的打断不一样：**中断不归调度器管**。热线程的优先级设得再高，中断投到它的核上，照样被打断，唯一的办法是让中断落在别的核上。要看清为什么、怎么挪，先把一个包从网线走到线程的路走一遍。下图上半是走内核的路，五步；下半是内核旁路，两步。
+
+<svg viewBox="0 0 760 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一个行情包的两条路。上半，走内核：第 1 步网卡按接收描述符环把包 DMA 写进内存、标成已填好；第 2 步网卡发中断（MSI-X）给打杂核 0；第 3 步核 0 跑硬中断，只应答、登记；第 4 步核 0 跑软中断 NET_RX，读环取包、走协议栈、放进 socket；第 5 步唤醒热核 3 上的行情线程，recv 拷贝一次再返回。热核上没有中断，但每个包都要走完这五步，约 5 到 20 微秒。下半，内核旁路：接收环映射进进程，第 1 步网卡照样 DMA 写包，第 2 步热核 3 上的行情线程忙轮询已填好标志，看到就直接读包；没有中断、软中断、协议栈和拷贝，约 1 微秒以内。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .iq5bg   { fill: #fbfaf7; }
+    .iq5pan  { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.3; }
+    .iq5nic  { fill: #e7e2f0; stroke: #9a8cc0; stroke-width: 1.3; }
+    .iq5mem  { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .iq5cell { fill: #ffffff; stroke: #9aa6b2; stroke-width: 1; }
+    .iq5full { fill: #9fb4c8; stroke: #6f8296; stroke-width: 1; }
+    .iq5hse  { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.3; }
+    .iq5hot  { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.8; }
+    .iq5sub  { fill: #ffffff; stroke: #c98a76; stroke-width: 1; }
+    .iq5ink  { fill: #1c1b18; font-size: 12.5px; }
+    .iq5sm   { fill: #1c1b18; font-size: 11.5px; }
+    .iq5mut  { fill: #6b6558; font-size: 11.5px; }
+    .iq5hd   { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .iq5ttl  { fill: #1c1b18; font-size: 13.5px; font-weight: 700; }
+    .iq5ln   { stroke: #4a463d; stroke-width: 1.6; fill: none; }
+    .iq5dot  { stroke: #6b6558; stroke-width: 1.3; fill: none; stroke-dasharray: 4 3; }
+    .iq5irq  { stroke: #c15b3f; stroke-width: 1.8; fill: none; stroke-dasharray: 6 4; }
+    .iq5red  { fill: #c15b3f; font-size: 11.5px; }
+    .iq5hh   { fill: #4a463d; }
+    .iq5hr   { fill: #c15b3f; }
+    .iq5hm   { fill: #6b6558; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5bg { fill: #17161b; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5pan { fill: #201f26; stroke: #3a3945; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5nic { fill: #2e2940; stroke: #6a5c95; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5mem { fill: #23262c; stroke: #3f4650; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5cell { fill: #17161b; stroke: #5a6470; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5full { fill: #4b6075; stroke: #7f95ab; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5hse { fill: #4a2f2c; stroke: #8f5a4c; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5hot { fill: #33421f; stroke: #8fb257; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5sub { fill: #2a2026; stroke: #8f5a4c; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5ink, :root:is([data-theme="dark"], [data-theme="black"]) .iq5sm, :root:is([data-theme="dark"], [data-theme="black"]) .iq5hd, :root:is([data-theme="dark"], [data-theme="black"]) .iq5ttl { fill: #e9e7ef; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5mut { fill: #a19caf; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5ln { stroke: #c9c5d3; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5hh { fill: #c9c5d3; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5dot { stroke: #a19caf; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5hm { fill: #a19caf; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5irq { stroke: #e0795b; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5red { fill: #e0795b; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .iq5hr { fill: #e0795b; }
+  </style>
+  <defs>
+    <marker id="iq5a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="iq5hh"/></marker>
+    <marker id="iq5r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="iq5hr"/></marker>
+    <marker id="iq5m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="iq5hm"/></marker>
+  </defs>
+  <rect class="iq5bg" x="0" y="0" width="760" height="520" rx="10"/>
+  <rect class="iq5pan" x="12" y="12" width="736" height="298" rx="8"/>
+  <text class="iq5ttl" x="28" y="36">走内核：网卡 DMA 搬包，中断通知，打杂核走协议栈，最后唤醒热线程</text>
+  <rect class="iq5nic" x="28" y="68" width="100" height="64" rx="6"/>
+  <text class="iq5hd" x="78" y="95" text-anchor="middle">网卡</text>
+  <text class="iq5sm" x="78" y="115" text-anchor="middle">接收队列 0</text>
+  <rect class="iq5mem" x="230" y="52" width="300" height="108" rx="6"/>
+  <text class="iq5hd" x="380" y="72" text-anchor="middle">内存（网卡那个节点）</text>
+  <rect class="iq5full" x="246" y="84" width="28" height="24" rx="3"/>
+  <rect class="iq5full" x="278" y="84" width="28" height="24" rx="3"/>
+  <rect class="iq5full" x="310" y="84" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="342" y="84" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="374" y="84" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="406" y="84" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="438" y="84" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="470" y="84" width="28" height="24" rx="3"/>
+  <text class="iq5sm" x="380" y="128" text-anchor="middle">接收描述符环：深色 = 已填好，浅色 = 空</text>
+  <text class="iq5mut" x="380" y="147" text-anchor="middle">每项记一块缓冲区的地址，包就写在那块缓冲区里</text>
+  <path class="iq5ln" d="M128 96 H242" marker-end="url(#iq5a)"/>
+  <text class="iq5sm" x="185" y="88" text-anchor="middle">① DMA 写包</text>
+  <text class="iq5mut" x="185" y="116" text-anchor="middle">标成已填好</text>
+  <path class="iq5irq" d="M78 132 V196" marker-end="url(#iq5r)"/>
+  <text class="iq5red" x="88" y="164">② 中断（MSI-X）</text>
+  <rect class="iq5hse" x="28" y="200" width="356" height="86" rx="6"/>
+  <text class="iq5hd" x="40" y="220">核 0（打杂核）</text>
+  <rect class="iq5sub" x="40" y="230" width="140" height="46" rx="4"/>
+  <text class="iq5sm" x="110" y="249" text-anchor="middle">③ 硬中断</text>
+  <text class="iq5mut" x="110" y="267" text-anchor="middle">应答网卡、登记</text>
+  <rect class="iq5sub" x="200" y="230" width="172" height="46" rx="4"/>
+  <text class="iq5sm" x="286" y="249" text-anchor="middle">④ 软中断 NET_RX</text>
+  <text class="iq5mut" x="286" y="267" text-anchor="middle">取包 · 协议栈 · 进 socket</text>
+  <path class="iq5ln" d="M180 253 H196" marker-end="url(#iq5a)"/>
+  <path class="iq5dot" d="M310 230 L346 164" marker-end="url(#iq5m)"/>
+  <text class="iq5mut" x="352" y="196">读环、取包</text>
+  <rect class="iq5hot" x="440" y="200" width="292" height="86" rx="6"/>
+  <text class="iq5hd" x="452" y="220">核 3（热核）· 行情线程</text>
+  <text class="iq5sm" x="452" y="248">⑤ 被唤醒，从 recv() 里醒来</text>
+  <text class="iq5mut" x="452" y="268">内核把包再拷一次给你，才返回</text>
+  <path class="iq5ln" d="M372 253 H436" marker-end="url(#iq5a)"/>
+  <text class="iq5sm" x="404" y="245" text-anchor="middle">唤醒</text>
+  <text class="iq5mut" x="560" y="96">热核上没有中断，</text>
+  <text class="iq5mut" x="560" y="116">可每个包都要走完 ②–⑤：</text>
+  <text class="iq5ink" x="560" y="138" font-weight="700">约 5–20 µs</text>
+  <rect class="iq5pan" x="12" y="322" width="736" height="186" rx="8"/>
+  <text class="iq5ttl" x="28" y="346">内核旁路：接收环映射进进程，热线程自己轮询</text>
+  <rect class="iq5nic" x="28" y="380" width="100" height="64" rx="6"/>
+  <text class="iq5hd" x="78" y="407" text-anchor="middle">网卡</text>
+  <text class="iq5sm" x="78" y="427" text-anchor="middle">接收队列 0</text>
+  <rect class="iq5mem" x="230" y="364" width="300" height="96" rx="6"/>
+  <text class="iq5hd" x="380" y="384" text-anchor="middle">接收环（映射进进程）</text>
+  <rect class="iq5full" x="246" y="396" width="28" height="24" rx="3"/>
+  <rect class="iq5full" x="278" y="396" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="310" y="396" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="342" y="396" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="374" y="396" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="406" y="396" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="438" y="396" width="28" height="24" rx="3"/>
+  <rect class="iq5cell" x="470" y="396" width="28" height="24" rx="3"/>
+  <text class="iq5mut" x="380" y="444" text-anchor="middle">还是同一种环，只是你的进程能直接读</text>
+  <path class="iq5ln" d="M128 408 H242" marker-end="url(#iq5a)"/>
+  <text class="iq5sm" x="185" y="400" text-anchor="middle">① DMA 写包</text>
+  <rect class="iq5hot" x="600" y="372" width="132" height="80" rx="6"/>
+  <text class="iq5hd" x="666" y="394" text-anchor="middle">核 3 · 行情线程</text>
+  <text class="iq5sm" x="666" y="414" text-anchor="middle">忙轮询已填好</text>
+  <text class="iq5sm" x="666" y="434" text-anchor="middle">看到就直接读</text>
+  <path class="iq5ln" d="M600 408 H534" marker-end="url(#iq5a)"/>
+  <text class="iq5sm" x="567" y="400" text-anchor="middle">② 轮询</text>
+  <text class="iq5mut" x="28" y="484">没有中断、软中断、协议栈，也没有唤醒和拷贝</text>
+  <text class="iq5ink" x="600" y="484" font-weight="700">约 1 µs 以内</text>
+</svg>
+
+> 图：上半是走内核的路，热核上已经没有中断，但每个包仍要经过中断、软中断、唤醒和拷贝；下半是内核旁路，只剩网卡的 DMA 和热线程自己的轮询。
+
+### 5.1 第 ① 步，DMA：网卡自己把包写进内存，CPU 一条指令都不用执行 {#dma}
+
+1. **开盘前，驱动先备好一个接收环**
+   - **内存里分配一圈缓冲区**，再写一张表，叫接收描述符环：每一项记着一块缓冲区的物理地址，外加一个“已填好”标志，开始时全是空的。
+   - **把这张表的地址交给网卡**：从这以后，网卡知道收到的包该往哪里放。
+2. **包到了，网卡按下一项描述符把包直接写进那块缓冲区，再把这一项标成“已填好”**
+   - **搬数据的是网卡，不是 CPU**：没有哪个核执行了 `memcpy`，这叫 DMA（direct memory access，直接内存访问）。
+   - **DMA 写和缓存是一致的**：网卡写的那块内存要是有旧副本在某个核的缓存里，那份副本会被作废。Intel 的 DDIO 还会把包直接写进 L3，核去读时在 L3 就命中，不用去内存。
+3. **DMA 只管搬，不管通知**
+   - **包已经躺在内存里了，可没有一个核知道**：像快递员有你家的钥匙，直接把包裹放进冰箱，你人在干别的。
+   - **通知只有两种办法**：网卡发中断（第 ② 步，图的上半），或者核自己去轮询描述符上的“已填好”标志（5.4，图的下半）。
+
+### 5.2 第 ② 步，中断：网卡敲一下某个核，那个核放下手里的活去处理 {#irq}
+
+1. **现代网卡用 MSI-X 发中断**
+   - **发中断就是往一个特殊地址写一下**：中断控制器（APIC）把它投递到指定的核。
+   - **每个接收队列有自己的中断号**：投到哪个核，由 `/proc/irq/<号>/smp_affinity` 定，图里设成了核 0。
+2. **核在两条指令之间停下，保存现场，进内核跑中断处理函数，跑完再回来接着执行**
+   - **整个过程调度器不参与**：中断要是投到核 3，行情线程就算是 `SCHED_FIFO` 99 也照样被打断。**对中断没有“优先级抢赢它”这条路，只能让它投到别的核。**
+3. **中断落在热核上，代价不只是处理函数那段时间**
+   - **直接代价**：进出一次内核，跑完第 ③、④ 步。
+   - **间接代价**：处理函数和协议栈的代码、数据把热核的 L1 冲掉一部分，分支预测器的历史也被搅乱，行情线程回来以后的一段指令都在缺失。
+   - **加起来一次约 1 到几 µs，一个收行情的核每秒要挨几千次以上**：平均值看不太出来，P99 上就是一条抬起来的尾巴。
+
+### 5.3 第 ③、④ 步，上半部和下半部：硬中断只登记，重活放到软中断 {#softirq}
+
+1. **上半部（硬中断）关着中断跑，所以要极短**
+   - **只做两件事**：应答网卡，再登记一件“稍后处理 0 号接收队列”的活，然后返回。
+   - **为什么要短**：关着中断的这段时间里，别的中断都进不来。
+2. **下半部（软中断 `NET_RX`）做重活**
+   - **从环里把“已填好”的包取出来**，建 `sk_buff`，走 IP、UDP 协议栈，放进行情线程那个 socket 的接收队列。
+   - **最后唤醒在 `recv` 上睡着的行情线程**：它醒来以后，内核把包再拷一次到它的缓冲区，`recv` 才返回（第 ⑤ 步）。
+3. **软中断跟着硬中断走**
+   - **默认在吃硬中断的那个核上，硬中断返回时接着就跑**；积压太多才交给这个核的 `ksoftirqd/N` 线程。
+   - **所以把中断号绑到核 0，软中断也一起留在核 0**，热核上的 `ksoftirqd` 就一直睡着（1.3 表的最后一行）。
+4. **包多时一批包才一次中断**：驱动用 NAPI，来一次中断以后先关掉这个队列的中断，在软中断里轮询，把环里的包取完再打开。
+
+### 5.4 内核旁路：把第 ②–⑤ 步全删掉 {#kernel-bypass}
+
+1. **接收环直接映射进你的进程**
+   - **做法**：Solarflare 的 onload、ef_vi，或者 DPDK，都是这个思路。
+   - **热线程在核 3 上忙轮询下一项描述符的“已填好”标志**：网卡 DMA 一写完，下一次轮询就能看到，直接读包。
+2. **DMA 还在，其余都不在了**
+   - **没有中断、软中断、协议栈，也没有唤醒和拷贝**：走内核从包到 `recv` 返回约 5–20 µs，旁路约 1 µs 以内。
+   - **这也是 HFT 常常不用实时内核的原因**：实时内核缩短的是第 ⑤ 步“被唤醒要等多久”，忙轮询的线程从来不睡，这一步不存在（[#19](/zh/posts/scheduling-priority-inversion-kernel-tuning/) 3.3）。
+3. **还剩几种核间中断绑不走**：残余的时钟中断、重调度、TLB shootdown（1.3 的最后一段），`/proc/interrupts` 里是 `LOC`、`RES`、`TLB` 这几行。
+
+### 5.5 还走内核时：中断绑到网卡那一侧的打杂核 {#irq-affinity}
+
+1. **网卡在哪个 NUMA 节点，中断就绑到那个节点的打杂核上**
+   - **描述符和包都在网卡那一侧的内存里**：在另一个插槽的核上做第 ④ 步，每次都是远端访问（第 3 节）。
+   - **查网卡在哪个节点**：`cat /sys/class/net/<网卡>/device/numa_node`。
+2. **多队列网卡（RSS）按流把包分到几个队列，每个队列一个中断号**
+   - **默认摊到很多核上**，换的是吞吐。
+   - **低延迟的做法**：装着行情那条流的队列单独绑一个打杂核，其余队列绑到别处。
+
+> **把设备中断赶出热核：找、绑、验**
+> - **找**：`/proc/interrupts` 每行一个中断号，每列是一个核上的累计次数；`mpstat -P ALL 1` 看每个核的 `%irq`、`%soft`。
+> - **先停 irqbalance**：它每隔十几秒按负载重新分一遍中断，手动绑的会被改回去。
+> - **绑**：`echo 0-1 > /proc/irq/<号>/smp_affinity_list`，写的是核号列表，不用算十六进制掩码；下一次中断起生效。
+> - **验**：这个中断号的计数只在打杂核上涨，热核的 `%irq`、`%soft` 接近 0，两个都满足才算绑好。
+> - **`isolcpus` 不管中断**：另加启动参数 `irqaffinity=0,1`，把所有中断的默认目标设成打杂核。
+> - **有的中断写不动**：很多网卡和 NVMe 驱动的中断由内核托管（managed IRQ），写 `smp_affinity` 会失败；用 `isolcpus=managed_irq,3-7` 让内核分配时避开隔离核，或者减少队列数。
+
 ---
 
 > **把一个核清出来给热线程：配置清单**
 >
 > 1. **看拓扑**：`lscpu -e=CPU,CORE,SOCKET,NODE,CACHE` 找出每个核的兄弟、所在节点和 L3 分组（AMD），确认网卡在哪个节点（`/sys/class/net/<网卡>/device/numa_node`）。
-> 2. **内核命令行**：`isolcpus=3-7 nohz_full=3-7 rcu_nocbs=3-7 irqaffinity=0,1 nmi_watchdog=0`，热核选在网卡那个节点上，避开 0、1 号核；开机后停掉 irqbalance，网卡中断逐个绑到网卡那个节点的打杂核（1.6）。
+> 2. **内核命令行**：`isolcpus=3-7 nohz_full=3-7 rcu_nocbs=3-7 irqaffinity=0,1 nmi_watchdog=0`，热核选在网卡那个节点上，避开 0、1 号核；开机后停掉 irqbalance，网卡中断逐个绑到网卡那个节点的打杂核（第 5 节）。
 > 3. **核自身**：热核的超线程兄弟下线；`idle=poll` 或限制 C-state，或在程序里持有 `/dev/cpu_dma_latency`；governor 设成 `performance`，关睿频，把频率钉死。
 > 4. **程序里**：每个热线程绑一个隔离核，一个核只放一个线程；互相交接的线程放进同一个 L3 组（第 4 节）；热数据由用它的线程自己第一次写，或用 `membind` 分到本节点。
 > 5. **验证**：`cyclictest` 或 `oslat` 测热核上的最大延迟，`/proc/interrupts` 看热核上的中断计数是否还在涨，`numastat -p` 看有没有跨节点分配。
