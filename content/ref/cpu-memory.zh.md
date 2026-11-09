@@ -33,7 +33,8 @@ math: true
 
 ### 1.2 写（store）：store buffer 与 RFO {#store}
 
-<a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/store-path.zh.svg" alt="写（store）的路径，两个核。核 0 执行 data = 42，写先进 store buffer；invalidate 请求经片上互连，snoop filter 只把它发给有副本的核 1；核 1 先放进 invalidate queue，马上回 ACK；核 0 收齐 ACK 才把 42 写进 L1D，接着写 ready。核 1 从核 0 取回 ready = 1，再读 data 时失效还没处理，读到旧值 0。下方说明：这是读和读乱序，x86 不允许，ARM 允许，修法是 ready 用 atomic，写 release、读 acquire。" loading="lazy" decoding="async"></a>
+<iframe src="/maps/store-path.zh.html" title="写的路径：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:0 auto;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<p style="text-align:center;font-size:.9em"><a href="/maps/store-path.zh.html" target="_blank" rel="noopener">在新窗口打开</a> · <a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener">静态全图</a></p>
 
 写先进 **store buffer**，后面的指令不用等它写完。真正写进 L1D 之前，这个核要拿到这条行的独占权：别的核手里的副本都要作废（**MESI**），别的核收到作废通知，先排进自己的 **invalidate queue**。要写的行不在缓存里，还得先把整条行读回来再改，这叫 **RFO**（read for ownership）。所以一次写缺失也要从内存搬一整条行。改过的行被踢出时还要写回，普通写一条不在缓存里的行，总线上走两趟。**流式写**（non-temporal store）不读回、不进缓存，凑满 64 B 直接写到内存，只走一趟，适合写一大片、短期内没人读的数据。
 
