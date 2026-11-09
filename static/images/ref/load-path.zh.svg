@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 1010" width="860" height="1010" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1010" width="720" height="1010" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
@@ -26,7 +26,7 @@
       .dt   { font-size: 14px; font-weight: 700; fill: #ffffff; }
     </style>
   </defs>
-  <rect x="0" y="0" width="860" height="1010" fill="#ffffff"/>
+  <rect x="0" y="0" width="720" height="1010" fill="#ffffff"/>
   <text x="30" y="40" class="h">读（load）的路径</text>
   <text x="30" y="66" class="s">按顺序走四步。右边一列是从发出 load 算起的累计延迟。</text>
   <text x="30" y="86" class="s">页内偏移（bit 0–11）翻译前后不变，所以选组不用等 TLB，两件事同时做（VIPT）。</text>
@@ -35,75 +35,76 @@
   <circle cx="60" cy="130" r="14" class="dot"/>
   <text x="60" y="135" class="dt" text-anchor="middle">1</text>
   <text x="110" y="100" class="lab">要读的地址（虚拟地址）</text>
-  <rect x="110" y="110" width="310" height="40" class="buf"/>
-  <text x="265" y="135" class="f" text-anchor="middle">虚拟页号（bit 12 以上）</text>
-  <rect x="420" y="110" width="160" height="40" class="cache"/>
-  <text x="500" y="135" class="f" text-anchor="middle">组号 bit 6–11</text>
-  <rect x="580" y="110" width="140" height="40" class="box"/>
-  <text x="650" y="135" class="f" text-anchor="middle">行内偏移 bit 0–5</text>
-  <line x1="265" y1="150" x2="265" y2="188" class="line" marker-end="url(#arr)"/>
-  <line x1="500" y1="150" x2="500" y2="188" class="line" marker-end="url(#arr)"/>
-  <rect x="110" y="190" width="290" height="48" rx="6" class="buf"/>
-  <text x="255" y="219" class="t" text-anchor="middle">TLB：虚拟页号 → 物理页号</text>
-  <rect x="430" y="190" width="290" height="48" rx="6" class="cache"/>
-  <text x="575" y="219" class="t" text-anchor="middle">L1D：用 bit 6–11 选出一组</text>
-  <line x1="255" y1="238" x2="255" y2="286" class="line" marker-end="url(#arr)"/>
-  <text x="264" y="267" class="lab">物理页号</text>
-  <line x1="575" y1="238" x2="575" y2="286" class="line" marker-end="url(#arr)"/>
-  <text x="584" y="267" class="lab">这一组的 8 格</text>
+  <rect x="110" y="110" width="230" height="40" class="buf"/>
+  <text x="225" y="135" class="f" text-anchor="middle">虚拟页号（bit 12 以上）</text>
+  <rect x="340" y="110" width="130" height="40" class="cache"/>
+  <text x="405" y="135" class="f" text-anchor="middle">组号 bit 6–11</text>
+  <rect x="470" y="110" width="120" height="40" class="box"/>
+  <text x="530" y="135" class="f" text-anchor="middle">行内偏移 bit 0–5</text>
+  <line x1="225" y1="150" x2="225" y2="188" class="line" marker-end="url(#arr)"/>
+  <line x1="405" y1="150" x2="405" y2="188" class="line" marker-end="url(#arr)"/>
+  <rect x="110" y="190" width="230" height="48" rx="6" class="buf"/>
+  <text x="225" y="219" class="t" text-anchor="middle">TLB：虚拟页号 → 物理页号</text>
+  <rect x="360" y="190" width="230" height="48" rx="6" class="cache"/>
+  <text x="475" y="219" class="t" text-anchor="middle">L1D：用 bit 6–11 选出一组</text>
+  <line x1="225" y1="238" x2="225" y2="286" class="line" marker-end="url(#arr)"/>
+  <text x="234" y="267" class="lab">物理页号</text>
+  <line x1="475" y1="238" x2="475" y2="286" class="line" marker-end="url(#arr)"/>
+  <text x="484" y="267" class="lab">这一组的 8 格</text>
   <!-- Step 2: L1D, then the fill buffer, L2, L3 -->
-  <text x="790" y="276" class="lab" text-anchor="middle">累计延迟</text>
+  <text x="650" y="276" class="lab" text-anchor="middle">累计延迟</text>
   <circle cx="60" cy="319" r="14" class="dot"/>
   <text x="60" y="324" class="dt" text-anchor="middle">2</text>
-  <rect x="110" y="288" width="610" height="62" rx="6" class="cache"/>
+  <rect x="110" y="288" width="480" height="62" rx="6" class="cache"/>
   <text x="130" y="314" class="t">L1D：用物理页号比对这一组的 8 个标签</text>
   <text x="130" y="336" class="s">命中：数据回到寄存器，到此结束。</text>
-  <rect x="740" y="305" width="100" height="28" rx="14" class="pill"/>
-  <text x="790" y="324" class="pt" text-anchor="middle">≈ 1 ns</text>
-  <line x1="415" y1="350" x2="415" y2="418" class="line" marker-end="url(#arr)"/>
-  <text x="405" y="404" class="lab" text-anchor="end">没命中</text>
-  <line x1="415" y1="385" x2="438" y2="385" class="dash"/>
-  <rect x="440" y="354" width="280" height="62" rx="6" class="buf"/>
-  <text x="452" y="373" class="t">LFB（填充缓冲）：12–24 项</text>
-  <text x="452" y="391" class="s">没命中先登记一项：这条行去取了、还没回来。</text>
-  <text x="452" y="408" class="s">一个核同时能挂的缺失最多这么多。</text>
-  <rect x="110" y="420" width="610" height="62" rx="6" class="cache"/>
+  <rect x="600" y="305" width="100" height="28" rx="14" class="pill"/>
+  <text x="650" y="324" class="pt" text-anchor="middle">≈ 1 ns</text>
+  <line x1="300" y1="350" x2="300" y2="418" class="line" marker-end="url(#arr)"/>
+  <text x="290" y="404" class="lab" text-anchor="end">没命中</text>
+  <line x1="300" y1="385" x2="323" y2="385" class="dash"/>
+  <rect x="325" y="354" width="265" height="62" rx="6" class="buf"/>
+  <text x="337" y="373" class="t">LFB（填充缓冲）：12–24 项</text>
+  <text x="337" y="391" class="s">没命中先登记：这条行去取了、还没回来。</text>
+  <text x="337" y="408" class="s">一个核同时能挂的缺失最多这么多。</text>
+  <rect x="110" y="420" width="480" height="62" rx="6" class="cache"/>
   <text x="130" y="446" class="t">L2（本核私有）</text>
   <text x="130" y="468" class="s">命中：先放进 L1D，再交给寄存器。</text>
-  <rect x="740" y="437" width="100" height="28" rx="14" class="pill"/>
-  <text x="790" y="456" class="pt" text-anchor="middle">≈ 3–5 ns</text>
-  <line x1="415" y1="482" x2="415" y2="548" class="line" marker-end="url(#arr)"/>
-  <text x="425" y="520" class="lab">没命中</text>
-  <rect x="110" y="550" width="610" height="62" rx="6" class="cache"/>
+  <rect x="600" y="437" width="100" height="28" rx="14" class="pill"/>
+  <text x="650" y="456" class="pt" text-anchor="middle">≈ 3–5 ns</text>
+  <line x1="300" y1="482" x2="300" y2="548" class="line" marker-end="url(#arr)"/>
+  <text x="310" y="520" class="lab">没命中</text>
+  <rect x="110" y="550" width="480" height="62" rx="6" class="cache"/>
   <text x="130" y="576" class="t">L3（全核共享）</text>
   <text x="130" y="598" class="s">命中：沿路放进 L2、L1D。</text>
-  <rect x="740" y="567" width="100" height="28" rx="14" class="pill"/>
-  <text x="790" y="586" class="pt" text-anchor="middle">≈ 10–30 ns</text>
-  <line x1="415" y1="612" x2="415" y2="668" class="line" marker-end="url(#arr)"/>
-  <text x="425" y="645" class="lab">没命中</text>
+  <rect x="600" y="567" width="100" height="28" rx="14" class="pill"/>
+  <text x="650" y="586" class="pt" text-anchor="middle">≈ 10–30 ns</text>
+  <line x1="300" y1="612" x2="300" y2="668" class="line" marker-end="url(#arr)"/>
+  <text x="310" y="645" class="lab">没命中</text>
   <!-- Step 3: memory controller and the DIMM -->
   <circle cx="60" cy="701" r="14" class="dot"/>
   <text x="60" y="706" class="dt" text-anchor="middle">3</text>
-  <rect x="110" y="670" width="610" height="62" rx="6" class="mem"/>
+  <rect x="110" y="670" width="480" height="62" rx="6" class="mem"/>
   <text x="130" y="696" class="t">内存控制器（在 CPU 芯片上）</text>
   <text x="130" y="718" class="s">按地址选通道、bank、行，再去内存条取。</text>
-  <line x1="415" y1="732" x2="415" y2="768" class="line" marker-end="url(#arr)"/>
-  <rect x="110" y="770" width="610" height="100" rx="6" class="mem"/>
+  <line x1="300" y1="732" x2="300" y2="768" class="line" marker-end="url(#arr)"/>
+  <rect x="110" y="770" width="480" height="100" rx="6" class="mem"/>
   <text x="130" y="796" class="t">内存条：从一个 bank 的行缓冲里读出整条 64 B</text>
-  <rect x="130" y="812" width="180" height="40" rx="6" class="box"/>
-  <text x="220" y="837" class="f" text-anchor="middle">行缓冲命中 ≈ 15 ns</text>
-  <rect x="320" y="812" width="180" height="40" rx="6" class="box"/>
-  <text x="410" y="837" class="f" text-anchor="middle">行空 ≈ 30 ns</text>
-  <rect x="510" y="812" width="190" height="40" rx="6" class="box"/>
-  <text x="605" y="837" class="f" text-anchor="middle">行冲突 ≈ 40 ns</text>
-  <rect x="740" y="806" width="100" height="28" rx="14" class="pill"/>
-  <text x="790" y="825" class="pt" text-anchor="middle">≈ 70–120 ns</text>
+  <rect x="125" y="812" width="145" height="40" rx="6" class="box"/>
+  <text x="197" y="837" class="f" text-anchor="middle">行缓冲命中 ≈ 15 ns</text>
+  <rect x="280" y="812" width="145" height="40" rx="6" class="box"/>
+  <text x="352" y="837" class="f" text-anchor="middle">行空 ≈ 30 ns</text>
+  <rect x="435" y="812" width="145" height="40" rx="6" class="box"/>
+  <text x="507" y="837" class="f" text-anchor="middle">行冲突 ≈ 40 ns</text>
+  <rect x="600" y="806" width="100" height="28" rx="14" class="pill"/>
+  <text x="650" y="825" class="pt" text-anchor="middle">≈ 70–120 ns</text>
   <!-- Step 4: the whole line comes back the same way -->
   <path d="M110,845 H96 V319 H106" class="back" marker-end="url(#arrb)"/>
   <circle cx="60" cy="915" r="14" class="dot"/>
   <text x="60" y="920" class="dt" text-anchor="middle">4</text>
-  <rect x="110" y="890" width="730" height="50" rx="6" class="ban"/>
-  <text x="130" y="921" class="t">拿回来的永远是一整条 64 B 缓存行：原路返回（左边的蓝线），沿路放进 L3、L2、L1D。</text>
+  <rect x="110" y="885" width="590" height="60" rx="6" class="ban"/>
+  <text x="130" y="910" class="t">拿回来的永远是一整条 64 B 缓存行：</text>
+  <text x="130" y="932" class="t">原路返回（左边的蓝线），沿路放进 L3、L2、L1D。</text>
   </g>
   <text x="30" y="992" class="s">数字都是帮助理解的量级，不对应哪台机器。内存那一格是一次访问的总时间，含一路上的排队和传输。</text>
 </svg>
