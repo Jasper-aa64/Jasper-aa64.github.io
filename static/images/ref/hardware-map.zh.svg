@@ -43,23 +43,23 @@
   <text x="400" y="182" class="lane-h" style="fill:#1a7f37">后端（back end）：乱序执行</text>
   <rect x="722" y="162" width="306" height="418" rx="8" fill="#eef6ff" stroke="#8cc4ff" stroke-dasharray="6 4"/>
   <text x="730" y="182" class="lane-h" style="fill:#0969da">访存（memory）：load / store</text>
-  <rect x="60" y="190" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="213" class="t">分支预测器（BPU）</text>
-  <text x="72" y="231" class="s">BTB · RAS · 方向预测器</text>
-  <text x="72" y="249" class="s">只看地址，猜下一段从哪取</text>
-  <text x="72" y="266" class="tag">#7 分支预测</text>
-  <rect x="60" y="290" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="313" class="t">取指（fetch）</text>
-  <text x="72" y="331" class="s">按预测的地址从 L1I 取指令</text>
-  <text x="72" y="349" class="s">猜错的路径上取的全部作废</text>
-  <text x="72" y="366" class="tag">#7 推测执行</text>
-  <rect x="60" y="390" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="413" class="t">译码（decode）</text>
-  <text x="72" y="431" class="s">指令 → 微操作（µop）</text>
-  <rect x="60" y="490" width="280" height="80" rx="6" class="cache"/>
-  <text x="72" y="513" class="t">L1I 32 KiB（指令缓存）</text>
-  <text x="72" y="531" class="s">存指令，不存数据</text>
-  <text x="72" y="548" class="tag">#6 函数分组</text>
+  <rect x="90" y="190" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="213" class="t">分支预测器（BPU）</text>
+  <text x="102" y="231" class="s">BTB · RAS · 方向预测器</text>
+  <text x="102" y="249" class="s">只看地址，猜下一段从哪取</text>
+  <text x="102" y="266" class="tag">#7 分支预测</text>
+  <rect x="90" y="290" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="313" class="t">取指（fetch）</text>
+  <text x="102" y="331" class="s">按预测的地址从 L1I 取指令</text>
+  <text x="102" y="349" class="s">猜错的路径上取的全部作废</text>
+  <text x="102" y="366" class="tag">#7 推测执行</text>
+  <rect x="90" y="390" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="413" class="t">译码（decode）</text>
+  <text x="102" y="431" class="s">指令 → 微操作（µop）</text>
+  <rect x="90" y="490" width="250" height="80" rx="6" class="cache"/>
+  <text x="102" y="513" class="t">L1I 32 KiB（指令缓存）</text>
+  <text x="102" y="531" class="s">存指令，不存数据</text>
+  <text x="102" y="548" class="tag">#6 函数分组</text>
   <rect x="400" y="190" width="280" height="80" rx="6" class="box"/>
   <text x="412" y="213" class="t">重命名 + ROB</text>
   <text x="412" y="231" class="s">ROB（reorder buffer，重排序缓冲）</text>
@@ -112,7 +112,7 @@
   <path d="M200,270 L200,288" class="line" marker-end="url(#arr)"/>
   <text x="208" y="284" class="lab">下一段的地址</text>
   <path d="M200,370 L200,388" class="line" marker-end="url(#arr)"/>
-  <path d="M60,530 L56,530 L56,340 L58,340" class="line" marker-end="url(#arr)"/>
+  <path d="M90,530 L70,530 L70,330 L88,330" class="line" marker-end="url(#arr)"/>
   <path d="M340,430 L370,430 L370,230 L398,230" class="line" marker-end="url(#arr)"/>
   <text x="374" y="290" class="lab">µop</text>
   <path d="M540,270 L540,288" class="line" marker-end="url(#arr)"/>

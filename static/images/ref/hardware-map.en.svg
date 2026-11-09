@@ -43,23 +43,23 @@
   <text x="400" y="182" class="lane-h" style="fill:#1a7f37">Back end: out-of-order execution</text>
   <rect x="722" y="162" width="306" height="418" rx="8" fill="#eef6ff" stroke="#8cc4ff" stroke-dasharray="6 4"/>
   <text x="730" y="182" class="lane-h" style="fill:#0969da">Memory: loads and stores</text>
-  <rect x="60" y="190" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="213" class="t">Branch predictor (BPU)</text>
-  <text x="72" y="231" class="s">BTB · RAS · direction predictor</text>
-  <text x="72" y="249" class="s">guesses the next fetch address</text>
-  <text x="72" y="266" class="tag">#7 branch prediction</text>
-  <rect x="60" y="290" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="313" class="t">Fetch</text>
-  <text x="72" y="331" class="s">reads code from L1I at the predicted</text>
-  <text x="72" y="349" class="s">address; a wrong path is thrown away</text>
-  <text x="72" y="366" class="tag">#7 speculative execution</text>
-  <rect x="60" y="390" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="413" class="t">Decode</text>
-  <text x="72" y="431" class="s">instructions → micro-ops (µops)</text>
-  <rect x="60" y="490" width="280" height="80" rx="6" class="cache"/>
-  <text x="72" y="513" class="t">L1I 32 KiB (instruction cache)</text>
-  <text x="72" y="531" class="s">holds code, not data</text>
-  <text x="72" y="548" class="tag">#6 function grouping</text>
+  <rect x="90" y="190" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="213" class="t">Branch predictor (BPU)</text>
+  <text x="102" y="231" class="s">BTB · RAS · direction predictor</text>
+  <text x="102" y="249" class="s">guesses the next fetch address</text>
+  <text x="102" y="266" class="tag">#7 branch prediction</text>
+  <rect x="90" y="290" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="313" class="t">Fetch</text>
+  <text x="102" y="331" class="s">reads code from L1I at the predicted</text>
+  <text x="102" y="349" class="s">address; a wrong path is thrown away</text>
+  <text x="102" y="366" class="tag">#7 speculative execution</text>
+  <rect x="90" y="390" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="413" class="t">Decode</text>
+  <text x="102" y="431" class="s">instructions → micro-ops (µops)</text>
+  <rect x="90" y="490" width="250" height="80" rx="6" class="cache"/>
+  <text x="102" y="513" class="t">L1I 32 KiB (instruction cache)</text>
+  <text x="102" y="531" class="s">holds code, not data</text>
+  <text x="102" y="548" class="tag">#6 function grouping</text>
   <rect x="400" y="190" width="280" height="80" rx="6" class="box"/>
   <text x="412" y="213" class="t">Rename + ROB</text>
   <text x="412" y="231" class="s">ROB = reorder buffer:</text>
@@ -110,7 +110,7 @@
   <path d="M200,270 L200,288" class="line" marker-end="url(#arr)"/>
   <text x="208" y="284" class="lab">next fetch address</text>
   <path d="M200,370 L200,388" class="line" marker-end="url(#arr)"/>
-  <path d="M60,530 L56,530 L56,340 L58,340" class="line" marker-end="url(#arr)"/>
+  <path d="M90,530 L70,530 L70,330 L88,330" class="line" marker-end="url(#arr)"/>
   <path d="M340,430 L370,430 L370,230 L398,230" class="line" marker-end="url(#arr)"/>
   <text x="374" y="290" class="lab">µops</text>
   <path d="M540,270 L540,288" class="line" marker-end="url(#arr)"/>

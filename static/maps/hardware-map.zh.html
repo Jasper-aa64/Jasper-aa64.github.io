@@ -107,29 +107,29 @@ svg.dim .node.on > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
   <rect x="722" y="162" width="306" height="418" rx="8" fill="#eef6ff" stroke="#8cc4ff" stroke-dasharray="6 4"/>
   <text x="730" y="182" class="lane-h" style="fill:#0969da">访存（memory）：load / store</text>
   <g id="bpu" class="node" tabindex="0" role="button" aria-label="分支预测器（BPU）">
-  <rect x="60" y="190" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="213" class="t">分支预测器（BPU）</text>
-  <text x="72" y="231" class="s">BTB · RAS · 方向预测器</text>
-  <text x="72" y="249" class="s">只看地址，猜下一段从哪取</text>
-  <text x="72" y="266" class="tag"><a href="/zh/posts/branch-prediction-branch-optimization/" target="_blank" rel="noopener"><tspan>#7 分支预测</tspan></a></text>
+  <rect x="90" y="190" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="213" class="t">分支预测器（BPU）</text>
+  <text x="102" y="231" class="s">BTB · RAS · 方向预测器</text>
+  <text x="102" y="249" class="s">只看地址，猜下一段从哪取</text>
+  <text x="102" y="266" class="tag"><a href="/zh/posts/branch-prediction-branch-optimization/" target="_blank" rel="noopener"><tspan>#7 分支预测</tspan></a></text>
   </g>
   <g id="fetch" class="node" tabindex="0" role="button" aria-label="取指（fetch）">
-  <rect x="60" y="290" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="313" class="t">取指（fetch）</text>
-  <text x="72" y="331" class="s">按预测的地址从 L1I 取指令</text>
-  <text x="72" y="349" class="s">猜错的路径上取的全部作废</text>
-  <text x="72" y="366" class="tag"><a href="/zh/posts/branch-prediction-branch-optimization/" target="_blank" rel="noopener"><tspan>#7 推测执行</tspan></a></text>
+  <rect x="90" y="290" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="313" class="t">取指（fetch）</text>
+  <text x="102" y="331" class="s">按预测的地址从 L1I 取指令</text>
+  <text x="102" y="349" class="s">猜错的路径上取的全部作废</text>
+  <text x="102" y="366" class="tag"><a href="/zh/posts/branch-prediction-branch-optimization/" target="_blank" rel="noopener"><tspan>#7 推测执行</tspan></a></text>
   </g>
   <g id="decode" class="node" tabindex="0" role="button" aria-label="译码（decode）">
-  <rect x="60" y="390" width="280" height="80" rx="6" class="box"/>
-  <text x="72" y="413" class="t">译码（decode）</text>
-  <text x="72" y="431" class="s">指令 → 微操作（µop）</text>
+  <rect x="90" y="390" width="250" height="80" rx="6" class="box"/>
+  <text x="102" y="413" class="t">译码（decode）</text>
+  <text x="102" y="431" class="s">指令 → 微操作（µop）</text>
   </g>
   <g id="l1i" class="node" tabindex="0" role="button" aria-label="L1I 32 KiB（指令缓存）">
-  <rect x="60" y="490" width="280" height="80" rx="6" class="cache"/>
-  <text x="72" y="513" class="t">L1I 32 KiB（指令缓存）</text>
-  <text x="72" y="531" class="s">存指令，不存数据</text>
-  <text x="72" y="548" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 函数分组</tspan></a></text>
+  <rect x="90" y="490" width="250" height="80" rx="6" class="cache"/>
+  <text x="102" y="513" class="t">L1I 32 KiB（指令缓存）</text>
+  <text x="102" y="531" class="s">存指令，不存数据</text>
+  <text x="102" y="548" class="tag"><a href="/zh/posts/alignment-layout-cache-dram-geometry/" target="_blank" rel="noopener"><tspan>#6 函数分组</tspan></a></text>
   </g>
   <g id="rob" class="node" tabindex="0" role="button" aria-label="重命名 + ROB">
   <rect x="400" y="190" width="280" height="80" rx="6" class="box"/>
@@ -201,7 +201,7 @@ svg.dim .node.on > rect:first-of-type { stroke:#bf3989; stroke-width:3; }
   <path d="M200,270 L200,288" class="line edge" id="e_bpu_fetch" marker-end="url(#arr)"/>
   <text x="208" y="284" class="lab">下一段的地址</text>
   <path d="M200,370 L200,388" class="line edge" id="e_fetch_decode" marker-end="url(#arr)"/>
-  <path d="M60,530 L56,530 L56,340 L58,340" class="line edge" id="e_l1i_fetch" marker-end="url(#arr)"/>
+  <path d="M90,530 L70,530 L70,330 L88,330" class="line edge" id="e_l1i_fetch" marker-end="url(#arr)"/>
   <path d="M340,430 L370,430 L370,230 L398,230" class="line edge" id="e_decode_rob" marker-end="url(#arr)"/>
   <text x="374" y="290" class="lab">µop</text>
   <path d="M540,270 L540,288" class="line edge" id="e_rob_exec" marker-end="url(#arr)"/>
