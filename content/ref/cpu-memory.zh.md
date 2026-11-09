@@ -2,7 +2,7 @@
 title: "CPU 与内存：地图、数字、怎么估算"
 description: "一次访存经过哪些框，每个框多大、多快，以及怎么把这些数合起来，估一段代码的访存时间。"
 date: 2026-10-08
-lastmod: 2026-11-03
+lastmod: 2026-11-09
 slug: "cpu-memory"
 weight: 10
 toc: true
@@ -174,6 +174,94 @@ $$
 | 顺序读，预取器全力 | 约 30–70 个 | 约 15–60 GB/s（就是 2.2 的那一格） |
 
 第三行的在途请求比 LFB 的项数多，多出来的是 L2 预取器在 L2 的 MSHR 里替你挂着的。
+
+**硬件预取器：两组，各盯一级缓存**。看到有规律的地址，就替你提前把后面的行要来。两组发出的请求挂在不同的地方，所以顺序读时在途请求能超过 LFB 的项数：
+
+<svg viewBox="0 0 760 450" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="硬件预取器的位置：load / store 单元把地址交给 L1D；L1 预取器盯着 L1D 的每次访问，发出的预取请求占 LFB；L1 缺失和 L1 预取都往下问 L2；L2 预取器盯着从 L1 来的请求，发出的预取请求挂在 L2 的 MSHR 里，不占 LFB；再往下是 L3 和内存。行原路返回：L1 预取的填进 L1D，L2 预取的填进 L2，L2 忙时只填进 L3。两组都只在一个 4 KiB 页里猜" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .pf2bg  { fill: #fbfaf7; }
+    .pf2u   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .pf2c   { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.3; }
+    .pf2q   { fill: #fff8c5; stroke: #d4a72c; stroke-width: 1.2; }
+    .pf2p   { fill: #f3e8ff; stroke: #a475f9; stroke-width: 1.4; }
+    .pf2ink { fill: #1c1b18; font-size: 12.5px; }
+    .pf2sm  { fill: #1c1b18; font-size: 11.5px; }
+    .pf2mut { fill: #6b6558; font-size: 12px; }
+    .pf2hd  { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .pf2ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .pf2lw  { stroke: #8250df; stroke-width: 1.3; stroke-dasharray: 5 4; fill: none; }
+    .pf2lr  { stroke: #8250df; stroke-width: 1.6; fill: none; }
+    .pf2hh  { fill: #6b6558; }
+    .pf2hp  { fill: #8250df; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2bg { fill: #17161b; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2u { fill: #23262c; stroke: #3f4650; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2c { fill: #13283b; stroke: #3b82c4; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2q { fill: #2f2a14; stroke: #9a7a1c; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2p { fill: #2a2140; stroke: #8b6fd6; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2ink, :root:is([data-theme="dark"], [data-theme="black"]) .pf2sm, :root:is([data-theme="dark"], [data-theme="black"]) .pf2hd { fill: #e9e7ef; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2mut { fill: #a19caf; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2ln { stroke: #a19caf; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2hh { fill: #a19caf; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2lw, :root:is([data-theme="dark"], [data-theme="black"]) .pf2lr { stroke: #b69cf0; }
+  :root:is([data-theme="dark"], [data-theme="black"]) .pf2hp { fill: #b69cf0; }
+  </style>
+  <defs>
+    <marker id="pf2ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="pf2hh"/></marker>
+    <marker id="pf2ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="pf2hp"/></marker>
+  </defs>
+  <rect class="pf2bg" x="0" y="0" width="760" height="450" rx="10"/>
+  <rect class="pf2u" x="20" y="50" width="150" height="56" rx="6"/>
+  <text class="pf2hd" x="95" y="73" text-anchor="middle">load / store</text>
+  <text class="pf2sm" x="95" y="93" text-anchor="middle">AGU 算出的地址</text>
+  <path class="pf2ln" d="M170 78 H236" marker-end="url(#pf2ah)"/>
+  <rect class="pf2c" x="240" y="30" width="230" height="110" rx="8"/>
+  <text class="pf2hd" x="252" y="53">L1D</text>
+  <text class="pf2sm" x="252" y="73">命中约 1 ns</text>
+  <rect class="pf2q" x="252" y="90" width="206" height="38" rx="5"/>
+  <text class="pf2ink" x="355" y="114" text-anchor="middle">LFB（12–24 项）</text>
+  <rect class="pf2p" x="540" y="30" width="200" height="110" rx="8"/>
+  <text class="pf2hd" x="552" y="53">L1 预取器</text>
+  <text class="pf2sm" x="552" y="75">next-line：取下一条行</text>
+  <text class="pf2sm" x="552" y="95">IP-stride：同一条 load</text>
+  <text class="pf2sm" x="552" y="113">按它的步长往前取</text>
+  <path class="pf2lw" d="M470 48 H536" marker-end="url(#pf2ap)"/>
+  <text class="pf2mut" x="504" y="42" text-anchor="middle">盯访问</text>
+  <path class="pf2lr" d="M540 112 H462" marker-end="url(#pf2ap)"/>
+  <text class="pf2mut" x="504" y="106" text-anchor="middle">发请求</text>
+  <path class="pf2ln" d="M355 140 V196" marker-end="url(#pf2ah)"/>
+  <text class="pf2mut" x="364" y="173">L1 缺失、L1 预取</text>
+  <rect class="pf2c" x="240" y="200" width="230" height="110" rx="8"/>
+  <text class="pf2hd" x="252" y="223">L2</text>
+  <text class="pf2sm" x="252" y="243">命中约 3–5 ns</text>
+  <rect class="pf2q" x="252" y="260" width="206" height="38" rx="5"/>
+  <text class="pf2ink" x="355" y="284" text-anchor="middle">MSHR（30–60 项）</text>
+  <rect class="pf2p" x="540" y="200" width="200" height="110" rx="8"/>
+  <text class="pf2hd" x="552" y="223">L2 预取器</text>
+  <text class="pf2sm" x="552" y="245">streamer：一串地址往同一</text>
+  <text class="pf2sm" x="552" y="263">方向走，就往前多取几条</text>
+  <text class="pf2sm" x="552" y="283">相邻行：128 B 里成对的另一条</text>
+  <path class="pf2lw" d="M470 218 H536" marker-end="url(#pf2ap)"/>
+  <text class="pf2mut" x="504" y="212" text-anchor="middle">盯请求</text>
+  <path class="pf2lr" d="M540 282 H462" marker-end="url(#pf2ap)"/>
+  <text class="pf2mut" x="504" y="276" text-anchor="middle">发请求</text>
+  <path class="pf2ln" d="M355 310 V356" marker-end="url(#pf2ah)"/>
+  <rect class="pf2u" x="240" y="360" width="500" height="44" rx="6"/>
+  <text class="pf2hd" x="490" y="387" text-anchor="middle">L3 → 内存控制器 → 内存</text>
+  <text class="pf2hd" x="20" y="232">行原路回来</text>
+  <text class="pf2sm" x="20" y="254">L1 预取的：填进 L1D</text>
+  <text class="pf2sm" x="20" y="274">L2 预取的：填进 L2</text>
+  <text class="pf2sm" x="20" y="294">（L2 忙时只填进 L3）</text>
+  <text class="pf2mut" x="380" y="434" text-anchor="middle">两组都只在一个 4 KiB 页里猜：下一页的物理地址在哪，它们不知道。</text>
+</svg>
+
+- **L1 预取器盯着 L1D 的每次访问**：next-line 访问了一条行，就把下一条也取来；IP-stride 发现同一条 load 指令每次地址都加同一个数，就按这个步长往前取。请求占 LFB，和你自己的缺失抢同一批座位，行回来填进 L1D。
+- **L2 预取器盯着从 L1 漏下来的请求**：L1 的缺失和 L1 预取器的请求都算。streamer 发现一串地址往同一个方向走，就往前多取几条；相邻行预取把 128 B 对齐的一对行里另一条也取来。请求挂在 L2 自己的 MSHR 里，不占 LFB，行填进 L2，L2 忙时只填进 L3。
+- **两组都不跨 4 KiB 页**：它们看到的是物理地址，下一页在物理内存里放在哪，要经过页表才知道。2 MiB 大页里能一路顺着预取下去。
+- **预取也是一次读，照样改 MESI 状态**：
+  - 别的核都没有这条行，取进来是 E；别的核有干净的副本，取进来是 S，对方的 E 也降成 S。
+  - 别的核正改着它（M），对方要把数据交出来、降成 S；对方下一次写，又得先发 invalidate 作废你这份。
+  - 硬件预取器只发读请求，不会作废别人的副本。要提前拿到独占权，得用软件的 `prefetchw`，相当于提前做一次 RFO。
+- **所以相邻行预取会把隔 64 B 的两个变量也弄成伪共享**：两个核各写一个变量，隔 64 B 已经不在同一条行上，但 L2 的相邻行预取会把对方那条一起拉过来，降对方的状态，两边还是来回作废。要彻底隔开，就隔 128 B（[2.6](#cross-core)）。
 
 **软件预取提前多少**：提前一整次延迟发出，$D \approx \text{一次缺失的延迟} / \text{每处理一个元素的时间}$，例如 100 ns ÷ 5 ns = 20 个。太小照样等，太大则 LFB 不够用，或者行在 L1 里等太久被挤掉。硬件预取器通常不跨 4 KiB 页。
 
