@@ -133,7 +133,7 @@ void deallocate(T* p) {
 
 下面这个池把空闲链表和第 4 节的启动处理（4.1 预先缺页、4.2 锁页）放在一起：
 
-- **启动时一次拿到全部内存，锁住并缺完页**：`aligned_alloc` 一次分配 `capacity` 个槽，`mlock` 锁住，`memset` 把每一页写一遍（第 2 节、3.2）。
+- **启动时一次拿到全部内存，锁住并缺完页**：`aligned_alloc` 一次分配 `capacity` 个槽，`mlock` 锁住，`memset` 把每一页写一遍（4.1、4.2）。
 - **空闲槽串成一条链表，分配和释放都只动链表头**：`free_head_` 是第一个空闲槽的下标，每个空闲槽的 `next_free` 记着下一个。分配时取下链表头，释放时把槽放回链表头（1.2）。
 - **“下一个空闲槽”和对象放在同一个槽里**：就是 1.3 表里的第二种。`next_free` 就在 `Slot` 里，分配时读 `next_free` 和接着构造 `T` 碰的是同一个槽，通常是同一条缓存行。
 
@@ -194,27 +194,35 @@ class ObjectPool {
 
 ---
 
-## 2. STL 背后的 arena：一个只往前走的指针
+## 2. arena：一批对象一起用完、一起扔，分配只剩一次加法 {#arena}
 
-对象池只发一种类型 `T`。真实的热路径代码想用 `std::vector`、`std::string` 这些普通 STL 容器——又不想让这些容器碰全局堆。这就意味着要写一个满足 C++ 分配器接口、背后是程序已经拥有的内存的东西。
+对象池只发一种类型 `T`，一个一个分配、一个一个还。热路径上还有另一种用法：处理一个 tick 时，临时要一批大小不一、类型不一的对象，比如几个 `std::vector`、`std::string` 的缓冲区，tick 处理完一起扔掉。给每种对象都配一个池不现实，arena 就是为这种情况准备的。
 
-### 2.1 一个只往前走的指针
+### 2.1 一批对象同生同死：一个只往前走的指针，回收只能整块倒回 {#bump}
 
-```cpp
-struct MemoryBlock {
-  size_t used, capacity;
-  bool is_active;
-  // ...
-};
-```
+1. **arena 只记一个数：这块内存已经用掉了多少字节（`used`）**
+   - **分配三步**：把 `used` 向上取整到要求的对齐；检查 `used + size` 还装不装得下 `capacity`；装得下就把 `used` 推过这一块，返回原来的位置。
+   - **不用搜索**：下一个空闲位置永远就是指针现在的位置，没什么可找的。
+   - **比第 1 节的空闲链表还便宜**：连链表头都不用改，就是一次加法。
+   - **一块用满了**：用同样的方式接着用下一块预留的内存。
+2. **代价是不能单独释放某一次分配**
+   - **原因**：arena 不记录每次分配从哪开始、到哪结束，想还某一块也无从查起。
+   - **回收只有一种**：`reset()`，把 `used` 倒回 0，整块从头再用。
+3. **所以按对象的生命周期选**
+   - **一批对象同生同死**（一个 tick 里分配的所有临时对象）：用 arena。
+   - **生命周期参差不齐**：还是用第 1 节的池。
 
-arena 从一块预留好的内存里分配，只跟踪一个数：这块内存已经用掉了多少字节。`allocate(size)` 把当前写入位置向上取整到要求的对齐，检查 `used + size` 还装不装得下 `capacity`，装得下就直接推进 `used`、返回旧位置——不用搜索，因为根本没什么可搜的：“下一个空闲位置”永远就是指针现在所在的地方。一块用满了，arena 用同样的方式启用下一块预留的内存。这比第 1 节的空闲链表还要便宜——连链表指针交换都没有，就是一次加法——代价是没办法从中间释放单独一次分配。没有任何东西记录每次分配从哪开始、到哪结束，所以就算你想释放一个也无从查起。唯一的回收操作是全局的：把每一块的 `used` 都倒回零，从头再来。对于一批生命周期完全相同的对象——处理一个 tick 时分配的所有东西，tick 处理完一起扔掉——这是正确的取舍；对于生命周期参差的对象则不然，它们还是属于第 1 节的池。
+### 2.2 STL 容器默认找全局堆：把 arena 包成分配器，deallocate 故意什么都不做 {#stl-allocator}
 
-把这个 arena 适配到 STL 接口（`allocate`/`deallocate`/`construct`/`destroy`/`rebind`）的分配器，大部分是样板代码，知道它存在就够了，不必细究——只有一个例外：`deallocate()` 被故意写成空操作，原因和 `reset()` 是唯一回收内存的办法一样。单个对象的构造和析构仍然通过 `construct`/`destroy` 正常发生；被废掉的只有契约里“内存”的那一半。
+1. **痛点：热路径代码想用普通的 `std::vector`、`std::string`**，可它们默认从全局堆拿内存，也就是 `malloc`。
+2. **解决：把 arena 包成一个满足 C++ 分配器接口的类**，作为容器的模板参数传进去，容器的内存就都从 arena 里拿。
+   - **接口大多是样板**：`allocate`、`deallocate`、`construct`、`destroy`、`rebind`，知道它存在就够了。
+   - **唯一要注意的是 `deallocate()` 写成空操作**：arena 本来就不能单独还一块，回收只靠 `reset()`。
+   - **对象的析构照常发生**：`destroy` 还是会调析构函数，被废掉的只是“把内存还回去”这一半。
 
-### 2.2 参考实现：一个能直接用的 arena {#ref-arena}
+### 2.3 参考实现：一个能直接用的 arena {#ref-arena}
 
-arena 用于和池相反的情况：一批分配，大小可能不同、类型可能不同，最后一起释放。启动时的处理和 1.4 的池一样，分配逻辑更简单：没有空闲链表要维护，只有一个往前走的偏移 `used_`。
+启动时的处理和 1.4 的池一样（第 4 节）；分配逻辑更简单，没有空闲链表要维护，只有一个往前走的偏移 `used_`。
 
 ```cpp
 class Arena {
@@ -252,43 +260,53 @@ class Arena {
 };
 ```
 
-`allocate` 就三步：把 `used_` 向上取整到要求的对齐，检查装不装得下，把 `used_` 推过这一块。`base_` 按 64 字节对齐，所以偏移对齐了，地址也就对齐了，这也是 `alignment` 不能超过 64 的原因。
-
-**arena 不能单独释放一个对象，回收只有 `reset()` 一种**。 它不记录每次分配，所以没法单独还一块；`reset()` 也不调析构函数，放进去的对象要么是平凡析构的，要么由调用方在 `reset()` 之前自己析构。和 3.1 的多块设计相比，这里只有一块固定大小的缓冲区，更容易写对，代价是容量有硬上限，用完返回 `nullptr`。
+- **`allocate` 就是 2.1 的三步**：`base_` 按 64 字节对齐，所以偏移对齐了，地址也就对齐了，这也是 `alignment` 不能超过 64 的原因。
+- **`reset()` 不调析构函数**：放进去的对象要么是平凡析构的，要么由调用方在 `reset()` 之前自己析构。
+- **只有一块固定大小的缓冲区**：比 2.1 说的多块设计更容易写对，代价是容量有硬上限，用完返回 `nullptr`。
 
 ---
 
-## 3. std：：pmr：同一个答案，在运行时付钱
+## 3. std::pmr：分配器写进了类型，函数就不认这个容器；pmr 把它挪到运行时 {#pmr}
 
-### 3.1 把分配器从类型里挪出去
+### 3.1 分配器是类型的一部分：换了分配器，函数就不认；pmr 改成一个运行时指针 {#allocator-in-type}
 
-第 2 节的自定义分配器有一个类型系统不会提醒你的锋利边缘：`std::vector<int>` 和 `std::vector<int, LowLatencyAllocator<int>>` 是两个毫不相干的类型。分配器是模板参数——是容器类型的一部分，不是一个运行时设置——所以一个写成接收 `std::vector<int>&` 的函数，会直接拒绝 arena 版本，每个需要两者都接收的函数也得在分配器上模板化。
+1. **痛点：第 2 节的分配器是容器的模板参数**
+   - **`std::vector<int>` 和 `std::vector<int, LowLatencyAllocator<int>>` 是两个毫不相干的类型**。
+   - **后果**：一个写成接收 `std::vector<int>&` 的函数，不接受 arena 版本；想两种都收，每个函数都得在分配器上写成模板。
+2. **解决：`std::pmr`（C++17）把“用哪种分配策略”从类型里挪到一个运行时指针**
+   - **`std::pmr::memory_resource` 是抽象基类**：具体的分配策略继承它，实现 `do_allocate`、`do_deallocate`、`do_is_equal`。
+   - **所有 pmr 容器都用同一个 `polymorphic_allocator<T>`**：它里面只有一个 `memory_resource*`。
+   - **所以 `std::pmr::vector<int>` 背后不管是哪个 resource，都是同一个类型**：随便传、随便赋值、随便返回。
+3. **代价在每一次分配时付**
+   - **每次分配都要通过那个指针做一次虚调用**；第 2 节的分配器类型在编译期就知道，可以整个内联掉。
+   - **这就是静态多态和动态多态的取舍**（[#8](/zh/posts/crtp-static-polymorphism/)），只是这次用在了内存上。
 
-`std::pmr`（C++17）用相反的方式解决同一个“让 STL 用我的分配策略”的问题：把策略的选择从类型里挪出去，放进一个运行时指针。`std::pmr::memory_resource` 是一个抽象基类——`do_allocate`、`do_deallocate`、`do_is_equal`——任何具体的分配策略都通过继承它来表达。所有 `std::pmr` 容器都用同一个统一的 `std::pmr::polymorphic_allocator<T>`，它里面只有一个 `memory_resource*`；因为这个指针具体指向什么不是类型的一部分，`std::pmr::vector<int>` 不管背后是哪个 resource，永远是同一个类型——随便传、随便赋值、随便返回，不用任何模板体操。代价在每一次分配时付：通过那个指针的一次虚调用，运行时分派，而第 3 节的版本里具体的分配器类型在编译期就知道，可以被完全内联掉。这正是 C++ 程序员在虚函数和模板之间早就在权衡的静态多态 vs 动态多态，只是这次用在了内存本身上。
+### 3.2 标准库自带的 resource，对应第 1 节和第 2 节 {#std-resources}
 
-### 3.2 标准库自带的 resource，对应第 1 节和第 2 节
+- **`monotonic_buffer_resource` 就是标准化的第 2 节 arena**：只往前分配，一起释放，不能单独回收。构造时可以交给它一块调用者准备好的缓冲区，比如栈上的一个 `std::array`。
+  - **缓冲区用完时它会去找上游 resource，默认的上游就是 `new`**：等于在热路径上悄悄 `malloc`。
+  - **上游设成 `std::pmr::null_memory_resource()`**：用完就抛 `std::bad_alloc`，容量不够立刻暴露出来。
+- **`unsynchronized_pool_resource` 更接近第 1 节的池**：推广到多种对象大小，按大小类别各管一组槽。
+- **`synchronized_pool_resource` 是它的线程安全版**：代价是一把锁，正是这篇想避开的那一类竞争。
 
-标准库自带了几个 resource，直接对应前面讲过的东西：
+### 3.3 resource 只被指着、不被拥有：它先销毁，容器就悬空 {#lifetime}
 
-- **`monotonic_buffer_resource`** 就是标准化的第 2 节 arena：只往前分配，一起释放，不能单独回收。它甚至接受调用者提供的初始缓冲区（比如栈上的一个 `std::array`），外加一个溢出时用的后备 resource——标准库版本的 `allow_fallback_` 参数。
-- **`unsynchronized_pool_resource`** 更接近第 1 节的池，推广到了多种对象大小而不是一个固定类型，按大小类别管理成一个个 “slab”。
-- **`synchronized_pool_resource`** 是上面那个的线程安全版——名字已经说明了它的代价：一把锁，正是这整篇文章想要避免的那一类竞争。
+1. **痛点：`std::pmr::vector` 看上去和普通值类型一样，按值返回好像很安全**
+   - **但 `polymorphic_allocator` 只指向它的 resource，不拥有它**：resource 是局部变量时，返回 vector 并不能让 resource 活得更久。
 
-### 3.3 生命周期陷阱
+   ```cpp
+   auto create_vec() -> std::pmr::vector<int> {
+     auto resource = PrintingResource{};           // 局部变量，出作用域就销毁
+     auto vec = std::pmr::vector<int>{&resource};  // vec 只存了 &resource
+     return vec;                                   // resource 在这里被销毁
+   }
+   auto vec = create_vec();
+   vec.emplace_back(1);  // 未定义行为
+   ```
 
-`std::pmr::vector` 看上去和普通的值类型一模一样——按值返回一个，似乎和返回任何别的 `std::vector` 一样安全。并不是，原因很具体：`polymorphic_allocator` 只是*指向*它的 `memory_resource`，从不拥有它。如果那个 resource 是一个局部变量，返回 vector 对延长 resource 的生命周期毫无帮助：
-
-```cpp
-auto create_vec() -> std::pmr::vector<int> {
-  auto resource = PrintingResource{};           // 局部变量,出作用域就销毁
-  auto vec = std::pmr::vector<int>{&resource};  // vec 只存了 &resource
-  return vec;                                   // resource 在这里被销毁
-}
-auto vec = create_vec();
-vec.emplace_back(1);  // 未定义行为
-```
-
-`vec` 本身干干净净地移出来了——没有深拷贝，返回这一步看不出任何问题。危险在调用处是看不见的，恰恰因为 `std::pmr::vector<int>` 摆出和 `std::vector<int>` 一样的值语义，却并不拥有它的正确性所依赖的那个东西。这逼出来的规则毫不起眼，但没有例外：`memory_resource` 的生命周期必须长过建在它上面的每一个容器——这通常意味着它得住在一个严格更外层的作用域里，绝不能放在那个只是构造并返回容器的函数里面。
+   - **返回这一步看不出问题**：`vec` 本身正常移出来，没有深拷贝；可它指着的 resource 已经没了，之后再往里加元素就是未定义行为。
+2. **规则：resource 的生命周期必须长过建在它上面的每一个容器**
+   - **放在更外层的作用域里**：不能放在“构造并返回容器”的那个函数里。
 
 ### 3.4 对象池、arena 还是 std::pmr：看对象怎么释放 {#which}
 
