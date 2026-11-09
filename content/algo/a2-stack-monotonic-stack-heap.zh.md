@@ -2,7 +2,8 @@
 title: "A2（上）：栈、单调栈、堆"
 date: 2026-11-05
 slug: "a2-stack-monotonic-stack-heap"
-description: "三样维护候选的结构：栈取最近一个还没配对的；单调栈把以后永远用不上的候选提前扔掉，一遍求出每个元素左右第一个更大或更小的，再拿这对边界算最大矩形、做贡献计数；单调队列求滑窗最值；堆随时取最值，用来做 Top K、多路归并、两个堆维护中位数，删不了中间的元素时用懒删除。附 9 道练习题。"
+description: "三样维护候选的结构：栈取最近一个还没配对的；单调栈把以后永远用不上的候选提前扔掉，一遍求出每个元素左右第一个更大或更小的，再拿这对边界算最大矩形、做贡献计数；单调队列求滑窗最值；堆随时取最值，用来做 Top K、多路归并、两个堆维护中位数，删不了中间的元素时用懒删除。附 9 道练习题，必做 5 道有逐题讲解。"
+lastmod: 2026-11-09
 weight: 2
 math: true
 toc: true
@@ -372,6 +373,135 @@ toc: true
 7. [LeetCode 907 子数组的最小值之和](https://leetcode.cn/problems/sum-of-subarray-minimums/)：贡献法，一边带等号、一边不带。
 8. [LeetCode 215 数组中的第 K 个最大元素](https://leetcode.cn/problems/kth-largest-element-in-an-array/)：大小为 $k$ 的小根堆，或 `nth_element`。
 9. [LeetCode 862 和至少为 K 的最短子数组](https://leetcode.cn/problems/shortest-subarray-with-sum-at-least-k/)：前缀和上的单调队列，有负数。
+
+## 练习讲解
+
+必做 5 道，每题按“题意和范围 → 思路 → 代码 → 复杂度和坑”讲。代码是赛时的短写法，都用题目样例跑过。
+
+### 练习 1：LC 739 每日温度，单调栈找右边第一个更大的
+
+- **题意**：对每一天，求还要等几天才有更高的温度，没有就填 0。$n \le 10^5$。
+- **栈里只放还没等到更高温度的日子**：新的一天进来，把栈顶比它低的都弹出；弹出的那天，答案就是今天（2.1）。
+- **栈的单调是结果，不用刻意维护**：比新元素低的都被弹走了，剩下的从栈底到栈顶自然递减。
+
+```cpp
+vector<int> dailyTemperatures(vector<int>& t){
+    int n=t.size();vector<int> ans(n),st;
+    for(int i=0;i<n;i++){
+        while(st.size()&&t[st.back()]<t[i])ans[st.back()]=i-st.back(),st.pop_back();
+        st.push_back(i);
+    }
+    return ans;
+}
+```
+
+- **复杂度**：$O(n)$，每个下标进栈、出栈各一次。
+- **坑**：
+  - **栈里存下标，不存温度**：要算隔了几天。
+  - **题目要“更高”，相等的不算**：比较用 `<`。
+
+### 练习 2：LC 84 柱状图中最大的矩形，以每根柱子为最矮的那根
+
+- **题意**：给每根柱子的高度，求能勾出的最大矩形面积。$n \le 10^5$。
+- **假设某根柱子是矩形里最矮的**：矩形从它向两边延伸，碰到比它矮的就停，所以要找每根柱子左右两边第一个更矮的（2.3）。
+- **一次弹栈就拿到两边**：
+  - **柱子被弹出时，弹它的 $i$ 就是右边第一个更矮的**。
+  - **弹出后的新栈顶是左边第一个更矮的 $L$**：宽度是 $i - L - 1$。
+- **末尾补一个高度 0 的哨兵**：扫到它时，栈里剩下的柱子全部弹出结算。
+
+```cpp
+int largestRectangleArea(vector<int>& h){
+    h.push_back(0);int n=h.size(),ans=0;vector<int> st;
+    for(int i=0;i<n;i++){
+        while(st.size()&&h[st.back()]>=h[i]){
+            int H=h[st.back()];st.pop_back();
+            int L=st.empty()?-1:st.back();
+            ans=max(ans,H*(i-L-1));
+        }
+        st.push_back(i);
+    }
+    h.pop_back();return ans;
+}
+```
+
+- **复杂度**：$O(n)$。
+- **坑**：
+  - **用 `>=` 弹栈时，等高柱子里先被弹的那根宽度算短了**：但最右边那根会算对，答案不受影响。
+  - **栈空时左边界取 −1**。
+
+### 练习 3：LC 239 滑动窗口最大值，单调队列
+
+- **题意**：窗口长度 k，从左滑到右，输出每个窗口的最大值。$n \le 10^5$。
+- **队列里存下标，对应的值从队头到队尾递减**（2.5）：
+  - **队尾**：新元素进来，比它小的老元素以后再也当不了最大值，因为新元素更大，还活得更久。
+  - **队头**：下标滑出窗口的扔掉。
+  - **队头就是当前窗口的最大值**。
+
+```cpp
+vector<int> maxSlidingWindow(vector<int>& a,int k){
+    deque<int> q;vector<int> ans;
+    for(int i=0;i<(int)a.size();i++){
+        while(q.size()&&a[q.back()]<=a[i])q.pop_back();
+        q.push_back(i);
+        if(q.front()<=i-k)q.pop_front();
+        if(i>=k-1)ans.push_back(a[q.front()]);
+    }
+    return ans;
+}
+```
+
+- **复杂度**：$O(n)$。
+- **坑**：
+  - **队列存下标才能判断过期**。
+  - **窗口满了（$i \ge k-1$）才输出**。
+- **滚动最大值因子就是这道题**：一条一条来的版本见[手撕 1.2](/zh/algo/handwrite-8/#12-滚动最大值单调队列)。
+
+### 练习 4：LC 23 合并 K 个升序链表，小根堆多路归并
+
+- **题意**：k 条升序链表合成一条。$k \le 10^4$，节点总数 $\le 10^4$。
+- **堆里放每条链表当前的头**：每次取最小的接到结果后面，再把它的下一个放进堆（3.3）。
+- **比较器写 `a->val > b->val` 才是小根堆**：`priority_queue` 的堆顶是排在最后的那个（3.1）。
+
+```cpp
+ListNode* mergeKLists(vector<ListNode*>& ls){
+    auto cmp=[](ListNode*a,ListNode*b){return a->val>b->val;};
+    priority_queue<ListNode*,vector<ListNode*>,decltype(cmp)> pq(cmp);
+    for(auto p:ls)if(p)pq.push(p);
+    ListNode d(0),*t=&d;
+    while(pq.size()){auto p=pq.top();pq.pop();t=t->next=p;if(p->next)pq.push(p->next);}
+    return d.next;
+}
+```
+
+- **复杂度**：$O(N \log k)$，$N$ 是节点总数。
+- **坑**：
+  - **空链表不能放进堆**：解引用空指针。
+  - **用哑节点 `d` 作头**：不用单独处理第一个节点。
+- **面试时可以接一句**：多路行情按交易所时间戳合并成一条流，用的就是这个。
+
+### 练习 5：LC 295 数据流的中位数，两个堆
+
+- **题意**：不断加数，随时查中位数。操作 $\le 5 \times 10^4$ 次。
+- **大根堆 `lo` 装小的一半，小根堆 `hi` 装大的一半**（3.4），保持两条规则：
+  - **`lo` 的最大不超过 `hi` 的最小**。
+  - **`lo` 的个数等于 `hi`，或者多 1 个**：中位数要么是 `lo` 的堆顶，要么是两个堆顶的平均。
+- **加数时先进 `lo`，再把 `lo` 最大的挪去 `hi`**：这样大小关系一定对；`hi` 多了，再把 `hi` 最小的挪回来。
+
+```cpp
+struct MedianFinder{
+    priority_queue<int> lo; priority_queue<int,vector<int>,greater<>> hi;
+    void addNum(int x){
+        lo.push(x);hi.push(lo.top());lo.pop();
+        if(hi.size()>lo.size())lo.push(hi.top()),hi.pop();
+    }
+    double findMedian(){return lo.size()>hi.size()?lo.top():(lo.top()+hi.top())/2.0;}
+};
+```
+
+- **复杂度**：加数 $O(\log n)$，查询 $O(1)$。
+- **坑**：
+  - **求平均除以 `2.0`，不是 `2`**：整数除法会把 .5 截掉。
+  - **滑动窗口版要删过期元素，堆删不了中间的**：加懒删除，或者换成 `multiset`，见[手撕 1.3](/zh/algo/handwrite-8/#13-滚动中位数两个-multiset)。
 
 ## 和地图上其他格子的连接
 
