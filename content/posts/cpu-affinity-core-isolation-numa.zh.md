@@ -415,7 +415,7 @@ NUMA 讲的是内存离核有远有近。AMD 的 CPU 在一颗芯片里面又多
   <text class="iq5hd" x="78" y="407" text-anchor="middle">网卡</text>
   <text class="iq5sm" x="78" y="427" text-anchor="middle">接收队列 0</text>
   <rect class="iq5mem" x="230" y="364" width="300" height="96" rx="6"/>
-  <text class="iq5hd" x="380" y="384" text-anchor="middle">接收环（映射进进程）</text>
+  <text class="iq5hd" x="380" y="384" text-anchor="middle">内存里的接收环，也映射进了进程</text>
   <rect class="iq5full" x="246" y="396" width="28" height="24" rx="3"/>
   <rect class="iq5full" x="278" y="396" width="28" height="24" rx="3"/>
   <rect class="iq5cell" x="310" y="396" width="28" height="24" rx="3"/>
@@ -424,7 +424,7 @@ NUMA 讲的是内存离核有远有近。AMD 的 CPU 在一颗芯片里面又多
   <rect class="iq5cell" x="406" y="396" width="28" height="24" rx="3"/>
   <rect class="iq5cell" x="438" y="396" width="28" height="24" rx="3"/>
   <rect class="iq5cell" x="470" y="396" width="28" height="24" rx="3"/>
-  <text class="iq5mut" x="380" y="444" text-anchor="middle">还是同一种环，只是你的进程能直接读</text>
+  <text class="iq5mut" x="380" y="444" text-anchor="middle">还在同一块内存里，你的代码用普通的读就能读到</text>
   <path class="iq5ln" d="M128 408 H242" marker-end="url(#iq5a)"/>
   <text class="iq5sm" x="185" y="400" text-anchor="middle">① DMA 写包</text>
   <rect class="iq5hot" x="600" y="372" width="132" height="80" rx="6"/>
@@ -479,6 +479,9 @@ NUMA 讲的是内存离核有远有近。AMD 的 CPU 在一颗芯片里面又多
 ### 5.4 内核旁路：把第 ②–⑤ 步全删掉 {#kernel-bypass}
 
 1. **接收环直接映射进你的进程**
+   - **环还在原来那块内存里，网卡照样往那里 DMA**：变的是谁能读到它。
+   - **映射进进程，是把这几页物理内存也登记进你进程的页表**：你的代码拿到一个虚拟地址，用普通的读指令就能读到网卡写进去的包。
+   - **走内核时，这几页只在内核的页表里**：用户态碰不到，只能等 `recv` 把包拷出来，所以多一次拷贝。
    - **做法**：Solarflare 的 onload、ef_vi，或者 DPDK，都是这个思路。
    - **热线程在核 3 上忙轮询下一项描述符的“已填好”标志**：网卡 DMA 一写完，下一次轮询就能看到，直接读包。
 2. **DMA 还在，其余都不在了**
