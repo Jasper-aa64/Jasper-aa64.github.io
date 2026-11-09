@@ -252,7 +252,7 @@ toc: true
 ### 2.2 SPSC 环形队列：一个写、一个读，不加锁
 
 1. **题目：一个线程写、一个线程读的定长队列，`try_push` 满了返回 false，`try_pop` 空了返回 false**
-   - **完整的讲解在 [无锁队列 1.1](/zh/posts/lock-free-queue-logger-micro-batching/#spsc-ring)**，这里是手写时要写出来的最短版本。
+   - **完整的讲解在 [无锁队列 1.2](/zh/posts/lock-free-queue-logger-micro-batching/#spsc-ring)**，这里是手写时要写出来的最短版本。
 
 2. **两个下标只增不减，靠掩码落到槽位上**
 
