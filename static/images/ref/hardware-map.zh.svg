@@ -58,7 +58,7 @@
   <text x="102" y="431" class="s">指令 → 微操作（µop）</text>
   <rect x="90" y="490" width="250" height="80" rx="6" class="cache"/>
   <text x="102" y="513" class="t">L1I 32 KiB（指令缓存）</text>
-  <text x="102" y="531" class="s">存指令，不存数据</text>
+  <text x="102" y="531" class="s">存指令；旁边的 iTLB 翻译取指地址</text>
   <text x="102" y="548" class="tag">#6 函数分组</text>
   <rect x="400" y="190" width="280" height="80" rx="6" class="box"/>
   <text x="412" y="213" class="t">重命名 + ROB</text>
@@ -79,7 +79,7 @@
   <text x="412" y="547" class="tag">#6 存储类别</text>
   <rect x="730" y="190" width="290" height="80" rx="6" class="buf"/>
   <text x="742" y="213" class="t">dTLB（数据 TLB，地址翻译）</text>
-  <text x="742" y="231" class="s">没命中：从 CR3 指的根往下走 4 级</text>
+  <text x="742" y="231" class="s">没命中查 STLB，再没有才走 4 级页表</text>
   <text x="742" y="248" class="tag">#6 2 MiB 大页 · #3 TLB shootdown</text>
   <text x="742" y="265" class="tag">速查 2.1 TLB 覆盖范围</text>
   <rect x="730" y="290" width="138" height="180" rx="6" class="buf"/>
