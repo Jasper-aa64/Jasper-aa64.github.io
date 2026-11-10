@@ -437,16 +437,24 @@ class Arena {
 template <typename T>
 class ConcurrentPool {
   struct Slot {
-    alignas(T) unsigned char storage[sizeof(T)];  // 对象构造在这里；放在第一个，对象地址就是槽地址
-    std::atomic<std::uint32_t> next;              // 空闲时：下一个空闲槽的下标
+    // 对象就构造在这段字节上；放在第一个成员，对象地址就是槽地址
+    alignas(T) unsigned char storage[sizeof(T)];
+    // 空闲时：下一个空闲槽的下标（单独占字节、做成原子，原因见 5.5）
+    std::atomic<std::uint32_t> next;
   };
-  static constexpr std::uint32_t kNil = UINT32_MAX;   // 链表尾；栈空时栈顶就是它
+
+  // 链表尾：栈空时，栈顶下标就是它
+  static constexpr std::uint32_t kNil = UINT32_MAX;
+
+  // 打包：高 32 位放版本号，低 32 位放槽的下标
   static std::uint64_t pack(std::uint32_t ver, std::uint32_t idx) {
-    return (std::uint64_t(ver) << 32) | idx;      // 高 32 位版本号，低 32 位下标
+    return (std::uint64_t(ver) << 32) | idx;
   }
 
-  Slot* slots_;                                   // 分配、mlock、memset、串链表同 1.4
-  std::atomic<std::uint64_t> head_;               // （版本号，栈顶下标），初值 pack(0, 0)
+  // 槽数组：分配、mlock、memset、串链表同 1.4
+  Slot* slots_;
+  // 链表头 =（版本号，栈顶下标），初值 pack(0, 0)
+  std::atomic<std::uint64_t> head_;
 ```
 
 - **用下标不用指针，是为了和版本号一起装进 64 位**：普通的 64 位 CAS（x86 上是 `lock cmpxchg`）一次就把两样一起比较。
@@ -458,47 +466,72 @@ class ConcurrentPool {
  public:
   template <typename... Args>
   T* allocate(Args&&... args) {
-    std::uint64_t old = head_.load(std::memory_order_acquire);              // ① 读栈顶：版本号 + 下标
+    // 1. 读栈顶的打包值（版本号 + 下标）
+    //    acquire：看得到上一个使用者释放时写下的内容和 next
+    std::uint64_t old = head_.load(std::memory_order_acquire);
     for (;;) {
-      std::uint32_t idx = static_cast<std::uint32_t>(old);                  // ② 低 32 位是栈顶的下标
-      if (idx == kNil) return nullptr;                                      //    池用完了
-      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);   // ③ 栈顶下面那个槽，可能已过时
-      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);  // ④ 新栈顶：版本 + 1，下标换成 next
-      if (head_.compare_exchange_weak(old, desired,                         // ⑤ head_ 还等于 old，才换成 desired
-                                      std::memory_order_acquire,            //    成功
-                                      std::memory_order_acquire))           //    失败：old 已换成最新值，回到 ②
-        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);  // ⑥ 槽归我了，原地构造对象
+      // 2. 拆出低 32 位：栈顶槽的下标；是 kNil 说明池用完了
+      std::uint32_t idx = static_cast<std::uint32_t>(old);
+      if (idx == kNil) return nullptr;
+
+      // 3. 读栈顶下面那个槽的下标
+      //    这时它可能已经被别的线程改过，过时的值会在第 5 步被筛掉
+      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);
+
+      // 4. 算出新栈顶：版本号 + 1，下标换成 next
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);
+
+      // 5. CAS：head_ 还等于 old（下标和版本号都没变），才换成 desired
+      //    失败时 old 被自动换成最新值，回到第 2 步重来
+      if (head_.compare_exchange_weak(old, desired,
+                                      std::memory_order_acquire,     // 成功
+                                      std::memory_order_acquire)) {  // 失败：接着要读新栈顶的 next
+        // 6. 这个槽已经从栈上摘下来、只属于我，在它的字节上原地构造对象
+        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);
+      }
     }
   }
 ```
 
-- **③ 读到的 `next` 过时了也没关系**：① 到 ⑤ 之间有别的线程动过 `head_`，版本号就变了，⑤ 一定失败，过时的 `next` 跟着被丢掉。
-- **⑤ 比较的是整个 64 位**：栈顶下标哪怕又变回了 X，版本号也对不上。5.3 表里时刻 4 的那次 CAS，就是在这里失败的。
-- **失败时 `old` 已经是最新值**：所以循环里不用再 `load`，直接从 ② 重来。`weak` 版本偶尔会无故失败，反正在循环里，重试一次就好。
-- **只有 CAS 成功的线程才走到 ⑥**：这个槽已经从栈上摘下来、只属于它，这时才构造对象。
+- **第 3 步读到的 `next` 过时了也没关系**：第 1 步到第 5 步之间有别的线程动过 `head_`，版本号就变了，第 5 步一定失败，过时的 `next` 跟着被丢掉。
+- **第 5 步比较的是整个 64 位**：栈顶下标哪怕又变回了 X，版本号也对不上。5.3 表里时刻 4 的那次 CAS，就是在这里失败的。
+- **失败时 `old` 已经是最新值**：所以循环里不用再 `load`，直接从第 2 步重来。`weak` 版本偶尔会无故失败，反正在循环里，重试一次就好。
+- **只有 CAS 成功的线程才走到第 6 步**：这个槽只属于它，这时才构造对象。
 
 **第三段：`deallocate`，把槽压回栈顶**
 
 ```cpp
   void deallocate(T* obj) {
-    obj->~T();                                                              // ① 先析构
+    // 1. 先析构对象，槽里只剩原始字节
+    obj->~T();
+
+    // 2. 由对象地址倒推回槽地址，再算出槽的下标
     auto* slot = reinterpret_cast<Slot*>(
-        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));   // ② 对象地址 → 槽地址
-    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);          //    槽地址 → 下标
+        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));
+    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);
+
     std::uint64_t old = head_.load(std::memory_order_relaxed);
     for (;;) {
-      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);  // ③ 我的 next = 当前栈顶
-      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);  // ④ 新栈顶：版本 + 1，下标换成我
-      if (head_.compare_exchange_weak(old, desired,                         // ⑤ 栈顶没变，才压上去
-                                      std::memory_order_release,            //    成功：析构和 next 一起发布
-                                      std::memory_order_relaxed))           //    失败：回到 ③，next 改指新栈顶
+      // 3. 让这个槽的 next 指向当前栈顶
+      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);
+
+      // 4. 算出新栈顶：版本号 + 1，下标换成这个槽
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);
+
+      // 5. CAS：栈顶没变，才把这个槽压上去
+      //    release：析构和刚写的 next 一起发布给下一个拿到它的线程
+      //    失败说明栈顶换了，回到第 3 步，让 next 指向新栈顶
+      if (head_.compare_exchange_weak(old, desired,
+                                      std::memory_order_release,
+                                      std::memory_order_relaxed)) {
         return;
+      }
     }
   }
 };
 ```
 
-- **③ 每一轮都要重写 `next`**：CAS 失败说明栈顶换了，`next` 必须指向新的栈顶，再试一次。
+- **第 3 步每一轮都要重写 `next`**：CAS 失败说明栈顶换了，`next` 必须指向新的栈顶，再试一次。
 - **压回栈顶，后进先出**：刚还回来的槽下一次最先被发出去，它多半还在缓存里。
 - **入栈时也给版本号加 1**：严格说只靠出栈时加就防得住 ABA，因为一个槽要被别人拿走再还回来，中间一定有一次出栈；每改一次都加 1，规则更简单。
 

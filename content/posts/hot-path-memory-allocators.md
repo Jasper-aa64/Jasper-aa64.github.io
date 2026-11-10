@@ -481,16 +481,24 @@ Read the code in three segments: how the slots and the list head are laid out, t
 template <typename T>
 class ConcurrentPool {
   struct Slot {
-    alignas(T) unsigned char storage[sizeof(T)];  // the object is constructed here; first member, so object address = slot address
-    std::atomic<std::uint32_t> next;              // while free: index of the next free slot
+    // The object is constructed on these bytes; as the first member, object address = slot address
+    alignas(T) unsigned char storage[sizeof(T)];
+    // While free: index of the next free slot (bytes of its own and atomic, see 5.5)
+    std::atomic<std::uint32_t> next;
   };
-  static constexpr std::uint32_t kNil = UINT32_MAX;   // end of the list; when the stack is empty, the top is this
+
+  // End of the list: when the stack is empty, the top index is this
+  static constexpr std::uint32_t kNil = UINT32_MAX;
+
+  // Pack: version in the high 32 bits, slot index in the low 32 bits
   static std::uint64_t pack(std::uint32_t ver, std::uint32_t idx) {
-    return (std::uint64_t(ver) << 32) | idx;      // high 32 bits: version, low 32 bits: index
+    return (std::uint64_t(ver) << 32) | idx;
   }
 
-  Slot* slots_;                                   // allocation, mlock, memset and list setup as in 1.4
-  std::atomic<std::uint64_t> head_;               // (version, index of the top), initially pack(0, 0)
+  // The slot array: allocation, mlock, memset and list setup as in 1.4
+  Slot* slots_;
+  // List head = (version, index of the top), initially pack(0, 0)
+  std::atomic<std::uint64_t> head_;
 ```
 
 - **Indices instead of pointers, so that the index fits into 64 bits together with the version**: one ordinary 64-bit CAS (`lock cmpxchg` on x86) compares both at once.
@@ -502,47 +510,72 @@ class ConcurrentPool {
  public:
   template <typename... Args>
   T* allocate(Args&&... args) {
-    std::uint64_t old = head_.load(std::memory_order_acquire);              // ① read the top: version + index
+    // 1. Read the packed top (version + index)
+    //    acquire: see what the previous user wrote, and the next written when it was freed
+    std::uint64_t old = head_.load(std::memory_order_acquire);
     for (;;) {
-      std::uint32_t idx = static_cast<std::uint32_t>(old);                  // ② the low 32 bits are the top's index
-      if (idx == kNil) return nullptr;                                      //    the pool is used up
-      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);   // ③ the slot under the top; may be stale
-      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);  // ④ new top: version + 1, index becomes next
-      if (head_.compare_exchange_weak(old, desired,                         // ⑤ only if head_ still equals old, set it to desired
-                                      std::memory_order_acquire,            //    success
-                                      std::memory_order_acquire))           //    failure: old now holds the latest value, back to ②
-        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);  // ⑥ the slot is mine; construct the object in place
+      // 2. The low 32 bits are the top slot's index; kNil means the pool is used up
+      std::uint32_t idx = static_cast<std::uint32_t>(old);
+      if (idx == kNil) return nullptr;
+
+      // 3. Read the index of the slot under the top
+      //    Another thread may already have changed it; step 5 filters out a stale value
+      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);
+
+      // 4. The new top: version + 1, index becomes next
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);
+
+      // 5. CAS: only if head_ still equals old (index and version unchanged), set it to desired
+      //    On failure old is replaced with the latest value; back to step 2
+      if (head_.compare_exchange_weak(old, desired,
+                                      std::memory_order_acquire,     // success
+                                      std::memory_order_acquire)) {  // failure: the next round reads the new top's next
+        // 6. The slot is off the stack and mine alone; construct the object on its bytes
+        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);
+      }
     }
   }
 ```
 
-- **A stale `next` read at ③ does no harm**: if another thread touched `head_` between ① and ⑤, the version has changed, ⑤ is certain to fail, and the stale `next` is thrown away with it.
-- **⑤ compares all 64 bits**: even if the top's index has come back to X, the version won't match. The CAS at moment 4 in the table of 5.3 fails right here.
-- **On failure `old` already holds the latest value**: so the loop doesn't need another `load` and starts again from ②. The `weak` version occasionally fails for no reason; since it's in a loop anyway, one more try handles it.
-- **Only the thread whose CAS succeeds reaches ⑥**: the slot is already off the stack and belongs to it alone, and only then is the object constructed.
+- **A stale `next` read at step 3 does no harm**: if another thread touched `head_` between steps 1 and 5, the version has changed, step 5 is certain to fail, and the stale `next` is thrown away with it.
+- **Step 5 compares all 64 bits**: even if the top's index has come back to X, the version won't match. The CAS at moment 4 in the table of 5.3 fails right here.
+- **On failure `old` already holds the latest value**: so the loop doesn't need another `load` and starts again from step 2. The `weak` version occasionally fails for no reason; since it's in a loop anyway, one more try handles it.
+- **Only the thread whose CAS succeeds reaches step 6**: the slot belongs to it alone, and only then is the object constructed.
 
 **Segment 3: `deallocate`, pushing a slot back on top of the stack**
 
 ```cpp
   void deallocate(T* obj) {
-    obj->~T();                                                              // ① destroy first
+    // 1. Destroy the object first; the slot is left with raw bytes
+    obj->~T();
+
+    // 2. Work back from the object address to the slot address, then to the slot index
     auto* slot = reinterpret_cast<Slot*>(
-        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));   // ② object address → slot address
-    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);          //    slot address → index
+        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));
+    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);
+
     std::uint64_t old = head_.load(std::memory_order_relaxed);
     for (;;) {
-      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);  // ③ my next = the current top
-      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);  // ④ new top: version + 1, index becomes mine
-      if (head_.compare_exchange_weak(old, desired,                         // ⑤ push only if the top hasn't changed
-                                      std::memory_order_release,            //    success: publish the destruction and next together
-                                      std::memory_order_relaxed))           //    failure: back to ③, next re-pointed at the new top
+      // 3. Point this slot's next at the current top
+      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);
+
+      // 4. The new top: version + 1, index becomes this slot
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);
+
+      // 5. CAS: push the slot only if the top hasn't changed
+      //    release: publish the destruction and the new next to the next thread that takes it
+      //    Failure means the top changed; back to step 3 to point next at the new top
+      if (head_.compare_exchange_weak(old, desired,
+                                      std::memory_order_release,
+                                      std::memory_order_relaxed)) {
         return;
+      }
     }
   }
 };
 ```
 
-- **③ rewrites `next` on every round**: a failed CAS means the top changed, so `next` must point at the new top before trying again.
+- **Step 3 rewrites `next` on every round**: a failed CAS means the top changed, so `next` must point at the new top before trying again.
 - **Pushed back on top, last in, first out**: the slot just returned is the first to go out next time, and it is most likely still in cache.
 - **The version goes up by 1 on push too**: strictly, bumping it only on pop is enough to stop ABA, because for a slot to be taken by someone and returned, there must be a pop in between; bumping on every change keeps the rule simpler.
 
