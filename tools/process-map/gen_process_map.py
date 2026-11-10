@@ -106,7 +106,7 @@ node('tstack', (189, 760, 266, 134), 'mmap',
 node('filemap', (470, 760, 266, 134), 'mmap',
      zh=dict(title='文件映射、共享内存',
              lines=['mmap 文件：读写的就是页缓存', '/dev/shm：几个进程映射同一批页', '大页（hugetlbfs）也映射在这里'],
-             tags=[[('#5 2 放进共享内存', post('zh', SPMC, '2-放进共享内存'))]],
+             tags=[[('#5 2 放进共享内存', post('zh', SPMC, 'shared-memory'))]],
              panel=['mmap 一个文件，读写这段内存就是直接读写内核的页缓存，省掉 read、write 在内核缓冲和用户缓冲之间的那次拷贝。',
                     'shm_open 加 mmap（/dev/shm 下的文件）让几个进程把同一批物理页映射进各自的地址空间。同样的字节，在每个进程里的虚拟地址可以不同，所以共享内存里不能存指针，只能存偏移。',
                     'hugetlbfs 的大页、MAP_ANONYMOUS 的匿名映射也都在这一区。']))

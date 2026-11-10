@@ -769,6 +769,10 @@ Each is one type definition, and each compiles as fast as hand-written code. By 
 
 ## In Practice {#in-practice}
 
+The branch elimination of Part 2 matches the {{% bottleneck-ref "unpredictable-branch" "plain" %}} card below: what perf shows, how to trace it to the line, when to change it and when not to.
+
+{{% bottleneck "unpredictable-branch" %}}
+
 The hot/cold splitting of 3.2 matches the {{% bottleneck-ref "cold-path" "plain" %}} card below: which calls count as cold, how to mark them, how to confirm.
 
 {{% bottleneck "cold-path" %}}

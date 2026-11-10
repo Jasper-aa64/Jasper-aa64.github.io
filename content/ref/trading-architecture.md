@@ -111,7 +111,7 @@ The backlog sits in the rings and queues: backlog = (arrival rate − service ra
 
 ### 3.6 Side Paths Must Never Block the Hot Path {#side-rule}
 
-A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often keeps them from taking the producer's line on every message ([#5 1.6.5](/posts/spmc-shared-memory-broadcast-ring/#165-how-should-a-reader-wait)).
+A hot thread logs or hands data to the recorder by writing one entry into a queue or ring and moving on ([#4](/posts/lock-free-queue-logger-micro-batching/)); formatting, disk writes and pushes happen on other threads. Readers that are not in a hurry should not spin on the newest slot: reading in batches every so often keeps them from taking the producer's line on every message ([#5 1.6.3](/posts/spmc-shared-memory-broadcast-ring/#163-how-should-a-reader-wait-the-hot-path-watches-side-readers-read-in-batches)).
 
 ## 4. Factor Computation {#factors}
 

@@ -100,7 +100,7 @@ One number at a time (`references/flow-a.md`):
 Several numbers together:
 
 > - IPC < 1 and cache-miss rate > 3%: memory-bound; look at data layout, blocking, prefetching (see the [memory latency and bandwidth special](/posts/low-latency-memory-latency-bandwidth/)).
-> - IPC < 1 and branch-miss rate > 3%: branch-bound; remove branches, use conditional moves (`cmov`), add prediction hints (see [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/)).
+> - IPC < 1 and branch-miss rate > 3%: branch-bound; remove branches, use conditional moves (`cmov`), add prediction hints (see [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/), {{% bottleneck-ref "unpredictable-branch" %}}).
 > - Kernel time > 30%: make fewer system calls, batch I/O or make it asynchronous.
 > - IPC ≥ 3 and low miss rates: the CPU is already well used; the bottleneck is elsewhere.
 > - Nothing stands out: move on to record and report.

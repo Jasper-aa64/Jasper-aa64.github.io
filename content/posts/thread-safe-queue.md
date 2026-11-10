@@ -196,7 +196,7 @@ private:
 3. Wait until `prod_tail_` reaches `head`, i.e. until every earlier producer has published.
 4. Set `prod_tail_` to `head + 1` (release); from this moment consumers can read the slot.
 
-The indices are `uint32_t` and only ever increase; they are stored unmasked and masked with `& (N - 1)` only when used. Empty is `head == tail`, full is `head - tail == N`. If the masked value were stored back, the indices could only range over 0 to N − 1, and empty and full would both look like two equal indices, with no way to tell them apart ([#4](/posts/lock-free-queue-logger-micro-batching/) 1.1).
+The indices are `uint32_t` and only ever increase; they are stored unmasked and masked with `& (N - 1)` only when used. Empty is `head == tail`, full is `head - tail == N`. If the masked value were stored back, the indices could only range over 0 to N − 1, and empty and full would both look like two equal indices, with no way to tell them apart ([#4](/posts/lock-free-queue-logger-micro-batching/#spsc-ring) 1.2).
 
 When an index reaches $2^{32} - 1$ and is incremented, it wraps to 0, and the checks still work. Unsigned subtraction is modulo $2^{32}$, so as long as the real difference is at most N, `head - tail` gives the real difference. N is a power of two and divides $2^{32}$, so the slots also line up across the wrap: $2^{32} - 1$ lands in slot N − 1 and the next index, 0, lands in slot 0. **With indices that only increase and a power-of-two N, wraparound needs no special handling.** The test below starts the indices at $2^{32} - 1001$, so they wrap past 0 during the run, and the results are still correct.
 

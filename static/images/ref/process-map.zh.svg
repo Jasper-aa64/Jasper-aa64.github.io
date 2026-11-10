@@ -107,7 +107,7 @@
   <text x="482" y="802" class="s">mmap 文件：读写的就是页缓存</text>
   <text x="482" y="820" class="s">/dev/shm：几个进程映射同一批页</text>
   <text x="482" y="838" class="s">大页（hugetlbfs）也映射在这里</text>
-  <text x="482" y="856" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#2-放进共享内存" target="_blank" rel="noopener"><tspan>#5 2 放进共享内存</tspan></a></text>
+  <text x="482" y="856" class="tag"><a href="/zh/posts/spmc-shared-memory-broadcast-ring/#shared-memory" target="_blank" rel="noopener"><tspan>#5 2 放进共享内存</tspan></a></text>
   </g>
   <g id="heap">
   <rect x="177" y="976" width="571" height="96" rx="6" class="heap"/>

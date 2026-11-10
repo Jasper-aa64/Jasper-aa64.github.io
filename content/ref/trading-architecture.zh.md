@@ -122,7 +122,7 @@ math: true
 
 ### 3.6 旁路不许拖住热路径 {#side-rule}
 
-热线程打日志、交给落盘，只往队列或环里写一条就走（[#4](/zh/posts/lock-free-queue-logger-micro-batching/)）；格式化、写盘、推送都在别的线程。不赶时间的读者不要死循环盯着最新槽位，隔一会读一批，省得每条都把生产者要写的那一行抢走一次（[#5 1.6.5](/zh/posts/spmc-shared-memory-broadcast-ring/#165-读者该怎么等)）。
+热线程打日志、交给落盘，只往队列或环里写一条就走（[#4](/zh/posts/lock-free-queue-logger-micro-batching/)）；格式化、写盘、推送都在别的线程。不赶时间的读者不要死循环盯着最新槽位，隔一会读一批，省得每条都把生产者要写的那一行抢走一次（[#5 1.6.3](/zh/posts/spmc-shared-memory-broadcast-ring/#163-读者该怎么等热路径盯着旁路攒着读)）。
 
 ## 4. 因子一致性：从架构到运维，保证回测和实盘的因子逐值相同 {#factors}
 
