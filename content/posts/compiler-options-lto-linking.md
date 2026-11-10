@@ -11,6 +11,8 @@ categories: [Systems]
 tags: [cpp, gcc, compiler, optimization, lto, pgo, linking, hft, low-latency]
 toc: true
 math: true
+build:
+  list: never
 ---
 
 Many hot-path optimizations are ones the compiler already does: constant folding, inlining, turning a multiply into a shift, vectorizing a loop. When it doesn't, it usually isn't because it can't, but because **it can't prove the result stays the same**: whether two pointers point at the same memory, whether reordering a float addition changes the last bit, what a function in another `.cpp` looks like. So working with the compiler comes down to three things: use options to widen what it may do, use hints to tell it what it can't prove, and read the assembly to confirm it did it.

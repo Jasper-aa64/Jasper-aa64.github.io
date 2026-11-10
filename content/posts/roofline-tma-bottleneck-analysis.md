@@ -10,6 +10,8 @@ categories: [Systems]
 tags: [roofline, tma, topdown, perf, profiling, pmu, hft, low-latency]
 toc: true
 math: true
+build:
+  list: never
 ---
 
 The [perf special](/posts/low-latency-perf-profiling/) tells you which function and which instruction the time goes to, but knowing "this loop is hot" is not enough. Is it computing too much, or is the data arriving too slowly? Is it waiting on memory, or is a branch guessed wrong over and over? How far is it from what the hardware can do, and is it worth squeezing further? The two methods in this post answer those two layers of question: roofline first decides whether the bottleneck is computing or moving data and how far from the limit it is; TMA then pins "slow" to a specific stage of the pipeline, and finally to a line of code.

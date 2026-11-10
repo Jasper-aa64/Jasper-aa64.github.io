@@ -10,6 +10,8 @@ categories: [Systems]
 tags: [cpp, gcc, compiler, optimization, lto, pgo, linking, hft, low-latency]
 toc: true
 math: true
+build:
+  list: never
 ---
 
 热路径上的很多优化，编译器本来就会做：常量折叠、内联、把乘法换成移位、循环向量化。它不做，通常不是因为不会，而是**证明不了换了以后结果不变**：两个指针会不会指向同一块内存，浮点加法换个顺序末位会不会变，另一个 `.cpp` 里的函数长什么样。所以和编译器打交道就三件事：用选项放开它能做的范围，用提示告诉它证明不了的事，再看汇编确认它做了没有。

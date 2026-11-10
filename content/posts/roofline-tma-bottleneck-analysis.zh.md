@@ -9,6 +9,8 @@ categories: [Systems]
 tags: [roofline, tma, topdown, perf, profiling, pmu, hft, low-latency]
 toc: true
 math: true
+build:
+  list: never
 ---
 
 [perf 专题](/zh/posts/low-latency-perf-profiling/)能告诉你时间花在哪个函数、哪条指令上，可光知道“这个循环热”还不够：它是算得太多，还是数据来得太慢？是在等内存，还是分支老猜错？离硬件的上限还有多远，值不值得再抠？这一篇的两个方法分别回答这两层问题：roofline 先判断瓶颈在算还是在搬、离上限多远；TMA 再把“慢”拆到流水线的具体一段，最后落到代码行。
