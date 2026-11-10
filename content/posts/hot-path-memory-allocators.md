@@ -1,8 +1,9 @@
 ---
 title: "Trading System Notes #3: Memory Pools and Allocators"
 date: 2026-09-17
+lastmod: 2026-11-10
 slug: "hot-path-memory-allocators"
-description: "Why malloc/free's real problem is variance, not speed — and four increasingly general ways to guarantee nothing on the hot path is happening for the first time: an O(1) free-list pool, locked and pre-faulted pages, a bump-allocating arena behind a custom STL allocator, and std::pmr's runtime alternative to all three. Closes with a reference object pool that folds the first two techniques into one class."
+description: "Why malloc/free's real problem is variance, not speed — and four increasingly general ways to guarantee nothing on the hot path happens for the first time: an O(1) free-list object pool, a bump-pointer arena behind a custom STL allocator, std::pmr as the runtime version of the same idea, and the layer underneath all three: pre-faulted, locked pages that glibc is not allowed to hand back to the kernel. With reference implementations of the pool and the arena, and the lock-free free stack and ABA of a pool shared by several threads."
 summary: "Every technique in this post does the same thing at a different layer: move an uncertain, kernel-involving operation off the hot path and force it to happen once, upfront, before it can ambush a single request. An object pool replaces malloc's variable-cost search with an always-O(1) free list. mlockall and careful mallopt tuning stop the kernel from quietly taking pages back — and pre-faulting closes the one gap mlock alone leaves open. A hand-rolled arena allocator makes the STL itself cooperate with a custom allocator backed by bump-pointer memory. std::pmr solves the same STL-cooperation problem the standard library's way — trading compile-time speed for runtime flexibility."
 chapter: 1
 categories: [Systems]
@@ -13,51 +14,341 @@ homepage: false
 
 `malloc` and `free` are not slow. Call them a thousand times in a tight loop and the average looks perfectly fine. The problem HFT code has with them isn't the mean — it's the **tail**, and the tail depends on state you don't control. glibc hands out per-thread arenas to avoid lock contention, but once there are more threads than arenas, two threads fight over one arena's lock. A request the current arena can't satisfy may mean a fresh `brk` or `mmap` call into the kernel. Freed memory goes into size-class bins that have to be walked and possibly coalesced, and how long that takes depends on the fragmentation history of everything the heap has seen. None of these costs is fixed; all of them depend on "what has this process been doing so far" — exactly the question a hot path can't afford to ask.
 
-Everything in this post is a variation on one fix: find the operation whose cost depends on first touch, contention or fragmentation, and **move it to a point in the program's life where you don't care how long it takes** — usually startup. Section 1 moves the allocation itself. Section 2 moves the kernel's decision about whether your pages may leave RAM, and — less obviously — whether they are backed by physical memory at all. Sections 3 and 4 generalize the move to arbitrary STL containers and disagree about where the resulting flexibility should be paid for: at compile time or at run time. Section 5 folds the useful parts into two reference implementations.
+> **Why the hot path doesn't use malloc: fast when it's fast, a hundred times slower when it isn't**
+> malloc looks in cheap places first and expensive ones later, and which layer it reaches depends on what this process has allocated and freed before ([where one new goes](/zh/ref/new-malloc-page-fault/), Chinese only for now):
+> 1. **tcache hit**: the thread's own small list, touched by no other thread, no lock, about 10–20 ns.
+> 2. **The arena's free lists**: take the arena's lock, maybe split or coalesce neighbouring free chunks, tens of ns to one or two hundred ns; with many threads, they also fight over the lock.
+> 3. **brk / mmap into the kernel**: not enough free chunks at hand, one system call of a few hundred ns to 1 µs.
+> 4. **First write to the new pages**: in step 3 the kernel only recorded a range of addresses; each 4 KiB page faults on its first write, about 0.5–2 µs each; the first pass over a large new block costs tens of µs to ms.
+>
+> - **On average it isn't slow**: most calls stop at layer 1.
+> - **The P99 spikes come from layers 3 and 4**: there is no way to know in advance which call will fall that far.
+> - **free can push the next call back to layer 3**: glibc releases large blocks straight back to the kernel with `munmap`, so the next request goes into the kernel again.
+> - **Pools and arenas move layers 2–4 to startup**: take everything at once at startup, write the whole block once to fault every page in, and lock it.
+> - **Hot-path allocation is then equally fast every time**: all that is left is moving a list head or a pointer.
+
+> **Signs it's time for an object pool or an arena**
+> - **The median is fine, P99 has spikes**: at the moments of the spikes perf shows page faults (`page-faults`) or `brk`/`mmap` system calls, so the hot path is asking the kernel for memory.
+> - **The hot path keeps doing new and delete on objects of the same size**: orders or messages, for example; use an object pool (Part 1), O(1) to take and to return.
+> - **A batch of objects lives and dies together**: one trading day's market data, the temporary data of one request; use an arena (Part 2), allocate forward only and free the whole block at the end.
+> - **Several threads allocate at once, and malloc's lock shows up in perf**: one pool per thread, or the lock-free free stack of Part 5; read the box in 5.1 first to decide whether you really need to share one pool.
+
+Everything in this post is a variation on one fix: find the operation whose cost depends on first touch, contention or fragmentation, and **move it to a point in the program's life where you don't care how long it takes** — usually startup. Parts 1 to 3 move the allocation itself: an object pool handles one type allocated and freed one at a time, an arena handles a batch of objects used up and thrown away together, and `std::pmr` trades the compile-time type for runtime flexibility. Part 4 goes one layer down, to the memory underneath all three allocators: its pages must be faulted in and locked at startup, and nothing in the process may hand pages back to the kernel. Parts 1 and 2 each end with a reference implementation you can use as is; Part 5 covers the lock-free version for several threads allocating from one pool, and ABA.
 
 ---
 
-## 1. The Object Pool: Trading a Search for a Pointer
+## 1. The Object Pool: Allocate a Batch of Slots for One Type Up Front, Take One When Needed, Return It When Done {#pool}
 
-The fix for "I don't want to call malloc on the hot path" is almost embarrassingly direct: allocate everything you will ever need once, at startup, and hand pieces of that pre-allocated block out and back on demand. That's an object pool — a fixed number of instances of one type `T`, held in memory the program already owns.
+**Object pool**: at startup, allocate a fixed number of slots for one type `T` at once; on the hot path, allocating means taking a free slot and freeing means putting it back, with no call to `malloc`. It is used for objects like orders and market-data messages, whose number has an upper bound and which are created and destroyed over and over.
 
-### 1.1 The Naive Version Has the Same Disease in Miniature
+### 1.1 Scanning for a Free Slot: The Worst Case Walks the Whole Pool {#scan-pool}
+
+The key is the step "find the next free slot": **it has to be the same few instructions every time, regardless of how the pool has been used before.** The most direct version gives each slot a "free or not" flag and, after each allocation, scans forward to find the next free slot for next time.
 
 ```cpp
 struct ObjectBlock {
-  T object_;
+  T    object_;
   bool is_free_ = true;
 };
 std::vector<ObjectBlock> store_;
-size_t next_free_index_ = 0;
+std::size_t next_free_index_ = 0;   // the slot the next allocation uses
+
+T* allocate() {
+  ObjectBlock& b = store_[next_free_index_];
+  b.is_free_ = false;               // placement-construct into b.object_, omitted
+  // find a free slot for next time: scan forward, wrap to the start at the end (pool-full handling omitted)
+  std::size_t i = next_free_index_;
+  do {
+    i = (i + 1) % store_.size();
+  } while (!store_[i].is_free_ && i != next_free_index_);
+  next_free_index_ = i;
+  return &b.object_;
+}
 ```
 
-`allocate()` placement-constructs into `store_[next_free_index_]`, marks it taken, and then calls `updateNextFreeIndex()` to find the *next* free slot for next time — by scanning forward from the current position, wrapping around at the end. In an access pattern close to FIFO, the very next slot is usually free and the scan stops almost immediately. But nothing guarantees that pattern. Hold objects out of order, release them out of order, and the scan can walk the entire pool before finding a hole — **worst case O(n), and the worst case is exactly as unpredictable as the fragmentation-dependent cost this pool was supposed to replace.** The kernel round-trip got eliminated; a smaller, same-shaped problem grew back inside the pool.
+How far it scans depends on how the free slots are spread over the pool:
 
-### 1.2 The Fix: Don't Search, Maintain
+- **Objects are freed in the order they were allocated** (first in, first out): the slot right after the current position is free, and the scan stops after one step.
+- **Objects are held for different lengths of time**: free slots are scattered over the pool, and one scan can walk most of it, O(n) in the worst case.
+
+**How long the scan takes depends on how the pool has been used before**, which is the same disease as `malloc`: the cost depends on history, and the tail latency can't be predicted. The system call into the kernel is gone; the uncertainty is not.
+
+### 1.2 Free List: The Next Free Slot Is Always Kept at the List Head {#free-list}
+
+The fix is not to search: chain all free slots into a list, allocate from the head, and free back onto the head. "Which slot is free next" is always sitting in `head_`, ready to use.
 
 ```cpp
-T* objects_;
-std::size_t* free_list_;
-std::size_t next_free_index_;                    // head of the free list
-static constexpr std::size_t kInvalidIndex = -1;  // list terminator
+T*           objects_;     // capacity slots, pointing at memory with no objects constructed yet
+std::size_t* free_list_;   // free_list_[i]: while slot i is free, the slot after it in the list
+std::size_t  head_;        // the first free slot; kInvalid means the pool is used up
+static constexpr std::size_t kInvalid = static_cast<std::size_t>(-1);
+
+T* allocate() {
+  if (head_ == kInvalid) return nullptr;
+  std::size_t i = head_;
+  head_ = free_list_[i];                // move the head to the next free slot
+  return ::new (&objects_[i]) T();
+}
+
+void deallocate(T* p) {
+  std::size_t i = static_cast<std::size_t>(p - objects_);
+  p->~T();
+  free_list_[i] = head_;                // put this slot at the front of the list
+  head_ = i;
+}
 ```
 
-`free_list_` is a linked list of free slots — but implemented as **array indices instead of pointers**. `free_list_[i]` doesn't record whether slot `i` is free; it records *which slot comes next in the free list, if `i` is currently the head*. `next_free_index_` is that head. `allocate()` takes whatever slot `next_free_index_` currently points to and moves the head to `free_list_[that slot]` — one read, one write, no scan. `deallocate()` pushes the freed slot back onto the head the same way. Both operations are **exactly the same handful of instructions every single time**, because the free list is maintained incrementally on every call — by the time you call `allocate()`, "what's the next free slot" is already sitting in a variable, not something you go looking for.
+The list is chained with array indices, not pointers: `free_list_[i]` holds the index of the next free slot. A walk through it with 4 slots:
 
-That's worth being precise about, because it's a common mislabel: this is **not an intrusive linked list**. An intrusive list stores its `next` pointer *inside the payload type itself* — the object doubles as its own node. Here, `free_list_` is a completely separate array running in parallel with `objects_`; a `T` has no idea it's linked into anything. The genuinely intrusive version of this pool would `union` the "next free index" into the same memory a not-yet-constructed `T` would otherwise occupy, saving the second array at the cost of a less obvious ownership story — a real memory-vs-simplicity tradeoff the reference implementation opted out of.
+| Operation | Taken or returned | `head_` | Free list |
+|---|---|---|---|
+| Startup | | 0 | 0 → 1 → 2 → 3 |
+| `allocate()` | slot 0 | 1 | 1 → 2 → 3 |
+| `allocate()` | slot 1 | 2 | 2 → 3 |
+| `deallocate(slot 0)` | slot 0 | 0 | 0 → 2 → 3 |
+| `allocate()` | slot 0 | 2 | 2 → 3 |
 
-One layout detail worth keeping: `ObjectBlock` packs `T` and `is_free_` into a single struct rather than two parallel arrays. A single `allocate()` call touches both fields together, so keeping them adjacent means one cache-line fetch does the job instead of two independent ones landing on unrelated lines.
+**Allocation and freeing are each one read and one write, independent of how many free slots there are and where they are.** The list is last in, first out, which brings a side benefit: the slot returned most recently is the first to be handed out again, and it is most likely still in cache.
+
+### 1.3 Where the Next Free Index Lives: a Separate Array, the Same Slot, or the Object's Own Memory {#free-link-layout}
+
+In 1.2, `free_list_` is a separate array alongside `objects_`, and `T` has no idea it is linked into a list; this is called **non-intrusive**. The index can live elsewhere too, and each of the three layouts has a cost:
+
+| Where the index lives | Cache lines one allocation touches | Extra memory | Cost |
+|---|---|---|---|
+| A separate array (1.2) | Two: `free_list_[i]` and `objects_[i]` are not together | 8 bytes per slot | One more chance of a cache miss per allocation |
+| In the same slot as the object (1.4) | One when `T` is small | 8 bytes per slot | None |
+| The object's own memory, i.e. **intrusive** (`union`) | One | 0 | Requires `sizeof(T) ≥ 8`; an object written after it was freed (use-after-free) corrupts the list directly, which is very hard to track down |
+
+Intrusive works because **a free slot holds no object**: that memory is idle anyway, so it can hold the index of the "next free slot"; on allocation the index is read out first, and then `T` is constructed at the same address, overwriting it.
+
+> **Where to put the index: by default, in the same slot**
+>
+> - **The usual case**: in the same slot as the object (the layout in 1.4); one allocation touches only one cache line, and the code stays clear.
+> - **Many slots, tight memory, and `T` is at least 8 bytes**: go intrusive and save 8 bytes per slot.
+> - **The objects must be packed as one `T` array** (for example, to walk all objects in array order): only a separate array works.
+
+
+### 1.4 Reference Implementation: An Object Pool You Can Use As Is {#ref-pool}
+
+The pool below puts the free list together with the startup treatment of Part 4 (4.1 pre-faulting, 4.2 page locking):
+
+- **At startup it takes all its memory at once, locks it and faults it in**: `aligned_alloc` allocates `capacity` slots in one go, `mlock` locks them, `memset` writes every page once (4.1, 4.2).
+- **Free slots are chained into one list, and allocation and freeing only touch the head**: `free_head_` is the index of the first free slot, and each free slot's `next_free` records the next one. Allocation takes the head off; freeing puts the slot back at the head (1.2).
+- **The "next free slot" lives in the same slot as the object**: the second layout in the table of 1.3. `next_free` is inside `Slot`, so reading `next_free` and then constructing `T` touch the same slot, usually the same cache line.
+
+```cpp
+template <typename T>
+class ObjectPool {
+  struct Slot {
+    alignas(T) unsigned char storage[sizeof(T)];  // T lives here once constructed
+    std::size_t next_free;                        // while free: index of the next free slot
+  };
+  static constexpr std::size_t kInvalid = static_cast<std::size_t>(-1);
+
+  Slot* slots_;
+  std::size_t capacity_;
+  std::size_t free_head_;                         // index of the first free slot
+
+ public:
+  explicit ObjectPool(std::size_t capacity)
+      : capacity_(capacity), free_head_(capacity ? 0 : kInvalid) {
+    std::size_t bytes = sizeof(Slot) * capacity_;
+    slots_ = static_cast<Slot*>(std::aligned_alloc(alignof(Slot), bytes));
+    if (!slots_) throw std::bad_alloc{};
+    if (mlock(slots_, bytes) != 0) {
+      // no CAP_IPC_LOCK or over RLIMIT_MEMLOCK: log it; the memset below still faults every page in
+    }
+    std::memset(slots_, 0, bytes);
+    for (std::size_t i = 0; i < capacity_; ++i)
+      slots_[i].next_free = (i + 1 < capacity_) ? i + 1 : kInvalid;
+  }
+
+  ~ObjectPool() {
+    munlock(slots_, sizeof(Slot) * capacity_);
+    std::free(slots_);
+  }
+
+  ObjectPool(const ObjectPool&) = delete;
+  ObjectPool& operator=(const ObjectPool&) = delete;
+
+  template <typename... Args>
+  T* allocate(Args&&... args) {
+    if (free_head_ == kInvalid) return nullptr;   // pool used up: no exception on the hot path
+    Slot& slot = slots_[free_head_];
+    free_head_ = slot.next_free;                  // take the head off
+    return ::new (slot.storage) T(std::forward<Args>(args)...);
+  }
+
+  void deallocate(T* obj) {
+    obj->~T();
+    auto* slot = reinterpret_cast<Slot*>(
+        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));
+    slot->next_free = free_head_;                 // put it back at the head
+    free_head_ = static_cast<std::size_t>(slot - slots_);
+  }
+};
+```
+
+**When the pool is used up, `allocate` returns `nullptr` instead of throwing**: on the hot path the caller decides whether to take a slow path or drop the message. `std::aligned_alloc` requires the byte count to be a multiple of the alignment; `sizeof(Slot)` is always a multiple of `alignof(Slot)`, so that holds here automatically.
 
 ---
 
-## 2. Locked Isn't Enough: The mmap Trap and the TLB Shootdown Tax
+## 2. The Arena: A Batch of Objects Used Up and Thrown Away Together, Allocation Down to One Addition {#arena}
 
-The pool solves "don't ask the allocator for memory on the hot path." It does nothing about a second, easy-to-miss failure mode: the memory you already have can still be taken away from you, or can still cost you a surprise the first time you touch it.
+An object pool hands out one type `T`, allocated and returned one at a time. The hot path has another pattern too: handling one tick needs a batch of temporary objects of different sizes and types, such as the buffers of a few `std::vector`s and `std::string`s, all thrown away once the tick is done. Giving every kind of object its own pool is not practical; the arena is made for this case.
 
-### 2.1 mlockall Alone Has a Hole in It
+### 2.1 A Batch of Objects That Live and Die Together: A Pointer That Only Moves Forward, Reclaimed Only by Rewinding the Whole Block {#bump}
 
-`mlockall(MCL_CURRENT | MCL_FUTURE)` tells the kernel: every page this process currently holds, and every page it will ever hold, stays resident — never swapped out. That sounds complete. It isn't, because of one detail: **`munmap` doesn't unlock a page, it tears down the entire mapping the lock was attached to.** glibc routes any allocation above `M_MMAP_THRESHOLD` (128 KB by default) through `mmap` instead of the heap, and `free()`-ing that memory calls `munmap` on it immediately — silently discarding whatever `mlockall` had guaranteed, the moment that allocation is released.
+1. **The arena tracks only one number: how many bytes of the block are already used (`used`)**
+   - **Allocation in three steps**: round `used` up to the requested alignment; check whether `used + size` still fits in `capacity`; if it does, move `used` past this block and return the old position.
+   - **No search**: the next free position is always wherever the pointer is now; there is nothing to look for.
+   - **Even cheaper than Part 1's free list**: not even a list head to change, just one addition.
+   - **When a block fills up**: move on to the next pre-reserved block the same way.
+2. **The price is that one allocation can't be freed on its own**
+   - **Why**: the arena doesn't record where each allocation starts and ends, so there is nothing to look up even if you wanted to return one.
+   - **There is only one way to reclaim**: `reset()`, which rewinds `used` to 0 and reuses the whole block from the start.
+3. **So choose by object lifetime**
+   - **A batch of objects that live and die together** (all temporary objects allocated during one tick): use an arena.
+   - **Staggered lifetimes**: still use Part 1's pool.
+
+### 2.2 STL Containers Go to the Global Heap by Default: Wrap the Arena as an Allocator Whose deallocate Deliberately Does Nothing {#stl-allocator}
+
+1. **Pain point: hot-path code wants ordinary `std::vector`s and `std::string`s**, but by default they get memory from the global heap, i.e. from `malloc`.
+2. **Fix: wrap the arena in a class that satisfies the C++ allocator interface** and pass it to the container as a template argument; all of the container's memory then comes from the arena.
+   - **The interface is mostly boilerplate**: `allocate`, `deallocate`, `construct`, `destroy`, `rebind`; knowing it exists is enough.
+   - **The one thing to watch is that `deallocate()` is a no-op**: an arena can't return one block anyway; reclaiming only happens through `reset()`.
+   - **Objects are still destroyed normally**: `destroy` still calls the destructor; only the "give the memory back" half is disabled.
+
+### 2.3 Reference Implementation: An Arena You Can Use As Is {#ref-arena}
+
+The startup treatment is the same as the pool in 1.4 (Part 4); the allocation logic is simpler, with no free list to maintain, just an offset `used_` that moves forward.
+
+```cpp
+class Arena {
+  unsigned char* base_;
+  std::size_t capacity_;
+  std::size_t used_ = 0;
+
+ public:
+  explicit Arena(std::size_t capacity) : capacity_(capacity) {
+    base_ = static_cast<unsigned char*>(std::aligned_alloc(64, capacity_));  // capacity must be a multiple of 64
+    if (!base_) throw std::bad_alloc{};
+    if (mlock(base_, capacity_) != 0) {
+      // as above: log it
+    }
+    std::memset(base_, 0, capacity_);
+  }
+
+  ~Arena() {
+    munlock(base_, capacity_);
+    std::free(base_);
+  }
+
+  Arena(const Arena&) = delete;
+  Arena& operator=(const Arena&) = delete;
+
+  // alignment must be a power of two and no more than 64
+  void* allocate(std::size_t size, std::size_t alignment = alignof(std::max_align_t)) {
+    std::size_t start = (used_ + alignment - 1) & ~(alignment - 1);  // round up to the alignment
+    if (start + size > capacity_) return nullptr;                    // doesn't fit
+    used_ = start + size;                                            // move forward
+    return base_ + start;
+  }
+
+  void reset() noexcept { used_ = 0; }
+};
+```
+
+- **`allocate` is the three steps of 2.1**: `base_` is 64-byte aligned, so an aligned offset gives an aligned address, which is also why `alignment` can't exceed 64.
+- **`reset()` doesn't call destructors**: objects placed in it are either trivially destructible, or the caller destroys them before `reset()`.
+- **Only one fixed-size buffer**: easier to get right than the multi-block design of 2.1, at the cost of a hard capacity limit; when it's used up, it returns `nullptr`.
+
+---
+
+## 3. std::pmr: Once the Allocator Is in the Type, Functions Reject the Container; pmr Moves It to Run Time {#pmr}
+
+### 3.1 The Allocator Is Part of the Type: Change the Allocator and Functions Reject It; pmr Turns It Into a Runtime Pointer {#allocator-in-type}
+
+1. **Pain point: Part 2's allocator is a template parameter of the container**
+   - **`std::vector<int>` and `std::vector<int, LowLatencyAllocator<int>>` are two unrelated types**.
+   - **Consequence**: a function written to take `std::vector<int>&` rejects the arena version; to accept both, every function has to be templated on the allocator.
+2. **Fix: `std::pmr` (C++17) moves "which allocation strategy" out of the type and into a runtime pointer**
+   - **`std::pmr::memory_resource` is an abstract base class**: a concrete allocation strategy subclasses it and implements `do_allocate`, `do_deallocate` and `do_is_equal`.
+   - **Every pmr container uses the same `polymorphic_allocator<T>`**: it holds nothing but a `memory_resource*`.
+   - **So `std::pmr::vector<int>` is the same type whichever resource backs it**: pass it, assign it, return it freely.
+3. **The price is paid on every allocation**
+   - **Every allocation makes a virtual call through that pointer**; Part 2's allocator type is known at compile time and can be inlined away entirely.
+   - **This is the trade-off between static and dynamic polymorphism** ([#8](/posts/crtp-static-polymorphism/)), applied this time to memory.
+
+### 3.2 The Standard Library's Own Resources, Matching Parts 1 and 2 {#std-resources}
+
+- **`monotonic_buffer_resource` is Part 2's arena, standardized**: allocate forward only, free everything together, no individual reclaiming. At construction you can give it a buffer the caller prepared, such as a `std::array` on the stack.
+  - **When the buffer runs out it goes to its upstream resource, and the default upstream is `new`**: a silent `malloc` on the hot path.
+  - **Set the upstream to `std::pmr::null_memory_resource()`**: running out then throws `std::bad_alloc`, so a capacity that's too small shows up right away.
+- **`unsynchronized_pool_resource` is closer to Part 1's pool**: generalized to many object sizes, with one group of slots per size class.
+- **`synchronized_pool_resource` is its thread-safe version**: at the cost of a lock, exactly the kind of contention this post is trying to avoid.
+
+### 3.3 A Resource Is Only Pointed To, Never Owned: If It Dies First, the Container Dangles {#lifetime}
+
+1. **Pain point: `std::pmr::vector` looks like an ordinary value type, so returning one by value seems safe**
+   - **But `polymorphic_allocator` only points at its resource and doesn't own it**: if the resource is a local variable, returning the vector doesn't make the resource live any longer.
+
+   ```cpp
+   auto create_vec() -> std::pmr::vector<int> {
+     auto resource = PrintingResource{};           // local, destroyed at scope exit
+     auto vec = std::pmr::vector<int>{&resource};  // vec stores only &resource
+     return vec;                                   // resource is destroyed here
+   }
+   auto vec = create_vec();
+   vec.emplace_back(1);  // undefined behavior
+   ```
+
+   - **Nothing looks wrong at the return**: `vec` itself moves out fine, with no deep copy; but the resource it points at is gone, and adding elements afterwards is undefined behavior.
+2. **Rule: a resource must outlive every container built on it**
+   - **Put it in an outer scope**: never inside the function that constructs and returns the container.
+
+### 3.4 Object Pool, Arena or std::pmr: Look at How the Objects Are Freed {#which}
+
+> **Choose by how the objects are freed**
+>
+> 1. **Objects allocated and freed one at a time, of one fixed type**: use an object pool. Allocation and freeing only touch the head of the free list, O(1).
+> 2. **A batch of objects used up and thrown away together** (all the temporary objects touched while handling one tick or one order): use an arena. Allocation is one addition; nothing can be freed on its own; `reset()` the whole thing when done.
+> 3. **The same container type has to switch between different memory sources**: use `std::pmr`. It solves type compatibility, not performance; every allocation pays one more virtual call, so on the hot path it is worse than the other two.
+
+---
+
+## 4. The Page Layer: With a Big Block of Memory in Hand, Why Does the Hot Path Still Enter the Kernel When It Uses It {#keep-memory}
+
+The allocators of the first three parts all take one big block of memory at startup: the pool's slot array, the arena's blocks, the buffer behind a pmr resource. Hot-path allocation only moves pointers inside that block and never goes to `malloc`. **But having the block in hand doesn't yet mean the hot path stays out of the kernel when it uses it**: when the pages of that block actually arrive, and whether they get taken away, is up to the kernel, whichever allocator you use. Four pain points below show up one after another; each fix exposes the next.
+
+> **Four pain points, one after another**
+> - **All you get is addresses, and the first write to every page faults**: write the whole block once at startup (4.1).
+> - **Faulted-in pages can be swapped out when memory is tight**: lock them with `mlock` or `mlockall` (4.2).
+> - **glibc tears down the mappings of locked pages by itself and hands them back to the kernel, and the lock goes with them**: three `mallopt` calls close glibc's three ways of giving memory back (4.3).
+> - **Tearing down mappings and changing page tables interrupts hot cores with inter-processor interrupts**: once the process is running, its address space is read-only (4.4).
+>
+> The first two cover the pool's or arena's own block; the last two cover the whole process, including memory that third-party libraries and cold threads get through glibc.
+
+### 4.1 All You Get Is Addresses: The First Write to Every Page Faults, So Write the Whole Block Once at Startup {#prefault}
+
+**Pain point**: when `aligned_alloc`, `posix_memalign` or `mmap` returns, the kernel has only recorded a range of virtual addresses, with no physical memory behind it yet. Linux maps pages lazily: each 4 KiB page traps into the kernel with a page fault on its first access, which allocates a physical page, about 0.5–2 µs each time. The first slot the pool hands out and the first page the arena advances into will both fault on the hot path.
+
+**Fix**: add one line, `memset(raw_memory, 0, total_size)`, to the constructor, writing every page once at startup so all the faults are paid then; if the memory comes from `mmap`, you can also pass `MAP_POPULATE` and have the kernel fault the pages in at mapping time. **By the time the hot path runs, every page in the pool and the arena is already mapped, and nothing has to happen for the first time**. The pool in 1.4 and the arena in 2.3 both do this.
+
+### 4.2 Faulted-In Pages Can Be Swapped Out: mlock Locks One Block, mlockall Locks the Whole Process {#mlockall}
+
+**Pain point**: faulting the pages in doesn't guarantee they stay. When memory is tight, the kernel swaps pages that haven't been touched for a while out to disk; when the hot path touches one again, it is read back from disk, at the ms level.
+
+**Fix**: lock the pages.
+
+- **`mlock(addr, len)` locks one block**: the pool or arena calls it once on its own block at construction, so the pages in the range stay resident and are never swapped out; on success it also faults those pages in.
+- **`mlockall(MCL_CURRENT | MCL_FUTURE)` locks the whole process**: all pages mapped now are locked; `MCL_FUTURE` makes pages mapped later get faulted in and locked in one go at mapping time.
+- **Page locking often fails, and when it fails, not a single page is locked or faulted in**: without `CAP_IPC_LOCK`, the total you can lock is limited by `RLIMIT_MEMLOCK` (a common default is 8 MB; older kernels allow only 64 KB). So check the return value at startup, and do the `memset` of 4.1 anyway: the pages aren't locked, but at least the first-touch faults are already paid.
+
+### 4.3 Locked Pages Can Be Handed Back to the Kernel by glibc: Three mallopt Calls, Each Closing One Path {#mallopt}
+
+**Pain point**: `mlockall` doesn't stop glibc from handing pages back to the kernel by itself. A lock goes with its mapping: `munmap` doesn't unlock a page, it tears down the whole mapping, and the lock goes with it. glibc does exactly that: allocations above `M_MMAP_THRESHOLD` (128 KB by default) get their own `mmap`, and `free` calls `munmap` on them immediately. The next request is another pair of system calls plus page faults (under `MCL_FUTURE`, new pages are faulted in all at once inside `mmap`). The pool's and arena's own blocks are never `free`d, but other code in the process still goes through glibc: third-party libraries, STL containers with the default allocator, cold threads for logging and monitoring.
 
 <!--
 ╔══════════════════════════════════════════════════════════════════╗
@@ -105,279 +396,166 @@ The pool solves "don't ask the allocator for memory on the hot path." It does no
 
 ![Before and after: a locked strongbox on a plinth, then the same plinth with the box gone entirely — only the still-closed chain and padlock hang in mid-air where it used to sit](/images/hot-path-allocators/torn-down-not-unlocked.jpg)
 
-Closing that hole takes three separate `mallopt` calls, each blocking a different path back to the kernel:
+**Fix**: glibc has three ways to give memory back to the kernel; three `mallopt` calls close one each:
 
-- **`M_MMAP_MAX = 0`** — forbid the mmap path entirely. Every allocation, regardless of size, goes through the heap; `free()` becomes pure bookkeeping and never calls `munmap`.
-- **`M_TRIM_THRESHOLD = -1`** — the same idea applied to the heap itself. By default, glibc shrinks the heap back toward the OS via `sbrk` once enough contiguous free space accumulates at the top; this disables that, so a large chunk of freed space at the top of the heap is never handed back.
-- **`M_ARENA_MAX = 1`** — a different axis: multiple worker arenas are themselves backed by additional `mmap`-obtained regions. Forcing a single arena (allocation only happens at startup anyway, so the concurrency benefit of multiple arenas is moot here) removes those extra mmap sources up front.
+| Setting | Path it closes | Effect |
+|---|---|---|
+| `M_MMAP_MAX = 0` | Large allocations get their own `mmap`, `munmap`ed on `free` | Every allocation goes through the heap; `free` is pure bookkeeping inside the heap |
+| `M_TRIM_THRESHOLD = -1` | When a large chunk at the top of the heap is free, shrink the heap and give it back to the kernel | The heap only grows, never shrinks |
+| `M_ARENA_MAX = 1` | Each new arena `mmap`s its own memory | Only the main arena is used; allocation happens only at startup, so the reduced lock contention of multiple arenas doesn't matter |
 
-### 2.2 The Tax isolcpus Can't Hide You From: TLB Shootdowns
+> **At startup, set mallopt first, then lock the pages**
+>
+> ```cpp
+> mallopt(M_MMAP_MAX, 0);
+> mallopt(M_TRIM_THRESHOLD, -1);
+> mallopt(M_ARENA_MAX, 1);
+> mlockall(MCL_CURRENT | MCL_FUTURE);   // needs CAP_IPC_LOCK, or a large enough RLIMIT_MEMLOCK
+> ```
+>
+> - **Call `mallopt` before the first large allocation**: blocks already `mmap`ed are not affected.
+> - **`mlockall` can fail**: without the permission or enough quota it returns an error and locks nothing, so check the return value at startup; the fallback is the pre-faulting of 4.1.
 
-Any page-table change — `munmap`, `mprotect`, or the kernel's own transparent-huge-page background compaction — forces a **TLB shootdown**: the core making the change doesn't know which other cores have cached the now-stale translation, so it broadcasts an inter-processor interrupt (IPI) to every core currently running the same process's address space. Each one has to stop, trap into the kernel, invalidate the affected TLB entry, and resume — microsecond-scale, and it scales with how many cores share that address space.
+### 4.4 Tearing Down Mappings Interrupts Hot Cores: TLB Shootdowns, So Keep the Address Space Read-Only Once the Process Runs {#shootdown}
 
-The sharp, easy-to-get-wrong point: **`isolcpus` does not protect against this.** `isolcpus` operates at the scheduler layer — it controls whether the scheduler will place *tasks* on a given core. A TLB shootdown is a hardware interrupt, delivered based on which cores are recorded in the kernel's `mm_cpumask` for that address space — a completely different mechanism that the scheduler has no say over. A perfectly isolated, pinned hot-core thread can still get interrupted mid-flight by a *cold* thread in the same process calling `munmap` or `mprotect`, because both threads share the same `mm_struct`, and the shootdown targets the address space, not the scheduling class. This is the deeper reason THP and automatic NUMA balancing get disabled on tuned systems, beyond "unpredictable latency from background compaction" — both routinely rewrite page tables, and every rewrite is a shootdown that reaches cores the scheduler was told never to touch.
+**Pain point**: each core's TLB caches translations from virtual to physical addresses. After one core removes a mapping (`munmap`) or tightens its permissions (`mprotect`), the stale translations in other cores' TLBs must be invalidated, and the hardware doesn't sync them by itself: **the only way is to send an inter-processor interrupt (IPI) to every core currently running this process and have each clear its own**. Each interrupted core traps into the kernel, clears the TLB entries and comes back; this is a **TLB shootdown**, a few microseconds each time.
 
----
+**`isolcpus` doesn't stop it.** `isolcpus` controls which cores the scheduler puts threads on; a shootdown IPI is delivered by "which cores are running this process's address space", which has nothing to do with scheduling. However well the hot thread is isolated and pinned, a cold thread in the same process `free`ing a large block still interrupts the hot core once.
 
-## 3. An Arena Behind the STL: A Pointer That Only Moves Forward
-
-The object pool only ever hands out one type, `T`. Real hot-path code wants to use `std::vector`, `std::string`, ordinary STL containers — without those containers ever touching the global heap. That means writing something that satisfies the C++ allocator interface, backed by memory the program already owns.
-
-### 3.1 A Pointer That Only Ever Moves Forward
-
-```cpp
-struct MemoryBlock {
-  size_t used, capacity;
-  bool is_active;
-  // ...
-};
-```
-
-An arena allocates from a pre-reserved block by tracking one number: how many bytes of this block are already spoken for. `allocate(size)` rounds the current write position up to the requested alignment, checks whether `used + size` still fits in `capacity`, and if so simply advances `used` and returns the old position — no search, because there's nothing to search: the "next free position" is always exactly wherever the pointer currently sits. When a block fills up, the arena activates the next pre-reserved block the same way. This is strictly cheaper than section 1's free list — not even a linked-list pointer swap, just an add — and the price is that there is no way to free a single allocation out of the middle. Nothing records where any individual allocation started or ended, so there's nothing to look up even if you wanted to release one. The only reset operation is global: rewind every block's `used` back to zero and start over. That's the right tradeoff for a batch of objects with identical lifetimes — everything allocated while processing one tick, thrown away together once the tick is done — and the wrong one for objects with staggered lifetimes, which still belong in section 1's pool.
-
-### 3.2 Pre-Faulting: Closing the Gap mlock Leaves at First Touch
-
-The arena's backing memory is obtained once, at construction, with `posix_memalign` and `mlock()` — this time locking just the arena's own region, a more surgical complement to section 2's process-wide `mlockall`. But a freshly obtained virtual address range isn't backed by physical memory yet: Linux maps pages lazily, and the actual physical page only gets assigned on the **first write**, via a page fault that traps into the kernel. `mlock` guarantees a page won't be evicted once it's backed — it says nothing about whether the mapping has been established yet. The constructor closes that gap with one line: `memset(raw_memory, 0, total_size)`, touching every page once, at startup, so every fault that was ever going to happen already has. By the time the hot path runs, every page in the arena is not just locked, but *already mapped* — nothing left to discover for the first time.
-
-The allocator that adapts this arena to the STL interface (`allocate`/`deallocate`/`construct`/`destroy`/`rebind`) is mostly boilerplate worth knowing exists rather than dwelling on — with one exception: `deallocate()` is a deliberate no-op, for the same reason `reset()` is the only way to reclaim memory. Construction and destruction of individual objects still happen normally through `construct`/`destroy`; only the *memory* side of the contract is neutered.
+**Fix**: closing glibc's `munmap` in 4.3 saves the system call and the page faults, and saves the shootdown too. **Once the hot-path process is running, don't change its address space again**: transparent huge pages' background compaction and automatic NUMA balancing also change page tables and have to be turned off as well. The full list of triggers and how to turn them off is in [the TLB special, 3.3](/posts/low-latency-context-switch-page-table-tlb/#triggers).
 
 ---
 
-## 4. std::pmr: The Same Answer, Paid for at Runtime
+## 5. Several Threads Sharing One Pool: The List Head Must Be Taken and Put Back Lock-Free, and Guarded Against ABA {#aba}
 
-### 4.1 Moving the Allocator Out of the Type
+The pools and arenas of the first four parts are all used from one thread. This part first explains why several threads end up needing to share one pool, and when they actually don't, then how the list head becomes a lock-free stack when the pool is shared, and the ABA problem peculiar to lock-free stacks.
 
-Section 3's custom allocator has a sharp edge nothing in the type system warns you about: `std::vector<int>` and `std::vector<int, LowLatencyAllocator<int>>` are unrelated types. The allocator is a template parameter — part of the container's type, not a runtime setting — so a function written to take `std::vector<int>&` will reject the arena-backed version outright, and every function that needs to accept either has to be templated on the allocator too.
+### 5.1 Why Share: An Object Is Often Allocated on One Thread and Freed on Another {#why-shared}
 
-`std::pmr` (C++17) solves the same "let the STL use my allocation strategy" problem the opposite way: move the choice of strategy out of the type and into a runtime pointer. `std::pmr::memory_resource` is an abstract base class — `do_allocate`, `do_deallocate`, `do_is_equal` — and any concrete allocation strategy is expressed by subclassing it. Every `std::pmr` container uses the single, uniform `std::pmr::polymorphic_allocator<T>`, which holds nothing but a `memory_resource*`; because that pointer's concrete target isn't part of the type, `std::pmr::vector<int>` is always the same type regardless of which resource backs a given instance — free to pass around, assign, return, no template gymnastics required. The price is paid on every allocation: a virtual call through that pointer, dispatched at runtime, instead of section 3's version, where the concrete allocator type is known at compile time and can be inlined away entirely. It's the same static-vs-dynamic-polymorphism tradeoff C++ programmers already navigate with virtual functions vs. templates, applied here to memory itself.
+1. **The most common need is returning across threads**
+   - **Typical case**: the market-data thread takes a `Message` from the pool, fills it in and hands it to the strategy thread through an SPSC ring; when the strategy thread is done with it, it has to give it back.
+   - **One pool per thread breaks here**: the strategy thread can only return it to its own pool. The market-data thread's pool only ever gives out and soon runs dry; the strategy thread's pool only ever takes in and keeps growing.
+2. **Second, saving memory**
+   - **If every thread keeps its own peak capacity, the total is that times the number of threads**: pool memory also has to be locked and pre-faulted (Part 4), so keeping too much is expensive.
+   - **With one shared pool, the system-wide peak is enough**: the threads' peaks usually don't come at the same time.
+3. **Once shared, the pool of 1.4 used as is goes wrong**
+   - **Two threads reading `free_head_` at the same time get the same slot**: the same memory goes to two users.
+   - **A `mutex` fixes it, but brings the jitter back**: even with no contention, each lock costs one atomic read-modify-write; under contention, the thread that loses the lock goes to sleep, and waking it takes a few to tens of µs, landing right in the tail latency ([#1](/posts/cpu-affinity-core-isolation-numa/) 3.4).
 
-### 4.2 The Standard Resources, Mapped to Sections 1 and 3
+> **First decide whether to share the pool**
+> - **Allocation and freeing on the same thread**: one pool per thread, the single-threaded version of 1.4, not even an atomic operation.
+> - **Returned across threads, but only between one pair of threads in a fixed direction**: send the used object (or its index) back through an SPSC ring to the thread that allocated it, which puts it back into the pool itself. The pool stays single-threaded; this is common in HFT.
+> - **Several threads all allocate and all free**: share one pool and turn the list head into a lock-free stack (5.2).
+> - **Many threads and frequent allocation**: use two levels. Each thread first uses its own small cache, and only when that is empty or full does it take from or return to the shared pool in batches. glibc's tcache and tcmalloc both follow this idea.
 
-The standard library ships a few resources that map directly onto what's already been covered:
+### 5.2 Make the List Head an Atomic and Take and Put Back With CAS: That's a Lock-Free Free Stack {#lock-free-stack}
 
-- **`monotonic_buffer_resource`** is section 3's arena, standardized: allocate forward only, release everything together, no individual reclamation. It even accepts an initial caller-supplied buffer (a stack `std::array`, say) with a fallback resource for overflow — the standard-library version of the `allow_fallback_` parameter.
-- **`unsynchronized_pool_resource`** is closer to section 1's pool, generalized to many object sizes instead of one fixed type, managed as size-class "slabs."
-- **`synchronized_pool_resource`** is the thread-safe version of the above — and the name says exactly what that costs: a lock, the same class of contention this entire post exists to avoid.
+1. **Allocate (pop)**: read `head` and its `next`, then CAS `head` from the value read to `next`. If another thread changed `head` in the meantime, the CAS fails; read again and retry.
+2. **Free (push)**: point the returned slot's `next` at the current `head`, then CAS `head` to this slot.
+3. **Why it's called a stack**: the free list is only entered and left at its head, last in, first out, so it is a lock-free stack. With no lock, nobody goes to sleep; a thread whose CAS fails just tries once more.
 
-### 4.3 The Lifetime Trap
+### 5.3 ABA: CAS Only Compares Values, So It Can't See That head Changed and Changed Back {#aba-problem}
 
-`std::pmr::vector` looks exactly like an ordinary value type — return one by value and it seems as safe as returning any other `std::vector`. It isn't, and the reason is specific: a `polymorphic_allocator` only *points at* its `memory_resource`; it never owns it. If that resource is a local variable, returning the vector does nothing to extend the resource's lifetime:
+**This stack has a classic trap called ABA: CAS only compares values, and can't see that the value changed in between and then changed back**. The name describes `head` going from A to B and back to A. Below, X, Y and Z are three free slots, and the stack starts as X → Y → Z:
 
-```cpp
-auto create_vec() -> std::pmr::vector<int> {
-  auto resource = PrintingResource{};           // local, destroyed at scope exit
-  auto vec = std::pmr::vector<int>{&resource};  // vec stores only &resource
-  return vec;                                   // resource is destroyed here
-}
-auto vec = create_vec();
-vec.emplace_back(1);  // undefined behavior
-```
+| Moment | Thread A (allocating) | Other threads | Free stack |
+|---|---|---|---|
+| 1 | Reads `head = X`, `X.next = Y`, and is switched out before its CAS | | X → Y → Z |
+| 2 | | Thread B allocates twice, taking X and Y | Z |
+| 3 | | Some thread returns X | X → Z |
+| 4 | CAS: `head` is still X, so it succeeds and sets `head` to Y | | Y → Z, but Y is in use by B |
 
-`vec` itself moves out cleanly — no deep copy, nothing about the return looks wrong. The danger is invisible at the call site precisely because `std::pmr::vector<int>` advertises the same value semantics as `std::vector<int>` without actually owning the thing its correctness depends on. The rule this forces is unglamorous but absolute: a `memory_resource`'s lifetime must outlive every container built on it — which usually means it has to live in a strictly outer scope, never inside the function that merely constructs and returns the container.
+After moment 4, the next allocation hands Y out again, so one slot goes to two users at the same time; and X, just returned, falls off the stack and can never be handed out again.
 
----
+### 5.4 The Fix: Give the List Head a Version Number and Compare It Along With the Index in the CAS {#tagged-head}
 
-## 5. Putting It Together: Two Reference Implementations
+**The fix is to give `head` a version number that goes up by 1 on every change, and have the CAS compare the index and the version together**. At moment 1, thread A reads (X, version 5); moments 2 and 3 make three changes in all, so `head` becomes (X, version 8). A compares against (X, 5), they're not equal, the CAS fails, and A reads again and retries.
 
-Two shapes from the sections above are worth keeping as complete, reusable references: a fixed-type pool for objects with independent lifetimes, and an arena for a batch of objects that all get thrown away together. `std::pmr` isn't a third — it solves a type-compatibility problem, not a performance one, and paying a virtual call on every allocation makes it a worse default than either of these for something that's actually meant to sit on a hot path. Reach for it only when the flexibility is worth that specific cost.
+Slots are named by 32-bit indices, so an index and a 32-bit version fit exactly into one `uint64_t`, and an ordinary 64-bit CAS can compare both. A list of pointers would need a 16-byte CAS (`cmpxchg16b` on x86-64), or squeezing the version into the 16 unused high bits of a 64-bit pointer. The version wraps around, but that would require thread A to miss exactly $2^{32}$ changes while it is switched out, which doesn't happen in practice.
 
-Zooming out, every section above is really the same question asked again at a different layer: *where does this storage actually come from, and who's managing it?*
+Read the code in three segments: how the slots and the list head are laid out, taking a slot, returning a slot.
 
-<svg viewBox="0 0 640 1180" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From malloc/free's unpredictable latency, through Object Pool's v1 linear scan being superseded by v2's free list, through allocator-environment tuning, to the Arena's bump pointer, to the STL allocator and std::pmr — ending at memory strategy decoupled from container type" style="width:min(100%,640px);max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
-  <style>
-    .bg  { fill: #fbfaf7; }
-    .ink { fill: #1c1b18; }
-    .muted { fill: #6b6558; }
-    .title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
-    .boxN  { fill: #ffffff; stroke: #d9d4c7; stroke-width: 1.5; }
-    .boxGone { fill: #f1efe8; stroke: #c8c1ad; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: 0.8; }
-    .boxGo   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 2; }
-    .edge     { stroke: #b3ab98; stroke-width: 1.6; fill: none; marker-end: url(#ahN2); }
-    .edgeGone { stroke: #b3ab98; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; opacity: 0.75; marker-end: url(#ahN2); }
-    .edgeGo   { stroke: #6f8f3f; stroke-width: 2; fill: none; marker-end: url(#ahGo2); }
-      :root:is([data-theme="dark"], [data-theme="black"]) .bg { fill: #17161b; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .ink { fill: #e9e7ef; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .muted { fill: #a19caf; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .title { fill: #e9e7ef; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .boxN { fill: #201f26; stroke: #3a3945; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .boxGone { fill: #2a2933; stroke: #47454f; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .boxGo { fill: #33421f; stroke: #8fb257; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .edge { stroke: #55525f; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .edgeGone { stroke: #55525f; }
-      :root:is([data-theme="dark"], [data-theme="black"]) .edgeGo { stroke: #8fb257; }
-  </style>
-  <defs>
-    <marker id="ahN2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#8a8474"/>
-    </marker>
-    <marker id="ahGo2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" fill="#6f8f3f"/>
-    </marker>
-  </defs>
-  <rect class="bg" x="0" y="0" width="640" height="1180" rx="10"/>
-  <text class="title" x="20" y="26">Pool to pmr: the same question — where storage comes from —</text>
-  <text class="title" x="20" y="42">answered five different ways</text>
-  <rect class="boxN" x="180" y="56" width="280" height="56" rx="8"/>
-  <text class="ink" x="320" y="80" font-size="14" font-weight="700" text-anchor="middle">malloc / free</text>
-  <text class="muted" x="320" y="98" font-size="11" text-anchor="middle">unpredictable, variable latency</text>
-  <path class="edge" d="M320,112 L320,154"/>
-  <rect class="boxN" x="190" y="156" width="260" height="50" rx="8"/>
-  <text class="ink" x="320" y="180" font-size="14" font-weight="700" text-anchor="middle">Object Pool</text>
-  <text class="muted" x="320" y="197" font-size="11" text-anchor="middle">§1</text>
-  <path class="edgeGone" d="M300,206 L170,246"/>
-  <path class="edgeGo" d="M340,206 L470,246"/>
-  <rect class="boxGone" x="40" y="248" width="240" height="64" rx="8"/>
-  <text class="muted" x="160" y="272" font-size="12.5" font-weight="700" text-anchor="middle">v1 · linear scan</text>
-  <text class="muted" x="160" y="290" font-size="10.5" text-anchor="middle">O(N) · superseded by v2</text>
-  <rect class="boxGo" x="360" y="248" width="240" height="64" rx="8"/>
-  <text class="ink" x="480" y="272" font-size="12.5" font-weight="700" text-anchor="middle">v2 · explicit free list</text>
-  <text class="ink" x="480" y="290" font-size="10.5" text-anchor="middle">O(N) → O(1)</text>
-  <path class="edgeGo" d="M460,312 L340,354"/>
-  <rect class="boxN" x="170" y="356" width="300" height="64" rx="8"/>
-  <text class="ink" x="320" y="380" font-size="14" font-weight="700" text-anchor="middle">intrusive free list</text>
-  <text class="muted" x="320" y="398" font-size="10.5" text-anchor="middle">next lives inside T, no extra node</text>
-  <path class="edge" d="M320,420 L320,450"/>
-  <rect class="boxN" x="160" y="452" width="320" height="50" rx="8"/>
-  <text class="ink" x="320" y="476" font-size="13.5" font-weight="700" text-anchor="middle">tightening allocator control</text>
-  <text class="muted" x="320" y="493" font-size="11" text-anchor="middle">§2</text>
-  <path class="edge" d="M300,502 L160,542"/>
-  <path class="edge" d="M340,502 L480,542"/>
-  <rect class="boxN" x="40" y="544" width="240" height="64" rx="8"/>
-  <text class="ink" x="160" y="568" font-size="12.5" font-weight="700" text-anchor="middle">glibc tuning</text>
-  <text class="muted" x="160" y="586" font-size="10" text-anchor="middle">M_MMAP_MAX=0 · M_TRIM_THRESHOLD=-1</text>
-  <rect class="boxN" x="360" y="544" width="240" height="64" rx="8"/>
-  <text class="ink" x="480" y="568" font-size="12.5" font-weight="700" text-anchor="middle">mlockall</text>
-  <text class="muted" x="480" y="586" font-size="10" text-anchor="middle">locked into RAM · swappiness=0</text>
-  <path class="edge" d="M180,608 L300,650"/>
-  <path class="edge" d="M460,608 L340,650"/>
-  <rect class="boxN" x="170" y="652" width="300" height="50" rx="8"/>
-  <text class="ink" x="320" y="682" font-size="13.5" font-weight="700" text-anchor="middle">a stable memory environment</text>
-  <path class="edge" d="M320,702 L320,738"/>
-  <rect class="boxN" x="190" y="740" width="260" height="50" rx="8"/>
-  <text class="ink" x="320" y="764" font-size="14" font-weight="700" text-anchor="middle">Arena Allocator</text>
-  <text class="muted" x="320" y="781" font-size="11" text-anchor="middle">§3 · bump-pointer arena</text>
-  <path class="edge" d="M320,790 L320,826"/>
-  <rect class="boxN" x="170" y="828" width="300" height="56" rx="8"/>
-  <text class="ink" x="320" y="852" font-size="14" font-weight="700" text-anchor="middle">bump pointer</text>
-  <text class="muted" x="320" y="870" font-size="10.5" text-anchor="middle">only ever moves forward · O(1) alloc</text>
-  <path class="edge" d="M320,884 L320,920"/>
-  <rect class="boxN" x="150" y="922" width="340" height="50" rx="8"/>
-  <text class="ink" x="320" y="946" font-size="13.5" font-weight="700" text-anchor="middle">STL Allocator</text>
-  <text class="muted" x="320" y="963" font-size="10" text-anchor="middle">custom allocator · compile-time polymorphism</text>
-  <path class="edge" d="M320,972 L320,1008"/>
-  <rect class="boxN" x="190" y="1010" width="260" height="56" rx="8"/>
-  <text class="ink" x="320" y="1034" font-size="14" font-weight="700" text-anchor="middle">std::pmr</text>
-  <text class="muted" x="320" y="1052" font-size="10.5" text-anchor="middle">§4 · run-time polymorphism</text>
-  <path class="edgeGo" d="M320,1066 L320,1100"/>
-  <rect class="boxGo" x="90" y="1102" width="460" height="64" rx="8"/>
-  <text class="ink" x="320" y="1126" font-size="14" font-weight="700" text-anchor="middle">memory strategy decoupled from container type</text>
-  <text class="ink" x="320" y="1144" font-size="10.5" text-anchor="middle">"where memory comes from" and "how it's managed" are independent</text>
-</svg>
-
-### 5.1 A Reference Object Pool
-
-Sections 1 and 2 compose cleanly into one self-contained thing: a fixed-type pool with O(1) alloc/dealloc, backed by memory that's pre-allocated, pre-faulted, and locked before the hot path ever runs. One refinement beyond either version in section 1: instead of a separate `free_list_` array, the "next free slot" index lives *inside* the same slot as `T`, so a single allocation touches one cache line instead of two unrelated arrays.
+**Segment 1: the slots and the list head, with an index and a version packed into one 64-bit number**
 
 ```cpp
 template <typename T>
-class ObjectPool {
+class ConcurrentPool {
   struct Slot {
-    alignas(T) unsigned char storage[sizeof(T)];  // T lives here once constructed
-    std::size_t next_free;                        // free-list link, co-located with T
+    alignas(T) unsigned char storage[sizeof(T)];  // the object is constructed here; first member, so object address = slot address
+    std::atomic<std::uint32_t> next;              // while free: index of the next free slot
   };
-  static constexpr std::size_t kInvalid = static_cast<std::size_t>(-1);
-
-  Slot* slots_;
-  std::size_t capacity_;
-  std::size_t free_head_ = 0;
-
- public:
-  explicit ObjectPool(std::size_t capacity) : capacity_(capacity) {
-    std::size_t bytes = sizeof(Slot) * capacity_;
-    slots_ = static_cast<Slot*>(std::aligned_alloc(alignof(Slot), bytes));
-    if (!slots_) throw std::bad_alloc{};
-
-    mlock(slots_, bytes);            // never swapped out (check the return value in production —
-    std::memset(slots_, 0, bytes);   // needs CAP_IPC_LOCK / RLIMIT_MEMLOCK); memset pre-faults every page now
-
-    for (std::size_t i = 0; i < capacity_; ++i)
-      slots_[i].next_free = (i + 1 < capacity_) ? i + 1 : kInvalid;
+  static constexpr std::uint32_t kNil = UINT32_MAX;   // end of the list; when the stack is empty, the top is this
+  static std::uint64_t pack(std::uint32_t ver, std::uint32_t idx) {
+    return (std::uint64_t(ver) << 32) | idx;      // high 32 bits: version, low 32 bits: index
   }
 
-  ~ObjectPool() {
-    munlock(slots_, sizeof(Slot) * capacity_);
-    std::free(slots_);
-  }
-
-  ObjectPool(const ObjectPool&) = delete;
-  ObjectPool& operator=(const ObjectPool&) = delete;
-
-  template <typename... Args>
-  T* allocate(Args&&... args) {
-    if (free_head_ == kInvalid) return nullptr;      // pool exhausted — no exception on the hot path
-    Slot& slot = slots_[free_head_];
-    free_head_ = slot.next_free;                     // O(1): the next slot was already known
-    return ::new (slot.storage) T(std::forward<Args>(args)...);
-  }
-
-  void deallocate(T* obj) {
-    obj->~T();
-    auto* slot = reinterpret_cast<Slot*>(
-        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));
-    std::size_t index = slot - slots_;
-    slot->next_free = free_head_;                    // push back onto the free-list head
-    free_head_ = index;
-  }
-};
+  Slot* slots_;                                   // allocation, mlock, memset and list setup as in 1.4
+  std::atomic<std::uint64_t> head_;               // (version, index of the top), initially pack(0, 0)
 ```
 
-What each piece contributed, concretely: the `next_free`-inside-`Slot` layout and the head-pointer swap are section 1's free list; `aligned_alloc` + `mlock` + the eager `memset` are section 2's "never let the kernel take it back, and never fault on first touch."
+- **Indices instead of pointers, so that the index fits into 64 bits together with the version**: one ordinary 64-bit CAS (`lock cmpxchg` on x86) compares both at once.
+- **`next` has bytes of its own, and it is atomic**: when another thread reads it, this slot may be in use by someone, for the reason given in 5.5.
 
-### 5.2 A Reference Arena
-
-The pool above hands out one type, individually, with independent lifetimes. An arena is for the opposite shape: a batch of allocations — possibly different sizes, possibly different types — that all get released together. Same startup treatment as the pool (one allocation, `mlock`, `memset` to pre-fault), but the allocation logic itself is simpler still: no free list to maintain at all, just a running offset.
+**Segment 2: `allocate`, taking a slot off the top of the stack**
 
 ```cpp
-class Arena {
-  unsigned char* base_;
-  std::size_t capacity_;
-  std::size_t used_ = 0;
-  bool allow_malloc_fallback_;
-
  public:
-  explicit Arena(std::size_t capacity, bool allow_malloc_fallback = false)
-      : capacity_(capacity), allow_malloc_fallback_(allow_malloc_fallback) {
-    base_ = static_cast<unsigned char*>(
-        std::aligned_alloc(alignof(std::max_align_t), capacity_));
-    if (!base_) throw std::bad_alloc{};
-
-    mlock(base_, capacity_);           // same locking + pre-faulting as the pool
-    std::memset(base_, 0, capacity_);  // (check mlock's return value in production)
-  }
-
-  ~Arena() {
-    munlock(base_, capacity_);
-    std::free(base_);
-  }
-
-  Arena(const Arena&) = delete;
-  Arena& operator=(const Arena&) = delete;
-
-  void* allocate(std::size_t size, std::size_t alignment = alignof(std::max_align_t)) {
-    std::size_t aligned_used = (used_ + alignment - 1) & ~(alignment - 1);
-    if (aligned_used + size > capacity_) {
-      return allow_malloc_fallback_ ? std::malloc(size) : nullptr;  // arena exhausted
+  template <typename... Args>
+  T* allocate(Args&&... args) {
+    std::uint64_t old = head_.load(std::memory_order_acquire);              // ① read the top: version + index
+    for (;;) {
+      std::uint32_t idx = static_cast<std::uint32_t>(old);                  // ② the low 32 bits are the top's index
+      if (idx == kNil) return nullptr;                                      //    the pool is used up
+      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);   // ③ the slot under the top; may be stale
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);  // ④ new top: version + 1, index becomes next
+      if (head_.compare_exchange_weak(old, desired,                         // ⑤ only if head_ still equals old, set it to desired
+                                      std::memory_order_acquire,            //    success
+                                      std::memory_order_acquire))           //    failure: old now holds the latest value, back to ②
+        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);  // ⑥ the slot is mine; construct the object in place
     }
-    void* ptr = base_ + aligned_used;
-    used_ = aligned_used + size;
-    return ptr;
   }
+```
 
-  void reset() noexcept { used_ = 0; }  // the only way to reclaim — bulk, not per-allocation
+- **A stale `next` read at ③ does no harm**: if another thread touched `head_` between ① and ⑤, the version has changed, ⑤ is certain to fail, and the stale `next` is thrown away with it.
+- **⑤ compares all 64 bits**: even if the top's index has come back to X, the version won't match. The CAS at moment 4 in the table of 5.3 fails right here.
+- **On failure `old` already holds the latest value**: so the loop doesn't need another `load` and starts again from ②. The `weak` version occasionally fails for no reason; since it's in a loop anyway, one more try handles it.
+- **Only the thread whose CAS succeeds reaches ⑥**: the slot is already off the stack and belongs to it alone, and only then is the object constructed.
+
+**Segment 3: `deallocate`, pushing a slot back on top of the stack**
+
+```cpp
+  void deallocate(T* obj) {
+    obj->~T();                                                              // ① destroy first
+    auto* slot = reinterpret_cast<Slot*>(
+        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));   // ② object address → slot address
+    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);          //    slot address → index
+    std::uint64_t old = head_.load(std::memory_order_relaxed);
+    for (;;) {
+      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);  // ③ my next = the current top
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);  // ④ new top: version + 1, index becomes mine
+      if (head_.compare_exchange_weak(old, desired,                         // ⑤ push only if the top hasn't changed
+                                      std::memory_order_release,            //    success: publish the destruction and next together
+                                      std::memory_order_relaxed))           //    failure: back to ③, next re-pointed at the new top
+        return;
+    }
+  }
 };
 ```
 
-`allocate()` is the whole bump-allocator idea in four lines: round the current offset up to the requested alignment, check it still fits, advance the offset, return the old one. No search, no list to maintain — the "next free position" is always just `used_`. `reset()` is the only reclaim path, matching the arena's whole premise: it doesn't track individual allocations, so it can't release one. One deliberate simplification versus section 3's multi-block design: a single fixed-capacity buffer rather than a chain of pre-reserved blocks — simpler to get right, at the cost of a hard capacity ceiling instead of the ability to keep growing. `allow_malloc_fallback_` is the same escape hatch section 3's arena had for exactly that ceiling.
+- **③ rewrites `next` on every round**: a failed CAS means the top changed, so `next` must point at the new top before trying again.
+- **Pushed back on top, last in, first out**: the slot just returned is the first to go out next time, and it is most likely still in cache.
+- **The version goes up by 1 on push too**: strictly, bumping it only on pop is enough to stop ABA, because for a slot to be taken by someone and returned, there must be a pop in between; bumping on every change keeps the rule simpler.
 
-Pick the pool when objects have independent lifetimes and get freed one at a time. Pick the arena when a whole batch — everything touched while handling one tick, one order, one request — shares a single lifetime and gets thrown away as a unit.
+A stress test built with GCC 16.2: 8 threads sharing a 64-slot pool, each allocating and freeing 200,000 times; no slot was ever handed to two threads at once, and all 64 slots were back at the end.
 
+### 5.5 Memory Ordering: acquire for Allocation, release for Freeing {#pool-ordering}
+
+
+- **The load and the CAS in allocation both use acquire**: the thread that gets a slot has to see what the previous user wrote into it before freeing it, and the `next` written when it was freed. On failure, the CAS reads the latest `head` back into `old`, and the next round goes on to read its `next`, so the failure path needs acquire too.
+- **The CAS in freeing uses release**: the writes into this slot and the `next` just written are published, together with this CAS, to the next thread that gets the slot.
+
+`next` is kept separate, as a `std::atomic` that shares no bytes with `storage`, because when thread A reads `X.next` at moment 1, X may already have been taken by another thread that is constructing an object in `storage`. With the two kept apart, that read is not a data race; the stale value it reads is thrown away with the failed CAS.
+
+### 5.6 Slots Are Never Returned to the System: That Removes the Hardest Problem of Lock-Free Stacks, Reclamation {#no-reclaim}
+
+An ordinary lock-free stack `delete`s a node after popping it, while another thread may still hold its address and be about to read `next`, i.e. read memory that has already been freed; solving that takes a reclamation scheme such as hazard pointers or epochs. **The slots of a pool are always there, so the worst you can read is a stale `next`**, and that value is thrown away with the failed CAS.

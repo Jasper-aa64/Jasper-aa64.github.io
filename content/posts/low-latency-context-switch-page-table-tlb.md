@@ -226,7 +226,7 @@ A hot thread is pinned to an isolated core and busy-polls, never making a system
 3. **Who pays**
    - **The initiating core**: waits synchronously, for the slowest core to reply.
    - **Cores receiving the IPI**: interrupted once to enter the kernel, invalidate and reply, about like an interrupt, 1–5 µs, and their caches have been disturbed when they return.
-   - **Conclusion**: **neither pinning nor `isolcpus` can stop it.** They control where the scheduler places tasks, while the IPI is a hardware interrupt that never goes through the scheduler ([#3](/posts/hot-path-memory-allocators/) section 2.2).
+   - **Conclusion**: **neither pinning nor `isolcpus` can stop it.** They control where the scheduler places tasks, while the IPI is a hardware interrupt that never goes through the scheduler ([#3](/posts/hot-path-memory-allocators/#shootdown) section 4.4).
 
 ### 3.2 Who Is Notified: Cores Whose CR3 Still Points at This Page Table {#who}
 
@@ -259,7 +259,7 @@ The IPI goes neither to "the cores running this process" nor to "every core that
 
 | Source | Why it changes the page table | How to avoid it | More |
 |---|---|---|---|
-| `free` of a large block | Allocations of 128 KiB and up get their own `mmap` by default and are `munmap`ed on `free`; with enough free space glibc also shrinks the heap and gives pages back with `madvise` | Preallocate at startup and use pools on the hot path; turn off mmap and trimming with `mallopt` | [#3](/posts/hot-path-memory-allocators/) section 2 |
+| `free` of a large block | Allocations of 128 KiB and up get their own `mmap` by default and are `munmap`ed on `free`; with enough free space glibc also shrinks the heap and gives pages back with `madvise` | Preallocate at startup and use pools on the hot path; turn off mmap and trimming with `mallopt` | [#3](/posts/hot-path-memory-allocators/#keep-memory) Part 4 |
 | `munmap`, `mprotect`, `mremap` at run time | Directly remove mappings, tighten permissions, move mappings | Finish mapping at startup and leave it alone while running | [where one new goes](/zh/ref/new-malloc-page-fault/) (in Chinese) |
 | `fork` | Every writable page of the parent becomes read-only (copy-on-write), and later whoever writes first gets a new page | No `fork` while the hot-path process runs; start child processes at startup | [processes and threads](/zh/ref/process-thread-fork/) section 2.2 (in Chinese) |
 | Transparent huge page collapsing (`khugepaged`) | Replaces 512 small pages with one huge page, so old translations must go | `transparent_hugepage=never`; request huge pages explicitly when you want them | [#19](/posts/scheduling-priority-inversion-kernel-tuning/) section 4.4 |
