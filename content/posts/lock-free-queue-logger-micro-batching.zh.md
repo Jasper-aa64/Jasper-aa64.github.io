@@ -176,6 +176,21 @@ mmap(static_cast<char*>(base) + N,  N, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_
 
 两个视图背后是同样的物理页，所以 `buf[i]` 和 `buf[i + N]` 是同一个字节。
 
+**回绕没有消失，回绕的只是起点。**下标照样用掩码折回 `[0, N)`，所以 `N` 取 2 的幂（不小于页大小，也就自然是页大小的倍数）。一次写的长度不会超过空位，空位不会超过 `N`，所以终点不超过 `2N`，不会越过第二个视图；越过第一个视图末尾的那一段落在镜像里，也就是回绕后的开头：
+
+```cpp
+bool write(const char* src, size_t len) {
+  size_t h = head_.load(std::memory_order_relaxed);
+  size_t t = tail_.load(std::memory_order_acquire);
+  if (len > N - (h - t)) return false;               // 空位不够
+  std::memcpy(buf_ + (h & (N - 1)), src, len);       // 起点在 [0, N)，len ≤ N，终点 ≤ 2N
+  head_.store(h + len, std::memory_order_release);
+  return true;
+}
+```
+
+读的一侧一样：从 `buf_ + (t & (N - 1))` 一次读出 `len` 字节，跨不跨末尾都不用管。
+
 ![两幅图。左：一排八块编号的石砖，尽头是一堵墙，一次写被切成两段箭头。右：三排对齐的同样八块编号石砖（第一个视图、物理页、第二个视图），相同编号之间用竖直虚线相连，一次写从第一个视图的末尾继续写到第二个视图的前两块砖上。](/images/lock-free-queue/mirror-the-addresses.jpg)
 
 - **必须用文件描述符，两次匿名映射做不到**：每个 `MAP_ANONYMOUS` 映射都拿到自己全新的页，第二个映射没有东西可以指向。两段地址要共享页，得有一个两边都能引用的对象，这里是 fd，System V 共享内存段也行。
