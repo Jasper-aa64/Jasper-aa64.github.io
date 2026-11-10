@@ -92,7 +92,7 @@
   <text x="482" y="656" class="s">glibc 直接 mmap 一块新映射</text>
   <text x="482" y="674" class="s">free 时立刻 munmap 还给内核</text>
   <text x="482" y="692" class="s">门槛会随使用自动调高</text>
-  <text x="482" y="710" class="tag"><a href="/zh/posts/hot-path-memory-allocators/#21-光靠-mlockall-有个漏洞" target="_blank" rel="noopener"><tspan>#3 2.1 mmap 陷阱</tspan></a></text>
+  <text x="482" y="710" class="tag"><a href="/zh/posts/hot-path-memory-allocators/#mallopt" target="_blank" rel="noopener"><tspan>#3 4.3 mmap 陷阱</tspan></a></text>
   </g>
   <g id="tstack">
   <rect x="189" y="760" width="266" height="134" rx="6" class="mmap"/>
@@ -267,7 +267,7 @@
   <text x="812" y="700" class="s">第一次写：陷入内核，分一页、清零、填进页表</text>
   <text x="812" y="718" class="s">约 0.5–2 µs；要读磁盘的（major）几十 µs 到 ms</text>
   <text x="812" y="736" class="s">地址不在任何映射里，或权限不对 → SIGSEGV</text>
-  <text x="812" y="754" class="tag"><a href="/zh/posts/hot-path-memory-allocators/#32-预先缺页补上-mlock-在首次访问时留下的口子" target="_blank" rel="noopener"><tspan>#3 3.2 预先缺页 + mlock</tspan></a></text>
+  <text x="812" y="754" class="tag"><a href="/zh/posts/hot-path-memory-allocators/#prefault" target="_blank" rel="noopener"><tspan>#3 4.1 预先缺页 + mlock</tspan></a></text>
   </g>
   <g id="errs">
   <rect x="800" y="860" width="780" height="150" rx="6" class="note"/>
