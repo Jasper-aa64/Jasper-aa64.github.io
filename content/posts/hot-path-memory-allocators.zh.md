@@ -1,7 +1,7 @@
 ---
 title: "交易系统笔记 #3：内存池与分配器"
 date: 2026-09-17
-lastmod: 2026-11-09
+lastmod: 2026-11-10
 slug: "hot-path-memory-allocators"
 description: "为什么 malloc/free 真正的问题是方差而不是速度——以及四种越来越通用的办法，保证热路径上没有任何事是第一次发生：O(1) 的空闲链表对象池、自定义 STL 分配器背后的 bump 指针 arena、std：：pmr 这个运行时版本的替代方案，以及垫在三者底下的那一层：预先缺页、锁页，不让 glibc 把页还给内核。还有对象池和 arena 的参考实现，以及多线程对象池的无锁空闲栈和 ABA。"
 summary: "这篇里的每一种技术，都是在不同的层面上做同一件事：把一个不确定的、牵涉内核的操作从热路径上挪走，强制它在开头一次性发生完，不让它伏击任何一个请求。对象池用永远 O(1) 的空闲链表，换掉 malloc 那种耗时可变的搜索。mlockall 加上仔细的 mallopt 调优，阻止内核悄悄把页收回——预先缺页则补上 mlock 单独留下的那个口子。手写的 arena 分配器让 STL 本身配合一个由 bump 指针内存支撑的自定义分配器。std：：pmr 用标准库的方式解决同一个「让 STL 配合」的问题——拿编译期的速度换运行时的灵活。"
@@ -429,54 +429,78 @@ class Arena {
 
 槽用 32 位下标表示，下标和 32 位版本号正好打包进一个 `uint64_t`，普通的 64 位 CAS 就能一起比较。链表要是用指针，就得用 16 字节的 CAS（x86-64 的 `cmpxchg16b`），或者把版本号塞进 64 位指针用不到的高 16 位。版本号会回绕，但那要求线程 A 被换下的这一会儿里正好错过 $2^{32}$ 次修改，实际不会发生。
 
+代码分三段看：槽和链表头怎么放，取一个槽，还一个槽。
+
+**第一段：槽和链表头，一个 64 位的数里装下标和版本号**
+
 ```cpp
 template <typename T>
 class ConcurrentPool {
   struct Slot {
-    alignas(T) unsigned char storage[sizeof(T)];
+    alignas(T) unsigned char storage[sizeof(T)];  // 对象构造在这里；放在第一个，对象地址就是槽地址
     std::atomic<std::uint32_t> next;              // 空闲时：下一个空闲槽的下标
   };
-  static constexpr std::uint32_t kNil = UINT32_MAX;
+  static constexpr std::uint32_t kNil = UINT32_MAX;   // 链表尾；栈空时栈顶就是它
   static std::uint64_t pack(std::uint32_t ver, std::uint32_t idx) {
     return (std::uint64_t(ver) << 32) | idx;      // 高 32 位版本号，低 32 位下标
   }
 
   Slot* slots_;                                   // 分配、mlock、memset、串链表同 1.4
-  std::atomic<std::uint64_t> head_;               // 初值 pack(0, 0)
+  std::atomic<std::uint64_t> head_;               // （版本号，栈顶下标），初值 pack(0, 0)
+```
 
+- **用下标不用指针，是为了和版本号一起装进 64 位**：普通的 64 位 CAS（x86 上是 `lock cmpxchg`）一次就把两样一起比较。
+- **`next` 单独占几个字节，而且是原子的**：别的线程读它时，这个槽可能正被人用着，原因见 5.5。
+
+**第二段：`allocate`，从栈顶取一个槽**
+
+```cpp
  public:
   template <typename... Args>
   T* allocate(Args&&... args) {
-    std::uint64_t old = head_.load(std::memory_order_acquire);
+    std::uint64_t old = head_.load(std::memory_order_acquire);              // ① 读栈顶：版本号 + 下标
     for (;;) {
-      std::uint32_t idx = static_cast<std::uint32_t>(old);
-      if (idx == kNil) return nullptr;
-      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);
-      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);
-      if (head_.compare_exchange_weak(old, desired,
-                                      std::memory_order_acquire,    // 成功
-                                      std::memory_order_acquire))   // 失败：old 被换成最新值
-        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);
+      std::uint32_t idx = static_cast<std::uint32_t>(old);                  // ② 低 32 位是栈顶的下标
+      if (idx == kNil) return nullptr;                                      //    池用完了
+      std::uint32_t next = slots_[idx].next.load(std::memory_order_relaxed);   // ③ 栈顶下面那个槽，可能已过时
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, next);  // ④ 新栈顶：版本 + 1，下标换成 next
+      if (head_.compare_exchange_weak(old, desired,                         // ⑤ head_ 还等于 old，才换成 desired
+                                      std::memory_order_acquire,            //    成功
+                                      std::memory_order_acquire))           //    失败：old 已换成最新值，回到 ②
+        return ::new (slots_[idx].storage) T(std::forward<Args>(args)...);  // ⑥ 槽归我了，原地构造对象
     }
   }
+```
 
+- **③ 读到的 `next` 过时了也没关系**：① 到 ⑤ 之间有别的线程动过 `head_`，版本号就变了，⑤ 一定失败，过时的 `next` 跟着被丢掉。
+- **⑤ 比较的是整个 64 位**：栈顶下标哪怕又变回了 X，版本号也对不上。5.3 表里时刻 4 的那次 CAS，就是在这里失败的。
+- **失败时 `old` 已经是最新值**：所以循环里不用再 `load`，直接从 ② 重来。`weak` 版本偶尔会无故失败，反正在循环里，重试一次就好。
+- **只有 CAS 成功的线程才走到 ⑥**：这个槽已经从栈上摘下来、只属于它，这时才构造对象。
+
+**第三段：`deallocate`，把槽压回栈顶**
+
+```cpp
   void deallocate(T* obj) {
-    obj->~T();
+    obj->~T();                                                              // ① 先析构
     auto* slot = reinterpret_cast<Slot*>(
-        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));
-    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);
+        reinterpret_cast<unsigned char*>(obj) - offsetof(Slot, storage));   // ② 对象地址 → 槽地址
+    std::uint32_t idx = static_cast<std::uint32_t>(slot - slots_);          //    槽地址 → 下标
     std::uint64_t old = head_.load(std::memory_order_relaxed);
     for (;;) {
-      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);
-      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);
-      if (head_.compare_exchange_weak(old, desired,
-                                      std::memory_order_release,
-                                      std::memory_order_relaxed))
+      slot->next.store(static_cast<std::uint32_t>(old), std::memory_order_relaxed);  // ③ 我的 next = 当前栈顶
+      std::uint64_t desired = pack(static_cast<std::uint32_t>(old >> 32) + 1, idx);  // ④ 新栈顶：版本 + 1，下标换成我
+      if (head_.compare_exchange_weak(old, desired,                         // ⑤ 栈顶没变，才压上去
+                                      std::memory_order_release,            //    成功：析构和 next 一起发布
+                                      std::memory_order_relaxed))           //    失败：回到 ③，next 改指新栈顶
         return;
     }
   }
 };
 ```
+
+- **③ 每一轮都要重写 `next`**：CAS 失败说明栈顶换了，`next` 必须指向新的栈顶，再试一次。
+- **压回栈顶，后进先出**：刚还回来的槽下一次最先被发出去，它多半还在缓存里。
+- **入栈时也给版本号加 1**：严格说只靠出栈时加就防得住 ABA，因为一个槽要被别人拿走再还回来，中间一定有一次出栈；每改一次都加 1，规则更简单。
 
 用 GCC 16.2 跑过一个压力测试：8 个线程共用一个 64 槽的池，各自分配、释放 20 万次，没有一个槽同时发给两个线程，结束后 64 个槽全部收回。
 
