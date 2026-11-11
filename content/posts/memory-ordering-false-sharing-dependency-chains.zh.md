@@ -419,26 +419,99 @@ L1、L2 是每个核私有的，L3 是同一颗 CPU 上所有核共享的，这�
 
 ---
 
-### 2.5 真共享也会来回搬：ping-pong 的两种，和各自的修法 {#ping-pong}
+## 3. 案例：真共享的 ping-pong，布局改不掉，只能少碰 {#ping-pong}
 
-一条缓存行在两个核之间来回搬，叫 ping-pong。2.1 的伪共享是其中一种，另一种是真共享：
+一条缓存行在两个核之间来回搬，叫 ping-pong。第 2 节的伪共享是其中一种，另一种是真共享：
 
 - **伪共享**：两个核写的是两个不同的变量，碰巧落在同一条 64 字节的缓存行里。改布局就能消掉（2.3）。
-- **真共享**：两个核写的就是同一个变量，比如一个全局计数器、一把锁、队列的下标。布局改不掉，只能少碰它。
+- **真共享**：两个核写的就是同一个变量。布局改不掉，只能少碰它。
 
-**两种的代价一样**：每搬一次 20–100 ns，同核、同 socket 在低端，跨 socket 在高端；同一个核写自己 L1 里的行只要 1 ns 左右（[硬件地图](/zh/ref/cpu-memory/)）。所以吞吐掉几倍到几十倍，延迟也跟着抖。
+**两种的代价一样**：每搬一次 20–100 ns，同 socket 的两个核在低端，跨 socket 在高端；同一个核写自己 L1 里的行只要 1 ns 左右（[硬件地图](/zh/ref/cpu-memory/)）。所以吞吐掉几倍到几十倍，延迟也跟着抖。
 
-**真共享的修法都是同一个思路：让每个核大多数时候只碰自己的行**
+交易系统里真共享最常见的是下面三处：一个全局计数器、队列两端的下标、一把自旋锁。三处的修法是同一个思路：**让每个核大多数时候只碰自己的行，只在必要时碰一次共享的那条**。
 
-- **计数器每个线程各记一份**：读的时候再加起来，或者攒一批再合并一次（2.3 末尾，{{% bottleneck-ref "shared-counter" "plain" %}}）。
-- **队列里缓存一份对方的下标**：SPSC 队列的生产者要知道消费者读到哪了，每次都去读对方的下标，那条行就来回搬；先读自己缓存的旧值，只有看起来满了才去读一次真的（[#4 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/)）。
-- **自旋锁先读后抢**：等锁的核如果一直 CAS，每次 CAS 都要把行抢成独占，几个等待的核轮流抢；先只读，读到锁空了才 CAS，等待时这条行在几个核里都是 S（共享），不用搬（[#16 自旋锁](/zh/posts/spinlock-implementation/)，{{% bottleneck-ref "tas-spinlock" "plain" %}}）。
+### 3.1 全局计数器：几个线程都加同一个变量，改成每个线程各记一份 {#case-counter}
 
-> **怎么确认是 ping-pong，是哪一种**
+几个线程处理订单，每处理一笔就给全局计数加 1：
+
+```cpp
+// 1. 改之前：所有线程加同一个原子变量
+std::atomic<uint64_t> total{0};
+void on_order() {
+    total.fetch_add(1, std::memory_order_relaxed);
+}
+```
+
+**每次 `fetch_add` 都要先把这条行抢成独占**：几个线程轮流抢，这条行就一直在核之间搬。`relaxed` 帮不上忙，它只放松了顺序，没有减少对这条行的独占。
+
+```cpp
+// 2. 改之后：每个线程一份，各占一条缓存行
+struct alignas(64) PaddedCounter {
+    std::atomic<uint64_t> v{0};
+};
+PaddedCounter per_thread[kMaxThreads];
+
+void on_order(int tid) {
+    // 3. 只有自己写这一份，用读加写代替 fetch_add，没有 lock 前缀
+    auto& c = per_thread[tid].v;
+    c.store(c.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+}
+
+// 4. 读的时候把每一份加起来
+uint64_t read_total() {
+    uint64_t sum = 0;
+    for (auto& c : per_thread) sum += c.v.load(std::memory_order_relaxed);
+    return sum;
+}
+```
+
+**代价挪到了读的一侧**：读一次要扫一遍所有线程的那份，而且加出来的不是同一时刻的快照，几个线程一边加一边被读。计数器通常写得多、读得少，读的一方也不要求精确到同一时刻，所以划算（{{% bottleneck-ref "shared-counter" "plain" %}}）。
+
+### 3.2 SPSC 队列的下标：每次都读对方的下标，改成缓存一份 {#case-spsc}
+
+单生产者单消费者的环形队列，生产者要知道队列满没满，就得读消费者的下标 `read_idx_`；消费者每取一个都会写它。生产者每次 `push` 都读一次，这条行就在两个核之间来回搬。
+
+```cpp
+bool push(const T& x) {
+    size_t w = write_idx_.load(std::memory_order_relaxed);   // 自己的下标，只有自己写
+    // 1. 先用缓存的旧值判断满没满，不碰对方那条行
+    if (w - cached_read_idx_ == N) {
+        // 2. 看起来满了，才去读一次真的，顺便更新缓存
+        cached_read_idx_ = read_idx_.load(std::memory_order_acquire);
+        if (w - cached_read_idx_ == N) return false;
+    }
+    buf_[w & (N - 1)] = x;
+    write_idx_.store(w + 1, std::memory_order_release);
+    return true;
+}
+```
+
+**缓存的旧值只会往安全的方向错**：消费者只会往前读，真实的 `read_idx_` 只会比缓存的大。拿旧值算出来的空位只会偏少，最多是“以为满了”去多读一次，不会“以为有空位”写坏还没被读走的数据。队列不满的时候，生产者完全不碰消费者那条行（[#4 无锁队列 2.1](/zh/posts/lock-free-queue-logger-micro-batching/#cached-index)）。
+
+### 3.3 自旋锁：等锁时一直交换，改成先读后抢 {#case-spinlock}
+
+```cpp
+void lock() {
+    for (;;) {
+        // 1. 抢：exchange 是一次写，要先把行抢成独占
+        if (!locked_.exchange(true, std::memory_order_acquire)) return;
+        // 2. 没抢到就只读，等它变成 false
+        while (locked_.load(std::memory_order_relaxed)) _mm_pause();
+    }
+}
+```
+
+**只写第 1 步、在循环里一直 `exchange`**：每个等锁的核每一圈都要把行抢成独占，几个等待的核轮流抢，持锁的核解锁时还得从它们手里把行要回来。
+
+**加上第 2 步**：等待的核只读，这条行可以同时在几个核里处于 S（共享）状态，不用搬。持锁的核解锁时写一次，作废所有副本；等待的核读到 `false`，才回到第 1 步去抢一次（[#16 自旋锁](/zh/posts/spinlock-implementation/)，{{% bottleneck-ref "tas-spinlock" "plain" %}}）。
+
+### 3.4 怎么确认是 ping-pong、是哪一种 {#case-c2c}
+
+> **用 `perf c2c` 找到那条行，再看偏移**
 >
-> - **用 `perf c2c`**：它统计 HITM，也就是“要读的行正被另一个核改着”的次数，按缓存行排序，并且列出行里被访问的偏移和访问它的函数。
+> - **`perf c2c record` 跑一段，再 `perf c2c report`**：它统计 HITM，也就是“要读的行正被另一个核改着”的次数，按缓存行排序，列出行里被访问的偏移和访问它的函数。
 > - **几个线程访问的偏移不同、落在同一条行**：伪共享，用 2.3 隔开。
-> - **偏移相同**：真共享，用上面三种办法之一改设计。
+> - **几个线程访问的偏移相同**：真共享，按 3.1–3.3 的办法改设计。
 
 ## 应用 {#in-practice}
 

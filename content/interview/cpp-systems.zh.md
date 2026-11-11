@@ -36,7 +36,7 @@ math: true
 **展开见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)**：
 
 - **内存序**：x86 只允许“先写后读”这一种乱序，以及两个线程各自先写再读的例子（[1.3](/zh/posts/memory-ordering-false-sharing-dependency-chains/#four-reorderings)）；每种内存序在 x86 和 ARM 上编成什么、贵在哪（[1.6](/zh/posts/memory-ordering-false-sharing-dependency-chains/#cost)）。
-- **ping-pong**：缓存行为什么来回搬（[2.1](/zh/posts/memory-ordering-false-sharing-dependency-chains/#cache-line-unit)）；伪共享和真共享各自怎么修、怎么用 `perf c2c` 分辨（[2.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong)）。
+- **ping-pong**：缓存行为什么来回搬（[2.1](/zh/posts/memory-ordering-false-sharing-dependency-chains/#cache-line-unit)）；真共享的三个案例（计数器、队列下标、自旋锁）怎么修，怎么用 `perf c2c` 分辨伪共享和真共享（[第 3 节](/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong)）。
 
 ## 3. 无锁哈希表和 epoch 回收：表不难写，难的是旧节点什么时候能释放 {#lockfree-map}
 
