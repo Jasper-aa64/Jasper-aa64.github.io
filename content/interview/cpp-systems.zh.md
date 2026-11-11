@@ -1,14 +1,15 @@
 ---
-title: "IV：C++ 系统五题：UB、内存序、无锁哈希表、futex 锁、DAG 调度"
+title: "IV：C++ 系统题目：UB、内存序、无锁哈希表、futex 锁、DAG 调度"
 date: 2026-11-11
-slug: "cpp-systems-five"
-description: "五道 C++ 系统方向的题：未定义行为、严格别名和释放后使用；x86 上的内存序和同一条缓存行上的 ping-pong；无锁哈希表和基于纪元的回收；用 futex 实现互斥锁、把线程 id 缓存在 TLS 里；单线程 DAG 调度器和用线程池并行化。每道写结论、展开、代码和取舍。"
+slug: "cpp-systems"
+aliases: ["/interview/cpp-systems-five/"]
+description: "C++ 系统方向的题目：未定义行为、严格别名和释放后使用；x86 上的内存序和同一条缓存行上的 ping-pong；无锁哈希表和基于纪元的回收；用 futex 实现互斥锁、把线程 id 缓存在 TLS 里；单线程 DAG 调度器和用线程池并行化。每道写题目和简短答法，知识点展开在对应的知识页。"
 weight: 2
 toc: true
 math: true
 ---
 
-这五道题问的是同一件事的五个侧面：代码写出来以后，编译器、CPU、内核各自会对它做什么。前两道是讲清楚机制，后三道要写出代码。每道按“题目 → 结论 → 展开 → 取舍”写，本站讲过的地方给链接。
+这些题问的是同一件事的几个侧面：代码写出来以后，编译器、CPU、内核各自会对它做什么。每道写题目和简短答法，知识点的展开放在对应的知识页里，这里给链接。
 
 ## 1. UB、严格别名、释放后使用：为什么出错的地方离写错的地方很远 {#ub}
 
@@ -32,64 +33,10 @@ math: true
 > - **ping-pong 管的是性能**：两个核轮流写同一条缓存行，这条行就在两个核的缓存之间来回搬。
 > - **两件事背后是同一套硬件**：每个核私有的缓存、64 字节的缓存行、store buffer、MESI。
 
-### 2.1 x86 只有一种重排：写还停在 store buffer 里，后面的读先完成了 {#tso}
+**展开见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)**：
 
-- **x86 的内存模型是 TSO**：每个核的写先进自己的 store buffer，按顺序写进缓存。写和写之间、读和读之间、先读后写，顺序都不变。
-- **唯一会乱的是“先写后读”**：写还在 store buffer 里没出去，后面读另一个地址的指令已经完成了。别的核这时还看不到这次写。
-
-```cpp
-std::atomic<int> x{0}, y{0};
-int r1 = -1, r2 = -1;
-
-// 线程 1：先写 x，再读 y
-void t1() {
-    x.store(1, std::memory_order_release);
-    r1 = y.load(std::memory_order_acquire);
-}
-// 线程 2：先写 y，再读 x
-void t2() {
-    y.store(1, std::memory_order_release);
-    r2 = x.load(std::memory_order_acquire);
-}
-// 可能出现 r1 == 0 并且 r2 == 0：两边的写都还停在各自的 store buffer 里，对方读不到
-// 两个 store 都换成 seq_cst，才保证至少有一边读到 1
-```
-
-每种内存序在 x86 上编成什么：
-
-| 操作 | x86 上的指令 | 代价 |
-|---|---|---|
-| 读，不论哪种内存序 | `mov` | 和普通的读一样 |
-| `relaxed`、`release` 的写 | `mov` | 和普通的写一样 |
-| `seq_cst` 的写 | `xchg`（自带 `lock`），或者 `mov` 加 `mfence` | 约 20–30 个周期：要等 store buffer 排空 |
-| `fetch_add`、CAS 这类读改写 | 带 `lock` 前缀的指令 | 约 20 个周期：本身就是一道全屏障 |
-
-- **`acquire` 和 `release` 在 x86 的硬件上不花钱，但不能省**：它们还约束着编译器。写成 `relaxed`，编译器可以把两次访问调换位置；在 x86 上也许碰巧能跑，换到 ARM 就会出错，ARM 的硬件重排更多，屏障是真的指令。
-- **只有 `seq_cst` 管得住“先写后读”**：上面这个例子（两个线程各自先写自己的标志、再读对方的）是典型，3.2 的读者公告也是这个形状。
-
-展开见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)。
-
-### 2.2 ping-pong：要写一条缓存行必须先独占它，两个核轮流写就来回搬 {#ping-pong}
-
-- **写之前要独占**：一个核要写一条行，先发 RFO 或 invalidate 请求，别的核手里的副本作废，这条行在本核变成 M（已修改）。
-- **另一个核再写，行又被要回去**：对方把行交出来，自己这份作废。两个核轮流写，这条行就在两个核的缓存之间来回搬。
-- **每搬一次约 20–100 ns**：同一个核上自己写自己的行只要 1 ns 左右，所以吞吐会掉几倍到几十倍，延迟也变得不稳定。
-- **ping-pong 分两种**：
-  - **真共享**：两个核写的是同一个变量，比如一个共享的计数器。
-  - **伪共享**：两个核写的是两个不同的变量，它们碰巧落在同一条 64 字节的缓存行里。
-- **怎么解**：
-  - **不同线程写的变量用 `alignas(64)` 隔开**：相邻行预取会成对地取两条行，有时要隔 128 字节。
-  - **计数器每个线程各记一份**：读的时候再加起来。
-  - **SPSC 队列里缓存一份对方的下标**：少跨核去读对方正在写的那条行（[#4 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/)）。
-  - **自旋锁先读后抢**：先只读，看到锁空了再去 CAS，等待的核不会轮流把行抢成独占（[#16 自旋锁](/zh/posts/spinlock-implementation/)）。
-
-> **怎么确认是 ping-pong**
->
-> - **用 `perf c2c`**：它统计 HITM，也就是“要读的行正被另一个核改着”的次数，并且直接指出是哪条行、行里的哪几个偏移、哪些函数在访问。
-> - **多个线程的偏移不同、落在同一条行**：伪共享，隔开就行。
-> - **偏移相同**：真共享，要改设计，让每个线程写自己的那份。
-
-展开见 [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/)和[硬件地图](/zh/ref/cpu-memory/)。
+- **内存序**：x86 只允许“先写后读”这一种乱序，以及两个线程各自先写再读的例子（[1.3](/zh/posts/memory-ordering-false-sharing-dependency-chains/#four-reorderings)）；每种内存序在 x86 和 ARM 上编成什么、贵在哪（[1.6](/zh/posts/memory-ordering-false-sharing-dependency-chains/#cost)）。
+- **ping-pong**：缓存行为什么来回搬（[2.1](/zh/posts/memory-ordering-false-sharing-dependency-chains/#cache-line-unit)）；伪共享和真共享各自怎么修、怎么用 `perf c2c` 分辨（[2.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong)）。
 
 ## 3. 无锁哈希表和 epoch 回收：表不难写，难的是旧节点什么时候能释放 {#lockfree-map}
 
@@ -244,7 +191,7 @@ private:
 ```
 
 - **“平滑”指的是什么**：读路径上没有释放；写路径上攒够一批才处理一次；没有任何一步要让所有线程停下来等。要更平滑，可以把待释放列表交给后台线程去放。
-- **公告要用 `seq_cst`**：读者先写自己的公告、再读共享指针，正是 2.1 里 x86 会重排的“先写后读”。重排以后，写者扫描时看不到这个读者，读者却已经拿到了旧节点。
+- **公告要用 `seq_cst`**：读者先写自己的公告、再读共享指针，正是 x86 会重排的“先写后读”（[#2 1.3](/zh/posts/memory-ordering-false-sharing-dependency-chains/#four-reorderings)）。重排以后，写者扫描时看不到这个读者，读者却已经拿到了旧节点。
 - **线程编号**：代码里由调用方传 `tid`，实际用的时候每个线程第一次进来时登记一个，存在 `thread_local` 里。
 
 ### 3.3 取舍：一个读者卡住，内存就一直涨 {#ebr-tradeoff}

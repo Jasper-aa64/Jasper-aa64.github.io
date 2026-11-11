@@ -113,7 +113,7 @@ toc: true
 
 追问是**回收怎么做才平滑**：不在写者线程里当场释放，而是把退休的对象放进队列，由后台线程批量释放，写路径上就没有长停顿。代价是某个读者迟迟不退出，会拖住整代的回收，内存会涨。另一种方案是 hazard pointer：读者登记的是具体指针，回收更精确，但每次读都要多一次写和一次内存屏障。
 
-本站：固定容量的表和 epoch 回收的代码见 [C++ 系统五题第 3 节](/zh/interview/cpp-systems-five/#lockfree-map)。
+本站：固定容量的表和 epoch 回收的代码见 [C++ 系统题目第 3 节](/zh/interview/cpp-systems/#lockfree-map)。
 
 ### 2.4 并行化一个 DAG 调度器 {#dag}
 
@@ -121,7 +121,7 @@ toc: true
 
 两种提交方式的差别在关键路径：按层批量提交写起来简单，但同一层里最慢的节点会拖住下一层；完成一个就立刻提交它的后继，关键路径更短。节点很小的时候，调度本身的开销会超过计算，要把小节点合并。
 
-本站：基础线程池见[线程池和 future](/zh/ref/thread-pool-future/)，DAG 调度器的代码见 [C++ 系统五题第 5 节](/zh/interview/cpp-systems-five/#dag)。
+本站：基础线程池见[线程池和 future](/zh/ref/thread-pool-future/)，DAG 调度器的代码见 [C++ 系统题目第 5 节](/zh/interview/cpp-systems/#dag)。
 
 ### 2.5 用 futex 实现 mutex {#futex-mutex}
 
@@ -175,4 +175,4 @@ public:
 
 ## 3. 还没写的
 
-按这组题，本站还缺这些：求值顺序、模板和元编程、C++26 的 `std::hive` 和静态反射、LTO 和 LLVM 的优化阶段、协程的实现、一次系统调用的完整路径、io_uring、work stealing 线程池、无锁栈和 ABA。UB、epoch 回收和 DAG 调度器已经写在 [C++ 系统五题](/zh/interview/cpp-systems-five/)里。**最值得先补的是无锁栈加 ABA**：对象池那道手撕题建在它上面。futex 锁的代码已经在 2.5 节，单独成页时再补上测试。
+按这组题，本站还缺这些：求值顺序、模板和元编程、C++26 的 `std::hive` 和静态反射、LTO 和 LLVM 的优化阶段、协程的实现、一次系统调用的完整路径、io_uring、work stealing 线程池、无锁栈和 ABA。UB、epoch 回收和 DAG 调度器已经写在 [C++ 系统题目](/zh/interview/cpp-systems/)里。**最值得先补的是无锁栈加 ABA**：对象池那道手撕题建在它上面。futex 锁的代码已经在 2.5 节，单独成页时再补上测试。
