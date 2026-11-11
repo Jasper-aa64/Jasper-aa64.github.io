@@ -36,7 +36,12 @@
     <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/css/site.css">
     {{ if .IsPage }}<link rel="stylesheet" href="/css/syntax.css">{{ end }}
-    {{ if .Params.math }}
+    {{/* Math loads when front matter says math: true, or, when it says nothing, when the page body has a $...$ formula on one line.
+         math: false turns it off for a page whose prose uses a literal dollar sign. */}}
+    {{ $math := .Params.math }}
+    {{ if and .IsPage (not (isset .Params "math")) }}{{ $math = gt (len (findRE `\$[^\s$][^$
+]*\$` .RawContent 1)) 0 }}{{ end }}
+    {{ if $math }}
       <script>
         window.MathJax = {
           tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']], processEscapes: true },
