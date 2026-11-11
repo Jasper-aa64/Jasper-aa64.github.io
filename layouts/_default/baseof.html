@@ -34,7 +34,8 @@
     </script>
     <link rel="preload" href="/fonts/instrument-serif-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/css/site.css">
+    {{/* ?v= is the file's modification time, so a deploy that changes the markup never pairs with a cached older stylesheet or script. */}}
+    <link rel="stylesheet" href="/css/site.css?v={{ (os.Stat "static/css/site.css").ModTime.Unix }}">
     {{ if .IsPage }}<link rel="stylesheet" href="/css/syntax.css">{{ end }}
     {{/* Math loads when front matter says math: true, or, when it says nothing, when the page body has a $...$ formula on one line.
          math: false turns it off for a page whose prose uses a literal dollar sign. */}}
@@ -151,6 +152,6 @@
     </footer>
 
     <script>window.SITE_I18N = { copy: {{ i18n "copy" }}, copied: {{ i18n "copied" }}, copyAria: {{ i18n "copyAria" }}, themes: { light: {{ i18n "themeLight" }}, dark: {{ i18n "themeDark" }}, black: {{ i18n "themeBlack" }} } };</script>
-    <script src="/js/site.js" defer></script>
+    <script src="/js/site.js?v={{ (os.Stat "static/js/site.js").ModTime.Unix }}" defer></script>
   </body>
 </html>

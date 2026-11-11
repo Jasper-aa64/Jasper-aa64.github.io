@@ -62,6 +62,15 @@
   --measure: 700px;
   --header-h: 68px;
   --ease: cubic-bezier(.2, .7, .2, 1);
+
+  /* Page background strengths (the colours come from the tokens above) and table lines */
+  --glow-a: 9%;
+  --glow-b: 12%;
+  --dot: 52%;
+  --grain: .05;
+  --table-head: var(--paper-2);
+  --table-line: color-mix(in srgb, var(--rule) 80%, transparent);
+  --table-zebra: color-mix(in srgb, var(--paper-2) 45%, var(--card));
 }
 
 :root[data-theme="dark"] {
@@ -83,6 +92,13 @@
   --accent-ink: #efb2b6;
   --wash: rgba(160, 67, 76, .22);
   --code-bg: #2f2b2a;
+  --glow-a: 16%;
+  --glow-b: 9%;
+  --dot: 46%;
+  --grain: .06;
+  --table-head: #3b3635;
+  --table-line: color-mix(in srgb, var(--rule) 90%, transparent);
+  --table-zebra: color-mix(in srgb, var(--paper) 30%, var(--card));
   --shadow: 0 1px 2px rgba(0, 0, 0, .16), 0 10px 28px rgba(0, 0, 0, .18);
   --shadow-lg: 0 2px 6px rgba(0, 0, 0, .2), 0 30px 60px -24px rgba(0, 0, 0, .5);
 }
@@ -106,6 +122,13 @@
   --accent-ink: #efb2b6;
   --wash: rgba(196, 100, 107, .16);
   --code-bg: #141416;
+  --glow-a: 0%;
+  --glow-b: 0%;
+  --dot: 90%;
+  --grain: 0;
+  --table-head: #1a1a1c;
+  --table-line: var(--rule);
+  --table-zebra: #070708;
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .6);
   --shadow-lg: 0 2px 6px rgba(0, 0, 0, .5), 0 30px 60px -24px rgba(0, 0, 0, .8);
 }
@@ -132,15 +155,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-/* Ruled notebook paper with a couple of stray pencil strokes (from the original theme). */
+/* Dot-grid notebook paper. Every layer is built from the theme's own tokens, so the three themes keep their colours:
+   two soft glows at the top of the page (accent on the left, gold on the right), a fine dot grid that scrolls with
+   the page, and a fixed film of paper grain on top of it. */
 body {
   position: relative;
   background:
-    linear-gradient(112deg, transparent 0 18%, color-mix(in srgb, var(--gold-soft) 34%, transparent) 18.12%, transparent 18.34%),
-    linear-gradient(168deg, transparent 0 68%, color-mix(in srgb, var(--gold-soft) 26%, transparent) 68.12%, transparent 68.34%),
-    repeating-linear-gradient(0deg, transparent 0 31px, color-mix(in srgb, var(--gold-soft) 22%, transparent) 32px, transparent 33px),
-    linear-gradient(180deg, var(--paper-top) 0, var(--paper) 280px),
+    radial-gradient(760px 420px at 6% -40px, color-mix(in srgb, var(--accent) var(--glow-a), transparent), transparent 72%),
+    radial-gradient(820px 460px at 100% 0, color-mix(in srgb, var(--gold) var(--glow-b), transparent), transparent 70%),
+    radial-gradient(circle, color-mix(in srgb, var(--gold-soft) var(--dot), transparent) 1px, transparent 1.6px) 12px 12px / 24px 24px,
+    linear-gradient(180deg, var(--paper-top) 0, var(--paper) 360px),
     var(--paper);
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat, repeat;
 }
 body::before {
   content: "";
@@ -148,10 +174,10 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    repeating-linear-gradient(105deg, transparent 0 54px, color-mix(in srgb, var(--gold-soft) 26%, transparent) 55px, transparent 57px),
-    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--wash) 60%, transparent), transparent 30%);
-  opacity: .5;
+  background: var(--ink);
+  opacity: var(--grain);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.7 0 0 0 -.55'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 240px 240px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.7 0 0 0 -.55'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 240px 240px;
 }
 
 /* Theme switch: one cross-fade of the whole page (View Transitions); never per-element colour
@@ -1274,7 +1300,9 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
    ========================================================================== */
 .post-head { padding-top: clamp(24px, 3.4vw, 48px); padding-bottom: clamp(18px, 2.4vw, 28px); }
 /* Article frame: a wide reading column (a little narrower than the original theme's) and a
-   320px table of contents on the right. */
+   320px table of contents on the right. Three widths: from 1200px the table of contents is a column;
+   from 761px to 1199px it is a rail of ticks in the right gutter that opens over the text on hover;
+   below that it is a fold-out box above the article. */
 .post-frame {
   --toc-w: 320px;
   --toc-gap: clamp(28px, 3vw, 64px);
@@ -1282,7 +1310,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   margin-inline: auto;
   padding-left: clamp(0px, 3vw, 56px);
 }
-@media (min-width: 1100px) {
+@media (min-width: 1200px) {
   .has-toc .post-frame { padding-right: calc(var(--toc-w) + var(--toc-gap)); }
   .has-toc .post-grid { padding-right: 0; }
 }
@@ -1346,7 +1374,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .post-body { min-width: 0; }
 
-@media (min-width: 1100px) {
+@media (min-width: 1200px) {
   .has-toc .post-grid { grid-template-columns: minmax(0, 1fr) var(--toc-w); column-gap: var(--toc-gap); }
   .has-toc .toc-side { display: block; grid-column: 2; grid-row: 1; }
   .has-toc .toc-mobile { display: none; }
@@ -1358,11 +1386,81 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   position: sticky;
   top: calc(var(--header-h) + 32px);
   align-self: start;
+}
+.toc-side__panel {
+  position: relative;
   max-height: calc(100vh - var(--header-h) - 64px);
   overflow-y: auto;
   padding-right: 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--rule) transparent;
+}
+.toc-rail { display: none; }
+
+/* Middle widths: the column would squeeze the text, so the table of contents takes no room. A rail of ticks,
+   one per heading, sits in the right gutter and marks the section being read; pointing at it (or focusing or
+   clicking it) opens the full list as a card over the text. Needs the script for the ticks, so without it
+   the fold-out box stays. */
+@media (min-width: 761px) and (max-width: 1199.98px) {
+  .has-js .has-toc .toc-mobile { display: none; }
+  .has-js .has-toc .toc-side {
+    display: block;
+    position: fixed;
+    z-index: 40;
+    top: calc(var(--header-h) + 18px);
+    right: 0;
+  }
+  .toc-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+    box-sizing: content-box;
+    width: 20px;
+    max-height: calc(100vh - var(--header-h) - 36px);
+    margin: 0;
+    padding: 12px 15px 12px 12px;
+    overflow: hidden;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .toc-rail i {
+    flex: 0 1 3px;
+    min-height: 1.5px;
+    width: 16px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--rule-strong) 50%, transparent);
+    transition: width .2s var(--ease), background-color .2s;
+  }
+  .toc-rail i.is-sub { width: 9px; background: color-mix(in srgb, var(--rule-strong) 32%, transparent); }
+  .toc-rail i.is-active { width: 20px; background: var(--accent); }
+  .toc-side__panel {
+    position: absolute;
+    top: 0;
+    right: 10px;
+    width: min(340px, calc(100vw - 2 * var(--gutter)));
+    max-height: calc(100vh - var(--header-h) - 36px);
+    padding: 16px 12px 14px 18px;
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    background: var(--card);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(10px);
+    /* closing waits a moment, so a pointer that slips off the edge does not drop the list */
+    transition: opacity .18s ease .14s, transform .22s var(--ease) .14s, visibility 0s linear .34s;
+  }
+  .toc-side:focus-within .toc-side__panel, .toc-side.is-open .toc-side__panel {
+    opacity: 1; visibility: visible; transform: none; transition-delay: 0s;
+  }
+  .toc-side:focus-within .toc-rail, .toc-side.is-open .toc-rail { opacity: 0; }
+  @media (hover: hover) {
+    .toc-side:hover .toc-side__panel { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+    .toc-side:hover .toc-rail { opacity: 0; }
+  }
 }
 .toc-side__label, .toc-mobile summary {
   margin: 0 0 14px;
@@ -1606,9 +1704,9 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .code-block:not(.has-lang) pre { padding-top: 44px; }
 
-/* Tables */
+/* Tables: a card with a ruled header, the first column as the row label, hairlines between columns. */
 .table-wrap {
-  margin: 1.6em 0 1.9em;
+  margin: 1.7em 0 2em;
   overflow-x: auto;
   border: 1px solid var(--rule);
   border-radius: 14px;
@@ -1618,28 +1716,48 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .prose table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--card);
-  font-size: 14.8px;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.68;
   font-variant-numeric: tabular-nums;
 }
-.prose th, .prose td { padding: 11px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+.prose th, .prose td {
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--table-line);
+}
+.prose :is(th, td) + :is(th, td) { border-left: 1px solid color-mix(in srgb, var(--table-line) 55%, transparent); }
 .prose th {
-  background: var(--paper-2);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: .02em;
+  padding-block: 11px;
+  background: var(--table-head);
+  border-bottom: 2px solid color-mix(in srgb, var(--rule-strong) 60%, var(--rule));
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .03em;
+  line-height: 1.5;
   color: var(--ink);
   white-space: nowrap;
+  vertical-align: bottom;
 }
-:root[data-theme="dark"] .prose th { background: #423d3b; }
-:root[data-theme="black"] .prose th { background: #1a1a1c; }
-.prose tbody tr:nth-child(even) { background: color-mix(in srgb, var(--paper-2) 55%, var(--card)); }
-.prose tr:last-child td { border-bottom: 0; }
-.prose tbody tr { transition: background-color .15s; }
-.prose tbody tr:hover { background: var(--wash); }
+.prose td { min-width: 5.5em; color: var(--ink-2); }
+/* The first column names the row: darker and heavier, so the eye can run down it. */
+.prose td:first-child { color: var(--ink); font-weight: 600; }
+.prose table.has-labels td:first-child { white-space: nowrap; }  /* short labels stay on one line (set by site.js) */
+.prose tbody tr:nth-child(even) > td { background: var(--table-zebra); }
+.prose tbody tr:last-child > td { border-bottom: 0; }
+.prose tbody td { transition: background-color .15s; }
+.prose tbody tr:hover > td { background: color-mix(in srgb, var(--accent) 9%, var(--card)); }
+.prose tbody tr:hover > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .prose td code { font-size: .86em; }
+.prose td > :is(ul, ol) { margin: 0; padding-left: 1.2em; }
+@media (max-width: 760px) {
+  .prose table { font-size: 14.2px; line-height: 1.6; }
+  .prose th, .prose td { padding: 10px 13px; }
+  .prose th { font-size: 12.5px; }
+}
 
 /* Figures */
 .prose img {
@@ -2298,6 +2416,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 @media print {
   .site-header, .site-footer, .toc-side, .toc-mobile, .read-progress, .post-nav, .code-block__bar { display: none !important; }
+  body { background: #fff; }
   body::before { display: none; }
   .reveal-ready .reveal { opacity: 1 !important; transform: none !important; }
 }

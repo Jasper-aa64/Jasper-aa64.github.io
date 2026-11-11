@@ -54,8 +54,11 @@
 
     {{ if $hasToc }}
       <aside class="toc-side" aria-label="{{ i18n "onThisPage" }}">
-        <p class="toc-side__label">{{ i18n "onThisPage" }}</p>
-        <nav class="toc">{{ .TableOfContents }}</nav>
+        <button class="toc-rail" type="button" aria-label="{{ i18n "onThisPage" }}" aria-expanded="false"></button>
+        <div class="toc-side__panel">
+          <p class="toc-side__label">{{ i18n "onThisPage" }}</p>
+          <nav class="toc">{{ .TableOfContents }}</nav>
+        </div>
       </aside>
     {{ end }}
   </div>

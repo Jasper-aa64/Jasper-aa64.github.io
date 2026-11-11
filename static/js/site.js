@@ -323,8 +323,34 @@
       if (id && ids.indexOf(id) < 0) ids.push(id);
     });
     var heads = ids.map(function (id) { return document.getElementById(id); }).filter(Boolean);
-    var side = document.querySelector(".toc-side");
+    // The list scrolls inside its panel at every width; at middle widths the panel is the hover card.
+    var aside = document.querySelector(".toc-side");
+    var side = document.querySelector(".toc-side__panel");
+    var rail = document.querySelector(".toc-rail");
     var current = null;
+    // Rail: one tick per heading, shorter for sub-headings; the tick of the section being read is lit below.
+    if (aside && rail) {
+      var setOpen = function (on) {
+        aside.classList.toggle("is-open", on);
+        rail.setAttribute("aria-expanded", on ? "true" : "false");
+      };
+      aside.querySelectorAll(".toc a").forEach(function (a) {
+        var tick = document.createElement("i"), depth = 0;
+        for (var n = a.parentNode; n && n !== aside; n = n.parentNode) if (n.tagName === "UL") depth++;
+        if (depth > 2) tick.className = "is-sub";
+        rail.appendChild(tick);
+        a._tick = tick;
+        a.addEventListener("click", function () { setOpen(false); });
+      });
+      // A click pins the list open (the only way in on a touch screen); a click elsewhere or Escape lets it go.
+      rail.addEventListener("click", function () { setOpen(!aside.classList.contains("is-open")); });
+      document.addEventListener("click", function (e) { if (!aside.contains(e.target)) setOpen(false); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        setOpen(false);
+        if (aside.contains(document.activeElement)) document.activeElement.blur();
+      });
+    }
     // A jump leaves a heading below the root's scroll-padding plus its own scroll-margin (the two add up),
     // so the "being read" line sits just below that point instead of at a fixed 140px.
     var line = 140;
@@ -359,6 +385,7 @@
       tocLinks.forEach(function (a) {
         var on = decodeURIComponent(a.getAttribute("href")) === "#" + active.id;
         a.classList.toggle("is-active", on);
+        if (a._tick) a._tick.classList.toggle("is-active", on);
         if (on && side && side.contains(a)) {
           var top = a.offsetTop, h = side.clientHeight;
           if (top < side.scrollTop + 40 || top > side.scrollTop + h - 60) side.scrollTo({ top: top - h / 3, behavior: reduce ? "auto" : "smooth" });
@@ -430,6 +457,14 @@
       w.className = "table-wrap";
       t.parentNode.insertBefore(w, t);
       w.appendChild(t);
+      // Short row labels (about 12 Chinese characters or 24 Latin ones) keep to one line; longer first columns wrap as before.
+      var longest = 0;
+      t.querySelectorAll("tbody td:first-child").forEach(function (td) {
+        var s = td.textContent.trim(), n = 0;
+        for (var i = 0; i < s.length; i++) n += s.charCodeAt(i) > 0x2e7f ? 2 : 1;
+        if (n > longest) longest = n;
+      });
+      if (longest && longest <= 24) t.classList.add("has-labels");
     });
   }
   function fallbackCopy(text) {
