@@ -30,7 +30,7 @@ toc: true
 
 | | 页 | 先看它的理由 |
 |---|---|---|
-| ⬜ | [智能指针](https://jasper-aa64.github.io/zh/ref/smart-pointers/) | 周六手撕简版 `shared_ptr` |
+| ✅ | [智能指针](https://jasper-aa64.github.io/zh/ref/smart-pointers/) | 周六手撕简版 `shared_ptr` |
 | ⬜ | [左值、右值和移动语义](https://jasper-aa64.github.io/zh/ref/move-semantics/) | 周六手撕 String 类要写移动构造 |
 | ⬜ | [构造、拷贝、析构和 RAII](https://jasper-aa64.github.io/zh/ref/special-members-raii/) | 和移动语义连着看 |
 | ⬜ | [函数调用栈帧](https://jasper-aa64.github.io/zh/ref/stack-frame/) | 栈和堆各放什么、为什么栈快 |
