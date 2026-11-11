@@ -1403,7 +1403,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 
 /* Middle widths: the column would squeeze the text, so the table of contents takes no room. A rail of ticks,
    one per heading, sits in the right gutter and marks the section being read; pointing at it (or focusing or
-   clicking it) opens the full list as a card over the text. Needs the script for the ticks, so without it
+   clicking it) opens the full list as a drawer over the text. Needs the script for the ticks, so without it
    the fold-out box stays. */
 @media (min-width: 761px) and (max-width: 1199.98px) {
   .has-js .has-toc .toc-mobile { display: none; }
@@ -1411,9 +1411,14 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
     display: block;
     position: fixed;
     z-index: 40;
-    top: calc(var(--header-h) + 18px);
+    /* a full-height strip under the header; only the rail and the open list take the pointer */
+    top: var(--header-h);
     right: 0;
+    bottom: 0;
+    align-self: stretch;   /* the column rule's "start" would shrink a positioned box to its content */
+    pointer-events: none;
   }
+  .toc-rail, .toc-side__panel { pointer-events: auto; }
   .toc-rail {
     display: flex;
     flex-direction: column;
@@ -1422,7 +1427,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
     box-sizing: content-box;
     width: 20px;
     max-height: calc(100vh - var(--header-h) - 36px);
-    margin: 0;
+    margin: 18px 0 0;
     padding: 12px 15px 12px 12px;
     overflow: hidden;
     border: 0;
@@ -1441,13 +1446,16 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .toc-rail i.is-sub { width: 9px; background: color-mix(in srgb, var(--rule-strong) 32%, transparent); }
   .toc-rail i.is-active { width: 20px; background: var(--accent); }
   .toc-side__panel {
+    /* a drawer: flush with the header above and the window's right and bottom edges */
     position: absolute;
     top: 0;
-    right: 10px;
+    right: 0;
+    bottom: 0;
     width: min(340px, calc(100vw - 2 * var(--gutter)));
-    max-height: calc(100vh - var(--header-h) - 36px);
-    padding: 16px 12px 14px 18px;
-    border: 1px solid var(--rule);
+    max-height: none;
+    padding: 18px 12px 18px 18px;
+    border: 0;
+    border-left: 1px solid var(--rule);
     border-radius: 0;
     background: var(--card);
     box-shadow: var(--shadow-lg);
