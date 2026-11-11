@@ -22,7 +22,7 @@ toc: true
 | # | 缺口 | 为什么排这里 | 看什么 → 马上做什么 | 哪天 | 状态 |
 |---|---|---|---|---|---|
 | 1 | 无锁哈希表和 epoch 回收 | AG 面经里实际考过；JD 写了多线程并发 | [系统题目第 3 节](https://jasper-aa64.github.io/zh/interview/cpp-systems/#lockfree-map) → 从空白写 `18`；再说 [3.4 分片加锁和后台回收](https://jasper-aa64.github.io/zh/interview/cpp-systems/#shard-lock) | 周三 | ⬜ |
-| 2 | MESI 和缓存行 ping-pong | 同一篇面经原题：用 MESI 解释同一条缓存行上的 ping-pong；JD 写了多线程并发；需要复习 | [MESI 专题](https://jasper-aa64.github.io/zh/posts/low-latency-mesi-cache-coherence/)、[#2 第 3 节案例](https://jasper-aa64.github.io/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong) → 不看页面画四个状态和一次写的六步，再说 2 分钟：伪共享和真共享各怎么修 | 周四 | ⬜ |
+| 2 | MESI 和缓存行 ping-pong | 同一篇面经原题：用 MESI 解释同一条缓存行上的 ping-pong；JD 写了多线程并发；需要复习 | [MESI 专题](https://jasper-aa64.github.io/zh/posts/low-latency-mesi-cache-coherence/)、[#2 第 3 节案例](https://jasper-aa64.github.io/zh/posts/memory-ordering-false-sharing-dependency-chains/#case) → 不看页面画四个状态和一次写的六步，再说 2 分钟：伪共享和真共享各怎么修 | 周四 | ⬜ |
 | 3 | 低延迟网络和加密交易所接入 | JD 写了网络编程；AG 做加密货币高频，行情和下单走 WebSocket 加 TLS；之前没准备 | 网络补充页（周四上午前放好）→ 默写 epoll 主循环；说清关 Nagle、内核旁路、UDP 组播、WebSocket/TLS/JSON 各自的延迟在哪 | 周四 | ⬜ |
 | 4 | 三道设计题：分布式回测、全链路监控、实时风控和资金管理 | JD 职责前三条原文；之前没准备 | 答法（周四晚前放好）→ 每道按“结论 → 取舍 → 做过的相邻的事”说 2 分钟 | 周五 | ⬜ |
 | 5 | 线程池、阻塞队列 | JD 写了多线程并发；同一篇面经问到 work stealing 线程池 | [线程池和 future](https://jasper-aa64.github.io/zh/ref/thread-pool-future/) → 写 `11`；[线程安全队列 #18](https://jasper-aa64.github.io/zh/posts/thread-safe-queue/) → 写 `12` | 周四 | ⬜ |

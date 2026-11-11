@@ -33,10 +33,7 @@ math: true
 > - **ping-pong 管的是性能**：两个核轮流写同一条缓存行，这条行就在两个核的缓存之间来回搬。
 > - **两件事背后是同一套硬件**：每个核私有的缓存、64 字节的缓存行、store buffer、MESI。
 
-**展开见 [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/)**：
-
-- **内存序**：x86 只允许“先写后读”这一种乱序，以及两个线程各自先写再读的例子（[1.3](/zh/posts/memory-ordering-false-sharing-dependency-chains/#four-reorderings)）；每种内存序在 x86 和 ARM 上编成什么、贵在哪（[1.6](/zh/posts/memory-ordering-false-sharing-dependency-chains/#cost)）。
-- **ping-pong**：缓存行为什么来回搬（[2.1](/zh/posts/memory-ordering-false-sharing-dependency-chains/#cache-line-unit)）；真共享的三个案例（计数器、队列下标、自旋锁）怎么修，怎么用 `perf c2c` 分辨伪共享和真共享（[第 3 节](/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong)）。
+**展开见 [#2 第 3 节案例](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case)**：3.1 x86 上的内存序，3.2 ping-pong 的来回和两种，3.3–3.5 真共享的三个修法（计数器、队列下标、自旋锁），3.6 用 `perf c2c` 分辨。
 
 ## 3. 无锁哈希表和 epoch 回收：表不难写，难的是旧节点什么时候能释放 {#lockfree-map}
 
