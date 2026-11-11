@@ -21,7 +21,12 @@ math: true
 > - **所以同一份代码 `-O0` 下好好的，`-O2` 就坏了**：坏的地方往往不是写错的那一行，而是被编译器据此改写过的另一处。
 > - **严格别名和释放后使用是 UB 里最常见的两类**：前一类让编译器不重读内存，后一类让指针指向别人的数据。
 
-**展开见速查[未定义行为](/zh/ref/undefined-behavior/)**：UB 的三个例子（第 2 节）、严格别名和 `memcpy`（第 3 节）、释放后使用的三种常见形式和对象池里的版本号（第 4 节）、怎么用 sanitizer 查（第 5 节）。
+**展开见：[速查：未定义行为](/zh/ref/undefined-behavior/)**
+
+- [第 2 节：编译器怎么利用 UB，四个实测例子](/zh/ref/undefined-behavior/#examples)
+- [第 3 节：严格别名和 `memcpy`](/zh/ref/undefined-behavior/#strict-aliasing)
+- [第 4 节：释放后使用的常见写法和对象池里的版本号](/zh/ref/undefined-behavior/#uaf)
+- [第 5 节：怎么用 sanitizer 和编译选项查](/zh/ref/undefined-behavior/#detect)
 
 ## 2. x86 上的内存序和 ping-pong：硬件只重排“先写后读”，慢的是缓存行在核之间来回搬 {#memory-order}
 
@@ -32,7 +37,14 @@ math: true
 > - **x86 是 TSO**：写先进 store buffer，后面读另一个地址的指令可以先完成，所以只有“先写后读”会乱。`acquire`、`release` 在 x86 上都是普通的 `mov`；`seq_cst` 的写编成 `xchg`，等 store buffer 排空，才管得住它。
 > - **写一条缓存行之前要先独占它**：两个核轮流写，这条行就在两个核的缓存之间来回搬，每次 20–100 ns。伪共享改布局隔开，真共享只能让每个核大多数时候只写自己的行。
 
-**展开见 [#2 第 3 节案例](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case)**：3.1 x86 上的内存序，3.2 ping-pong 的来回和两种，3.3–3.5 真共享的三个修法（计数器、队列下标、自旋锁），3.6 用 `perf c2c` 分辨。
+**展开见：[#2 第 3 节案例：x86 上的内存序和 ping-pong](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case)**
+
+- [3.1 x86 上的内存序：只有“先写后读”会乱](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-x86)
+- [3.2 ping-pong：来回搬的代价和两种](/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong)
+- [3.3 全局计数器：每个线程各记一份](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-counter)
+- [3.4 SPSC 队列的下标：缓存一份对方的](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-spsc)
+- [3.5 自旋锁：先读后抢](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-spinlock)
+- [3.6 用 `perf c2c` 分辨伪共享和真共享](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-c2c)
 
 ## 3. 无锁哈希表和 epoch 回收：表不难写，难的是旧节点什么时候能释放 {#lockfree-map}
 
@@ -44,7 +56,12 @@ math: true
 > - **回收用 epoch**：读者进出临界区时公告自己在第几代，写者把旧节点按摘下时的代数挂起；全局纪元比它多 2，摘之前进来的读者都已经离开，才释放。弱点是一个读者卡在临界区里，内存就一直涨。
 > - **不追求无锁时**：按哈希低位分片，每片一把锁；释放交给后台线程，写线程只入队。
 
-**展开见 [#3 第 6 节案例](/zh/posts/hot-path-memory-allocators/#case-lockfree-map)**：6.1 表的代码，6.2 epoch 回收的代码和“为什么多 2 才能释放”，6.3 读者卡住时的取舍以及 hazard pointer、RCU，6.4 分片加锁和后台回收。
+**展开见：[#3 第 6 节案例：无锁哈希表](/zh/posts/hot-path-memory-allocators/#case-lockfree-map)**
+
+- [6.1 表：键用 CAS 占槽，值用指针原子交换](/zh/posts/hot-path-memory-allocators/#case-map)
+- [6.2 epoch 回收：为什么纪元多 2 才能释放](/zh/posts/hot-path-memory-allocators/#case-ebr)
+- [6.3 取舍：读者卡住内存就涨，hazard pointer 和 RCU](/zh/posts/hot-path-memory-allocators/#case-ebr-tradeoff)
+- [6.4 分片加锁和后台回收](/zh/posts/hot-path-memory-allocators/#case-shard-lock)
 
 ## 4. futex 互斥锁和 TLS 里的线程 id：没人抢时不进内核，抢不到才睡 {#futex}
 
