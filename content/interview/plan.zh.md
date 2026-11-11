@@ -3,145 +3,61 @@ title: "IV：本周计划：C++ 架构方向，11-11 到 11-16"
 date: 2026-11-11
 lastmod: 2026-11-11
 slug: "plan"
-description: "这一周要过的东西：每天的手撕、知识页、口述，每一项都链到本站对应的页面；下面是手撕清单和设计题清单。"
+description: "这一周要补的东西，按缺口大小排：JD 写明要的、同类岗位实际考过的、自己最弱的先补；每一项看完马上写或马上说。"
 weight: -1
 toc: true
 ---
 
-这一页是这一周的清单。每天三块：手撕、知识、口述，每一项都给本站的链接，做完一项就打勾。
+这一页是这一周的清单。排法和找性能热点一样：先补最大的缺口，小缺口留到最后，时间不够就砍掉。
 
-> **方针：每天三块，先手撕，再知识，最后口述**
+> **怎么排、怎么补**
 >
-> - **手撕限时 15–20 分钟**：开写前先用 30 秒说设计；超时就看参考，第二天从空白再写一遍。写完打印 `bad = 0` 才算对。
-> - **知识页每页 8–10 分钟**：看完关掉页面，出声说 1 分钟：是什么、底下怎么实现、代价是什么。说不下去的地方再翻回去。
-> - **口述要说出声**：录一遍听，超时就删。
-> - **时间不够时**：先保手撕，再保口述，知识页可以挪到第二天。
+> - **缺口大小 = JD 写没写 × 同类岗位考没考过 × 自己有多弱**：三样都占的排最前；只在通用题单里出现、没有出处的，不进手撕，最多口述。
+> - **看完马上用**：要写的，看完对应那一节就从空白写，写完打印 `bad = 0`；要说的，看完就关掉页面出声说。不先把知识点全看完再回头用。
+> - **手撕限时 15–20 分钟**：开写前先用 30 秒说设计；超时就看参考，第二天从空白再写一遍。
+> - **做完一项打勾**：没出处的项发现了就删。
 
-## 1. 今天：11-11 周三 {#wed}
+## 1. 缺口排序：从大到小 {#gaps}
 
-**手撕**（编号是学习仓库 `算法/手撕/` 里的骨架）：
+| # | 缺口 | 为什么排这里 | 看什么 → 马上做什么 | 哪天 | 状态 |
+|---|---|---|---|---|---|
+| 1 | 无锁哈希表和 epoch 回收 | AG 面经里实际考过；JD 写了多线程并发 | [五题第 3 节](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#lockfree-map) → 从空白写 `18`；再说 [3.4 分片加锁和后台回收](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#shard-lock) | 周三 | ⬜ |
+| 2 | 低延迟网络和加密交易所接入 | JD 写了网络编程；AG 做加密货币高频，行情和下单走 WebSocket 加 TLS；之前没准备 | 网络补充页（周四上午前放好）→ 默写 epoll 主循环；说清关 Nagle、内核旁路、UDP 组播、WebSocket/TLS/JSON 各自的延迟在哪 | 周四 | ⬜ |
+| 3 | 三道设计题：分布式回测、全链路监控、实时风控和资金管理 | JD 职责前三条原文；之前没准备 | 答法（周四晚前放好）→ 每道按“结论 → 取舍 → 做过的相邻的事”说 2 分钟 | 周五 | ⬜ |
+| 4 | 线程池、阻塞队列 | JD 写了多线程并发；同一篇面经问到 work stealing 线程池 | [线程池和 future](https://jasper-aa64.github.io/zh/ref/thread-pool-future/) → 写 `11`；[线程安全队列 #18](https://jasper-aa64.github.io/zh/posts/thread-safe-queue/) → 写 `12` | 周四 | ⬜ |
+| 5 | 对象池、无锁侵入式栈 | 同类岗位面经里实际考过 | 骨架带讲解（周五前放好）→ 写 `14` 对象池、`17` 无锁栈（ABA） | 周五、周六 | ⬜ |
+| 6 | C++17/20 | JD 原文“熟悉 C++17/20”；没系统看过 | 一页（周五前放好）→ 每个特性说一句解决什么问题 | 周六 | ⬜ |
+| 7 | 性能定位和 benchmark | JD 写了“快速定位性能瓶颈”；同类面经追问过怎么做可信的 benchmark | [perf 专题](https://jasper-aa64.github.io/zh/posts/low-latency-perf-profiling/)、[TSC 延迟测量 #20](https://jasper-aa64.github.io/zh/posts/tsc-latency-measurement/) → 说一遍 SPSC 下移动均值那道优化题：换什么、怎么证明变快了 | 周六 | ⬜ |
+| 8 | 基础算法写得慢 | JD 写了数据结构与算法；上一场限时题超时 | 每天晚上 1–2 道：`09`、`10`、`02`、LC 739、LC 215、LC 23 | 每天晚上 | ⬜ |
+| 9 | C++ 语言和内存基础 | 页面都写过，属于小缺口 | 每页 1 分钟口述，说不顺的才翻页，见第 3 节 | 碎片时间、周一上午 | ⬜ |
 
-- ⬜ `09` 时间窗口 VWAP 和平均每笔成交量，从空白写。讲法见[因子计算 3.4](https://jasper-aa64.github.io/zh/ref/factor-computation/#vwap)。
-- ⬜ `10` 两个队列实现栈、两个栈实现队列，从空白写。
-- ⬜ `02` 滚动最大值（单调队列），重写。
-- ⬜ LC 739 每日温度（单调栈）。
+**不进手撕的**：String 类、简版智能指针。没有找到这一类岗位考过的出处，只口述：五个特殊成员各做什么、移动构造为什么要 `noexcept`、`shared_ptr` 的控制块和线程安全。
 
-**知识：C++ 语言 8 页 + 内存 3 页**，按这个顺序：
+## 2. 每天 {#days}
 
-| | 页 | 先看它的理由 |
-|---|---|---|
-| ✅ | [智能指针](https://jasper-aa64.github.io/zh/ref/smart-pointers/) | 周六手撕简版 `shared_ptr` |
-| ⬜ | [左值、右值和移动语义](https://jasper-aa64.github.io/zh/ref/move-semantics/) | 移动构造为什么要 `noexcept`、被移走的对象还剩什么 |
-| ⬜ | [构造、拷贝、析构和 RAII](https://jasper-aa64.github.io/zh/ref/special-members-raii/) | 和移动语义连着看 |
-| ⬜ | [函数调用栈帧](https://jasper-aa64.github.io/zh/ref/stack-frame/) | 栈和堆各放什么、为什么栈快 |
-| ⬜ | [new 一次走到哪](https://jasper-aa64.github.io/zh/ref/new-malloc-page-fault/) | 热路径上为什么不分配内存 |
-| ⬜ | [虚函数](https://jasper-aa64.github.io/zh/ref/virtual-functions/) | 和 [CRTP 静态多态](https://jasper-aa64.github.io/zh/posts/crtp-static-polymorphism/)对比着讲 |
-| ⬜ | [对象布局](https://jasper-aa64.github.io/zh/ref/object-layout/) | vptr 放在哪、填充怎么算 |
-| ⬜ | [lambda 和 std::function](https://jasper-aa64.github.io/zh/ref/lambda-function/) | 线程池的 `submit` 用到类型擦除 |
-| ⬜ | [模板](https://jasper-aa64.github.io/zh/ref/templates/) | |
-| ⬜ | [const、constexpr、consteval、constinit](https://jasper-aa64.github.io/zh/ref/const-constexpr/) | 周六的 C++17/20 接着它 |
-| ⬜ | [四种 cast](https://jasper-aa64.github.io/zh/ref/cpp-casts/) | 最短，放最后 |
+| 日期 | 先做（大缺口） | 晚上 | 口述 |
+|---|---|---|---|
+| **11-11 周三** | #1 无锁哈希表：看第 3 节 → 写 `18` | `09`、`10` | 讲一个因子，90 秒以内；自我介绍 |
+| **11-12 周四** | #2 网络：看补充页 → 默写 epoll 主循环；#4 写 `11`、`12` | `02`、LC 739 | 网络那几个点各 1 分钟 |
+| **11-13 周五** | #3 三道设计题各说 2 分钟；#5 写 `14` 对象池 | LC 215、LC 23 | 五题第 1、2 道 |
+| **11-14 周六** | #5 写 `17` 无锁栈；#6 C++17/20；#7 benchmark 那道优化题 | 最不稳的一道重写 | 五题第 4、5 道 |
+| **11-15 周日** | 60 分钟整场模拟：自我介绍、项目、基础问答、20 分钟限时手撕、反问 | 卡住的题回填 | 为什么选这个方向，反问 3 个 |
+| **11-16 周一上午** | 最不稳的 2 道从空白重写；第 3 节说不顺的页 | — | 13:30 试麦克风和共享屏幕；14:00 开始 |
 
-**口述**：
+## 3. 小缺口：C++ 基础页，每页 1 分钟口述 {#basics}
 
-- ⬜ 讲一个因子，对着[因子计算第 1 节](https://jasper-aa64.github.io/zh/ref/factor-computation/#factors)的代码核一遍，说到 90 秒以内，录一遍。
-- ⬜ 自我介绍。
+说得顺就跳过，说不顺才翻页。
 
-## 2. 11-12 周四：并发、进程和文件 {#thu}
-
-**手撕**：
-
-- ⬜ `11` 线程池：任务队列、条件变量、退出时等任务做完。
-- ⬜ `12` 阻塞队列：一把互斥锁加两个条件变量。
-- ⬜ `07` SPSC 环形队列，重写。
-
-**知识**：
-
-- ⬜ [线程同步](https://jasper-aa64.github.io/zh/ref/thread-sync/)
-- ⬜ [线程池和 future](https://jasper-aa64.github.io/zh/ref/thread-pool-future/)
-- ⬜ [用户态和内核态](https://jasper-aa64.github.io/zh/ref/user-kernel-mode/)
-- ⬜ [进程和线程](https://jasper-aa64.github.io/zh/ref/process-thread-fork/)
-- ⬜ [进程间通信](https://jasper-aa64.github.io/zh/ref/ipc/)
-- ⬜ [文件 IO](https://jasper-aa64.github.io/zh/ref/file-io/)
-- ⬜ 博客 [#2 内存序与缓存行](https://jasper-aa64.github.io/zh/posts/memory-ordering-false-sharing-dependency-chains/)、[#16 自旋锁](https://jasper-aa64.github.io/zh/posts/spinlock-implementation/) 过一遍
-
-**口述**：[C++ 系统五题](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/)的第 1、2、3 道。第 3 道是这一家实际问过的题，最先练。
-
-- ⬜ [第 1 道：UB、严格别名、释放后使用](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#ub)
-- ⬜ [第 2 道：x86 内存序和 ping-pong](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#memory-order)
-- ⬜ [第 3 道：无锁哈希表和 epoch 回收](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#lockfree-map)，连同 [3.4 分片加锁和后台回收](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#shard-lock)
-
-## 3. 11-13 周五：网络 {#fri}
-
-**手撕**：
-
-- ⬜ `08` LRU，重写。
-- ⬜ LC 215 第 K 大（堆）、LC 23 合并 K 个有序链表。
-- ⬜ epoll 主循环默写。
-
-**知识**：
-
-- ⬜ [epoll](https://jasper-aa64.github.io/zh/ref/epoll-internals/)
-- ⬜ [TCP 三次握手、四次挥手和 TIME_WAIT](https://jasper-aa64.github.io/zh/ref/tcp-states/)
-- ⬜ [TCP 怎么做到可靠](https://jasper-aa64.github.io/zh/ref/tcp-reliability/)
-- ⬜ [socket 编程](https://jasper-aa64.github.io/zh/ref/socket-programming/)
-- ⬜ [HTTP 和 HTTPS](https://jasper-aa64.github.io/zh/ref/http-basics/)
-- ⬜ 低延迟网络：为什么关 Nagle、内核旁路是什么、交易所行情为什么用 UDP 组播；加密货币交易所走 WebSocket 和 TLS，JSON 解析的开销怎么省（周五前补好，链接放这里）
-
-**口述**：TCP 握手和挥手、epoll 的两种触发方式、Reactor，各 1 分钟。
-
-## 4. 11-14 周六：C++17/20 和设计题 {#sat}
-
-**手撕**：
-
-- ⬜ `13` 简版 `shared_ptr`、`unique_ptr`（骨架周六前放好）。
-- ⬜ `14` 对象池：多线程分配、单线程释放，按 2 倍扩容（骨架周六前放好）。
-- ⬜ `17` 无锁侵入式栈：后进先出，处理 ABA（骨架周六前放好）。
-- ⬜ String 类不手写，只口述五个特殊成员各做什么、移动构造为什么要 `noexcept`。
-- ⬜ LC 207 课程表，然后 `15` DAG 调度器，讲法见[五题第 5 道](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#dag)。
-
-**知识**：
-
-- ⬜ C++17/20 新特性一页（周六前补好，链接放这里）。
-- ⬜ [交易系统架构地图](https://jasper-aa64.github.io/zh/ref/trading-architecture/)：下单、风控那几部分各说 1 分钟。
-
-**口述**：
-
-- ⬜ [第 4 道：futex 锁和 TLS 里的 tid](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#futex)
-- ⬜ [第 5 道：DAG 调度器](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#dag)
-- ⬜ 三道设计题各 2 分钟，见第 7 节。
-
-## 5. 11-15 周日：整场模拟 {#sun}
-
-- ⬜ 60 分钟整场模拟：自我介绍、项目深挖、基础问答、一道 20 分钟限时手撕、反问。
-- ⬜ 模拟里卡住的题，当天回填到对应的页。
-- ⬜ 为什么选这个方向、反问 3 个问题。
-
-## 6. 11-16 周一上午：只复习，不学新的 {#mon}
-
-- ⬜ 最不稳的 2 道手撕从空白重写。
-- ⬜ 自我介绍、讲一个因子、AI 工程化那题各说一遍。
-- ⬜ 13:30 试麦克风和共享屏幕。
-
-## 7. 清单：手撕和设计题 {#lists}
-
-**手撕**（`bad = 0` 才打勾）：
-
-| 类别 | 题目 | 编号 |
-|---|---|---|
-| 流式窗口 | 时间窗口 VWAP 和平均每笔成交量 | `09` |
-| 流式窗口 | 滚动均值方差、滚动最大值（单调队列） | `01`、`02` |
-| 基础数据结构 | 两个队列实现栈、两个栈实现队列 | `10` |
-| 基础数据结构 | 单调栈（LC 739）、堆（LC 215、LC 23）、LRU | `08` |
-| 基础算法 | 二分左右边界（LC 34）、滑动窗口（LC 3）、反转链表、二叉树层序、快排、归并 | LeetCode |
-| 系统类 | 线程池、阻塞队列、SPSC 环形队列 | `11`、`12`、`07` |
-| 系统类 | 简版 `shared_ptr`、`unique_ptr` | `13` |
-| 系统类 | 对象池（多线程分配、单线程释放）；无锁侵入式栈（ABA） | `14`、`17` |
-| 优化类 | 一段 SPSC 下的移动均值：无锁队列换掉锁和条件变量、环形数组换掉 `deque`、内存池换掉 `new`；再讲怎么做可信的 benchmark（预热、关调频、大页、绑核） | 口述 |
-| 设计类 | DAG 调度器：先拓扑排序，再讲怎么并行 | `15` |
-
-**设计题**（每道按“结论 → 取舍 → 做过的相邻的事”说 2 分钟，答法周六前补好）：
-
-- ⬜ 单机回测怎么改成分布式。
-- ⬜ 全链路监控怎么搭，怎么快速定位性能瓶颈。
-- ⬜ 实时风控放在链路的哪里。
+- ✅ [智能指针](https://jasper-aa64.github.io/zh/ref/smart-pointers/)
+- ⬜ [左值、右值和移动语义](https://jasper-aa64.github.io/zh/ref/move-semantics/)
+- ⬜ [构造、拷贝、析构和 RAII](https://jasper-aa64.github.io/zh/ref/special-members-raii/)
+- ⬜ [函数调用栈帧](https://jasper-aa64.github.io/zh/ref/stack-frame/)
+- ⬜ [new 一次走到哪](https://jasper-aa64.github.io/zh/ref/new-malloc-page-fault/)
+- ⬜ [虚函数](https://jasper-aa64.github.io/zh/ref/virtual-functions/)，和 [CRTP 静态多态](https://jasper-aa64.github.io/zh/posts/crtp-static-polymorphism/)对比着说
+- ⬜ [对象布局](https://jasper-aa64.github.io/zh/ref/object-layout/)
+- ⬜ [lambda 和 std::function](https://jasper-aa64.github.io/zh/ref/lambda-function/)
+- ⬜ [模板](https://jasper-aa64.github.io/zh/ref/templates/)
+- ⬜ [const、constexpr、consteval、constinit](https://jasper-aa64.github.io/zh/ref/const-constexpr/)
+- ⬜ [四种 cast](https://jasper-aa64.github.io/zh/ref/cpp-casts/)
+- ⬜ 并发和系统：[线程同步](https://jasper-aa64.github.io/zh/ref/thread-sync/)、[用户态和内核态](https://jasper-aa64.github.io/zh/ref/user-kernel-mode/)、[进程和线程](https://jasper-aa64.github.io/zh/ref/process-thread-fork/)、[进程间通信](https://jasper-aa64.github.io/zh/ref/ipc/)、[文件 IO](https://jasper-aa64.github.io/zh/ref/file-io/)
+- ⬜ 网络基础：[epoll](https://jasper-aa64.github.io/zh/ref/epoll-internals/)、[TCP 状态](https://jasper-aa64.github.io/zh/ref/tcp-states/)、[TCP 可靠性](https://jasper-aa64.github.io/zh/ref/tcp-reliability/)、[socket 编程](https://jasper-aa64.github.io/zh/ref/socket-programming/)
