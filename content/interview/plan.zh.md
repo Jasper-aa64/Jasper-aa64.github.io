@@ -31,7 +31,7 @@ toc: true
 | | 页 | 先看它的理由 |
 |---|---|---|
 | ✅ | [智能指针](https://jasper-aa64.github.io/zh/ref/smart-pointers/) | 周六手撕简版 `shared_ptr` |
-| ⬜ | [左值、右值和移动语义](https://jasper-aa64.github.io/zh/ref/move-semantics/) | 周六手撕 String 类要写移动构造 |
+| ⬜ | [左值、右值和移动语义](https://jasper-aa64.github.io/zh/ref/move-semantics/) | 移动构造为什么要 `noexcept`、被移走的对象还剩什么 |
 | ⬜ | [构造、拷贝、析构和 RAII](https://jasper-aa64.github.io/zh/ref/special-members-raii/) | 和移动语义连着看 |
 | ⬜ | [函数调用栈帧](https://jasper-aa64.github.io/zh/ref/stack-frame/) | 栈和堆各放什么、为什么栈快 |
 | ⬜ | [new 一次走到哪](https://jasper-aa64.github.io/zh/ref/new-malloc-page-fault/) | 热路径上为什么不分配内存 |
@@ -95,7 +95,9 @@ toc: true
 **手撕**：
 
 - ⬜ `13` 简版 `shared_ptr`、`unique_ptr`（骨架周六前放好）。
-- ⬜ `14` String 类：构造、拷贝、移动、析构（骨架周六前放好）。
+- ⬜ `14` 对象池：多线程分配、单线程释放，按 2 倍扩容（骨架周六前放好）。
+- ⬜ `17` 无锁侵入式栈：后进先出，处理 ABA（骨架周六前放好）。
+- ⬜ String 类不手写，只口述五个特殊成员各做什么、移动构造为什么要 `noexcept`。
 - ⬜ LC 207 课程表，然后 `15` DAG 调度器，讲法见[五题第 5 道](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#dag)。
 
 **知识**：
@@ -133,7 +135,9 @@ toc: true
 | 基础数据结构 | 单调栈（LC 739）、堆（LC 215、LC 23）、LRU | `08` |
 | 基础算法 | 二分左右边界（LC 34）、滑动窗口（LC 3）、反转链表、二叉树层序、快排、归并 | LeetCode |
 | 系统类 | 线程池、阻塞队列、SPSC 环形队列 | `11`、`12`、`07` |
-| 系统类 | 简版 `shared_ptr`、`unique_ptr`；String 类 | `13`、`14` |
+| 系统类 | 简版 `shared_ptr`、`unique_ptr` | `13` |
+| 系统类 | 对象池（多线程分配、单线程释放）；无锁侵入式栈（ABA） | `14`、`17` |
+| 优化类 | 一段 SPSC 下的移动均值：无锁队列换掉锁和条件变量、环形数组换掉 `deque`、内存池换掉 `new`；再讲怎么做可信的 benchmark（预热、关调频、大页、绑核） | 口述 |
 | 设计类 | DAG 调度器：先拓扑排序，再讲怎么并行 | `15` |
 
 **设计题**（每道按“结论 → 取舍 → 做过的相邻的事”说 2 分钟，答法周六前补好）：
