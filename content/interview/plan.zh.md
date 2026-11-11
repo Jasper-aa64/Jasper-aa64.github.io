@@ -86,7 +86,7 @@ toc: true
 - ⬜ [TCP 怎么做到可靠](https://jasper-aa64.github.io/zh/ref/tcp-reliability/)
 - ⬜ [socket 编程](https://jasper-aa64.github.io/zh/ref/socket-programming/)
 - ⬜ [HTTP 和 HTTPS](https://jasper-aa64.github.io/zh/ref/http-basics/)
-- ⬜ 低延迟网络：为什么关 Nagle、内核旁路是什么、行情为什么用 UDP 组播（周五前补好，链接放这里）
+- ⬜ 低延迟网络：为什么关 Nagle、内核旁路是什么、交易所行情为什么用 UDP 组播；加密货币交易所走 WebSocket 和 TLS，JSON 解析的开销怎么省（周五前补好，链接放这里）
 
 **口述**：TCP 握手和挥手、epoll 的两种触发方式、Reactor，各 1 分钟。
 
