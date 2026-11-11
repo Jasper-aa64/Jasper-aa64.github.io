@@ -42,7 +42,8 @@
   --ink-2: #2e3340;
   --muted: #64738a;
   --faint: #98a3b4;
-  --rule: #e9dcb2;
+  --rule: #d9bc76;       /* box borders and dividers: dark enough to read against white cards */
+  --rule-soft: #e9dcb2;  /* the paler line, for small in-text chips */
   --rule-strong: #c49024;
   --gold: #c49024;
   --gold-soft: #e4cc7a;
@@ -70,7 +71,7 @@
   --grain: .05;
   --table-head: var(--paper-2);
   --table-frame: var(--rule-strong);
-  --table-line: color-mix(in srgb, var(--rule-strong) 42%, var(--rule));
+  --table-line: color-mix(in srgb, var(--rule-strong) 42%, var(--rule-soft));
   --table-zebra: color-mix(in srgb, var(--paper-2) 55%, var(--card));
   --table-hover: color-mix(in srgb, var(--accent) 9%, var(--card));
 }
@@ -86,7 +87,8 @@
   --ink-2: #f1e8e2;
   --muted: #c8bbb5;
   --faint: #a2958f;
-  --rule: #5d5654;
+  --rule: #6f6664;
+  --rule-soft: #5d5654;
   --rule-strong: #908582;
   --gold: #d9a0a4;
   --gold-soft: #7b716e;
@@ -99,7 +101,7 @@
   --dot: 46%;
   --grain: .06;
   --table-head: #3b3635;
-  --table-line: color-mix(in srgb, var(--rule-strong) 50%, var(--rule));
+  --table-line: color-mix(in srgb, var(--rule-strong) 50%, var(--rule-soft));
   --table-zebra: color-mix(in srgb, var(--paper) 30%, var(--card));
   --shadow: 0 1px 2px rgba(0, 0, 0, .16), 0 10px 28px rgba(0, 0, 0, .18);
   --shadow-lg: 0 2px 6px rgba(0, 0, 0, .2), 0 30px 60px -24px rgba(0, 0, 0, .5);
@@ -117,6 +119,7 @@
   --muted: #c8bbb5;
   --faint: #a2958f;
   --rule: #26262a;
+  --rule-soft: #26262a;
   --rule-strong: #3f3f46;
   --gold: #d9a0a4;
   --gold-soft: #1c1c1f;
@@ -1624,7 +1627,7 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 .prose :not(pre) > code {
   padding: .14em .4em;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--rule-soft);
   border-radius: 6px;
   background: var(--code-bg);
   color: var(--ink);
