@@ -457,7 +457,11 @@
       w.className = "table-wrap";
       t.parentNode.insertBefore(w, t);
       w.appendChild(t);
-      // Short row labels (about 12 Chinese characters or 24 Latin ones) keep to one line; longer first columns wrap as before.
+      // Column count: the stylesheet gives every column a minimum share of the width.
+      var firstRow = t.rows[0];
+      if (firstRow) t.style.setProperty("--cols", firstRow.cells.length);
+      // Row labels up to about 12 Chinese characters (24 Latin ones) keep to one line; up to 6 they also
+      // stay in view when the table scrolls sideways. Longer first columns wrap as before.
       var longest = 0;
       t.querySelectorAll("tbody td:first-child").forEach(function (td) {
         var s = td.textContent.trim(), n = 0;
@@ -465,6 +469,12 @@
         if (n > longest) longest = n;
       });
       if (longest && longest <= 24) t.classList.add("has-labels");
+      if (longest && longest <= 12) t.classList.add("has-short-labels");
+      // Wider than the column: let the wrap scroll sideways. Otherwise it stays a plain box, so the header can stick.
+      var fit = function () { w.classList.toggle("is-wide", t.offsetWidth > w.clientWidth + 1); };
+      fit();
+      if (window.ResizeObserver) new ResizeObserver(fit).observe(w);
+      else window.addEventListener("resize", fit, { passive: true });
     });
   }
   function fallbackCopy(text) {
