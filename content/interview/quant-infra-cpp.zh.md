@@ -113,7 +113,7 @@ toc: true
 
 追问是**回收怎么做才平滑**：不在写者线程里当场释放，而是把退休的对象放进队列，由后台线程批量释放，写路径上就没有长停顿。代价是某个读者迟迟不退出，会拖住整代的回收，内存会涨。另一种方案是 hazard pointer：读者登记的是具体指针，回收更精确，但每次读都要多一次写和一次内存屏障。
 
-本站：固定容量的表和 epoch 回收的代码见 [C++ 系统题目第 3 节](/zh/interview/cpp-systems/#lockfree-map)。
+本站：固定容量的表和 epoch 回收的代码见 [#3 内存池与分配器第 6 节](/zh/posts/hot-path-memory-allocators/#case-lockfree-map)。
 
 ### 2.4 并行化一个 DAG 调度器 {#dag}
 

@@ -1,7 +1,7 @@
 ---
 title: "交易系统笔记 #3：内存池与分配器"
 date: 2026-09-17
-lastmod: 2026-11-10
+lastmod: 2026-11-11
 slug: "hot-path-memory-allocators"
 description: "为什么 malloc/free 真正的问题是方差而不是速度——以及四种越来越通用的办法，保证热路径上没有任何事是第一次发生：O(1) 的空闲链表对象池、自定义 STL 分配器背后的 bump 指针 arena、std：：pmr 这个运行时版本的替代方案，以及垫在三者底下的那一层：预先缺页、锁页，不让 glibc 把页还给内核。还有对象池和 arena 的参考实现，以及多线程对象池的无锁空闲栈和 ABA。"
 summary: "这篇里的每一种技术，都是在不同的层面上做同一件事：把一个不确定的、牵涉内核的操作从热路径上挪走，强制它在开头一次性发生完，不让它伏击任何一个请求。对象池用永远 O(1) 的空闲链表，换掉 malloc 那种耗时可变的搜索。mlockall 加上仔细的 mallopt 调优，阻止内核悄悄把页收回——预先缺页则补上 mlock 单独留下的那个口子。手写的 arena 分配器让 STL 本身配合一个由 bump 指针内存支撑的自定义分配器。std：：pmr 用标准库的方式解决同一个「让 STL 配合」的问题——拿编译期的速度换运行时的灵活。"
@@ -548,3 +548,184 @@ class ConcurrentPool {
 ### 5.6 槽不还给系统：省掉了无锁栈最难的回收问题 {#no-reclaim}
 
 一般的无锁栈弹出节点以后会 `delete` 它，别的线程可能还拿着它的地址要读 `next`，读的就是已经释放的内存，这要靠 hazard pointer、epoch 这类回收方案解决。**池里的槽一直都在，最多读到过时的 `next`**，这个值会随着失败的 CAS 被丢掉。
+
+## 6. 案例：无锁哈希表，难的是换下来的旧节点什么时候能释放 {#case-lockfree-map}
+
+5.6 的池靠槽永远不还给系统躲开了回收。几个线程共用一张哈希表、值节点用完要 `delete` 时就躲不开：写者把旧节点换下来，读者可能还拿着它的指针。
+
+**先把形状定下来，难做的部分尽量不做**：
+
+- **固定容量、不扩容**：扩容是无锁哈希表里最难的部分。键的个数有上限（比如合约 id）时，直接按上限开够。
+- **开放寻址、线性探测**：槽连续放在一个数组里，探测时访问的是相邻的内存。
+- **键一旦写进槽就不再改，删除只把值指针换成空**：探测链不会断，找键这一步也不需要任何保护。代价是删掉的键仍然占着槽，所以键的总数不能超过容量。
+- **值不就地改**：更新时分配一个新节点，一次原子交换把指针换过去。读者要么看到旧节点、要么看到新节点，不会看到改了一半的。
+- **剩下的问题只有一个**：换下来的旧节点可能还有读者正在读，什么时候能释放。这就是 epoch 回收要解决的。
+
+### 6.1 表：键用 CAS 占槽，值用指针原子交换 {#case-map}
+
+```cpp
+#include <atomic>
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+struct Node {
+    uint64_t val;
+    explicit Node(uint64_t v) : val(v) {}
+};
+
+class Ebr;   // 回收器，定义在 6.2
+
+// 固定容量、开放寻址的无锁哈希表：键是非 0 的 64 位整数，值是指向节点的指针
+class LockFreeMap {
+public:
+    LockFreeMap(size_t cap_pow2, Ebr& ebr) : slots_(cap_pow2), mask_(cap_pow2 - 1), ebr_(ebr) {}
+
+    // 插入或更新；表满了返回 false
+    bool put(int tid, uint64_t key, uint64_t val) {
+        Slot* s = find_slot(key, true);
+        if (!s) return false;
+        // 1. 不就地改：分配一个新节点，一次原子交换把指针换过去
+        Node* old = s->node.exchange(new Node(val), std::memory_order_seq_cst);
+        // 2. 换下来的旧节点可能还有读者在读，交给 Ebr
+        if (old) ebr_.retire(tid, old);
+        return true;
+    }
+
+    // 删除：只把值指针换成空；键留在槽里，探测链不会断
+    void erase(int tid, uint64_t key) {
+        Slot* s = find_slot(key, false);
+        if (!s) return;
+        Node* old = s->node.exchange(nullptr, std::memory_order_seq_cst);
+        if (old) ebr_.retire(tid, old);
+    }
+
+    bool get(int tid, uint64_t key, uint64_t& out) {
+        // 1. 进临界区：从这里到 leave，读到的节点都不会被释放
+        ebr_.enter(tid);
+        Slot* s = find_slot(key, false);
+        Node* n = s ? s->node.load(std::memory_order_seq_cst) : nullptr;
+        if (n) out = n->val;
+        // 2. 值已经拷出来了，离开以后不再碰 n
+        ebr_.leave(tid);
+        return n != nullptr;
+    }
+
+private:
+    struct Slot {
+        std::atomic<uint64_t> key{0};        // 0 表示空槽
+        std::atomic<Node*> node{nullptr};
+    };
+
+    // 线性探测。键一旦写进槽就不再改，所以找键这一步不需要保护
+    Slot* find_slot(uint64_t key, bool claim) {
+        size_t i = (key * 0x9E3779B97F4A7C15ull) >> 32 & mask_;
+        for (size_t n = 0; n <= mask_; ++n, i = (i + 1) & mask_) {
+            uint64_t cur = slots_[i].key.load(std::memory_order_acquire);
+            if (cur == key) return &slots_[i];
+            if (cur != 0) continue;
+            // 1. 碰到空槽：查找到此为止；插入就用 CAS 把它占下来
+            if (!claim) return nullptr;
+            if (slots_[i].key.compare_exchange_strong(cur, key, std::memory_order_acq_rel)) return &slots_[i];
+            // 2. CAS 失败说明别人刚占了这个槽；占的正好是同一个键就用它，否则接着往后找
+            if (cur == key) return &slots_[i];
+        }
+        return nullptr;
+    }
+
+    std::vector<Slot> slots_;
+    size_t mask_;
+    Ebr& ebr_;
+};
+```
+
+- **两个线程同时插入同一个键**：只有一个 CAS 成功，失败的那个看到槽里已经是这个键，直接用它。两个线程随后各自交换值指针，后换的留下，先换的那个节点被当成旧节点交给回收。
+- **读路径没有锁，也不写共享的缓存行**（读者自己的那条公告除外，见 6.2），所以多个读者之间不会互相拖慢。
+
+### 6.2 回收：旧节点等所有读者都离开它那一代，再释放 {#case-ebr}
+
+- **全局有一个纪元号**。读者进临界区时公告“我在第 e 代”，离开时标成不在。
+- **写者把节点摘下来以后不马上释放**：记下摘的时候是第几代，放进自己的待释放列表。
+- **纪元怎么前进**：所有在临界区里的线程都已经公告了当前这一代，纪元才能加 1。
+- **为什么是多 2 才能释放**：节点在第 r 代被摘下。可能还拿着它的读者，都是摘之前进来的，公告的代数不超过 r。这样的读者只要还在，纪元最多前进到它的代数加 1，也就是不超过 r + 1。所以纪元到了 r + 2，这些读者一定都已经离开。
+
+```cpp
+// 基于纪元的回收：读者进临界区时公告自己所在的纪元，旧节点等所有读者都离开那个纪元才释放
+class Ebr {
+public:
+    static constexpr int kMaxThreads = 64;
+    static constexpr uint64_t kIdle = ~0ull;   // 不在临界区里
+
+    // 读者进入：公告“我在第 e 代”
+    void enter(int tid) {
+        // 1. 公告（写）之后才去读共享指针（读）：先写后读正是 x86 会重排的那一种，所以用 seq_cst
+        rec_[tid].epoch.store(global_.load(std::memory_order_seq_cst), std::memory_order_seq_cst);
+    }
+    // 读者离开：之后不再碰临界区里拿到的任何指针
+    void leave(int tid) { rec_[tid].epoch.store(kIdle, std::memory_order_release); }
+
+    // 写者：n 已经从表里摘下来，新来的读者拿不到它；记下摘的时候是第几代
+    void retire(int tid, Node* n) {
+        auto& limbo = rec_[tid].limbo;
+        limbo.push_back({global_.load(std::memory_order_seq_cst), n});
+        // 1. 攒够一批再处理，释放不是每次写都做
+        if (limbo.size() < 64) return;
+        try_advance();
+        // 2. 纪元比节点的那一代多了 2，摘它之前进来的读者都已经离开，可以释放
+        uint64_t g = global_.load(std::memory_order_seq_cst);
+        size_t keep = 0;
+        for (auto& [e, p] : limbo) {
+            if (e + 2 <= g) delete p;
+            else limbo[keep++] = {e, p};
+        }
+        limbo.resize(keep);
+    }
+
+private:
+    // 所有在临界区里的线程都已经公告了当前这一代，纪元才能加 1
+    void try_advance() {
+        uint64_t g = global_.load(std::memory_order_seq_cst);
+        for (auto& r : rec_) {
+            uint64_t e = r.epoch.load(std::memory_order_seq_cst);
+            if (e != kIdle && e != g) return;   // 有读者还停在旧的一代，这次不推进
+        }
+        global_.compare_exchange_strong(g, g + 1, std::memory_order_seq_cst);
+    }
+
+    struct alignas(64) Rec {
+        std::atomic<uint64_t> epoch{kIdle};
+        std::vector<std::pair<uint64_t, Node*>> limbo;   // 这个线程摘下来、还没释放的节点
+    };
+    Rec rec_[kMaxThreads];
+    std::atomic<uint64_t> global_{0};
+};
+```
+
+- **回收不打断任何线程**：读路径上没有释放；写路径上攒够一批才处理一次；没有任何一步要让所有线程停下来等。要更平滑，可以把待释放列表交给后台线程去放。
+- **公告要用 `seq_cst`**：读者先写自己的公告、再读共享指针，正是 x86 会重排的“先写后读”（[#2 1.3](/zh/posts/memory-ordering-false-sharing-dependency-chains/#four-reorderings)）。重排以后，写者扫描时看不到这个读者，读者却已经拿到了旧节点。
+- **线程编号**：代码里由调用方传 `tid`，实际用的时候每个线程第一次进来时登记一个，存在 `thread_local` 里。
+
+### 6.3 取舍：一个读者卡住，内存就一直涨 {#case-ebr-tradeoff}
+
+- **epoch 回收的弱点**：只要有一个读者停在临界区里不出来（被调度走了、死循环了），纪元就推进不了，所有线程的待释放列表都只进不出。
+- **hazard pointer 是另一种方案**：读者公告的不是“我在第几代”，而是“我正在用这个指针”。一个读者卡住只拖住它公告的那几个节点，待释放的内存有上限。代价是每读一个节点都要多一次公告的写，而且同样是先写后读，要一道全屏障。
+- **RCU 是同一个思想在内核里的做法**：读端几乎不花钱；写端等一个宽限期，确认每个 CPU 都经过了一次不在读端临界区的时刻，再释放。纪元前进两次，相当于一个宽限期。
+- **交易系统里常见的做法是绕开它**：
+  - **按合约分片，每个线程只碰自己那一片**：表根本不共享，也就没有回收问题（[交易系统架构 3.2](/zh/ref/trading-architecture/#shard)）。
+  - **节点从固定大小的池里取，用完还回池里，永远不还给系统**：读到的最多是被复用的槽，配上版本号就能发现（[未定义行为 4.3](/zh/ref/undefined-behavior/#uaf-pool)）。
+  - **热线程都绑在隔离核上、一直在跑**：读者不会被调度走，纪元推得动，epoch 回收的弱点碰不到。
+
+### 6.4 另外两种做法：按哈希低位分片加锁，回收交给后台线程 {#case-shard-lock}
+
+**按哈希低位分片加锁：不追求无锁，把一把大锁拆成很多把小锁**
+
+- **怎么拆**：开 $2^k$ 个分片，每个分片是一张普通哈希表加一把锁。键算出哈希 $h$ 后，用低 $k$ 位 `h & (2^k - 1)` 选分片，只锁这一片。
+- **为什么够用**：两个线程只有落到同一片时才会互相等，分片数取线程数的几倍，撞上的概率就很低。读多写少时，每片用读写锁或者 seqlock，读者几乎不等。
+- **一个容易踩的地方**：分片用了哈希的低位，分片里面选桶就不能再用同样的低位，否则一个分片里的键低位全相同，只落在几个桶里。分片里改用高位，或者用 $h \gg k$ 再取模。
+- **代价**：拿锁要一次原子操作，抢同一片时要排队；读者也拿锁（互斥锁或读写锁）时没有回收问题，删掉的节点在锁里直接释放，因为拿到锁之后不会有人还在读它；读者用 seqlock 不拿锁时，又回到要延迟释放。
+
+**回收交给后台线程：热路径上只入队，不释放**
+
+- **做法**：写线程把换下来的旧节点连同当时的纪元，放进一个队列（每个写线程一条 SPSC 队列就够），立刻返回。后台线程不断从队列里取，等到纪元前进两次、确认没有读者还拿着它，再 `delete`。
+- **为什么更平滑**：6.2 里的 `retire` 攒满 64 个会在写线程上做一次批量释放，这一下的耗时落在热路径上。挪到后台线程以后，写线程每次只多一次入队，延迟稳定。
+- **代价**：多一个线程、多一条队列；后台线程如果跟不上，队列会涨，所以要监控队列长度。内核的 RCU 也是这样做的：`call_rcu` 只登记回调，宽限期过了由后台处理。
