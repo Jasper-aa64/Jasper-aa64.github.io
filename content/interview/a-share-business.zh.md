@@ -3,7 +3,7 @@ title: "IV：A 股业务知识"
 date: 2026-11-03T00:00:00+08:00
 slug: "a-share-business"
 aliases: ["/interview/a-share-level2/"]
-description: "量化开发（QD）面试里的业务题：Level-2 快照、逐笔委托、逐笔成交各记了什么，沪深两市哪里不一样，序号、主动方、集合竞价，写因子时要和研究侧对齐的几处，五个常用 Level-2 因子（OBI、OFI、价差突变、主动大单、撤单占比）落到 C++ 时的状态和坑，流合并、时序对齐、增量计算和 pandas 对不上的地方，以及怎么用逐笔重建盘口、和快照十档对拍。"
+description: "量化开发（QD）面试里的业务题：Level-2 快照、逐笔委托、逐笔成交各记了什么，沪深两市哪里不一样，序号、主动方、集合竞价，写因子时要和研究侧对齐的几处，五个常用 Level-2 因子（OBI、OFI、价差突变、主动大单、撤单占比）落到 C++ 时的状态、代码和坑，流合并、时序对齐、增量计算和 pandas 对不上的地方，怎么用逐笔重建盘口、和快照十档对拍，以及面试里怎么手写因子框架。"
 weight: 2
 toc: true
 math: true
@@ -132,6 +132,37 @@ $$\text{OBI}=\frac{\sum_{i=1}^{10} w_i\,(\text{bid}_i-\text{ask}_i)}{\sum_{i=1}^
 
 每张快照自己就能算出来，**C++ 不需要跨消息的状态**，难点全在边界。涨停时卖盘全空，OBI 恒为 1，跌停恒为 −1，这段要不要用得和研究侧约定；两边都空（停牌、开盘前）分母为 0，pandas 除以 0 得到 inf 或 NaN 不报错，C++ 用整数算会直接崩，用浮点得到 nan 继续往下传，所以填什么值要事先说好。集合竞价期间快照上的盘口是虚拟撮合的结果，不是连续竞价的挂单，一般剔掉。快照缺失时用前值补还是留空，见第 5 节。快照只有 3 秒的节拍，要逐笔级的 OBI 得用逐笔重建盘口。
 
+下面 6.1 到 6.3 三个快照因子共用这个结构体，代码按 6.1 到 6.5 的顺序接起来就能编译：
+
+```cpp
+#include <cstdint>
+#include <optional>
+
+// 一张快照：价格是放大过的整数；空档的价格和量都是 0
+struct Snapshot {
+    int64_t t;                       // 交易所时间，毫秒
+    int64_t last;                    // 最新价，还没成交时可能是 0
+    int64_t bid_px[10], bid_qty[10];
+    int64_t ask_px[10], ask_qty[10];
+};
+```
+
+```cpp
+// 一张快照算完，不存状态；两边都没有挂单时返回空
+std::optional<double> obi(const Snapshot& s) {
+    double num = 0, den = 0;
+    for (int i = 0; i < 10; ++i) {
+        // 1. 权重 1/(i+1)，离盘口越近越大
+        double w = 1.0 / (i + 1);
+        num += w * double(s.bid_qty[i] - s.ask_qty[i]);
+        den += w * double(s.bid_qty[i] + s.ask_qty[i]);
+    }
+    // 2. 分母为 0（停牌、开盘前）不能除，填什么值和研究侧约定
+    if (den == 0) return std::nullopt;
+    return num / den;
+}
+```
+
 ### 6.2 订单流不平衡（OFI）：相邻两张快照
 
 OBI 看的是盘口上挂着多少，OFI 看的是两张快照之间买一、卖一多了多少、少了多少。**OBI 是存量，OFI 是流量**。买方这一边按买一价怎么动分三种情况：
@@ -147,6 +178,44 @@ $$e^{b}_t=\begin{cases}q^{b}_t & P^{b}_t \gt P^{b}_{t-1}\\ q^{b}_t-q^{b}_{t-1} &
 $$e_t=e^{b}_t-e^{a}_t,\qquad \text{OFI}_t=\sum_{k=t-N+1}^{t}e_k$$
 
 C++ 每只股票的状态是两部分：上一张快照的买一价、买一量、卖一价、卖一量；最近 N 个 $e$ 的环形数组和它们的累加和。来一张快照，先和上一张比出 $e_t$，加进累加和，再减掉被挤出窗口的那个，最后把这张的买一卖一存下来。**$e$ 是整数，累加和一加一减不会有误差**；容量取 2 的幂，下标用按位与回绕。
+
+```cpp
+struct Ofi {
+    static constexpr int N = 64;     // 窗口张数，取 2 的幂
+    int64_t ring[N] = {};            // 最近 N 个 e
+    int64_t sum = 0;                 // ring 里 N 个 e 的和
+    int64_t count = 0;               // 一共算出过几个 e
+    bool has_prev = false;
+    int64_t pb = 0, qb = 0, pa = 0, qa = 0;   // 上一张的买一价、买一量、卖一价、卖一量
+
+    // 窗口还没攒满 N 个 e 时返回空，对应 pandas rolling(N) 开头的 NaN
+    std::optional<int64_t> on_snapshot(const Snapshot& s) {
+        int64_t b = s.bid_px[0], vb = s.bid_qty[0];
+        int64_t a = s.ask_px[0], va = s.ask_qty[0];
+        // 1. 第一张没有上一张，只存下来，不能拿 0 当上一张
+        if (!has_prev) {
+            has_prev = true;
+            pb = b; qb = vb; pa = a; qa = va;
+            return std::nullopt;
+        }
+        // 2. 买方：价上移整档算新增，价不变看量差，价下移整档算减少
+        int64_t eb = b > pb ? vb : (b == pb ? vb - qb : -qb);
+        // 3. 卖方镜像：价下移整档算新增卖压
+        int64_t ea = a < pa ? va : (a == pa ? va - qa : -qa);
+        int64_t e = eb - ea;
+        // 4. 进一个加、出一个减；没满时被覆盖的格子是 0，减了也不影响
+        //    下标用按位与回绕，所以 N 要是 2 的幂
+        int64_t& slot = ring[count & (N - 1)];
+        sum += e - slot;
+        slot = e;
+        ++count;
+        // 5. 存下这一张，下一张和它比
+        pb = b; qb = vb; pa = a; qa = va;
+        if (count < N) return std::nullopt;
+        return sum;
+    }
+};
+```
 
 和研究侧对不上的地方：
 
@@ -166,7 +235,48 @@ $$s_t=\frac{\sum_{i=1}^{N} w_i\,(\text{ask}_i-\text{bid}_i)/P_{\text{last}}}{\su
 
 因子值是这个 bar 和前面最近一个有值的 bar 的差：$\Delta s_t=s_t-s_{\text{prev}}$。
 
-C++ 要记的只有三样：当前 bar 的编号和值，前面最近一个有值的 bar 的值。同一个 3 秒里来了几张快照，后面的覆盖前面的；进入新的 bar 时，把上一个 bar 的值留作 $s_{\text{prev}}$。**它只和前一个值比，不需要环形数组**；要输出过去 N 个 bar 的均值或和，才需要。
+C++ 要记的很少：当前 bar 的编号和值，前面最近一个有值的 bar 的值，再加一个最近不为 0 的最新价，用来补 0。同一个 3 秒里来了几张快照，后面的覆盖前面的；进入新的 bar 时，把上一个 bar 的值留作 $s_{\text{prev}}$。**它只和前一个值比，不需要环形数组**；要输出过去 N 个 bar 的均值或和，才需要。
+
+```cpp
+struct SpreadJump {
+    static constexpr int N = 5;              // 用前 5 档
+    static constexpr int64_t BAR_MS = 3000;  // 3 秒一个 bar
+    int64_t bar = -1;                        // 当前 bar 编号
+    bool cur_ok = false;                     // 当前 bar 有没有值
+    double cur = 0;                          // 当前 bar 的值，同一个 bar 里后来的覆盖前面的
+    bool has_prev = false;
+    double prev = 0;                         // 前面最近一个有值的 bar 的值
+    int64_t last_px = 0;                     // 最近一个不为 0 的最新价
+
+    // 返回当前 bar 的因子值；前面还没有有值的 bar 时返回空
+    std::optional<double> on_snapshot(const Snapshot& s) {
+        // 1. 这张快照落在哪个 bar；进了新 bar，上一个 bar 有值就留作 prev
+        //    没有值的 bar 跳过，prev 还是更早那个（对应 pandas 先 dropna 再 diff）
+        int64_t b = s.t / BAR_MS;
+        if (b != bar) {
+            if (cur_ok) { prev = cur; has_prev = true; }
+            bar = b;
+            cur_ok = false;
+        }
+        // 2. 最新价是 0 就用之前的；之前也没有，就用买一卖一的中间价
+        if (s.last > 0) last_px = s.last;
+        int64_t px = last_px > 0 ? last_px : (s.bid_px[0] + s.ask_px[0]) / 2;
+        // 3. 前 N 档的相对价差，权重 N, N-1, ..., 1；一边空着的档跳过，权重也不计
+        double num = 0;
+        int den = 0;
+        for (int i = 0; i < N && px > 0; ++i) {
+            if (s.bid_px[i] == 0 || s.ask_px[i] == 0) continue;
+            int w = N - i;
+            num += w * double(s.ask_px[i] - s.bid_px[i]) / double(px);
+            den += w;
+        }
+        // 4. 这张算不出来，就不覆盖这个 bar 已有的值
+        if (den > 0) { cur = num / den; cur_ok = true; }
+        if (!cur_ok || !has_prev) return std::nullopt;
+        return cur - prev;
+    }
+};
+```
 
 和研究侧对不上的地方：
 
@@ -182,6 +292,47 @@ C++ 要记的只有三样：当前 bar 的编号和值，前面最近一个有�
 
 C++ 的状态因此很省。一笔主动委托到达后立即撮合，它引发的成交在序号上是连续的，所以**看到主动方的委托号变了，就可以结算上一笔**：累计金额过门槛就记大单，再加进窗口里的主动买或主动卖累加和。如果研究侧连被动方也按委托大小分档，就得再维护一张“委托号 → 累计成交额”的哈希表，委托全部成交或撤单后删掉，否则表一天下来只增不减。
 
+```cpp
+// side：'B' 主动买，'S' 主动卖，'N' 集合竞价没有主动方
+// 上海直接用内外盘标志；深圳先比较买卖双方委托序号，大的一方是主动方
+struct Trade { int64_t px, qty, bid_no, ask_no; char side; };
+
+struct BigOrderFlow {
+    int64_t threshold;                   // 大单门槛，按一笔主动委托的累计成交金额
+    int64_t cur_no = -1;                 // 正在累加的那笔主动委托
+    char cur_side = 0;
+    int64_t cur_amt = 0;
+    int64_t big_buy = 0, big_sell = 0, total = 0;
+
+    void on_trade(const Trade& x) {
+        // 1. 深圳的撤单（价格 0）和集合竞价的成交都不算
+        if (x.px == 0 || x.side == 'N') return;
+        int64_t amt = x.px * x.qty;
+        total += amt;
+        // 2. 主动委托号变了，说明上一笔主动委托的成交已经出完，结算它
+        //    一笔主动委托引发的成交在序号上是连续的，所以不用哈希表
+        int64_t no = x.side == 'B' ? x.bid_no : x.ask_no;
+        if (no != cur_no) {
+            settle();
+            cur_no = no;
+            cur_side = x.side;
+        }
+        cur_amt += amt;
+    }
+    void settle() {
+        if (cur_amt >= threshold) (cur_side == 'B' ? big_buy : big_sell) += cur_amt;
+        cur_amt = 0;
+    }
+    // 当日到现在的值；正在累加的那笔按已有金额算进去，但不结算它
+    std::optional<double> value() const {
+        if (total == 0) return std::nullopt;
+        int64_t bb = big_buy, bs = big_sell;
+        if (cur_amt >= threshold) (cur_side == 'B' ? bb : bs) += cur_amt;
+        return double(bb - bs) / double(total);
+    }
+};
+```
+
 和研究侧对不上的地方有三处。第一，深圳的逐笔成交里混着撤单（价格 0），要先滤掉，否则撤单量会被当成交量累加。第二，“委托多大”有两种口径：按原始委托金额，还是按实际成交金额。深圳逐笔委托有原始数量，上海立即全部成交的单在逐笔委托里查不到，只能用成交金额，两市口径要统一。第三，集合竞价的成交没有主动方，要剔掉。
 
 ### 6.5 撤单金额占比：逐笔委托和逐笔成交
@@ -189,6 +340,48 @@ C++ 的状态因此很省。一笔主动委托到达后立即撮合，它引发�
 一段时间内被撤掉的委托金额，除以同期新增委托金额。分子在两市的来源不同。上海的删除记录在逐笔委托里，自带价格和被删的剩余量，直接乘。深圳的撤单在逐笔成交里，价格是 0，只有数量，要用非 0 的那个委托序号查回原委托才知道撤的是哪个价位、哪一边。**所以 C++ 要维护一张“序号 → 价格、方向”的表**，委托全部成交或撤单后删掉。研究侧通常是全天数据按序号 merge 一次，C++ 只能边收边查，于是还有一个坑：程序必须从 9:15 开盘集合竞价就开始收逐笔委托，从 9:30 才开始收的话，集合竞价里挂的单在 9:30 以后被撤，就查不到原委托了。
 
 分母两市口径也不同。上海的逐笔委托不发立即全部成交的单，部分成交的只发剩余量，所以上海的“新增委托金额”偏小，同样的撤单行为，上海算出来的占比偏高。这个因子跨市场不能直接比，要么把上海的分母用成交补回来，要么沪深分开标准化，选哪种得和研究侧约定。
+
+深圳版的代码（上海的删除记录自带价格，`on_cancel` 直接用记录里的价格就行，不用查表）：
+
+```cpp
+#include <unordered_map>
+#include <utility>
+
+struct CancelRatio {
+    // 委托号 → (价格, 剩余量)；全部成交或撤掉就删，表才不会一天只增不减
+    std::unordered_map<int64_t, std::pair<int64_t, int64_t>> live;
+    int64_t new_amt = 0, cancel_amt = 0, miss = 0;
+
+    // 1. 新委托：金额记进分母，挂进表里
+    void on_order(int64_t no, int64_t px, int64_t qty) {
+        new_amt += px * qty;
+        live[no] = {px, qty};
+    }
+    // 2. 成交：买卖两边的委托都扣掉成交量
+    void on_fill(int64_t bid_no, int64_t ask_no, int64_t qty) {
+        reduce(bid_no, qty);
+        reduce(ask_no, qty);
+    }
+    // 3. 撤单：价格是 0，拿不为 0 的那个委托号查回原价
+    //    查不到（比如程序 9:30 才开始收）只能计数，不能当没发生
+    void on_cancel(int64_t no, int64_t qty) {
+        auto it = live.find(no);
+        if (it == live.end()) { ++miss; return; }
+        cancel_amt += it->second.first * qty;
+        reduce(no, qty);
+    }
+    void reduce(int64_t no, int64_t qty) {
+        auto it = live.find(no);
+        if (it == live.end()) return;
+        it->second.second -= qty;
+        if (it->second.second <= 0) live.erase(it);
+    }
+    std::optional<double> value() const {
+        if (new_amt == 0) return std::nullopt;
+        return double(cancel_amt) / double(new_amt);
+    }
+};
+```
 
 ## 7. 流合并、时序对齐、增量计算
 
@@ -315,3 +508,80 @@ struct RollingSum {
 - **买一高于卖一，而且一直不消失**：成交没扣对。深圳常见于只扣了被动方、没扣主动方；把价格为 0 的市价卖单直接挂进盘口，也会出现一个价格为 0 的卖一。
 - **累计成交量对不上**：丢了成交，重复处理了断线重连后重发的数据（3.2），或者深圳没滤撤单。
 - **对拍不过的那段时间，基于盘口的因子都不能用**。和研究侧对因子之前，先看这段盘口有没有对上。
+
+## 9. 面试里手写因子：先说状态，再写代码
+
+> **这一节解决什么问题：面试官给一个因子定义，让你写成实时计算**
+>
+> - **他看的是状态设计，不是公式**：公式一两行就写完了，要看的是每只股票存什么、消息来了改什么、什么时候输出、哪些东西能共用。
+> - **最常见的失分是先写一个函数，输入整个数组、输出一个值**：那是 pandas 的写法。实盘数据一条一条来，面试官会一直提示“数据是不断过来的”，直到你改成流式，时间就耗掉了。
+
+### 9.1 开写前 30 秒：五句话把设计说清
+
+1. **输入**：每条消息长什么样，只列这个因子用得到的字段；时间是什么单位，价格是不是放大过的整数。
+2. **状态**：每只股票一个状态对象，里面存什么，为什么这些就够了。比如 OFI 存上一张快照的买一卖一，加一个 N 格的环形数组和它的和。
+3. **更新顺序**：一条消息来了，先改什么、后改什么。比如 OFI 先和上一张比出 $e$，再更新窗口，最后存下这一张；时间窗口先加新的，查询时再剔过期的。
+4. **输出时机**：每条消息都输出，还是只在采样点、bar 结束时输出；查询时刻要不要先剔除过期数据。
+5. **边界**：第一条、窗口为空、分母为 0、涨跌停，各返回什么。
+
+**说完问一句“这样设计可以吗”，再动手**：他有不同意见，在这时候改最便宜；写了十分钟才发现方向不对，就来不及了。
+
+### 9.2 框架：因子、股票、引擎三层
+
+**每一层只管一件事**：因子管自己的状态和更新；股票把用同一类数据的因子放在一起，一条消息进来挨个更新；引擎按股票分发。三层分开，加一个因子只动前两层，面试官问“再加一个因子怎么办”，指给他看就行。
+
+```cpp
+#include <vector>
+
+// 1. 每只股票一个状态对象：用同一类数据的因子放在一起
+struct SymbolState {
+    Ofi ofi;
+    SpreadJump spread;
+    BigOrderFlow big{5'000'000};
+    // 最近一次算出的值，查询时直接读
+    std::optional<double> obi_v, spread_v;
+    std::optional<int64_t> ofi_v;
+
+    // 2. 一张快照进来，用快照的因子各更新一次
+    void on_snapshot(const Snapshot& s) {
+        obi_v = obi(s);
+        ofi_v = ofi.on_snapshot(s);
+        spread_v = spread.on_snapshot(s);
+    }
+    // 3. 一笔成交进来，用成交的因子各更新一次
+    void on_trade(const Trade& x) { big.on_trade(x); }
+};
+
+// 4. 引擎只做一件事：按股票分发
+//    开盘前给每只股票编好号，热路径上用下标，不查字符串
+struct Engine {
+    std::vector<SymbolState> states;
+    explicit Engine(int n_symbols) : states(n_symbols) {}
+    void on_snapshot(int sym, const Snapshot& s) { states[sym].on_snapshot(s); }
+    void on_trade(int sym, const Trade& x) { states[sym].on_trade(x); }
+    const SymbolState& get(int sym) const { return states[sym]; }
+};
+```
+
+**写的顺序：先空壳，再填一个，最后补边界**。
+
+1. 先写三层的结构体和函数签名，函数体全空着，两分钟以内。
+2. 再填面试官要的那个因子的更新。
+3. 最后补边界：第一条、空窗口、分母为 0。
+
+时间不够时，**框架完整、一个因子写对，比五个因子各写一半强**。
+
+### 9.3 写完怎么证明它对
+
+- **和暴力解对拍**：同一串数据，暴力版每次把窗口重算一遍，增量版逐条输出，两边逐条比。时间够就写出来，不够就口头说清楚怎么对。
+- **手造几个边界**：第一条消息、正好落在窗口边界上的那一条、窗口为空、最新价是 0。
+- **和研究侧对**：拿同一天的数据，C++ 每条输出和 pandas 那一列逐行比，差在哪几行就查第 7.3 节那几处。
+
+### 9.4 常见追问
+
+- **几千只股票怎么存**：开盘前给股票编号，状态放在 `vector` 里按下标取。热路径上不用 `map<string, ...>`，查字符串又慢、又要分配内存。
+- **几个因子要用同一个窗口**：窗口放在股票的状态对象里，只维护一份，几个因子都从里面读。比如 VWAP 和平均每笔成交量共用 Σ量。
+- **因子接口为什么不用虚函数**：可以用，因子不多时这点开销不大。因子类型在编译期就知道的话，直接组合在结构体里（像上面那样）或者用模板，调用能内联。
+- **消息乱序或重复怎么办**：同一通道按序号处理，丢了要补，重复的丢掉（第 3.2 节）。查询时刻 T 不回退是调用约定，开写前就要说出来。
+- **内存会不会一天只增不减**：按委托号建的表，委托全部成交或撤掉就删（第 6.4、6.5 节）。
+- **浮点误差**：价格、金额、量用 `int64_t` 累加，最后输出时才转成 `double`（第 7.3 节）。
