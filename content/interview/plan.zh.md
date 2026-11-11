@@ -65,11 +65,11 @@ toc: true
 - ⬜ [文件 IO](https://jasper-aa64.github.io/zh/ref/file-io/)
 - ⬜ 博客 [#2 内存序与缓存行](https://jasper-aa64.github.io/zh/posts/memory-ordering-false-sharing-dependency-chains/)、[#16 自旋锁](https://jasper-aa64.github.io/zh/posts/spinlock-implementation/) 过一遍
 
-**口述**：[C++ 系统五题](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/)的第 1、2、4 道。
+**口述**：[C++ 系统五题](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/)的第 1、2、3 道。第 3 道是这一家实际问过的题，最先练。
 
 - ⬜ [第 1 道：UB、严格别名、释放后使用](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#ub)
 - ⬜ [第 2 道：x86 内存序和 ping-pong](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#memory-order)
-- ⬜ [第 4 道：futex 锁和 TLS 里的 tid](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#futex)
+- ⬜ [第 3 道：无锁哈希表和 epoch 回收](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#lockfree-map)，连同 [3.4 分片加锁和后台回收](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#shard-lock)
 
 ## 3. 11-13 周五：网络 {#fri}
 
@@ -105,7 +105,7 @@ toc: true
 
 **口述**：
 
-- ⬜ [第 3 道：无锁哈希表和 epoch 回收](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#lockfree-map)
+- ⬜ [第 4 道：futex 锁和 TLS 里的 tid](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#futex)
 - ⬜ [第 5 道：DAG 调度器](https://jasper-aa64.github.io/zh/interview/cpp-systems-five/#dag)
 - ⬜ 三道设计题各 2 分钟，见第 7 节。
 
