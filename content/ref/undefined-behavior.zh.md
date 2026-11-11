@@ -8,7 +8,7 @@ summary: "编译器假设程序里没有 UB，并据此改写别处的代码，�
 toc: true
 group: cpplinux
 topic: cpp
-weight: 108
+weight: 109
 ---
 
 未定义行为（UB）是标准不规定结果的行为，实际代码里最常撞上的两类是严格别名违规和释放后使用。它们出错的方式一样：代码在 `-O0` 下好好的，开了优化就坏了，坏的地方往往不是写错的那一行，因为编译器假设 UB 不会发生，并据此改写了别处的代码。查法也一样，都靠 sanitizer。
@@ -346,6 +346,7 @@ Order* get(std::vector<Slot>& pool, Handle h) {
 | `-fsanitize=undefined`（UBSan） | 有符号溢出、移位越界、空指针、没对齐的访问、少 `return` | 在每个可能出 UB 的操作前插一个检查 | 慢 10%–50% |
 | `-fsanitize=thread`（TSan） | 数据竞争 | 记录每次访问的线程和时间戳，比较有没有先后关系 | 慢 5–15 倍，内存多 5–10 倍 |
 
+- **ASan 和 TSan 怎么做到的、报告里有什么、抓不到什么**：见 [ASan 和 TSan](/zh/ref/sanitizers/)。
 - **ASan 和 TSan 不能同时开**：两者都要接管内存布局。一般是两套构建，各跑一遍。
 - **UBSan 可以和 ASan 一起开**：`-fsanitize=address,undefined`。
 - **严格别名没有好用的 sanitizer**：只能靠 3.4 的写法和下面的选项来排查。
