@@ -43,10 +43,10 @@
             {{ $x := add 24 (mul $i 48) }}
             {{ $h := div (mul (float $mo.n) 130) $max }}
             {{ if gt $mo.n 0 }}
-              <rect x="{{ $x }}" y="{{ sub 160 $h }}" width="32" height="{{ $h }}" class="about-chart__bar"/>
+              <rect x="{{ $x }}" y="{{ sub 160 $h }}" width="32" height="{{ $h }}" rx="4" class="about-chart__bar"/>
               <text x="{{ add $x 16 }}" y="{{ sub 152 $h }}" class="about-chart__n">{{ $mo.n }}</text>
             {{ else }}
-              <rect x="{{ $x }}" y="157" width="32" height="3" class="about-chart__bar about-chart__bar--zero"/>
+              <rect x="{{ $x }}" y="157" width="32" height="3" rx="1.5" class="about-chart__bar about-chart__bar--zero"/>
             {{ end }}
             <text x="{{ add $x 16 }}" y="180" class="about-chart__m">{{ $mo.label }}</text>
           {{ end }}
