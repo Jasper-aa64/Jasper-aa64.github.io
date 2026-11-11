@@ -1,20 +1,164 @@
 ---
-title: "IV：Python 与 C++ 算得不一样的地方"
-date: 2026-11-03T00:00:00+08:00
-slug: "python-cpp-consistency"
-description: "研究侧 pandas / NumPy 写的因子搬到 C++ 后对不上，常见原因有哪些：求和顺序、NaN、ddof、rolling、ewm、取整、整数除法、溢出、类型、排名、时间切分、编译选项；以及对不上时怎么按差值的样子定位。"
-weight: 3
+title: "因子一致性：研究、回测、实盘逐值对上"
+description: "同一个因子，研究侧的 pandas 原型、回测、实盘三处算出来要逐值相同：回测和实盘跑同一份代码、每天逐值对账；数据口径上要先约定的地方；pandas / NumPy 和 C++ 默认行为不同的地方（求和顺序、NaN、ddof、rolling、ewm、取整、整数除法、溢出、类型、排名、时间切分、编译选项）；对不上时怎么按差值的样子定位。"
+date: 2026-11-03
+lastmod: 2026-11-11
+slug: "factor-consistency"
+aliases: ["/interview/python-cpp-consistency/"]
+weight: 18
 toc: true
 math: true
 ---
 
-- **研究和实盘要逐值对得上**：研究员给的是 pandas 写的因子，实盘用 C++ 重写，同一份行情喂进去，两边每个值都要一样（或在约定的容差内）。
-- **对不上多半不是因子逻辑写错了**：更常见的是两边的默认行为不同。比如 pandas 默认跳过 NaN，C++ 的算术不会；pandas 的 `std` 默认除以 n − 1，NumPy 默认除以 n。
-- **每一条都回答两个问题**：两边默认各怎么做，C++ 怎么写才能和研究侧对上。
+同一个因子要在三处算：研究侧用 pandas 写的原型、回测、实盘。同一份行情喂进去，三处的每个值都要一样（或在约定的容差内），否则回测的结果代表不了实盘。这页按对不上的来源排：
 
-## 1. 数值本身：浮点加法不满足结合律
+- **第 1 节是系统这一层**：回测和实盘跑同一份代码，每天逐值对账，把差异分成代码的和输入数据的。
+- **第 2 节是数据口径**：累计量、缺失的快照、价格和金额的单位、时间，这些要先和研究侧约定。
+- **第 3 到 7 节是 pandas / NumPy 和 C++ 默认行为不同的地方**：对不上多半不是因子逻辑写错了，是两边的默认行为不同。比如 pandas 默认跳过 NaN，C++ 的算术不会；pandas 的 `std` 默认除以 n − 1，NumPy 默认除以 n。每一条都回答两个问题：两边默认各怎么做，C++ 怎么写才能和研究侧对上。
+- **第 8 节是对不上时怎么查**：先看差值的样子，再去对应的那一节找原因。
 
-### 1.1 求和顺序
+单个因子怎么写成增量见[因子计算](/zh/ref/factor-computation/)，数据本身各记了什么见 [A 股行情](/zh/ref/a-share-market/)，行情怎么录下来、怎么重放见[交易系统架构](/zh/ref/trading-architecture/)。
+
+## 1. 回测和实盘：同一份代码，每天逐值对账 {#replay}
+
+1. **核心目标：解决“回测美好、实盘亏钱”时对不上账的问题**
+   - **实盘表现比回测差，要先分清是谁的问题**：是策略本身失效了，还是实盘算出来的因子值和回测里不一样。后一种不排除掉，前一种就没法判断。
+   - **例子**：某只股票 10:00:00 的因子值，回测里是 0.82，实盘里是 0.79。开仓线是 0.8，回测里这一刻开了仓，实盘没开，两边的收益从这一笔起就对不上了。
+   - **对不上的原因分两类**：系统自己的（代码、状态、线程顺序），和输入数据的（丢包、时间口径、数据商修正）。下面先用同一份代码和每天对账把差异找出来，再分两个阶段把这两类分开。
+
+2. **架构方案：统一接口，回测和实盘跑同一份代码**
+   ```cpp
+   struct Factor {
+       void on_tick(const Tick& t);   // 来一条行情，更新内部状态；Tick 泛指一条行情消息，快照和逐笔都算
+       double value() const;          // 读当前的因子值
+       void reset();                  // 换交易日，清掉内部状态
+   };
+   ```
+   <svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="上面一行是实盘：交易所组播经网卡进来，行情接入线程解码成 Tick，分片线程来一条调一次 on_tick；下面一行是回测：历史行情（实盘录像或数据商文件）由回放器按交易日、按时间排序，一条条构造 Tick 调用；两行都指向右边同一个 Factor，它只有 on_tick、value、reset 三个函数；回测一天喂完调 reset 再读下一天；因子里的时间只用行情自带的交易所时间" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+     <style>
+       .rp0bg  { fill: #fbfaf7; }
+       .rp0u   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+       .rp0d   { fill: #f3efe6; stroke: #b8ab8c; stroke-width: 1.3; }
+       .rp0m   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.5; }
+       .rp0ink { fill: #1c1b18; font-size: 12.5px; }
+       .rp0sm  { fill: #1c1b18; font-size: 11.5px; }
+       .rp0mut { fill: #6b6558; font-size: 12px; }
+       .rp0ttl { fill: #1c1b18; font-size: 14px; font-weight: 700; }
+       .rp0hd  { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+       .rp0ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+       .rp0lp  { stroke: #8c7a52; stroke-width: 1.3; stroke-dasharray: 5 4; fill: none; }
+       .rp0hh  { fill: #6b6558; }
+       .rp0hp  { fill: #8c7a52; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0bg { fill: #17161b; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0u { fill: #23262c; stroke: #3f4650; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0d { fill: #2a2721; stroke: #6b6250; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0m { fill: #33421f; stroke: #8fb257; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0ink, :root:is([data-theme="dark"], [data-theme="black"]) .rp0sm, :root:is([data-theme="dark"], [data-theme="black"]) .rp0ttl, :root:is([data-theme="dark"], [data-theme="black"]) .rp0hd { fill: #e9e7ef; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0mut { fill: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0ln { stroke: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0hh { fill: #a19caf; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0lp { stroke: #b8ab8c; }
+         :root:is([data-theme="dark"], [data-theme="black"]) .rp0hp { fill: #b8ab8c; }
+     </style>
+     <defs>
+       <marker id="rp0ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="rp0hh"/></marker>
+       <marker id="rp0ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="rp0hp"/></marker>
+     </defs>
+     <rect class="rp0bg" x="0" y="0" width="760" height="340" rx="10"/>
+     <text class="rp0ttl" x="24" y="32">喂法不同，因子是同一个</text>
+     <text class="rp0hd" x="24" y="100">实盘</text>
+     <rect class="rp0u" x="70" y="70" width="120" height="50" rx="6"/>
+     <text class="rp0ink" x="130" y="91" text-anchor="middle">交易所组播</text>
+     <text class="rp0sm" x="130" y="109" text-anchor="middle">网卡收包</text>
+     <rect class="rp0u" x="215" y="70" width="140" height="50" rx="6"/>
+     <text class="rp0ink" x="285" y="91" text-anchor="middle">行情接入线程</text>
+     <text class="rp0sm" x="285" y="109" text-anchor="middle">解码成 Tick</text>
+     <rect class="rp0u" x="380" y="70" width="130" height="50" rx="6"/>
+     <text class="rp0ink" x="445" y="91" text-anchor="middle">分片线程</text>
+     <text class="rp0sm" x="445" y="109" text-anchor="middle">来一条调一次</text>
+     <path class="rp0ln" d="M190 95 H211" marker-end="url(#rp0ah)"/>
+     <path class="rp0ln" d="M355 95 H376" marker-end="url(#rp0ah)"/>
+     <text class="rp0hd" x="24" y="240">回测</text>
+     <rect class="rp0d" x="70" y="210" width="120" height="50" rx="6"/>
+     <text class="rp0ink" x="130" y="231" text-anchor="middle">历史行情</text>
+     <text class="rp0sm" x="130" y="249" text-anchor="middle">录像或数据商文件</text>
+     <rect class="rp0d" x="215" y="210" width="140" height="50" rx="6"/>
+     <text class="rp0ink" x="285" y="231" text-anchor="middle">回放器</text>
+     <text class="rp0sm" x="285" y="249" text-anchor="middle">按交易日、按时间排序</text>
+     <rect class="rp0d" x="380" y="210" width="130" height="50" rx="6"/>
+     <text class="rp0ink" x="445" y="231" text-anchor="middle">逐条构造 Tick</text>
+     <text class="rp0sm" x="445" y="249" text-anchor="middle">一条条调用</text>
+     <path class="rp0ln" d="M190 235 H211" marker-end="url(#rp0ah)"/>
+     <path class="rp0ln" d="M355 235 H376" marker-end="url(#rp0ah)"/>
+     <path class="rp0lp" d="M445 260 V280 H285 V264" marker-end="url(#rp0ap)"/>
+     <text class="rp0mut" x="365" y="298" text-anchor="middle">一天喂完 → reset() → 读下一天</text>
+     <rect class="rp0m" x="560" y="115" width="180" height="100" rx="8"/>
+     <text class="rp0hd" x="650" y="140" text-anchor="middle">Factor（只有一份）</text>
+     <text class="rp0sm" x="578" y="164">on_tick(t)：更新状态</text>
+     <text class="rp0sm" x="578" y="184">value()：读因子值</text>
+     <text class="rp0sm" x="578" y="204">reset()：换交易日</text>
+     <path class="rp0ln" d="M510 95 C535 95 535 150 556 150" marker-end="url(#rp0ah)"/>
+     <path class="rp0ln" d="M510 235 C535 235 535 182 556 182" marker-end="url(#rp0ah)"/>
+     <text class="rp0mut" x="24" y="326">因子里的“现在”一律用 t.exch_time，不读系统时钟；需要前一天数据的，reset() 之后先预热。</text>
+   </svg>
+
+   - **因子不知道自己在回测还是实盘里**：它只管来一条行情、更新一次状态。行情从哪来，由调用它的那一层决定。
+   - **实盘这样调**：行情接入线程把收到的组播包解码成 `Tick`，分片线程拿到一条就调一次 `on_tick`（[交易系统架构 1.1](/zh/ref/trading-architecture/#tick)）。
+   - **回测这样调**：回放器按交易日读历史行情，按时间顺序一条条构造 `Tick`，调的是同一个 `on_tick`；一天喂完，调 `reset()`，再读下一天。
+   ```cpp
+   // 实盘：分片线程从队列里读，来一条调一次
+   while (running)
+       if (queue.read(t)) factor.on_tick(t);
+
+   // 回测：按交易日读历史行情，按时间顺序调同一个函数
+   for (Date d : days) {
+       factor.reset();
+       for (const Tick& t : load_day(d)) factor.on_tick(t);
+   }
+   ```
+   - **喂的顺序要和实盘一样**：只用到一只股票的因子，可以每只股票单独跑完一天；截面因子要把全市场的行情按交易所时间归并成一条流（同一时刻按序号排），和实盘到达的顺序一致。
+   - **因子里的“现在”一律用行情自带的时间**：实盘的“现在”是墙上时间，回测的“现在”是这条行情的时间。因子里要是读了系统时钟，回测时拿到的是今天的时间，窗口和 bar 边界全错，**所以因子里只用 `t.exch_time`**。
+   - **研究和实盘各写一份，迟早会分叉**：研究用 Python 写一份、实盘用 C++ 再写一份，细节总会不一样，例如一份跳过 NaN、一份没跳，或者一份按收盘价算、一份按最新价算。
+   - **只有一份代码，“两份代码写得不一样”这个原因就没了**。
+
+3. **运维机制：每天盘后用实盘录像重放，逐值对账**
+   - **盘中把输入和输出都存下来**：落盘读者从广播环里把实盘收到的每条行情原样存下（[交易系统架构 1.4](/zh/ref/trading-architecture/#side)），连同收到时间；分片线程把每次算出的因子值也写进日志。
+   - **录的是实盘当时看到的样子**：丢了的那条录不到，晚到的按晚到的顺序录，补回来的按补回来的时刻录。所以重放的输入和实盘的输入一模一样。
+   - **盘后用录像重放**：回放器读这份录像，喂给同一个 `on_tick`，得到另一串因子值。
+   - **按行情序号逐值比**：把两串值按同一条行情对齐，一个一个比。
+      - **同一份二进制、同一份输入，结果应该逐位相同**：阈值可以是 0，差一位就说明哪里有不确定的东西。
+      - **和另一种语言写的研究原型比，才需要容差**：例如相对误差 1e-9，因为两边的浮点运算顺序本来就不同。
+   - **例子**：全市场 5000 只股票，快照约 3 s 一个，一天交易 4 小时，约 14400 ÷ 3 × 5000 ≈ 2400 万个值，逐个比一遍要几秒到几十秒。
+   - **改了代码也靠它做回归**：同一天的录像，改前改后输出逐位不变，才算没改坏；要变的，变化只出现在该变的因子上。
+
+4. **差异排查：两阶段归因，先排除系统，再看数据**
+   - **阶段一：实盘录像 vs 盘后重放，排除系统级问题**
+      - **输入和代码都一样，结果还不同，只能是系统里有不确定的东西**。
+      - **状态没重置、预热不一致**：开盘那一段对不上，等窗口滚过去才对上。修法是把预热条数和重启恢复的方式定成固定规则，回测照同一套来。
+      - **多线程汇合顺序不固定**：浮点加法不满足结合律，截面汇总按“谁先算完先加谁”，每次结果末几位都不同。修法是按股票代码的顺序加（[交易系统架构 3.4](/zh/ref/trading-architecture/#barrier)）。
+      - **未定义行为**：没初始化的变量、越界读，每次跑出来的值不一样。
+      - **因子里读了系统时钟**：重放时拿到的是盘后的时间。修法是只用 `t.exch_time`。
+   - **阶段二：实盘录像 vs 数据商历史文件，排除数据源差异**
+      - **阶段一对上了，代码就是确定的；两份输入喂同一份代码还有差，只能是输入不同**。研究员的回测读的是数据商文件，所以最常发现差异的是这一步。
+      - **UDP 组播丢包**：实盘少一条，数据商文件是事后补齐的。例如丢了 10:00:03 的快照，下一个快照算出的成交量增量就是 6 s 的量。
+      - **网络延迟跨界切 bar**：交易所时间 09:59:59.990 的行情，10:00:00.002 才到，按收到时间就进了下一根 bar。修法是两边统一按交易所时间切。
+      - **数据商事后修正**：改过错误数据，单位和取整也可能不同，例如成交金额舍掉了角分。
+   - **两个阶段都对上了还有差，才是策略本身的问题**。
+
+## 2. 数据口径：写因子时要和研究侧对齐的地方 {#caliber}
+
+| 地方 | 会怎么对不上 |
+|---|---|
+| 累计量相减 | 快照的量、额、笔数是开盘起的累计值。当天第一张，pandas `diff()` 给 NaN，C++ 上一张从 0 起算会得出开盘以来的全部量 |
+| 快照不是每 3 秒都有 | 没变化通常不推，切 bar 时空格子用前值补还是留空要约定 |
+| 价格和金额 | 价格是放大过的整数，倍数按数据商文档并用真实数据核；有的数据商成交金额是去掉角分的整数元，零股、科创板 201 股这类会少几毛，要准就用价×量 |
+| 深圳撤单混在成交里 | 直接用逐笔成交算均价，价格 0、数量非 0 的撤单行会把均价拉低 |
+| 时间 | 交易所时间还是本机收到时间；bar 左闭右开还是右闭；集合竞价和午休怎么切 |
+| 快照和逐笔对齐 | 两者节拍和时间精度不同，按时间戳把逐笔加到快照时刻不一定等于快照的累计量；严格对齐要用逐笔重建盘口再比 |
+
+## 3. 数值本身：浮点加法不满足结合律 {#float}
+
+### 3.1 求和顺序 {#sum-order}
 
 1. **为什么加的顺序会改结果**
    - **每做一次加法都要舍入一次**：所以 $(a+b)+c$ 和 $a+(b+c)$ 的末位可能不同。
@@ -36,15 +180,15 @@ math: true
    - **容差内一致就按相对误差比**：例如 $|a-b| \le 10^{-9}\max(|a|,|b|)$ 就算对上。
    - **逐位一致就得按同样的顺序加**：一次性求和照成对求和的分块方式写；滚动窗口也加上 Kahan 补偿，或者每隔一段从头重算一次窗口和，把累积的误差清掉。
 
-### 1.2 数学函数
+### 3.2 数学函数 {#math-fn}
 
 - **`exp`、`log`、`pow` 的实现两边可能不同**：NumPy 在支持 AVX-512 的机器上用自己的向量化实现，C++ 调的是 glibc 的实现，结果可能差一两个末位单位（ulp）。
 - **只有要求逐位一致时才看得到**：差的量级很小，按容差比的话不会被发现。
 - **先查两边是不是同一台机器、同一个库**：机器或库版本不同，这一类差别就可能冒出来。
 
-## 2. 缺失值和窗口
+## 4. 缺失值和窗口 {#nan-window}
 
-### 2.1 NaN
+### 4.1 NaN {#nan}
 
 1. **两边默认怎么处理 NaN**
 
@@ -68,7 +212,7 @@ math: true
    - **全是 NaN 时照 pandas 的约定输出**：`sum` 给 0，`mean` 给 NaN。
    - **C++ 的算术不会替你跳过 NaN，要对上 pandas，每一处都得显式写出来**。
 
-### 2.2 ddof：方差的分母
+### 4.2 ddof：方差的分母 {#ddof}
 
 | | 默认分母 |
 |---|---|
@@ -79,7 +223,7 @@ math: true
 - **例子**：`[1, 2, 3]` 的均值是 2，偏差平方和是 2，除以 3 得方差 0.667，除以 2 得 1。
 - **除错了分母，每个值都偏同一个比例**：C++ 照教科书公式除以 n，窗口 20 时标准差差 $\sqrt{20/19}$ 倍，约 2.6%。**差值是固定比例，一眼就能认出是 ddof**。
 
-### 2.3 rolling 的前几个值
+### 4.3 rolling 的前几个值 {#rolling}
 
 1. **pandas 窗口没攒满时输出 NaN**
    - **默认 `min_periods=n`**：`rolling(n)` 的窗口里凑不满 n 个**非 NaN** 的值，就输出 NaN。
@@ -91,7 +235,7 @@ math: true
    - **自然写法从第一条就出值**：同样的输入，C++ 会输出 `[1, 1.5, 2, 3]`，前 n − 1 个对不上，窗口里有 NaN 时也对不上。
    - **C++ 要维护窗口里非 NaN 的个数，个数不够 n 就输出 NaN**。
 
-### 2.4 ewm 的 adjust
+### 4.4 ewm 的 adjust {#ewm}
 
 1. **ewm 是什么，因子里为什么常用**
    - **ewm 是指数加权移动平均**：和 `rolling(n).mean()` 一样是求平均，但不只看最近 n 个，而是看全部历史，最新的权重是 1，往前一个是 $1-\alpha$，再往前是 $(1-\alpha)^2$，越旧的权重越小。
@@ -120,9 +264,9 @@ math: true
    - **分子和分母各自递推，每步相除**：两者每步都先乘 $1-\alpha$，分子再加 $x_t$，分母再加 1，输出两者之比。这样仍是 O(1) 的增量计算。
    - **`span`、`halflife` 换算 $\alpha$ 的公式照抄 pandas**：例如 $\alpha = 2/(\text{span}+1)$，换算写错了，每个值都会对不上。
 
-## 3. 取整和整数
+## 5. 取整和整数 {#rounding}
 
-### 3.1 四舍五入
+### 5.1 四舍五入 {#round}
 
 1. **正好在 .5 时两边取的方向不同**
 
@@ -136,7 +280,7 @@ math: true
    - **C++ 也有同样的问题**：`std::round(x * 100) / 100` 里乘 100 这一步也会舍入，结果不一定和 Python 一样。
    - **价格这类本来就是定点的数，一直用放大后的整数存，不在浮点上取整**。
 
-### 3.2 整数除法和取模
+### 5.2 整数除法和取模 {#int-div}
 
 1. **两边的规则**
 
@@ -149,7 +293,7 @@ math: true
    - **C++ 两个整数相除会丢掉小数**：例如成交量除以笔数求平均每笔量，Python 的 `/` 得小数，C++ 两边都是整数时直接截断。**这是最常见的一类**。
    - **负数时取整方向不同**：算时间桶编号时最容易遇到，例如时间减去基准时刻得到负数（集合竞价在 9:30 之前），Python 的 `//` 和 C++ 的 `/` 给出的桶号差 1。
 
-### 3.3 溢出
+### 5.3 溢出 {#overflow}
 
 - **Python 的整数不会溢出**：位数不够会自动变长。
 - **NumPy、pandas 的 int64 会溢出而且不报错**：超出范围直接回绕。
@@ -157,14 +301,14 @@ math: true
 - **最容易撞上的是金额**：价格放大 10000 倍存成整数，100 元就是 1,000,000，再乘 100 万股是 $10^{12}$，远超 int32 的上限（约 $2.1\times10^9$）。
 - **价×量一律用 int64 或 double，并且先转类型再相乘**。否则乘法本身已经在 int32 里溢出了，转换来不及救。
 
-### 3.4 类型
+### 5.4 类型 {#types}
 
 - **带 NaN 的整数列在 pandas 里会变成 float64**：除非用可空整数类型 `Int64`，所以研究侧的“成交量”可能其实是浮点；超过 $2^{53}$ 的整数转成 float64 还会丢精度。
 - **float32 只有约 7 位有效数字**：C++ 为了省内存用 `float` 存价格或因子值，和 pandas 的 float64 比，从第 7、8 位开始就不同了。
 
-## 4. 排名和时间
+## 6. 排名和时间 {#rank-time}
 
-### 4.1 rank
+### 6.1 rank {#rank}
 
 1. **pandas 默认给并列的取平均名次**
    - **截面因子常用排名**：对全市场股票排名，再归一化到 0–1。
@@ -179,14 +323,14 @@ math: true
    - **给同值的一段赋平均名次**：排序后找出值相同的一段，每只都记这段名次的平均。
    - **`pct=True` 除的是非 NaN 的个数**：不是股票总数，有停牌、缺数据的股票时两者不同。
 
-### 4.2 时间切分和前视
+### 6.2 时间切分和前视 {#time}
 
 - **bar 的边界和标签要照研究侧来**：区间是左闭右开还是左开右闭，标签用起点还是终点。pandas `resample` 按分钟切时默认左闭右开、标签在左；研究侧可能改过参数，要照着它的来。
 - **bar 什么时候算结束，两边可能不同**：研究侧用 `shift(1)` 保证 t 时刻只用到 t 之前的数据；C++ 逐条收数据，只有下一条数据的时间越过边界、或者定时器到点时，才知道一根 bar 结束了。**触发时机定得不一样，同一根 bar 用到的数据就不一样**。
 - **午休和集合竞价要单独约定**：11:30–13:00 中间没有数据，13:00 那根 bar 跟谁连在一起；9:25 集合竞价的成交归入哪根 bar，两边都要按同一个规则。
-- **时序对齐的更多内容**：整理在 [A 股业务知识](/zh/interview/a-share-business/) 第 7 节。
+- **时序对齐的更多内容**：整理在[因子计算第 2 节](/zh/ref/factor-computation/#stream)。
 
-## 5. 编译选项：同一份 C++ 代码，换个选项结果就变
+## 7. 编译选项：同一份 C++ 代码，换个选项结果就变 {#flags}
 
 1. **三个选项各会不会改结果**
 
@@ -197,8 +341,8 @@ math: true
    | `-ffast-math` | 会，而且可能更糟 | 放开结合律；假定没有 NaN 和无穷大；把非常小的数（次正规数）当成 0 |
 
 2. **因子代码里不能开 `-ffast-math`**
-   - **它会删掉 NaN 判断**：它假定没有 NaN，`std::isnan(x)` 可能被直接优化成 false，第 2 节里所有跳过 NaN 的写法都会悄悄失效。
-   - **它会重排求和**：放开结合律后，求和顺序会被向量化重排，第 1 节的问题又回来了。
+   - **它会删掉 NaN 判断**：它假定没有 NaN，`std::isnan(x)` 可能被直接优化成 false，第 4 节里所有跳过 NaN 的写法都会悄悄失效。
+   - **它会重排求和**：放开结合律后，求和顺序会被向量化重排，第 3 节的问题又回来了。
 
 3. **想要 `-march=native` 又不要 FMA**
    - **加上 `-ffp-contract=off`**：这样能用上 `-march=native` 的其他指令，但编译器不再把乘和加合成一条 FMA。
@@ -208,7 +352,7 @@ math: true
    - **例子**：回测框架用 `-O2`、实盘用 `-O3 -march=native`，同一份因子代码就可能在末位上对不上。
    - **研究侧和实盘侧的编译选项要一致，并写进构建配置**。
 
-## 6. 对不上时：先看差值的样子
+## 8. 对不上时：先看差值的样子 {#diagnose}
 
 1. **按差值的形状定位原因**
    - **不要一条条看**：逐值比完以后，先看差值在时间上怎么分布，形状通常直接指向原因。

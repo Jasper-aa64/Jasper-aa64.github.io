@@ -9,14 +9,14 @@ toc: true
 ---
 这 8 道是面试里最可能让当场写的题，分两组：
 
-- **前 5 道是因子的增量算法**：研究侧用 pandas 一次算一整列；实盘里行情一条一条来，每来一条只能花 $O(1)$ 或 $O(\log n)$ 更新，结果还要和 pandas 逐值相同。所以每道都先说清楚它对齐 pandas 的哪个写法，对不上的常见原因见 [IV：Python 和 C++ 的因子一致性](/zh/interview/python-cpp-consistency/)。
+- **前 5 道是因子的增量算法**：研究侧用 pandas 一次算一整列；实盘里行情一条一条来，每来一条只能花 $O(1)$ 或 $O(\log n)$ 更新，结果还要和 pandas 逐值相同。所以每道都先说清楚它对齐 pandas 的哪个写法，对不上的常见原因见 [因子一致性](/zh/ref/factor-consistency/)。
 - **后 3 道是 C++ 岗常见的手写题**：订单簿、SPSC 环形队列、LRU。
 
 > **写完怎么判对：和暴力解随机对拍**
 >
 > - **暴力解直接按定义算**：每一步把整个窗口重新扫一遍，慢，但一眼能看出是对的。
 > - **随机数据取小值域**：值只在 0–9 里取，相等的值会大量出现，等号边界上的错才会暴露出来。
-> - **浮点比较带容差**：增量更新和重新计算的求和顺序不同，最后几位会差一点（[1.1](/zh/interview/python-cpp-consistency/#11-求和顺序)）。
+> - **浮点比较带容差**：增量更新和重新计算的求和顺序不同，最后几位会差一点（[因子一致性 3.1](/zh/ref/factor-consistency/#sum-order)）。
 > - **跑几千组，不一致的个数为 0 才算对**：下面每道的参考代码都这样对拍过。
 
 ## 1. 因子的增量算法
@@ -24,7 +24,7 @@ toc: true
 ### 1.1 滚动均值和方差：Welford，先出后进
 
 1. **题目：长度为 n 的窗口，每进一条，输出窗口的均值和方差**
-   - **对齐 `x.rolling(n).mean()` 和 `.var()`**：方差默认 `ddof=1`，分母是 $n-1$（[2.2](/zh/interview/python-cpp-consistency/#22-ddof方差的分母)）；窗口没满时输出 NaN（[2.3](/zh/interview/python-cpp-consistency/#23-rolling-的前几个值)）。
+   - **对齐 `x.rolling(n).mean()` 和 `.var()`**：方差默认 `ddof=1`，分母是 $n-1$（[因子一致性 4.2](/zh/ref/factor-consistency/#ddof)）；窗口没满时输出 NaN（[因子一致性 4.3](/zh/ref/factor-consistency/#rolling)）。
 
 2. **不用“平方和减和的平方”：两个大数相减，有效数字会被吃掉**
    - **这个公式是** $\text{var} = \dfrac{\sum x^2 - (\sum x)^2 / n}{n-1}$。
@@ -142,7 +142,7 @@ toc: true
 ### 1.4 截面排名：同值取平均名次
 
 1. **题目：同一时刻几千只股票的因子值，求每只的排名**
-   - **对齐 `s.rank()` 和 `s.rank(pct=True)`**：同值取平均名次（`method='average'`）；NaN 不参与排名，结果保持 NaN；`pct=True` 时除以有效个数（[4.1](/zh/interview/python-cpp-consistency/#41-rank)）。
+   - **对齐 `s.rank()` 和 `s.rank(pct=True)`**：同值取平均名次（`method='average'`）；NaN 不参与排名，结果保持 NaN；`pct=True` 时除以有效个数（[因子一致性 6.1](/zh/ref/factor-consistency/#rank)）。
 
 2. **按值排序下标，一组相同的值一起给名次**
 
@@ -174,7 +174,7 @@ toc: true
 
 1. **题目：对齐 `x.ewm(alpha=a, adjust=...).mean()`，每进一条输出一个值**
    - **`adjust=False` 是递推**：$y_0 = x_0$，$y_t = (1-\alpha)\, y_{t-1} + \alpha\, x_t$。
-   - **`adjust=True` 是对全部历史加权平均**（[2.4](/zh/interview/python-cpp-consistency/#24-ewm-的-adjust)）：
+   - **`adjust=True` 是对全部历史加权平均**（[因子一致性 4.4](/zh/ref/factor-consistency/#ewm)）：
      $$y_t = \frac{\sum_{i=0}^{t} (1-\alpha)^i\, x_{t-i}}{\sum_{i=0}^{t} (1-\alpha)^i}$$
 
 2. **`adjust=True` 也能 $O(1)$：分子、分母各自递推**

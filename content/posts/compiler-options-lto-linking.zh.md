@@ -73,7 +73,7 @@ build:
 2. **会改结果的，因子计算和实盘必须一致**
    - **`-ffast-math`**：放开结合律、假定没有 NaN 和无穷大，`std::isnan` 可能被优化成 false。
    - **FMA**：`-march` 打开 FMA 以后，`a * b + c` 会被合成一条乘加，中间结果不再单独舍入，末位就变了。
-   - **研究侧和实盘对不上时，这几个选项是第一批要查的**（[IV：Python 与 C++ 计算一致性](/zh/interview/python-cpp-consistency/) 第 5 节）。
+   - **研究侧和实盘对不上时，这几个选项是第一批要查的**（[因子一致性](/zh/ref/factor-consistency/#flags) 第 7 节）。
 
 ## 3. 开了优化，默认只用 SSE2：-march 放开新指令，也把程序绑在那一代 CPU 上 {#march}
 
