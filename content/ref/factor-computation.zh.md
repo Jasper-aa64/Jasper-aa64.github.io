@@ -11,7 +11,7 @@ math: true
 
 这页讲一个因子的内部：定义怎么落成状态，状态怎么随每条消息更新，代码怎么写。先是几个常用因子，再是批处理改成流式要重做的三件事，最后是拿到一个新定义时怎么动手。
 
-因子外面的事在另外三页：数据各记了什么见 [A 股行情](/zh/ref/a-share-market/)；同一个因子在研究侧、回测、实盘三处怎么逐值对上见[因子一致性](/zh/ref/factor-consistency/)；谁把行情喂给因子、线程怎么分、订单簿怎么维护见[交易系统架构](/zh/ref/trading-architecture/)。
+因子外面的事在另外三页：数据各记了什么、订单簿怎么合成见 [A 股行情](/zh/ref/a-share-market/)；同一个因子在研究侧、回测、实盘三处怎么逐值对上见[因子一致性](/zh/ref/factor-consistency/)；谁把行情喂给因子、线程怎么分见[交易系统架构](/zh/ref/trading-architecture/)。
 
 ## 1. 常用 Level-2 因子：定义、状态、和研究侧对不上的地方 {#factors}
 
@@ -34,7 +34,7 @@ math: true
 
 $$\text{OBI}=\frac{\sum_{i=1}^{10} w_i\,(\text{bid}_i-\text{ask}_i)}{\sum_{i=1}^{10} w_i\,(\text{bid}_i+\text{ask}_i)}$$
 
-**数据**：只用快照，每张快照自己就能算出来。快照只有 3 秒的节拍，要逐笔级的 OBI，得用逐笔重建盘口（[交易系统架构第 6 部分](/zh/ref/trading-architecture/#book)）。
+**数据**：只用快照，每张快照自己就能算出来。快照只有 3 秒的节拍，要逐笔级的 OBI，得用逐笔重建盘口（[A 股行情第 5 节](/zh/ref/a-share-market/#book)）。
 
 **状态**：**不需要跨消息的状态**，难点全在边界。
 
