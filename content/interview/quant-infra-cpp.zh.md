@@ -19,7 +19,7 @@ toc: true
 
 | 题目 | 答到哪一层 | 本站 |
 |---|---|---|
-| 常见的 UB | 有符号整数溢出、数组越界、空指针解引用、读未初始化的变量、数据竞争、违反严格别名。编译器假设它们不发生：比如 `x + 1 > x` 直接折成 `true`，循环变量是 `int` 时不再考虑溢出，可以放心展开和向量化 | 待补，散见[类型双关](/zh/posts/type-punning-calls-compiler-hints/) |
+| 常见的 UB | 有符号整数溢出、数组越界、空指针解引用、读未初始化的变量、数据竞争、违反严格别名。编译器假设它们不发生：比如 `x + 1 > x` 直接折成 `true`，循环变量是 `int` 时不再考虑溢出，可以放心展开和向量化 | [C++ 系统五题第 1 节](/zh/interview/cpp-systems-five/#ub)、[类型双关](/zh/posts/type-punning-calls-compiler-hints/) |
 | 严格别名 | 两个不同类型的指针（`char`、`unsigned char`、`std::byte` 除外）被认为不指向同一个对象，所以编译器写完一个以后不必重读另一个。用 `float*` 去读 `int` 的内存是 UB，开 `-O2` 后结果可能和 `-O0` 不同；合法的写法是 `memcpy` 或 `std::bit_cast`，编出来通常只有一条 `mov` | [四种 cast](/zh/ref/cpp-casts/)、[类型双关](/zh/posts/type-punning-calls-compiler-hints/) |
 | UAF（释放后使用） | 对象释放后还通过旧指针访问。那块内存可能已经分给了别人，表现随机，往往在很远的地方才出错。查：AddressSanitizer；防：用 `unique_ptr`、`shared_ptr` 把所有权写进类型，观察者用 `weak_ptr::lock()` | [智能指针](/zh/ref/smart-pointers/) |
 | 副作用和求值顺序 | `i = i++ + 1` 这类在 C++17 以前是 UB。C++17 规定了 `=` 右边先算、`<<` 和 `>>` 从左到右、`a[b]` 先算 `a`；但函数的几个实参之间的顺序仍然不定，只是不再交错 | 待补 |
@@ -113,7 +113,7 @@ toc: true
 
 追问是**回收怎么做才平滑**：不在写者线程里当场释放，而是把退休的对象放进队列，由后台线程批量释放，写路径上就没有长停顿。代价是某个读者迟迟不退出，会拖住整代的回收，内存会涨。另一种方案是 hazard pointer：读者登记的是具体指针，回收更精确，但每次读都要多一次写和一次内存屏障。
 
-本站：待补。
+本站：固定容量的表和 epoch 回收的代码见 [C++ 系统五题第 3 节](/zh/interview/cpp-systems-five/#lockfree-map)。
 
 ### 2.4 并行化一个 DAG 调度器 {#dag}
 
@@ -121,7 +121,7 @@ toc: true
 
 两种提交方式的差别在关键路径：按层批量提交写起来简单，但同一层里最慢的节点会拖住下一层；完成一个就立刻提交它的后继，关键路径更短。节点很小的时候，调度本身的开销会超过计算，要把小节点合并。
 
-本站：基础线程池见[线程池和 future](/zh/ref/thread-pool-future/)，DAG 调度待补。
+本站：基础线程池见[线程池和 future](/zh/ref/thread-pool-future/)，DAG 调度器的代码见 [C++ 系统五题第 5 节](/zh/interview/cpp-systems-five/#dag)。
 
 ### 2.5 用 futex 实现 mutex {#futex-mutex}
 
@@ -175,4 +175,4 @@ public:
 
 ## 3. 还没写的
 
-按这组题，本站还缺这些：UB 和求值顺序的专题、模板和元编程、C++26 的 `std::hive` 和静态反射、LTO 和 LLVM 的优化阶段、协程的实现、一次系统调用的完整路径、io_uring、work stealing 线程池、无锁栈和 ABA、epoch 和 RCU 回收、DAG 调度器。**最值得先补的是无锁栈加 ABA 和 epoch 回收**：对象池和无锁哈希表两道手撕题都建在它们上面。futex 锁的代码已经在 2.5 节，单独成页时再补上测试。
+按这组题，本站还缺这些：求值顺序、模板和元编程、C++26 的 `std::hive` 和静态反射、LTO 和 LLVM 的优化阶段、协程的实现、一次系统调用的完整路径、io_uring、work stealing 线程池、无锁栈和 ABA。UB、epoch 回收和 DAG 调度器已经写在 [C++ 系统五题](/zh/interview/cpp-systems-five/)里。**最值得先补的是无锁栈加 ABA**：对象池那道手撕题建在它上面。futex 锁的代码已经在 2.5 节，单独成页时再补上测试。
