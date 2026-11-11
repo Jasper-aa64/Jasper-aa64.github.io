@@ -136,7 +136,7 @@ $$\text{OBI}=\frac{\sum_{i=1}^{10} w_i\,(\text{bid}_i-\text{ask}_i)}{\sum_{i=1}^
 
 OBI 看的是盘口上挂着多少，OFI 看的是两张快照之间买一、卖一多了多少、少了多少。**OBI 是存量，OFI 是流量**。买方这一边按买一价怎么动分三种情况：
 
-$$e^{b}_t=\begin{cases}q^{b}_t & P^{b}_t>P^{b}_{t-1}\ q^{b}_t-q^{b}_{t-1} & P^{b}_t=P^{b}_{t-1}\ -q^{b}_{t-1} & P^{b}_t<P^{b}_{t-1}\end{cases}$$
+$$e^{b}_t=\begin{cases}q^{b}_t & P^{b}_t \gt P^{b}_{t-1}\\ q^{b}_t-q^{b}_{t-1} & P^{b}_t=P^{b}_{t-1}\\ -q^{b}_{t-1} & P^{b}_t \lt P^{b}_{t-1}\end{cases}$$
 
 - **买一价上移**：新买一上的挂单全是新出现的，整档都算新增买压。
 - **买一价不变**：看这一档的量增加还是减少。
