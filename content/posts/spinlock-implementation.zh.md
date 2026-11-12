@@ -593,6 +593,152 @@ inline void signal(std::atomic<uint32_t>& flag) {
    - **它也能和 MCS 配**：MCS 的每个等锁的核本来就只盯自己的那条行，`umonitor` 这条行再 `umwait`，前一任交接的那次写正好把它叫醒。
    - **BIOS 里关掉深的 C-state 不影响它**：很多交易机这样设置，C0.1、C0.2 不受影响。操作系统也可以单独关掉 C0.2（`IA32_UMWAIT_CONTROL`），那时 `ctrl = 0` 也只进 C0.1。
 
+## 3. 案例：用 futex 写一把互斥锁，线程 id 缓存在 TLS 里 {#case-futex}
+
+**要做的东西**：直接用 `futex` 系统调用（`FUTEX_WAIT_PRIVATE` 和 `FUTEX_WAKE_PRIVATE`）写一把互斥锁，没人抢的时候加锁、解锁都不进内核，抢不到的线程睡下去、不空转。另外写一个取当前线程 id（tid）的函数，id 缓存在线程局部存储（TLS）里。
+
+1.1 用 `atomic::wait` 写过这把锁最后的样子。这里换成直接调 futex，先看 futex 提供了什么（3.1），再从最简单的两个状态写起，看它差在哪（3.2），然后走到三个状态（3.3）。tid 是另一件事，放在 3.4。
+
+### 3.1 futex 给了什么：在一个地址上睡下、叫醒，检查和睡下是一步 {#case-futex-api}
+
+futex 只有两个要用到的操作，都以一个用户态整数的地址为准：
+
+- **`FUTEX_WAIT(addr, val)`**：如果 `*addr` 还等于 `val`，就把调用它的线程挂到这个地址的等待队列上睡下；不等于，立刻返回。
+- **`FUTEX_WAKE(addr, n)`**：叫醒在这个地址上睡着的线程，最多 `n` 个。
+
+```cpp
+#include <atomic>
+#include <linux/futex.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+// 值还是 val 才睡；已经变了就立刻返回
+static void futex_wait(std::atomic<int>* addr, int val) {
+    syscall(SYS_futex, reinterpret_cast<int*>(addr), FUTEX_WAIT_PRIVATE, val, nullptr, nullptr, 0);
+}
+// 叫醒在这个地址上睡着的线程，最多 n 个
+static void futex_wake(std::atomic<int>* addr, int n) {
+    syscall(SYS_futex, reinterpret_cast<int*>(addr), FUTEX_WAKE_PRIVATE, n, nullptr, nullptr, 0);
+}
+```
+
+`FUTEX_WAIT` 为什么要带一个 `val`？假如它不检查，直接睡：
+
+| 时刻 | 线程 B（想加锁） | 线程 A（持锁） |
+|---|---|---|
+| 1 | 读到锁被占着，决定去睡 | |
+| 2 | | 放锁，叫醒在睡的线程：这时没有人在睡，什么也没叫到 |
+| 3 | 睡下 | |
+
+时刻 3 以后再也没有人来叫 B。带上 `val` 以后，时刻 3 内核发现 `*addr` 已经不是 B 当时看到的值，就不让它睡，B 回去再抢一次。
+
+- **“比较”和“挂进等待队列”在内核里是一步**：内核做这两件事时拿着这个地址对应的一把内部锁，叫醒的一方也要先拿到它，所以叫醒不会正好插在比较和睡下之间。
+- **`futex_wait` 返回了，不代表锁空了**：值变了会立刻返回，被信号打断会返回，被叫醒以后锁也可能又被别人抢走。所以它返回以后总是回到循环里再抢。
+- **`_PRIVATE` 的意思是这个 futex 只在本进程里用**：内核直接拿“地址空间加虚拟地址”当键去找等待队列，不用去查这一页对应哪个物理页。
+
+### 3.2 两个状态的锁：能用，但每次解锁都要进内核 {#case-futex-two}
+
+最直接的写法是一个整数、两个状态，0 是没锁，1 是锁住：
+
+```cpp
+class FutexMutex2 {
+    std::atomic<int> state_{0};   // 0 没锁，1 锁住
+
+public:
+    void lock() {
+        int c = 0;
+        // 0 → 1 成功就拿到锁；失败说明锁被占着
+        while (!state_.compare_exchange_strong(c, 1, std::memory_order_acquire)) {
+            futex_wait(&state_, 1);   // 还是 1 才睡
+            c = 0;                    // 醒来再抢
+        }
+    }
+
+    void unlock() {
+        state_.store(0, std::memory_order_release);
+        futex_wake(&state_, 1);       // 不知道有没有人在睡，只能每次都叫
+    }
+};
+```
+
+- **加锁没问题**：没人抢时是一次 CAS，不进内核。
+- **问题在解锁**：状态只有“锁住”一种，解锁的线程看不出有没有人在睡，只能每次都调 `futex_wake`。一次系统调用约 0.1–0.5 µs，比几十 ns 的临界区还长，而大多数时候根本没有人在等。
+
+**所以要让状态自己记着“有没有人在等”，解锁时看一眼就知道要不要进内核**。
+
+### 3.3 三个状态：解锁时看旧值，就知道要不要叫人 {#case-futex-three}
+
+把“锁住”拆成两种：1 是锁住、没人等，2 是锁住、可能有人在等。
+
+```cpp
+class FutexMutex {
+    std::atomic<int> state_{0};   // 0 没锁，1 锁住没人等，2 锁住可能有人等
+
+public:
+    void lock() {
+        // 1. 快路径：没人持有，0 → 1，一次 CAS 就拿到锁，不进内核
+        int c = 0;
+        if (state_.compare_exchange_strong(c, 1, std::memory_order_acquire)) return;
+        // 2. 没抢到：把状态改成 2，告诉解锁的人“有人在等”
+        //    exchange 返回 0，说明锁正好被放开，这一下就拿到了
+        if (c != 2) c = state_.exchange(2, std::memory_order_acquire);
+        while (c != 0) {
+            // 3. 状态还是 2 才睡；已经变了就立刻返回，再抢一次
+            futex_wait(&state_, 2);
+            // 4. 醒来再抢。不知道后面还有没有人在等，所以设成 2，不是 1
+            c = state_.exchange(2, std::memory_order_acquire);
+        }
+    }
+
+    void unlock() {
+        // 5. 旧值是 2 才可能有人在睡，叫醒一个；旧值是 1 就不进内核
+        if (state_.exchange(0, std::memory_order_release) == 2)
+            futex_wake(&state_, 1);
+    }
+};
+```
+
+两个线程 A、B 抢一次的全过程：
+
+| 时刻 | 发生了什么 | `state_` |
+|---|---|---|
+| 1 | A 加锁：CAS 0 → 1 成功，不进内核 | 1 |
+| 2 | B 加锁：CAS 失败，读回 1；`exchange(2)` 返回 1，锁还被占着 | 2 |
+| 3 | B 调 `futex_wait(2)`：值还是 2，睡下 | 2 |
+| 4 | A 解锁：`exchange(0)` 返回 2，可能有人在睡，调 `futex_wake` 叫醒 B | 0 |
+| 5 | B 醒来：`exchange(2)` 返回 0，拿到锁 | 2 |
+| 6 | B 解锁：`exchange(0)` 返回 2，又调一次 `futex_wake`，这次没有人在睡 | 0 |
+
+- **没人抢时只有两次原子操作**：加锁是时刻 1 的 CAS，解锁的 `exchange` 拿到旧值 1，不叫人。各约 2–6 ns，全在用户态。
+- **时刻 5 设成 2 而不是 1，是因为 B 不知道身后还有没有人在睡**：假如还有一个线程 C 也睡着，B 把状态设成 1，B 解锁时看到旧值 1 就不叫人，C 再也醒不过来。设成 2 的代价是时刻 6 那样白叫一次。**宁可多叫一次，不能漏掉一个**。
+- **内存序**：拿到锁的那次 CAS 或 `exchange` 用 `acquire`，放锁的写用 `release`，上一个持锁的线程在临界区里写的东西，下一个持锁的线程就都看得到。同步全靠这个原子变量，futex 系统调用只负责睡和叫醒。
+- **这把锁不排队**：时刻 4 和 5 之间新来一个线程，可以直接 CAS 0 → 1 把锁拿走，B 醒来白跑一趟，再回去睡。这样吞吐高，因为锁不会空着等一个还没醒的线程；代价是运气差的线程可能等很久。要按先来后到，见 [2.1 票据锁](#21-票据锁ticket-lock取号排队)。
+- **可以先自旋一小会儿再睡**：临界区很短时，转几十圈就能等到锁，比睡下再被叫醒快得多。自旋放在第 2 步之前，循环里只读不写，读到 0 再 CAS（1.5 的先读后抢）。
+
+### 3.4 线程 id：`gettid` 是一次系统调用，每个线程只取一次，存在 TLS 里 {#case-tid}
+
+打日志、在锁里记录是谁持有它，每次都要当前线程的 id。`gettid` 是一次系统调用，约 0.1–0.5 µs，热路径上付不起。线程 id 在线程活着的时候不会变，所以每个线程取一次，存进自己的线程局部变量：
+
+```cpp
+#include <sys/syscall.h>
+#include <unistd.h>
+
+inline pid_t current_tid() {
+    // 1. 每个线程各有一份 t_tid；第一次调用时取一次，之后直接读
+    thread_local pid_t t_tid = 0;
+    if (__builtin_expect(t_tid == 0, 0)) t_tid = static_cast<pid_t>(syscall(SYS_gettid));
+    return t_tid;
+}
+```
+
+- **之后每次调用只是读一个 `thread_local` 变量**：一条 `mov`。
+- **`thread_local` 怎么实现**：Linux x86-64 上，每个线程的 TLS 块的地址放在 `fs` 段寄存器里，变量按 `%fs:偏移` 访问。主程序和启动时就加载的动态库，偏移在加载时就定了，一条指令；`dlopen` 进来的动态库要调 `__tls_get_addr` 去查，可以用 `-ftls-model=initial-exec` 换回一条指令（[线程同步第 8 节](/zh/ref/thread-sync/#thread-local)）。
+- **`fork` 之后要清掉**：子进程里这个线程的 tid 变了，缓存的却是从父进程拷过来的旧值。在 `pthread_atfork` 的子进程回调里把它置 0。
+- **它和锁的关系**：
+  - **锁字里存持有者的 tid，出了死锁能直接看到是谁拿着锁**：同一个线程重复加锁也能当场发现。
+  - **优先级继承锁（`FUTEX_LOCK_PI`）要求锁字里存持有者的 tid**：内核靠它找到持有者，临时提高它的优先级（[#19 优先级反转](/zh/posts/scheduling-priority-inversion-kernel-tuning/)）。
+  - **这两种用法每次加锁都要写 tid**，所以 tid 必须读得便宜。
+
 ## 应用 {#in-practice}
 
 1.3 到 1.5 节的读改写抢行和 TTAS，在实际优化里对应“{{% bottleneck-ref "tas-spinlock" "plain" %}}”这张卡片；1.1 节讲的线程睡下、再被叫醒的代价，是“{{% bottleneck-ref "thundering-herd" "plain" %}}”这张卡片的原理。两张卡片都写了在 perf 里看到什么、怎么改、怎么验证。

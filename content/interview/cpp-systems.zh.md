@@ -68,171 +68,32 @@ math: true
 
 **题目**：用 `futex_wait_private` 实现一个互斥锁，并说明怎么实现放在 TLS 里的线程 id（tid）。
 
-### 4.1 锁：三个状态，解锁时才知道要不要叫人 {#futex-mutex}
+> **锁的状态放在用户态的一个原子变量里，解锁时看旧值决定要不要进内核叫人**
+>
+> - **futex 是内核提供的“在一个地址上睡下、叫醒”**：`FUTEX_WAIT` 带一个期望值，值已经变了就不睡，所以不会漏掉叫醒。
+> - **锁用三个状态**：0 没锁，1 锁住没人等，2 锁住可能有人等。加锁先 CAS 0 → 1，没人抢就不进内核；抢不到把状态换成 2 再睡，醒来仍然换成 2。解锁换成 0，旧值是 2 才调 `FUTEX_WAKE`。
+> - **tid**：`gettid` 是一次系统调用，每个线程第一次取了存进 `thread_local` 变量，之后只是一条 `mov`；`fork` 以后要清掉。
 
-- **futex 是什么**：内核提供的“在一个地址上睡下、在一个地址上叫醒”。`FUTEX_WAIT(addr, val)` 的意思是：如果 `*addr` 还等于 `val`，就睡；否则立刻返回。检查和睡下在内核里是一步，中间不会漏掉一次叫醒。
-- **锁的状态放在用户态的一个原子变量里**：0 是没锁，1 是锁住且没人等，2 是锁住且可能有人等。
+**展开见：[#16 第 3 节案例：用 futex 写一把互斥锁](/zh/posts/spinlock-implementation/#case-futex)**
 
-```cpp
-#include <atomic>
-#include <linux/futex.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-
-class FutexMutex {
-    std::atomic<int> state_{0};   // 0 没锁，1 锁住没人等，2 锁住可能有人等
-
-public:
-    void lock() {
-        // 1. 快路径：没人持有，0 → 1，一次 CAS 就拿到锁，不进内核
-        int c = 0;
-        if (state_.compare_exchange_strong(c, 1, std::memory_order_acquire)) return;
-        // 2. 没抢到：把状态改成 2，告诉解锁的人“有人在等”
-        //    exchange 返回 0，说明锁正好被放开，这一下就拿到了
-        if (c != 2) c = state_.exchange(2, std::memory_order_acquire);
-        while (c != 0) {
-            // 3. 状态还是 2 才睡；已经变了就立刻返回，再抢一次
-            syscall(SYS_futex, &state_, FUTEX_WAIT_PRIVATE, 2, nullptr, nullptr, 0);
-            // 4. 醒来再抢。不知道后面还有没有人在等，所以设成 2，不是 1
-            c = state_.exchange(2, std::memory_order_acquire);
-        }
-    }
-
-    void unlock() {
-        // 5. 旧值是 2 才可能有人在睡，叫醒一个；旧值是 1 就不进内核
-        if (state_.exchange(0, std::memory_order_release) == 2)
-            syscall(SYS_futex, &state_, FUTEX_WAKE_PRIVATE, 1, nullptr, nullptr, 0);
-    }
-};
-```
-
-- **为什么要分 1 和 2**：只有“锁住”一种状态的话，解锁时不知道有没有人在等，只能每次都去叫，每次解锁都是一次系统调用，约 50–150 ns。分开以后，没人抢时加锁、解锁各是一次原子操作。
-- **醒来以后设成 2 是保守的做法**：最多让下一次解锁多叫一次，换来的是不会漏掉还在睡的线程。
-- **`_PRIVATE` 的意思**：这个 futex 只在本进程里用。内核直接拿“地址空间加虚拟地址”当键，不用去查这一页对应的物理页。
-- **内存序**：拿到锁的那次 CAS 或 `exchange` 用 `acquire`，放锁的写用 `release`，临界区里的读写就不会越过加锁和解锁。同步全靠这个原子变量，futex 系统调用本身只负责睡和叫醒。
-- **可以先自旋一小会儿再睡**：临界区很短时，转几十圈就能等到锁，比睡下再被叫醒快得多。自旋放在第 2 步之前，循环里只读不写，读到 0 再 CAS。
-
-公平性、锁里存持有者的 tid 有什么用，见 [IV：量化 C++ 开发 2.5](/zh/interview/quant-infra-cpp/#futex-mutex)；自旋和退避见 [#16 自旋锁](/zh/posts/spinlock-implementation/)。
-
-### 4.2 tid：`gettid` 是一次系统调用，所以每个线程只取一次 {#tid}
-
-```cpp
-#include <sys/syscall.h>
-#include <unistd.h>
-
-inline pid_t current_tid() {
-    // 1. 每个线程各有一份 t_tid；第一次调用时取一次，之后直接读
-    thread_local pid_t t_tid = 0;
-    if (__builtin_expect(t_tid == 0, 0)) t_tid = static_cast<pid_t>(syscall(SYS_gettid));
-    return t_tid;
-}
-```
-
-- **为什么要缓存**：打日志、记录锁的持有者，每次都要线程 id。一次系统调用约 50–150 ns，读一个 `thread_local` 变量是一条 `mov`。
-- **`thread_local` 怎么实现**：Linux x86-64 上，每个线程的 TLS 块地址放在 `fs` 段寄存器里，变量按 `%fs:偏移` 访问。主程序和启动时就加载的动态库，偏移在加载时就定了，一条指令；`dlopen` 进来的动态库要调 `__tls_get_addr` 去查，可以用 `-ftls-model=initial-exec` 换回一条指令（[线程同步](/zh/ref/thread-sync/)）。
-- **`fork` 之后要清掉**：子进程里这个线程的 tid 变了，缓存的却是从父进程拷过来的旧值。在 `pthread_atfork` 的子进程回调里把它置 0。
-- **和锁的关系**：优先级继承锁（`FUTEX_LOCK_PI`）要求锁字里存持有者的 tid，内核靠它找到持有者，临时提高它的优先级（[#19 优先级反转](/zh/posts/scheduling-priority-inversion-kernel-tuning/)）。每次加锁都要写 tid，所以 tid 必须读得便宜。
+- [3.1 futex 给了什么：检查和睡下是一步](/zh/posts/spinlock-implementation/#case-futex-api)
+- [3.2 两个状态的锁：每次解锁都要进内核](/zh/posts/spinlock-implementation/#case-futex-two)
+- [3.3 三个状态：解锁时看旧值，就知道要不要叫人](/zh/posts/spinlock-implementation/#case-futex-three)
+- [3.4 线程 id：每个线程只取一次，存在 TLS 里](/zh/posts/spinlock-implementation/#case-tid)
 
 ## 5. DAG 调度器：单线程按拓扑序跑，并行靠原子的入度计数 {#dag}
 
 **题目**：实现一个单线程的 DAG 调度器，并说明怎么用线程池把它并行化。
 
-### 5.1 单线程：入度为 0 的先跑，跑完把后继的入度减 1 {#dag-serial}
+> **单线程按入度排；并行时“减 1”和“是不是我减到了 0”必须是同一步**
+>
+> - **单线程**：每个节点记还在等几个前驱，等到 0 的进就绪队列；跑完一个，后继各减 1。$O(V + E)$，有环时排出来的节点不足 $n$ 个。
+> - **并行**：计数换成原子变量，`fetch_sub` 返回旧值 1 的那个线程提交后继，每个节点正好提交一次；另用一个计数加条件变量，等全部节点跑完。
+> - **取舍**：节点太小，调度的开销盖过计算；图是固定的，就预先分层，整层并行地跑。
 
-```cpp
-#include <queue>
-#include <vector>
+**展开见：[线程池和 future 第 4 节案例：DAG 调度器](/zh/ref/thread-pool-future/#case-dag)**
 
-struct Graph {
-    int n = 0;
-    std::vector<std::vector<int>> succ;   // succ[v]：v 跑完以后才能跑的节点
-    std::vector<int> indeg;          // indeg[v]：v 还要等几个前驱
-    explicit Graph(int n) : n(n), succ(n), indeg(n, 0) {}
-    void add_edge(int u, int v) { succ[u].push_back(v); ++indeg[v]; }
-};
-
-// 单线程：返回一个拓扑序；有环返回空
-std::vector<int> topo_order(const Graph& g) {
-    // 1. 入度拷一份来减，入度为 0 的先进就绪队列
-    std::vector<int> indeg = g.indeg, order;
-    std::queue<int> ready;
-    for (int v = 0; v < g.n; ++v)
-        if (indeg[v] == 0) ready.push(v);
-    // 2. 取一个就绪的排进去，它的后继入度各减 1，减到 0 的就绪
-    while (!ready.empty()) {
-        int v = ready.front(); ready.pop();
-        order.push_back(v);
-        for (int s : g.succ[v])
-            if (--indeg[s] == 0) ready.push(s);
-    }
-    // 3. 环上的节点入度永远减不到 0，所以排出来的不足 n 个
-    if ((int)order.size() != g.n) order.clear();
-    return order;
-}
-```
-
-- **复杂度是 $O(V + E)$**：每个节点进出队列各一次，每条边只看一次。
-- **图不变、每来一条行情都要跑一遍**：拓扑序只算一次存下来，之后按这个顺序执行，不用每次重新排。
-
-### 5.2 并行：谁把后继的计数减到 0，谁提交它 {#dag-parallel}
-
-线程池用最基本的那种，`submit` 收一个 `void()` 的任务（[线程池和 future 第 3 节](/zh/ref/thread-pool-future/)）。
-
-```cpp
-// 并行跑一遍无环图：每个节点调一次 fn(v)，并且在它所有前驱的 fn 返回之后
-class DagRun {
-public:
-    DagRun(const Graph& g, ThreadPool& pool, std::function<void(int)> fn)
-        : g_(g), pool_(pool), fn_(std::move(fn)), pending_(g.n), remaining_(g.n) {}
-
-    void run() {
-        if (g_.n == 0) return;
-        // 1. 每个节点还要等几个前驱，放进原子计数
-        for (int v = 0; v < g_.n; ++v) pending_[v].store(g_.indeg[v]);
-        // 2. 入度为 0 的直接提交
-        for (int v = 0; v < g_.n; ++v)
-            if (g_.indeg[v] == 0) pool_.submit([this, v] { exec(v); });
-        // 3. 等全部节点跑完
-        std::unique_lock<std::mutex> lk(m_);
-        cv_.wait(lk, [this] { return done_; });
-    }
-
-private:
-    void exec(int v) {
-        fn_(v);
-        // 1. 后继的计数各减 1；fetch_sub 返回旧值，旧值是 1 说明是我把它减到了 0，由我提交
-        //    两个前驱同时跑完也只有一个线程看到 1，所以每个节点正好提交一次
-        for (int s : g_.succ[v])
-            if (pending_[s].fetch_sub(1, std::memory_order_acq_rel) == 1)
-                pool_.submit([this, s] { exec(s); });
-        // 2. 我是最后一个跑完的，叫醒 run()；done_ 在锁里改，通知才不会丢
-        if (remaining_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-            std::lock_guard<std::mutex> lk(m_);
-            done_ = true;
-            cv_.notify_all();
-        }
-    }
-
-    const Graph& g_;
-    ThreadPool& pool_;
-    std::function<void(int)> fn_;
-    std::vector<std::atomic<int>> pending_;
-    std::atomic<int> remaining_;
-    std::mutex m_;
-    std::condition_variable cv_;
-    bool done_ = false;
-};
-```
-
-- **每个节点正好提交一次**：一个节点有几个前驱同时跑完，它们各自做一次 `fetch_sub`，只有一个线程拿到旧值 1。
-- **前驱的输出，后继一定看得到**：前驱在 `fn_` 里写输出，再 `fetch_sub`；提交后继的线程是做了最后一次 `fetch_sub` 的那个。`acq_rel` 让这几次 `fetch_sub` 之前的写，对后面执行这个后继的线程都可见。
-- **等待结束要用锁里的标志**：最后一个节点跑完，在锁里置 `done_` 再通知。只通知、不置标志，`run()` 要是还没睡下，这次通知就丢了。
-
-### 5.3 取舍：节点太小，调度的开销就盖过计算 {#dag-tradeoff}
-
-- **一次入队加出队约 100 ns–1 µs**，还可能叫醒一个睡着的线程。节点里只有几十纳秒的计算时，并行反而更慢。只有一个后继的链要合并成一个任务。
-- **就绪的后继自己留一个接着跑，其余的再提交**：数据还在当前核的缓存里，也少一次入队。
-- **所有线程共用一个队列，会一起抢队头那把锁**：改成每个线程一个双端队列，自己从一头取放，没活干的线程从别人的另一头偷（work stealing）。
-- **加速比有上限**：设全部节点的工作量是 $T_1$，最长的那条依赖链是 $T_\infty$，$p$ 个线程的耗时 $T_p \ge \max(T_1 / p,\ T_\infty)$。最长的链占了大头时，加再多线程也没用。
-- **某个节点失败**：它下游的节点都不能跑了，但“还剩几个没完成”的计数要照样扣掉，否则等待的线程永远等不到结束。
-- **图是固定的，就不要动态调度**：预先把节点按层分好，同一层的节点互不依赖，整层并行地跑，层和层之间汇合一次。因子计算就是这种图：中间量被几个上层因子共用，图在开盘前就定了。这样写更简单，延迟也更稳定；代价是同一层里最慢的节点会拖住下一层。
+- [4.1 单线程：等到 0 的就能跑](/zh/ref/thread-pool-future/#case-dag-serial)
+- [4.2 并行卡在哪：几个前驱可能同时跑完](/zh/ref/thread-pool-future/#case-dag-problem)
+- [4.3 并行：谁把后继的计数减到 0，谁提交它](/zh/ref/thread-pool-future/#case-dag-parallel)
+- [4.4 取舍：节点太小，调度的开销就盖过计算](/zh/ref/thread-pool-future/#case-dag-tradeoff)

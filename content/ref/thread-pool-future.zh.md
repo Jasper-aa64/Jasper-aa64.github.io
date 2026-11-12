@@ -316,3 +316,146 @@ $$
 $W$ 是一个任务等待的时间，$C$ 是它真正占用 CPU 的时间。比如每个请求算 2 ms、等数据库 8 ms，8 个核大约开 $8 \times (1 + 4) = 40$ 个线程。这只是起点，实际还要压测看吞吐量和延迟再调。等待特别多的场景，与其开几百个线程，不如改成 [epoll](/zh/ref/epoll-internals/) 那样一个线程等很多个连接。
 
 队列也该有个上限。任务进来的速度长期大于处理速度时，无界队列会一直涨到内存耗尽；有界队列满了以后，`submit` 可以阻塞、可以直接拒绝，把压力反推回调用方。只许一个线程放、一个线程取，或者要更低的开销时，队列本身还有别的写法，见 [线程安全队列](/zh/posts/thread-safe-queue/)。
+
+## 4. 案例：DAG 调度器，先单线程按拓扑序跑，再用线程池并行 {#case-dag}
+
+**要做的东西**：有一批任务，有的任务要等另一些任务跑完才能开始，依赖关系是一张有向无环图（DAG）。先写一个单线程的调度器，按不违反依赖的顺序把每个任务跑一遍；再用线程池把它并行化，互不依赖的任务可以同时跑。
+
+下面用一张 4 个节点的图当例子：A、B 不依赖谁，C 要等 A 和 B，D 要等 C。
+
+### 4.1 单线程：记下每个节点还在等几个前驱，等到 0 的就能跑 {#case-dag-serial}
+
+一个节点能不能跑，只看它的前驱是不是都跑完了。所以给每个节点记一个数：还在等几个前驱（入度）。入度是 0 的节点放进就绪队列；取出一个跑完，它的每个后继少等一个，减到 0 的进就绪队列。
+
+| 步 | 取出来跑的 | 后继的入度 | 就绪队列 |
+|---|---|---|---|
+| 开始 | | C 等 2 个，D 等 1 个 | A、B |
+| 1 | A | C：2 → 1 | B |
+| 2 | B | C：1 → 0，C 就绪 | C |
+| 3 | C | D：1 → 0，D 就绪 | D |
+| 4 | D | | 空，结束 |
+
+```cpp
+#include <queue>
+#include <vector>
+
+struct Graph {
+    int n = 0;
+    std::vector<std::vector<int>> succ;   // succ[v]：v 跑完以后才能跑的节点
+    std::vector<int> indeg;          // indeg[v]：v 还要等几个前驱
+    explicit Graph(int n) : n(n), succ(n), indeg(n, 0) {}
+    void add_edge(int u, int v) { succ[u].push_back(v); ++indeg[v]; }
+};
+
+// 单线程：返回一个拓扑序；有环返回空
+std::vector<int> topo_order(const Graph& g) {
+    // 1. 入度拷一份来减，入度为 0 的先进就绪队列
+    std::vector<int> indeg = g.indeg, order;
+    std::queue<int> ready;
+    for (int v = 0; v < g.n; ++v)
+        if (indeg[v] == 0) ready.push(v);
+    // 2. 取一个就绪的排进去，它的后继入度各减 1，减到 0 的就绪
+    while (!ready.empty()) {
+        int v = ready.front(); ready.pop();
+        order.push_back(v);
+        for (int s : g.succ[v])
+            if (--indeg[s] == 0) ready.push(s);
+    }
+    // 3. 环上的节点入度永远减不到 0，所以排出来的不足 n 个
+    if ((int)order.size() != g.n) order.clear();
+    return order;
+}
+```
+
+- **复杂度是 $O(V + E)$**：每个节点进出队列各一次，每条边只看一次。
+- **有环能查出来**：环上的节点互相等，入度永远减不到 0，最后排出来的节点不足 $n$ 个。
+- **图不变、要反复跑时，顺序只算一次**：比如每来一条行情都要把同一张图跑一遍，就把拓扑序存下来，之后直接按这个顺序执行。
+
+### 4.2 并行卡在哪：一个节点有几个前驱，它们可能同时跑完 {#case-dag-problem}
+
+并行的做法看起来只是把队列换成线程池：就绪的节点提交给线程池；一个节点跑完，把后继的入度各减 1，减到 0 的提交。
+
+问题出在有几个前驱的节点上。例子里 A、B 在两个线程上同时跑完，都去减 C 的入度。入度要是一个普通的 `int`，`--indeg[C]` 是读、减、写三步：
+
+| 时刻 | 线程 1（刚跑完 A） | 线程 2（刚跑完 B） | `indeg[C]` |
+|---|---|---|---|
+| 1 | 读到 2 | | 2 |
+| 2 | | 读到 2 | 2 |
+| 3 | 写回 1：不是 0，不提交 | | 1 |
+| 4 | | 写回 1：不是 0，不提交 | 1 |
+
+C 的前驱都跑完了，却没有人提交它，D 也跟着跑不了，调度就卡住了。
+
+把减法换成原子的、减完再读一次看是不是 0，也不行：两个线程各减一次以后都去读，可能都读到 0，C 被提交两次。
+
+**所以“减 1”和“是不是我把它减到了 0”必须是同一步**。`fetch_sub` 正好是这样：它减 1，同时返回减之前的值，几个线程里只有一个会拿到旧值 1。
+
+并行以后还多出一件事：`run()` 所在的线程怎么知道全部节点都跑完了。办法是再记一个数，还剩几个节点没跑完；把它减到 0 的那个线程去叫醒 `run()`。
+
+### 4.3 并行：谁把后继的计数减到 0，谁提交它 {#case-dag-parallel}
+
+线程池用 [3.3](#pool-code) 的那个，`submit` 返回的 `future` 这里不用。
+
+```cpp
+// 并行跑一遍无环图：每个节点调一次 fn(v)，并且在它所有前驱的 fn 返回之后
+class DagRun {
+public:
+    DagRun(const Graph& g, ThreadPool& pool, std::function<void(int)> fn)
+        : g_(g), pool_(pool), fn_(std::move(fn)), pending_(g.n), remaining_(g.n) {}
+
+    void run() {
+        if (g_.n == 0) return;
+        // 1. 每个节点还要等几个前驱，放进原子计数
+        for (int v = 0; v < g_.n; ++v) pending_[v].store(g_.indeg[v]);
+        // 2. 入度为 0 的直接提交
+        for (int v = 0; v < g_.n; ++v)
+            if (g_.indeg[v] == 0) pool_.submit([this, v] { exec(v); });
+        // 3. 等全部节点跑完
+        std::unique_lock<std::mutex> lk(m_);
+        cv_.wait(lk, [this] { return done_; });
+    }
+
+private:
+    void exec(int v) {
+        fn_(v);
+        // 1. 后继的计数各减 1；fetch_sub 返回旧值，旧值是 1 说明是我把它减到了 0，由我提交
+        //    两个前驱同时跑完也只有一个线程看到 1，所以每个节点正好提交一次
+        for (int s : g_.succ[v])
+            if (pending_[s].fetch_sub(1, std::memory_order_acq_rel) == 1)
+                pool_.submit([this, s] { exec(s); });
+        // 2. 我是最后一个跑完的，叫醒 run()；done_ 在锁里改，通知才不会丢
+        if (remaining_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            std::lock_guard<std::mutex> lk(m_);
+            done_ = true;
+            cv_.notify_all();
+        }
+    }
+
+    const Graph& g_;
+    ThreadPool& pool_;
+    std::function<void(int)> fn_;
+    std::vector<std::atomic<int>> pending_;
+    std::atomic<int> remaining_;
+    std::mutex m_;
+    std::condition_variable cv_;
+    bool done_ = false;
+};
+```
+
+- **每个节点正好提交一次**：一个节点的几个前驱同时跑完，各自做一次 `fetch_sub`，只有一个线程拿到旧值 1，由它提交。
+- **前驱的输出，后继一定看得到**：
+  - **前驱先在 `fn_` 里写输出，再做 `fetch_sub`**：`acq_rel` 里的 release 把之前的写发布出去。
+  - **提交后继的是做最后一次 `fetch_sub` 的线程**：`acq_rel` 里的 acquire 让它看得到前面每个前驱发布的写，再经线程池的锁传给真正执行后继的线程（连边的办法见[内存序 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)）。
+- **`done_` 在锁里改，通知才不会丢**：只通知、不置标志，`run()` 要是还没睡下，这次通知就丢了，它会一直等下去（[3.4](#pool-stop) 是同一个道理）。
+- **`exec` 的最后一步之后不能再碰 `this`**：`run()` 一被叫醒就可能返回，`DagRun` 对象随之销毁。上面的代码里，置 `done_` 和通知都在锁里做完，之后没有再访问成员。
+
+本机用 GCC 16.2（`-std=c++20 -O2 -Wall -Wextra`）测过，连跑 3 次结果一致：8 个线程、300 张随机生成的无环图（每张 1–400 个节点），每个节点正好执行一次，执行时它的前驱都已经跑完；带环的图，单线程版本返回空。
+
+### 4.4 取舍：节点太小，调度的开销就盖过计算 {#case-dag-tradeoff}
+
+- **一次入队加出队约 100 ns–1 µs**，还可能叫醒一个睡着的线程。节点里只有几十纳秒的计算时，并行反而更慢。只有一个后继的链要合并成一个任务。
+- **就绪的后继自己留一个接着跑，其余的再提交**：数据还在当前核的缓存里，也少一次入队。
+- **所有线程共用一个队列，会一起抢队头那把锁**：改成每个线程一个双端队列，自己从一头取放，没活干的线程从别人的另一头偷（work stealing）。
+- **加速比有上限**：设全部节点的工作量是 $T_1$，最长的那条依赖链是 $T_\infty$，$p$ 个线程的耗时 $T_p \ge \max(T_1 / p,\ T_\infty)$。最长的链占了大头时，加再多线程也没用。
+- **某个节点失败**：它下游的节点都不能跑了，但“还剩几个没完成”的计数要照样扣掉，否则等待的线程永远等不到结束。
+- **图是固定的，就不要动态调度**：预先把节点按层分好，同一层的节点互不依赖，整层并行地跑，层和层之间汇合一次。因子计算就是这种图：中间量被几个上层因子共用，图在开盘前就定了。这样写更简单，延迟也更稳定；代价是同一层里最慢的节点会拖住下一层。
