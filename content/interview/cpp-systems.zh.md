@@ -58,10 +58,11 @@ math: true
 
 **展开见：[#3 第 6 节案例：无锁哈希表](/zh/posts/hot-path-memory-allocators/#case-lockfree-map)**
 
-- [6.1 表：键用 CAS 占槽，值用指针原子交换](/zh/posts/hot-path-memory-allocators/#case-map)
-- [6.2 epoch 回收：为什么纪元多 2 才能释放](/zh/posts/hot-path-memory-allocators/#case-ebr)
-- [6.3 取舍：读者卡住内存就涨，hazard pointer 和 RCU](/zh/posts/hot-path-memory-allocators/#case-ebr-tradeoff)
-- [6.4 分片加锁和后台回收](/zh/posts/hot-path-memory-allocators/#case-shard-lock)
+- [6.1 表：难做的部分都不做，只剩键占槽和值换指针](/zh/posts/hot-path-memory-allocators/#case-map)
+- [6.2 卡在哪：旧节点换下来的那一刻，可能还有读者拿着它](/zh/posts/hot-path-memory-allocators/#case-problem)
+- [6.3 epoch 回收：为什么纪元多 2 才能释放](/zh/posts/hot-path-memory-allocators/#case-ebr)
+- [6.4 取舍：读者卡住内存就涨，hazard pointer 和 RCU](/zh/posts/hot-path-memory-allocators/#case-ebr-tradeoff)
+- [6.5 分片加锁和后台回收](/zh/posts/hot-path-memory-allocators/#case-shard-lock)
 
 ## 4. futex 互斥锁和 TLS 里的线程 id：没人抢时不进内核，抢不到才睡 {#futex}
 
