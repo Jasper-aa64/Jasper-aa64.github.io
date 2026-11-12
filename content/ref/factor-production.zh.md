@@ -42,6 +42,146 @@ math: true
 - **回算**：在几年的历史行情上把因子值批量算出来，存成因子库（第 3 节）。
 - **回测**：拿因子库里的值模拟交易、算收益（第 1 节的第 3 步）。
 
+整个系统长这样：
+
+<svg viewBox="0 0 760 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="回放和回测的架构：上面一条是实盘，交易所组播经行情接入线程进广播环，分片线程里的因子算完交给决策线程的策略和风控，再经下单网关到交易所；广播环旁边的落盘把行情录成录像，分片线程把因子值写进日志。中间一条是盘后回放：回放器读当天录像，按原顺序喂给同一份因子代码，算出的值和实盘因子值日志逐值对账，差异分成代码的和数据的。下面一条是研究用的回算和回测：数据商历史文件或录像先进中间层（按股票重排、合成订单簿），再切成一只股票一天的回算任务，任务里跑同一份因子代码，结果按天存成因子库；回测引擎里，策略读因子库下单，模拟撮合用历史行情判断成交，账户记持仓和资金，成交回报再回到策略，最后得到收益、回撤这些回测结果。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .ra1bg  { fill: #fbfaf7; }
+    .ra1ln1 { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1; }
+    .ra1ln2 { fill: #f3efe6; stroke: #c9bc9c; stroke-width: 1; }
+    .ra1ln3 { fill: #f1eef6; stroke: #c3b9d6; stroke-width: 1; }
+    .ra1b   { fill: #ffffff; stroke: #8a8f98; stroke-width: 1.3; }
+    .ra1f   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.6; }
+    .ra1fl  { fill: #fff8e6; stroke: #b8964a; stroke-width: 1.3; }
+    .ra1eng { fill: none; stroke: #8a7ca8; stroke-width: 1.3; stroke-dasharray: 6 4; }
+    .ra1ink { fill: #1c1b18; font-size: 12.5px; }
+    .ra1sm  { fill: #4a463e; font-size: 11px; }
+    .ra1mut { fill: #6b6558; font-size: 11.5px; }
+    .ra1ttl { fill: #1c1b18; font-size: 15px; font-weight: 700; }
+    .ra1hd  { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .ra1ar  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .ra1ad  { stroke: #6b6558; stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+    .ra1hh  { fill: #6b6558; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1ln1 { fill: #20242a; stroke: #3f4650; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1ln2 { fill: #26231d; stroke: #5a5242; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1ln3 { fill: #23202b; stroke: #4c4560; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1b { fill: #1d1c22; stroke: #6f7380; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1f { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1fl { fill: #3a3220; stroke: #b8964a; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1eng { stroke: #a89cc8; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1ink, :root:is([data-theme="dark"], [data-theme="black"]) .ra1ttl, :root:is([data-theme="dark"], [data-theme="black"]) .ra1hd { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1sm, :root:is([data-theme="dark"], [data-theme="black"]) .ra1mut { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1ar, :root:is([data-theme="dark"], [data-theme="black"]) .ra1ad { stroke: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ra1hh { fill: #a19caf; }
+  </style>
+  <defs><marker id="ra1ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ra1hh"/></marker></defs>
+  <rect class="ra1bg" x="0" y="0" width="760" height="600" rx="10"/>
+  <text class="ra1ttl" x="20" y="30">回放和回测的架构：三条路，绿色的因子代码只有一份</text>
+  <rect class="ra1ln1" x="10" y="46" width="740" height="168" rx="8"/>
+  <text class="ra1hd" x="22" y="66">实盘：盘中，行情来一条算一条</text>
+  <rect class="ra1b" x="20" y="80" width="96" height="46" rx="6"/>
+  <text class="ra1ink" x="68" y="100" text-anchor="middle">交易所组播</text>
+  <text class="ra1sm" x="68" y="116" text-anchor="middle">网卡收包</text>
+  <rect class="ra1b" x="130" y="80" width="104" height="46" rx="6"/>
+  <text class="ra1ink" x="182" y="100" text-anchor="middle">行情接入线程</text>
+  <text class="ra1sm" x="182" y="116" text-anchor="middle">解码成 Tick</text>
+  <rect class="ra1b" x="248" y="80" width="96" height="46" rx="6"/>
+  <text class="ra1ink" x="296" y="100" text-anchor="middle">广播环</text>
+  <text class="ra1sm" x="296" y="116" text-anchor="middle">共享内存</text>
+  <rect class="ra1f" x="358" y="80" width="112" height="46" rx="6"/>
+  <text class="ra1ink" x="414" y="100" text-anchor="middle">分片线程</text>
+  <text class="ra1sm" x="414" y="116" text-anchor="middle">因子 on_tick</text>
+  <rect class="ra1b" x="484" y="80" width="112" height="46" rx="6"/>
+  <text class="ra1ink" x="540" y="100" text-anchor="middle">决策线程</text>
+  <text class="ra1sm" x="540" y="116" text-anchor="middle">策略、风控</text>
+  <rect class="ra1b" x="610" y="80" width="130" height="46" rx="6"/>
+  <text class="ra1ink" x="675" y="100" text-anchor="middle">下单网关</text>
+  <text class="ra1sm" x="675" y="116" text-anchor="middle">经柜台到交易所</text>
+  <path class="ra1ar" d="M116 103 H126" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M234 103 H244" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M344 103 H354" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M470 103 H480" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M596 103 H606" marker-end="url(#ra1ah)"/>
+  <rect class="ra1fl" x="238" y="154" width="116" height="44" rx="6"/>
+  <text class="ra1ink" x="296" y="173" text-anchor="middle">落盘：行情录像</text>
+  <text class="ra1sm" x="296" y="189" text-anchor="middle">收到什么录什么</text>
+  <rect class="ra1fl" x="358" y="154" width="112" height="44" rx="6"/>
+  <text class="ra1ink" x="414" y="173" text-anchor="middle">因子值日志</text>
+  <text class="ra1sm" x="414" y="189" text-anchor="middle">每次算出的值</text>
+  <path class="ra1ar" d="M296 126 V150" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M414 126 V150" marker-end="url(#ra1ah)"/>
+  <rect class="ra1ln2" x="10" y="224" width="740" height="112" rx="8"/>
+  <text class="ra1hd" x="22" y="244">回放：每天盘后，录像按原来的顺序重喂一遍</text>
+  <rect class="ra1b" x="238" y="262" width="116" height="46" rx="6"/>
+  <text class="ra1ink" x="296" y="282" text-anchor="middle">回放器</text>
+  <text class="ra1sm" x="296" y="298" text-anchor="middle">读录像、按序号喂</text>
+  <rect class="ra1f" x="368" y="262" width="112" height="46" rx="6"/>
+  <text class="ra1ink" x="424" y="282" text-anchor="middle">因子 on_tick</text>
+  <text class="ra1sm" x="424" y="298" text-anchor="middle">同一份代码</text>
+  <rect class="ra1b" x="494" y="262" width="104" height="46" rx="6"/>
+  <text class="ra1ink" x="546" y="282" text-anchor="middle">逐值对账</text>
+  <text class="ra1sm" x="546" y="298" text-anchor="middle">按行情序号对齐</text>
+  <rect class="ra1b" x="612" y="262" width="128" height="46" rx="6"/>
+  <text class="ra1ink" x="676" y="282" text-anchor="middle">差异归因</text>
+  <text class="ra1sm" x="676" y="298" text-anchor="middle">代码的还是数据的</text>
+  <path class="ra1ar" d="M296 198 V258" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M354 285 H364" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M480 285 H490" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M598 285 H608" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M470 186 C520 186 546 210 546 258" marker-end="url(#ra1ah)"/>
+  <text class="ra1mut" x="140" y="288" text-anchor="middle">同一天、同一份输入</text>
+  <text class="ra1mut" x="140" y="304" text-anchor="middle">结果应该逐位相同</text>
+  <rect class="ra1ln3" x="10" y="346" width="740" height="222" rx="8"/>
+  <text class="ra1hd" x="22" y="366">回算和回测：研究用，几年的全市场</text>
+  <rect class="ra1b" x="20" y="382" width="116" height="46" rx="6"/>
+  <text class="ra1ink" x="78" y="402" text-anchor="middle">历史行情</text>
+  <text class="ra1sm" x="78" y="418" text-anchor="middle">数据商文件或录像</text>
+  <rect class="ra1b" x="150" y="382" width="130" height="46" rx="6"/>
+  <text class="ra1ink" x="215" y="402" text-anchor="middle">中间层</text>
+  <text class="ra1sm" x="215" y="418" text-anchor="middle">按股票重排、合成盘口</text>
+  <rect class="ra1f" x="294" y="382" width="150" height="46" rx="6"/>
+  <text class="ra1ink" x="369" y="402" text-anchor="middle">回算任务：因子 on_tick</text>
+  <text class="ra1sm" x="369" y="418" text-anchor="middle">一只股票一天，多核多机</text>
+  <rect class="ra1fl" x="456" y="382" width="112" height="46" rx="6"/>
+  <text class="ra1ink" x="512" y="402" text-anchor="middle">因子库</text>
+  <text class="ra1sm" x="512" y="418" text-anchor="middle">每格一个值，按天存</text>
+  <path class="ra1ar" d="M136 405 H146" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M280 405 H290" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M444 405 H452" marker-end="url(#ra1ah)"/>
+  <rect class="ra1eng" x="150" y="452" width="440" height="104" rx="8"/>
+  <text class="ra1hd" x="162" y="470">回测引擎</text>
+  <rect class="ra1b" x="166" y="488" width="106" height="46" rx="6"/>
+  <text class="ra1ink" x="219" y="508" text-anchor="middle">策略</text>
+  <text class="ra1sm" x="219" y="524" text-anchor="middle">读因子值，决定下单</text>
+  <rect class="ra1b" x="316" y="488" width="120" height="46" rx="6"/>
+  <text class="ra1ink" x="376" y="508" text-anchor="middle">模拟撮合</text>
+  <text class="ra1sm" x="376" y="524" text-anchor="middle">能不能成交、成交价</text>
+  <rect class="ra1b" x="480" y="488" width="100" height="46" rx="6"/>
+  <text class="ra1ink" x="530" y="508" text-anchor="middle">账户</text>
+  <text class="ra1sm" x="530" y="524" text-anchor="middle">持仓、资金、盈亏</text>
+  <rect class="ra1b" x="612" y="488" width="128" height="46" rx="6"/>
+  <text class="ra1ink" x="676" y="508" text-anchor="middle">回测结果</text>
+  <text class="ra1sm" x="676" y="524" text-anchor="middle">收益、回撤、换手</text>
+  <path class="ra1ar" d="M272 511 H312" marker-end="url(#ra1ah)"/>
+  <text class="ra1mut" x="294" y="503" text-anchor="middle">报单</text>
+  <path class="ra1ar" d="M436 511 H476" marker-end="url(#ra1ah)"/>
+  <text class="ra1mut" x="458" y="503" text-anchor="middle">成交</text>
+  <path class="ra1ar" d="M530 488 V476 H252 V484" marker-end="url(#ra1ah)"/>
+  <text class="ra1mut" x="392" y="471" text-anchor="middle">成交回报</text>
+  <path class="ra1ar" d="M576 511 H608" marker-end="url(#ra1ah)"/>
+  <path class="ra1ar" d="M512 428 V444 H230 V484" marker-end="url(#ra1ah)"/>
+  <path class="ra1ad" d="M60 428 V548 H376 V538" marker-end="url(#ra1ah)"/>
+  <text class="ra1mut" x="66" y="480" text-anchor="start">行情（撮合用）</text>
+  <rect class="ra1f" x="20" y="578" width="14" height="12" rx="2"/>
+  <text class="ra1mut" x="40" y="588">同一份因子代码：实盘、回放、回算喂的都是它。黄色是存下来的文件。</text>
+</svg>
+
+- **实盘这条路**：行情接入线程把组播包解码成 `Tick`，写进广播环，分片线程里的因子来一条算一条，值交给决策线程。旁边有两份文件在一路记：落盘把广播环里的行情原样录下来，录的是实盘当时看到的样子，丢了的就没有、晚到的按晚到的顺序录；分片线程把每次算出的因子值写进日志。**这两份文件是回放的原料**。
+- **回放这条路**：盘后回放器读当天的录像，按行情序号一条条喂给同一份因子代码，算出的值和实盘日志逐值比（[4.1](#reconcile)）。输入和代码都一样，结果就该逐位相同，差一位就说明系统里有不确定的东西。
+- **回算这条路**：几年的历史行情先进中间层，按股票重排、合成盘口，只算一次；再切成“一只股票一天”的任务分到多核、多机，每个任务里跑的还是同一份因子代码，结果按天存成因子库（第 3 节）。
+- **回测引擎**：策略读因子库里的值决定下单；模拟撮合拿历史行情判断这笔单能不能成交、按什么价成交，要考虑对手价有没有被打到、前面排了多少量、单子从发出到交易所要多久；账户记持仓、资金和盈亏，成交回报再交给策略。撮合是回测才有的一块，实盘里这一步由交易所完成。
+
 三种用法加上实盘，喂的都是同一个 `on_tick`，差别只在行情从哪来、算出来的值交给谁。**所以接口只定一个，回测和实盘跑同一份代码**：
 
 ```cpp
