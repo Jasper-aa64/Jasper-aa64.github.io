@@ -64,6 +64,7 @@ math: true
 - [6.3 epoch 回收：为什么纪元多 2 才能释放](/zh/posts/hot-path-memory-allocators/#case-ebr)
 - [6.4 取舍：读者卡住内存就涨，hazard pointer 和 RCU](/zh/posts/hot-path-memory-allocators/#case-ebr-tradeoff)
 - [6.5 分片加锁和后台回收](/zh/posts/hot-path-memory-allocators/#case-shard-lock)
+- [6.6 键的个数没有上限时：扩容、腾槽、小的值直接放进槽里](/zh/posts/hot-path-memory-allocators/#case-map-full)
 
 ## 4. futex 互斥锁和 TLS 里的线程 id：没人抢时不进内核，抢不到才睡 {#futex}
 
