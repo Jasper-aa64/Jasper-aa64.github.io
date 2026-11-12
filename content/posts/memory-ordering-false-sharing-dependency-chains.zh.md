@@ -319,6 +319,18 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 > - **原子变量自己被修改的先后不算边**：另一个线程更早改过同一个原子变量，只说明这个变量的值是按这个顺序变的，不说明它写的别的内存我看得到。
 > - **release 之后紧接着的 CAS、`fetch_add` 不会弄断第二种边**：它们是接着前一个值写的，算作那次 release 的延续，读到延续里的值也和那次 release 配对；普通的 `store` 是盲写，会弄断（[内存池 5.5](/zh/posts/hot-path-memory-allocators/#pool-ordering) 有一个 4 步的例子）。
 
+> **分析一段内存序代码：把两边的代码并排放，连边**
+>
+> 1. **连横边**：在同一个原子变量上，把每个 release 的写连到可能读到它的 acquire 的读。
+> 2. **标出竖边两头挂着什么**：release 上面，这个线程写了什么；acquire 下面，这个线程读了、写了什么。
+> 3. **逐个检查跨线程的访问**：从对方的写出发，沿着竖边、横边、竖边走得到，就看得到。
+> 4. **走不到的读单独审**：读的必须是原子变量，而且读到旧值也不出错。
+> - **两类错误一眼看得出**：横边只有一头，是少了 release 或者少了 acquire；要发布的写画在了 release 下面，或者要用的读画在了 acquire 上面，是位置放错了。
+
+[内存池 5.4](/zh/posts/hot-path-memory-allocators/#tagged-head) 的 `deallocate` 和 `allocate` 画出来是这样：
+
+<a href="/images/memory-ordering/edges.zh.svg" target="_blank" rel="noopener"><img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async"></a>
+
 回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
 
 <iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
