@@ -544,6 +544,10 @@ class ConcurrentPool {
 - **分配时的读和 CAS 都用 acquire**：拿到槽的线程，要看得到上一个使用者释放前写进这个槽的内容，也要看得到释放时写下的 `next`。CAS 失败时会把最新的 `head` 读回 `old`，下一轮接着要读它的 `next`，所以失败的那一路也要 acquire。
 - **释放的 CAS 用 release**：这个槽里的写入和刚写下的 `next`，随着这次 CAS 一起发布给下一个拿到它的线程。
 
+把两段代码并排放，连上 release 到 acquire 的边（画法见 [#2 的 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)）：
+
+<a href="/images/memory-ordering/edges.zh.svg" target="_blank" rel="noopener"><img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async"></a>
+
 **一个槽换手，是从释放它的线程交到下一个分配到它的线程手里**，所以配对的是 `deallocate` 的 release 和 `allocate` 的 acquire。释放的线程在 CAS 之前往这个槽里写过两样东西：
 
 - **`storage` 里的字节**：对象活着时写的成员，加上析构函数里的写。析构不会把这段字节清零。
