@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 640" width="1100" height="640" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.t{font-size:13.5px;font-weight:700;fill:#1f2328}.k{font-size:13px;fill:#1f2328}.m{font-size:11.5px;fill:#57606a}.l{font-size:12.5px;fill:#1f2328}.lb{font-size:12.5px;font-weight:700;fill:#1f2328}.a{font-size:12px;fill:#57606a}.ab{font-size:12px;fill:#2a78d6}</style></defs>
+<rect width="1100" height="640" fill="#ffffff"/>
+<text class="h" x="20" y="32">分布式回测平台：一次请求切成很多任务，分到很多台机器上各跑各的</text>
+<text class="s" x="20" y="54">白色是程序，黄色是存下来的数据，绿色是回测引擎（每个任务里跑一遍）。灰色箭头是读和控制，蓝色箭头是写结果。</text>
+<rect x="20" y="76" width="250" height="64" rx="7" fill="#ffffff" stroke="#8a8f98" stroke-width="1.3"/>
+<text class="k" x="145" y="104.0" text-anchor="middle">一次回测请求</text>
+<text class="m" x="145" y="121.0" text-anchor="middle">策略代码版本、参数、标的、日期段</text>
+<rect x="330" y="76" width="440" height="64" rx="7" fill="#ffffff" stroke="#8a8f98" stroke-width="1.3"/>
+<text class="k" x="550" y="104.0" text-anchor="middle">调度器</text>
+<text class="m" x="550" y="121.0" text-anchor="middle">切任务、排队、派发、超时和失败重跑</text>
+<rect x="830" y="76" width="250" height="64" rx="7" fill="#fff8c5" stroke="#b8964a" stroke-width="1.3"/>
+<text class="k" x="955" y="104.0" text-anchor="middle">任务状态表</text>
+<text class="m" x="955" y="121.0" text-anchor="middle">待跑 / 在跑 / 完成 / 失败，带版本号</text>
+<path d="M270,108 H324" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M770,108 H824" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<rect x="258" y="188" width="584" height="330" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<path d="M580,140 V182" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<text class="a" x="590" y="166">派任务</text>
+<path d="M520,188 V146" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<text class="a" x="510" y="166" text-anchor="end">心跳、任务完成</text>
+<rect x="270" y="200" width="560" height="130" rx="8" fill="#ffffff" stroke="#b9c2cc"/>
+<text class="t" x="286" y="223">工作机 1：每个核一个回测进程，一个进程跑一个任务</text>
+<rect x="286" y="236" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="345" y="255.0" text-anchor="middle">行情回放</text>
+<text class="m" x="345" y="272.0" text-anchor="middle">按时间合并成事件流</text>
+<rect x="420" y="236" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="479" y="255.0" text-anchor="middle">策略</text>
+<text class="m" x="479" y="272.0" text-anchor="middle">读因子值，决定报单</text>
+<rect x="554" y="236" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="613" y="255.0" text-anchor="middle">模拟撮合</text>
+<text class="m" x="613" y="272.0" text-anchor="middle">排队位置、下单延迟</text>
+<rect x="688" y="236" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="747" y="255.0" text-anchor="middle">账户</text>
+<text class="m" x="747" y="272.0" text-anchor="middle">持仓、资金、盈亏</text>
+<path d="M404,259 H416" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M538,259 H550" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M672,259 H684" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M747,282 V300 H479 V288" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<text class="a" x="613" y="316" text-anchor="middle">成交回报</text>
+<rect x="286" y="300" width="150" height="20" rx="10" fill="#fff8c5" stroke="#b8964a"/>
+<text class="m" x="361" y="314" text-anchor="middle">本地缓存：SSD、页缓存</text>
+<rect x="270" y="346" width="560" height="130" rx="8" fill="#ffffff" stroke="#b9c2cc"/>
+<text class="t" x="286" y="369">工作机 2：每个核一个回测进程，一个进程跑一个任务</text>
+<rect x="286" y="382" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="345" y="401.0" text-anchor="middle">行情回放</text>
+<text class="m" x="345" y="418.0" text-anchor="middle">按时间合并成事件流</text>
+<rect x="420" y="382" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="479" y="401.0" text-anchor="middle">策略</text>
+<text class="m" x="479" y="418.0" text-anchor="middle">读因子值，决定报单</text>
+<rect x="554" y="382" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="613" y="401.0" text-anchor="middle">模拟撮合</text>
+<text class="m" x="613" y="418.0" text-anchor="middle">排队位置、下单延迟</text>
+<rect x="688" y="382" width="118" height="46" rx="7" fill="#dcecc6" stroke="#6f8f3f" stroke-width="1.5"/>
+<text class="k" x="747" y="401.0" text-anchor="middle">账户</text>
+<text class="m" x="747" y="418.0" text-anchor="middle">持仓、资金、盈亏</text>
+<path d="M404,405 H416" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M538,405 H550" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M672,405 H684" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M747,428 V446 H479 V434" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<text class="a" x="613" y="462" text-anchor="middle">成交回报</text>
+<rect x="286" y="446" width="150" height="20" rx="10" fill="#fff8c5" stroke="#b8964a"/>
+<text class="m" x="361" y="460" text-anchor="middle">本地缓存：SSD、页缓存</text>
+<text class="s" x="550" y="502" text-anchor="middle">……更多工作机，每台都一样，互相不通信</text>
+<rect x="20" y="216" width="190" height="74" rx="7" fill="#fff8c5" stroke="#b8964a" stroke-width="1.3"/>
+<text class="k" x="115" y="240.5" text-anchor="middle">历史行情</text>
+<text class="m" x="115" y="257.5" text-anchor="middle">按天、按标的分区</text>
+<text class="m" x="115" y="274.5" text-anchor="middle">列存文件</text>
+<rect x="20" y="320" width="190" height="60" rx="7" fill="#fff8c5" stroke="#b8964a" stroke-width="1.3"/>
+<text class="k" x="115" y="346.0" text-anchor="middle">因子库</text>
+<text class="m" x="115" y="363.0" text-anchor="middle">按天存的因子值</text>
+<path d="M210,253 H252" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<path d="M210,350 H252" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#ag)"/>
+<text class="a" x="231" y="244" text-anchor="middle">读</text>
+<text class="a" x="231" y="341" text-anchor="middle">读</text>
+<text class="m" x="20" y="404">任务只读，不改；</text>
+<text class="m" x="20" y="421">每份数据带版本号</text>
+<rect x="890" y="206" width="190" height="64" rx="7" fill="#fff8c5" stroke="#b8964a" stroke-width="1.3"/>
+<text class="k" x="985" y="234.0" text-anchor="middle">每个任务的结果</text>
+<text class="m" x="985" y="251.0" text-anchor="middle">成交记录、逐日盈亏</text>
+<rect x="890" y="306" width="190" height="60" rx="7" fill="#ffffff" stroke="#8a8f98" stroke-width="1.3"/>
+<text class="k" x="985" y="332.0" text-anchor="middle">汇总</text>
+<text class="m" x="985" y="349.0" text-anchor="middle">按固定的顺序合并</text>
+<rect x="890" y="402" width="190" height="60" rx="7" fill="#fff8c5" stroke="#b8964a" stroke-width="1.3"/>
+<text class="k" x="985" y="428.0" text-anchor="middle">回测报告</text>
+<text class="m" x="985" y="445.0" text-anchor="middle">收益、回撤、换手</text>
+<path d="M842,238 H884" fill="none" stroke="#2a78d6" stroke-width="2" marker-end="url(#ab)"/>
+<text class="ab" x="863" y="229" text-anchor="middle">写</text>
+<path d="M985,270 V300" fill="none" stroke="#2a78d6" stroke-width="2" marker-end="url(#ab)"/>
+<path d="M985,366 V396" fill="none" stroke="#2a78d6" stroke-width="2" marker-end="url(#ab)"/>
+<text class="l" x="20" y="548"><tspan class="lb">切</tspan>：一次请求按参数组合、标的、日期段切成互不依赖的任务，任务之间不传数据，所以机器加一倍，跑完的时间大约减一半。</text>
+<text class="l" x="20" y="574"><tspan class="lb">数据</tspan>：历史行情比内存大得多。任务尽量派到已经缓存了那几天行情的机器上，省掉搬数据的时间。</text>
+<text class="l" x="20" y="600"><tspan class="lb">失败</tspan>：工作机不保存状态。任务失败或机器掉线，调度器把任务重新派给别的机器；重跑的结果必须和第一次逐位相同。</text>
+</svg>
