@@ -1,8 +1,8 @@
 ---
 title: "交易系统架构：地图、时间、怎么切"
-description: "一条行情从网卡进来，到变成一笔报单、拿回成交，经过哪些线程和数据结构；每一段大概多久；工业级系统怎么分线程、在哪里放队列、哪里必须汇合；实盘和回测差在哪、上线前怎么验、盘中出事怎么办；AMD 和 Intel 差在哪；批量回算怎么算得快。"
+description: "一条行情从网卡进来，到变成一笔报单、拿回成交，经过哪些线程和数据结构；每一段大概多久；工业级系统怎么分线程、在哪里放队列、哪里必须汇合；实盘和回测差在哪、上线前怎么验、盘中出事怎么办；AMD 和 Intel 差在哪。"
 date: 2026-10-20
-lastmod: 2026-11-11
+lastmod: 2026-11-12
 slug: "trading-architecture"
 weight: 15
 toc: true
@@ -16,11 +16,10 @@ math: true
 3. [怎么切](#rules)：工业级系统怎么分线程、在哪里放队列、哪里必须汇合。
 4. [实盘](#live)：实盘和回测差在哪，上线前怎么验，盘中出事怎么办。
 5. [AMD 和 Intel](#ccx)：差在核分组，绑核要按组排；内存序一样。
-6. [批量回算](#batch)：几年的历史数据比缓存大几个数量级，因子回算怎么算得快：每份数据只搬一次、中间结果分层、按交易日切。
 
 后面讲到新的组件，都补在这一页。
 
-因子本身不在这一页：一个因子怎么写见[因子计算](/zh/ref/factor-computation/)，研究侧、回测、实盘怎么逐值对上见[因子一致性](/zh/ref/factor-consistency/)，交易所发来的数据各记了什么、订单簿怎么用逐笔合成，见 [A 股行情](/zh/ref/a-share-market/)。
+因子本身不在这一页：一个因子怎么写见[因子计算](/zh/ref/factor-computation/)，回放、批量回算、回测怎么接同一个因子，研究侧、回测、实盘怎么逐值对上，见[因子生产](/zh/ref/factor-production/)，交易所发来的数据各记了什么、订单簿怎么用逐笔合成，见 [A 股行情](/zh/ref/a-share-market/)。
 
 ## 1. 架构地图：一条行情经过哪些框 {#map}
 
@@ -39,7 +38,7 @@ math: true
 7. 决策线程里，策略定买什么、卖什么、撤哪些，过事前风控，交给订单管理；大单拆成小单按时间发。
 8. 下单网关编码成协议发出去，经券商柜台到交易所。
 
-回测时，第 1–4 步换成回放器：按交易日读历史行情，按时间顺序一条条喂给同一个 `on_tick`（本页的 `Tick` 泛指一条行情消息，快照和逐笔都算），第 5 步往后的因子代码不变（[因子一致性第 1 节](/zh/ref/factor-consistency/#replay)）。
+回测时，第 1–4 步换成回放器：按交易日读历史行情，按时间顺序一条条喂给同一个 `on_tick`（本页的 `Tick` 泛指一条行情消息，快照和逐笔都算），第 5 步往后的因子代码不变（[因子生产第 2 节](/zh/ref/factor-production/#replay)）。
 
 ### 1.2 一笔回报的路：成交 → 持仓 → 策略 {#fill}
 
@@ -65,10 +64,10 @@ math: true
 | 热线程绑核、网卡中断别打到热核 | [#1 CPU 隔离与 NUMA](/zh/posts/cpu-affinity-core-isolation-numa/) |
 | AMD 和 Intel 差在哪：核分组、绑核、内存序 | 本页[第 5 部分](#ccx) |
 | 分片线程里的盘口：订单簿怎么合成、用什么数据结构、怎么验 | [A 股行情第 5 节](/zh/ref/a-share-market/#book) |
-| 分片线程里的因子：怎么写成增量、研究侧和回测实盘怎么逐值对上 | [因子计算](/zh/ref/factor-computation/) · [因子一致性](/zh/ref/factor-consistency/) |
+| 分片线程里的因子：怎么写成增量、研究侧和回测实盘怎么逐值对上 | [因子计算](/zh/ref/factor-computation/) · [因子生产](/zh/ref/factor-production/#consistency) |
 | 交易所发来的数据各记了什么、沪深差在哪 | [A 股行情](/zh/ref/a-share-market/) |
 | 实盘和回测差在哪、上线前怎么验、盘中出事怎么办 | 本页[第 4 部分](#live) |
-| 批量回算：带宽受限、每份数据只搬一次、中间结果分层、按交易日切 | 本页[第 6 部分](#batch) |
+| 批量回算：带宽受限、每份数据只搬一次、中间结果分层、按交易日切 | [因子生产第 3 节](/zh/ref/factor-production/#batch) |
 | 跨核交接为什么要几十纳秒、伪共享 | [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/) · [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/) · [速查 2.6](/zh/ref/cpu-memory/#cross-core) |
 | 热路径不现分配内存（订单、消息对象） | [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/) |
 | 分片队列（SPSC）、异步日志 | [#4 无锁队列与 Micro-Batching](/zh/posts/lock-free-queue-logger-micro-batching/) |
@@ -134,7 +133,7 @@ math: true
 
 1. **输入不受你控制**
    - **数据会脏**：丢包、乱序、晚到，数据商的字段口径和交易所不一致，某档价格突然是 0。回测读的历史文件是事后修过、补齐的版本。
-   - **只看得到一次**：实盘当时收到什么就是什么，没法让交易所重发一遍“刚才那一刻”。所以要在当时就录下来（[因子一致性第 1 节](/zh/ref/factor-consistency/#replay)第 3 条）。
+   - **只看得到一次**：实盘当时收到什么就是什么，没法让交易所重发一遍“刚才那一刻”。所以要在当时就录下来（[因子生产 4.1](/zh/ref/factor-production/#reconcile)第 2 条）。
 2. **时间不等你**
    - **不能暂停**：一个环节慢了，后面的消息就排队，因子用的是旧行情（[3.5](#burst)）。回测里慢一点只是跑得久一点。
    - **看的是尾部**：开盘那几分钟消息量是平时的好几倍，中位数好看没用，要看最慢的那些条。
@@ -143,7 +142,7 @@ math: true
    - **所以先求对、再求快**：宁可这只股票先不交易，也不拿不可信的数据算；每个改动先证明输出没变，再谈快了多少。
 4. **状态一直是连续的**
    - **一个进程从开盘跑到收盘**：滚动窗口、盘口都是一路累积出来的。回测每天从头算，实盘中途崩了，状态就断了。
-   - **跨天要预热，重启要能追回来**：预热条数和重启恢复的方式都要定成固定规则（[因子一致性第 1 节](/zh/ref/factor-consistency/#replay)第 4 条）。
+   - **跨天要预热，重启要能追回来**：预热条数和重启恢复的方式都要定成固定规则（[因子生产 4.1](/zh/ref/factor-production/#reconcile)第 3 条）。
 
 > **接触过实盘，真正学到的是这四条缝在哪**
 > - **写代码时就为它们设计**：能复现（录像加同一份代码），能发现（盘中监控、盘后对账），能止损（隔离、告警、停），能恢复（重启后把状态追回来）。
@@ -152,7 +151,7 @@ math: true
 ### 4.2 上线前：先逐值对上，再影子跑，最后小额放量 {#go-live}
 
 1. **第一步，同一份录像逐值相同**
-   - **怎么做**：新写的或改过的因子，先拿几天的实盘录像重放，和研究原型逐值比（容差见[因子一致性第 1 节](/zh/ref/factor-consistency/#replay)第 3 条）。
+   - **怎么做**：新写的或改过的因子，先拿几天的实盘录像重放，和研究原型逐值比（容差见[因子生产 4.1](/zh/ref/factor-production/#reconcile)第 2 条）。
    - **它证明的是算得对**：同一份输入，新版本和参考结果一致。
 2. **第二步，影子模式**
    - **怎么做**：新版本接真实行情、真跑，算出的信号和“假如发了单”的订单只记下来、不发出去，和正在跑的版本并排比几天到几周。
@@ -181,7 +180,7 @@ math: true
       - **起点**：有存档就从存档恢复，存档里记着它对应的行情序号，从下一条开始重放；没有存档就从当天第一条重放。
       - **追到现在**：用同一个 `on_tick` 读录像，读到录像的末尾时，接着从广播环里按序号往下读，从文件切到实时行情，中间一条不漏也不重。
       - **追的这段时间不出信号**：状态还停在过去，按它下单就是按旧行情下单。
-   - **为什么追得回来**：同样的行情按同样的顺序喂给同一个 `on_tick`，结果逐位相同（[因子一致性第 1 节](/zh/ref/factor-consistency/#replay)第 4 条阶段一），追出来的状态和没崩时一样。
+   - **为什么追得回来**：同样的行情按同样的顺序喂给同一个 `on_tick`，结果逐位相同（[因子生产 4.1](/zh/ref/factor-production/#reconcile)第 3 条阶段一），追出来的状态和没崩时一样。
    - **接入进程自己也崩了，这段行情就真丢了**：只能按断档处理（第 1 条），向交易所或数据商补；补不齐，用到这段逐笔的因子就先标成不可信，等窗口滚过去。
 
 > **盘中只止损，原因盘后查**
@@ -214,143 +213,3 @@ math: true
 > - **互相交接的线程放进同一组**：接入线程和它喂的分片线程。
 > - **不交接的分到别的组**：不同分片之间不交接（[3.2](#shard)），落盘、监控这些旁路也放到别的组。
 > - **工作集按一组的 L3 算**：别按整颗 CPU 标的总量算。
-
-## 6. 批量回算：数据比缓存大几个数量级，瓶颈换成了带宽 {#batch}
-
-这一部分只讲因子回算：在几年的历史行情上把每个因子的值算出来。拿这些因子值模拟交易、算收益，才是回测，那是下一步，不在这里。
-
-<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="批量回算的流程：原始逐笔（按天、全市场按时间排）先进中间层，只算一次、记版本：按股票重排、合成订单簿、定时快照、公共中间量；中间层切成互不通信的任务，每个任务是一只股票的一天，分到多核、多机，多日因子往前多读 N 天预热；截面因子再做一步截面汇总，每个时刻几千只股票的值排名、打分，单股票因子直接出结果；因子值按天存，给回测用；最后按天和实盘录像重放的结果逐值对账" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
-  <style>
-    .bt8bg  { fill: #fbfaf7; }
-    .bt8u   { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
-    .bt8d   { fill: #f3efe6; stroke: #b8ab8c; stroke-width: 1.3; }
-    .bt8m   { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.5; }
-    .bt8x   { fill: none; stroke: #8c7a52; stroke-width: 1.3; stroke-dasharray: 5 4; }
-    .bt8ink { fill: #1c1b18; font-size: 12.5px; }
-    .bt8sm  { fill: #1c1b18; font-size: 11.5px; }
-    .bt8mut { fill: #6b6558; font-size: 12px; }
-    .bt8hd  { fill: #1c1b18; font-size: 13px; font-weight: 700; }
-    .bt8ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
-    .bt8lp  { stroke: #8c7a52; stroke-width: 1.3; stroke-dasharray: 5 4; fill: none; }
-    .bt8hh  { fill: #6b6558; }
-    .bt8hp  { fill: #8c7a52; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8bg { fill: #17161b; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8u { fill: #23262c; stroke: #3f4650; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8d { fill: #2a2721; stroke: #6b6250; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8m { fill: #33421f; stroke: #8fb257; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8x { stroke: #b8ab8c; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8ink, :root:is([data-theme="dark"], [data-theme="black"]) .bt8sm, :root:is([data-theme="dark"], [data-theme="black"]) .bt8hd { fill: #e9e7ef; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8mut { fill: #a19caf; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8ln { stroke: #a19caf; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8hh { fill: #a19caf; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8lp { stroke: #b8ab8c; }
-  :root:is([data-theme="dark"], [data-theme="black"]) .bt8hp { fill: #b8ab8c; }
-  </style>
-  <defs>
-    <marker id="bt8ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="bt8hh"/></marker>
-    <marker id="bt8ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="bt8hp"/></marker>
-  </defs>
-  <rect class="bt8bg" x="0" y="0" width="760" height="360" rx="10"/>
-  <rect class="bt8u" x="20" y="50" width="150" height="56" rx="6"/>
-  <text class="bt8hd" x="95" y="73" text-anchor="middle">原始逐笔</text>
-  <text class="bt8sm" x="95" y="93" text-anchor="middle">按天、全市场按时间排</text>
-  <rect class="bt8m" x="215" y="40" width="250" height="76" rx="8"/>
-  <text class="bt8hd" x="340" y="63" text-anchor="middle">中间层：只算一次，记版本</text>
-  <text class="bt8sm" x="340" y="84" text-anchor="middle">按股票重排 · 合成订单簿</text>
-  <text class="bt8sm" x="340" y="103" text-anchor="middle">定时快照 · 公共中间量</text>
-  <path class="bt8ln" d="M170 78 H211" marker-end="url(#bt8ah)"/>
-  <rect class="bt8x" x="500" y="20" width="240" height="200" rx="8"/>
-  <text class="bt8hd" x="620" y="42" text-anchor="middle">多核、多机：任务互不通信</text>
-  <rect class="bt8u" x="520" y="56" width="200" height="34" rx="5"/>
-  <text class="bt8ink" x="620" y="78" text-anchor="middle">股票 A · 第 d 天</text>
-  <rect class="bt8u" x="520" y="98" width="200" height="34" rx="5"/>
-  <text class="bt8ink" x="620" y="120" text-anchor="middle">股票 B · 第 d 天</text>
-  <rect class="bt8u" x="520" y="140" width="200" height="34" rx="5"/>
-  <text class="bt8ink" x="620" y="162" text-anchor="middle">…… 每只股票每天一个</text>
-  <text class="bt8mut" x="620" y="203" text-anchor="middle">多日因子：往前多读 N 天预热</text>
-  <path class="bt8ln" d="M465 78 H496" marker-end="url(#bt8ah)"/>
-  <rect class="bt8d" x="500" y="258" width="240" height="56" rx="6"/>
-  <text class="bt8hd" x="620" y="281" text-anchor="middle">截面汇总（截面因子才要）</text>
-  <text class="bt8sm" x="620" y="301" text-anchor="middle">每个时刻几千只：排名、打分</text>
-  <path class="bt8ln" d="M640 220 V254" marker-end="url(#bt8ah)"/>
-  <rect class="bt8d" x="260" y="258" width="190" height="56" rx="6"/>
-  <text class="bt8hd" x="355" y="281" text-anchor="middle">因子值</text>
-  <text class="bt8sm" x="355" y="301" text-anchor="middle">按天存，给回测用</text>
-  <path class="bt8ln" d="M500 286 H454" marker-end="url(#bt8ah)"/>
-  <path class="bt8lp" d="M540 220 C 540 240 440 238 430 254" marker-end="url(#bt8ap)"/>
-  <text class="bt8mut" x="470" y="236" text-anchor="middle">单股票因子</text>
-  <rect class="bt8u" x="20" y="258" width="190" height="56" rx="6"/>
-  <text class="bt8hd" x="115" y="281" text-anchor="middle">按天逐值对账</text>
-  <text class="bt8sm" x="115" y="301" text-anchor="middle">和实盘录像重放比（4.1）</text>
-  <path class="bt8ln" d="M260 286 H214" marker-end="url(#bt8ah)"/>
-  <text class="bt8mut" x="380" y="344" text-anchor="middle">输入流按顺序读，只花带宽；每个任务的状态只有一只股票，放得进缓存。</text>
-</svg>
-
-1. **盘中和批量，慢在不同的地方**
-
-   | | 盘中逐条 | 批量回算 |
-   |---|---|---|
-   | 关心什么 | 一条行情从进来到算完多少微秒 | 全部数据算一遍要几小时、要几台机器 |
-   | 瓶颈 | 每条行情碰到的几次缓存缺失，延迟受限 | 内存带宽、磁盘 IO，带宽受限 |
-   | 缓存怎么用 | 让热数据一直留在缓存里 | 每份数据只从内存搬一次 |
-   | 热路径是什么 | 一条行情经过的那条调用链 | 最内层那个循环，跑几百亿次 |
-   | 怎么并行 | 按股票分片，一片绑一个核（[3.2](#shard)） | 按交易日切成任务，单股票因子再按股票切，分到多核、多机 |
-
-   - **量级**：全市场一天的逐笔约 1–3 亿条，一年几百亿条、TB 级。按交易日切开以后，一个任务是一天的全市场，输入还有几 GB 到十几 GB。
-   - **输入流不用装进缓存，要装下的是状态**：
-      - **输入流每条只用一次**：按顺序读，硬件预取跟得上，比缓存大多少都没关系，花的只是带宽。这一点盘中和批量一样。
-      - **状态每条都要随机去碰**：按股票代码找这只股票的盘口和因子状态，按委托号找原来那笔挂单。状态放不进缓存，每条行情的这几次访问就是缓存缺失，和盘中缓存案例里是同一种问题。
-   - **盘中不爆、批量爆，差在一个核要管多少状态**：盘中一片只管几百只股票，状态放得进缓存；批量一个任务要是一个线程处理一天的全市场，状态就是全市场的，光委托号哈希表就比 L3 大。
-
-2. **缓存照样决定快慢，只是用法变了：每份数据只从内存搬一次**
-   - **按顺序整段读**：硬件预取跟得上，这时卡的是内存带宽，不是延迟。
-   - **最浪费的是多遍扫**：每个因子各把整列扫一遍，还生成一堆中间数组，同一份数据从内存搬了几十次。
-   - **改成分块加融合**：读一块能放进缓存的数据，所有因子在这一块上一次算完，再读下一块。
-   - **带宽受限，就少搬字节**：只读要用的列（按列存储），字段用够用的最小类型，价格用整数分。
-   - **最内层循环就是批量的热路径**：跑几百亿次，每次省 1 ns 就是几十秒，所以数据布局、SIMD、分支这些照样有用。
-
-3. **中间结果分层存，别每次都从逐笔重来**
-   - **分层**：逐笔 → 合成订单簿和定时快照（[A 股行情第 5 节](/zh/ref/a-share-market/#book)）→ 公共中间量 → 因子。
-   - **最贵的一层只算一次**：合成订单簿要把逐笔从头推一遍，算好存下来，所有因子都从这一层读；新加一个因子，不用再碰逐笔。
-   - **代价是要管版本**：中间层改了，比如修了订单簿的一个 bug，它下游的所有因子都要重算，所以每一层要记是哪个版本算出来的。
-
-4. **并行按交易日切，多日窗口要往前多读几天**
-   - **天和天之间只差跨天的状态**：按交易日切成独立的任务，分到多核、多机。
-   - **用到前 N 天数据的因子，每块往前多读 N 天**：多读的这段只用来预热，不输出。
-   - **状态放不下，有两种办法**：
-      - **再按股票切**：先把一天的数据按股票重排存下来，这一步本身要全量扫一遍，放在中间层里只做一次（第 3 条）。之后每个任务是“一只股票的一天”，状态只有这一只的，放得进缓存，不再缺失。
-      - **往前看几条，提前预取状态**：批量的数据都在手上，处理第 i 条时就能看到第 i+8 条是哪只股票、哪笔委托，提前把它的状态预取进来，让几次缺失重叠起来（[缓存案例](/zh/posts/low-latency-cache-case-study/)里的做法）。盘中做不到，下一条还没来。
-      - **怎么选**：重排一次，后面所有因子都受益；预取不用改数据格式，但每个碰状态的地方都要改。
-   - **截面因子分两步**：先按股票算好每只的中间量，最后一步在每个时刻几千只股票的值上做排名、打分，这一步的数据很小。
-   - **多机要能单独重跑某一天**：哪天失败就重跑哪天；结果按天逐值比，用的就是[因子一致性第 1 节](/zh/ref/factor-consistency/#replay)的对账。
-
-5. **批量想向量化，一致想逐条增量**
-   - **整列向量化最快**：但运算顺序和实盘逐条增量不同，末位会差；窗口没满、NaN、跨天预热这些边界也容易写成两套。
-   - **逐条喂同一个 `on_tick` 最一致**：[因子一致性第 1 节](/zh/ref/factor-consistency/#replay)的保证直接成立，代价是用不上整列的向量化，速度靠按天并行和数据布局补回来。
-
-> **主要是顺序扫的数据，从哪几方面优化：少搬字节、少开流**
-> - **几趟循环合成一趟**：同一份数据过一遍，就把几个因子都算完，不要每个因子各扫一遍。这样搬的字节少了，同时在扫的流也少了。
-> - **按访问方式选布局**：每次只扫少数几列，就按列存（SoA）；每条记录的字段都要一起用，就按行存（AoS）。按行存时一条记录只算一个流，不会冒出几十个流。
-> - **数据类型缩小**：价格用 `int32` 按最小变动单位存，能用 `float` 的不用 `double`（要和实盘逐值对上的量别降精度）。字节减半，带宽压力也减半。
-> - **分块，让工作集留在 L2**：一大块数据要反复用几次，就切成能放进 L2 的小块，一块用完再换下一块，不要每次都从内存重新读。
-> - **用大页**：顺序扫每过一页就要查一次 TLB，大页让 TLB 缺失少得多。
-> - **卡在带宽上时，要么多核分摊，要么让每个字节多算点东西**：单核能用到的带宽有上限，因为一个核同时在途的缺失被 LFB 的项数卡住；多核能一直加到内存通道的峰值。
-
-> **按股票查状态慢，本质是访存延迟受限：随机访问比缓存大的工作集，缺失一次接一次地等**
-> - **和缓存案例是同一类瓶颈**：[缓存案例](/zh/posts/low-latency-cache-case-study/)里一次事件散着碰 128 条期权行，这里每条行情散着碰几只股票的状态。两边算得都很少，时间都花在等缺失上；地址要先读出来才知道下一步去哪（查哈希表、读股票记录），这一跳依赖也一样。
-> - **热点落在查找上**：`perf record` 排在前面的是 `find`、哈希、读状态的第一个字段，不是因子公式本身。
-> - **IPC 低、缺失多，带宽却没跑满**：IPC 低于 1、L1D 和 LLC 缺失率高，说明核在等数据；带宽没满，说明卡的是延迟，改布局、加预取有用。带宽已经满了，就该少搬字节（第 2 条）。
-> - **dTLB 缺失多**：状态散在太多页上，每次查找还要先走页表。
-> - **股票越多越慢，每条行情的工作量却没变**：工作集是股票数乘每只状态的大小，超过 L2 就开始掉出缓存。
-> - **按股票排好再喂明显更快**：同一份数据按时间交错着来就慢，差别只在局部性；冷门股每条特别慢，因为它的状态早被挤出缓存了。
-> - **改法分两个方向：先让缺失变少，再让剩下的缺失重叠起来**。前 4 条是让缺失变少，最后一条是让缺失重叠，缓存案例的批处理和预取走的是后一个方向：
->   - **热点在 `find`、哈希**：股票代码先映射成连续下标，状态放进按下标的数组。
->   - **每次只用到状态里几个字段**：冷热字段拆开，把结构体做小。
->   - **dTLB 缺失多**：状态数组用大页。
->   - **一个核放不下全部状态**：盘中按股票分片（[3.2](#shard)），批量按股票重排（第 4 条）。
->   - **这些都做完缺失还在，各条之间又互不依赖**：往前看几条，提前预取状态（第 4 条）。
-
-> **批量回算怎么选**
-> - **因子多、回算不算频繁**：批量也逐条喂同一个 `on_tick`，一份代码，一致性最省心。
-> - **某个因子回算特别重**：单写一套向量化的批量版，和增量版逐值对拍，容差按两边的运算顺序定。
-> - **不管选哪个**：批量结果都要和实盘录像重放的结果对上，才能拿去做研究。

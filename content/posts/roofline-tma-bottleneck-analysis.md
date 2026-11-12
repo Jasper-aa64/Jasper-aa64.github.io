@@ -151,7 +151,7 @@ The [perf special](/posts/low-latency-perf-profiling/) tells you which function 
    - **Merge several passes into one**: compute several factors in the same scan, so the data is read from memory once.
    - **Blocking**: let a block of data be used several times while it is in cache (1.3).
    - **Read with several cores**: one core can't saturate memory bandwidth (1.1).
-   - **Computing factors over whole-market tick data falls in this class**: each record of a few tens of bytes gets only a few operations, an intensity far below 1. The concrete steps are in the "sequentially scanned data" box of [trading architecture Part 8](/zh/ref/trading-architecture/#batch) (Chinese only for now).
+   - **Computing factors over whole-market tick data falls in this class**: each record of a few tens of bytes gets only a few operations, an intensity far below 1. The concrete steps are in the "sequentially scanned data" box of [factor production Part 3](/zh/ref/factor-production/#batch) (Chinese only for now).
 2. **Compute-bound: keep the execution units full**
    - **Vectorize**: one instruction handles 8 `float`s ([#15](/posts/simd-vectorization-intrinsics/)).
    - **Break dependency chains**: multiple accumulators, so several operations are in the execution units at once ([#9](/posts/loop-optimization/)).
