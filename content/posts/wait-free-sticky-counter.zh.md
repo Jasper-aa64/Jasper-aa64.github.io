@@ -167,6 +167,10 @@ lock-free 版遇到冲突就重试，直到自己的操作能干净地插进去�
 
 有两处细节。**acquire 要跟在决定认领的那次读后面，不能紧跟 `fetch_sub`。**窗口里计数可能被别人加回去、用一下对象、再减回 0：1.7 那个例子里，T1 在第 5 步认领，它要看到 T2 用对象时写的东西，把它和 T2 第 4 步那次 release 减 1 连起来的是 CAS 读到的值，不是 `fetch_sub` 读到的 1。钉零的 CAS 和 `exchange` 用 `relaxed`，也不会断开这条线：一次 release 写之后，同一个变量上的 RMW 不论用什么内存序，都接在它的 release sequence（释放序列）上。这个计数的所有修改都是 RMW，所以认领者读到最后的值，就和之前每一次 release 减 1 都同步了。
 
+把 1.7 那个例子里 T2 和 T1 的语句并排放，连上 release 到 acquire 的边（画法见 [#2 的 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)），第一处细节就看得见了：横边的终点是 T1 钉零的 CAS，T1 的 `fetch_sub` 太早，接不上。
+
+<a href="/images/wait-free-sticky-counter/edges.zh.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/edges.zh.svg" alt="左边是线程 T2：fetch_add 把 0 加回 1，写对象，fetch_sub 用 release 把 1 减回 0，之后 CAS 失败返回 false。右边是线程 T1：最早用 fetch_sub 把 1 减到 0，后来 CAS 读到 0、钉零成功，接着是 acquire 栅栏，返回 true，调用方 delete 对象。蓝色横边从 T2 的 release 减 1 连到 T1 的 CAS；CAS 和后面的栅栏合起来是一次 acquire。灰色竖边：T2 这边从写对象到 release，T1 这边从 CAS 到栅栏再到 delete。虚线表示 T2 的 release 连不到 T1 的 fetch_sub，因为那次读更早。" loading="lazy" decoding="async"></a>
+
 在 x86 上这些都不多花指令：带 `lock` 的 RMW 本身就是全屏障，acquire 栅栏只约束编译器，全写 `acq_rel` 和写成最弱的内存序生成的是同一份机器码。差别在 ARM 上：`ldaddal` 变成 `ldaddl`，只有认领者多一条 `dmb ishld`。
 
 ### 1.9 等不到时怎么办：自旋、让出、睡，还是失败返回
