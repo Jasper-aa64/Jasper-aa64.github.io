@@ -311,6 +311,14 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 
 `payload` 能安全地传过去，靠的只是 `ready` 上这一对 release/acquire。交易系统里的单生产者单消费者（SPSC）环形队列都是这个形状：一个原子下标负责同步，其余都是普通变量。
 
+> **别的线程写的东西看不看得到，只沿两种边传递**
+>
+> - **第一种边：同一个线程里，前一句到后一句**。
+> - **第二种边：一次 release 的写，到读到它的那次 acquire**。
+> - **边可以接起来**：上面的例子里，1 → 2 是第一种，2 → 3 是第二种，3 → 4 是第一种，所以第 4 步看得到第 1 步写的值。
+> - **原子变量自己被修改的先后不算边**：另一个线程更早改过同一个原子变量，只说明这个变量的值是按这个顺序变的，不说明它写的别的内存我看得到。
+> - **release 之后紧接着的 CAS、`fetch_add` 不会弄断第二种边**：它们是接着前一个值写的，算作那次 release 的延续，读到延续里的值也和那次 release 配对；普通的 `store` 是盲写，会弄断（[内存池 5.5](/zh/posts/hot-path-memory-allocators/#pool-ordering) 有一个 4 步的例子）。
+
 回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
 
 <iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
