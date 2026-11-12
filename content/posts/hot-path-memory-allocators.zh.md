@@ -467,7 +467,8 @@ class ConcurrentPool {
   template <typename... Args>
   T* allocate(Args&&... args) {
     // 1. 读栈顶的打包值（版本号 + 下标）
-    //    acquire：看得到上一个使用者释放时写下的内容和 next
+    //    acquire：和把这个槽压上栈的那次 CAS（release）配对，
+    //    压栈的线程在 CAS 之前写的东西（槽里的字节、next）这里都看得到
     std::uint64_t old = head_.load(std::memory_order_acquire);
     for (;;) {
       // 2. 拆出低 32 位：栈顶槽的下标；是 kNil 说明池用完了
@@ -542,6 +543,27 @@ class ConcurrentPool {
 
 - **分配时的读和 CAS 都用 acquire**：拿到槽的线程，要看得到上一个使用者释放前写进这个槽的内容，也要看得到释放时写下的 `next`。CAS 失败时会把最新的 `head` 读回 `old`，下一轮接着要读它的 `next`，所以失败的那一路也要 acquire。
 - **释放的 CAS 用 release**：这个槽里的写入和刚写下的 `next`，随着这次 CAS 一起发布给下一个拿到它的线程。
+
+**一个槽换手，是从释放它的线程交到下一个分配到它的线程手里**，所以配对的是 `deallocate` 的 release 和 `allocate` 的 acquire。释放的线程在 CAS 之前往这个槽里写过两样东西：
+
+- **`storage` 里的字节**：对象活着时写的成员，加上析构函数里的写。析构不会把这段字节清零。
+- **`next`**：`deallocate` 第 3 步写的，指向当时的栈顶。
+
+下一个线程拿到槽以后要读 `next`，还要在 `storage` 上构造新对象。没有这一对 release 和 acquire，两件事都没有保证：
+
+- **`next` 可能读到更早的值**：`head_` 已经指向这个槽，读到的 `next` 却是它上一次在栈上时的旧值。这时 `head_` 没有变过，第 5 步的 CAS 会成功，链表就接错了。版本号只筛得掉“读完以后栈顶又变了”，筛不掉这一种。
+- **`storage` 是普通内存**：两个线程先后写同一段字节，中间没有先后关系，就是数据竞争。
+
+**中间隔着别的线程的出栈也配得上**：槽 Y 被压上栈以后，别的线程先弹走了它上面的 X，`head_` 里指向 Y 的这个值是那次出栈的 CAS 写的，不是压 Y 的线程写的。这没有关系：`head_` 的每一次修改都是 CAS，一次 release 的 CAS 之后接着的 CAS 都算在它的 release 序列里，acquire 读到序列里任何一个值，都和打头的那次 release 配上对。
+
+**CAS 的两个内存序，前一个管成功，后一个管失败**。成功是一次“读、比较、写”，失败只是一次读：
+
+| | 成功 | 失败 |
+|---|---|---|
+| `deallocate` | release：把槽里的字节和 `next` 发布出去 | relaxed：读回来的新栈顶只当一个数用（写进 `next`、下一轮拿去比较），不去读它指的槽 |
+| `allocate` | acquire：和第 1 步读到的是同一个值，第 1 步已经配过对，这里写 acquire 只是不用再多想一层 | acquire：读回来的是新栈顶，下一轮马上要读它指的槽的 `next` |
+
+x86 上这几种写法编出来是同一条 `lock cmpxchg`，普通的读本来就有 acquire 的效果；区别出在 ARM 这类弱序的 CPU 上，以及编译器能不能把前后的读写挪过这条指令。
 
 `next` 单独放、做成 `std::atomic`，不和 `storage` 共用字节，是因为时刻 1 的线程 A 读 `X.next` 时，X 可能已经被别的线程拿走、正在往 `storage` 里构造对象。两者分开，这次读就不是数据竞争；读到的旧值会随着失败的 CAS 被丢掉。
 
