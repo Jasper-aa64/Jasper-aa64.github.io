@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 482" width="1100" height="482" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.p{font-size:14px;font-weight:700;fill:#1f2328}.c{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;fill:#1f2328}.n{font-size:12px;fill:#57606a}.bw{font-size:12px;font-weight:700;fill:#ffffff}.l{font-size:12.5px;fill:#1f2328}.lb{font-size:12.5px;font-weight:700;fill:#1f2328}</style></defs>
+<rect x="0" y="0" width="1100" height="482" fill="#ffffff"/>
+<text class="h" x="20" y="32">A 放手前对对象的写，一定排在 B 销毁对象之前</text>
+<text class="s" x="20" y="54">计数从 2 开始，线程 A 和 B 各调一次 decrement()。白底是 decrement() 里的代码，黄底是调用方的代码：obj 是这个计数管着的对象。</text>
+<text class="s" x="20" y="74">时刻是全局先后。蓝色是横边，灰色是竖边。</text>
+<rect x="20" y="84" width="500" height="196" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<rect x="580" y="84" width="500" height="196" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<rect x="44" y="166" width="466" height="22" rx="5" fill="#ddf4ff" stroke="#2a78d6"/>
+<rect x="604" y="166" width="466" height="48" rx="5" fill="#ddf4ff" stroke="#2a78d6"/>
+<text class="p" x="36" y="104">线程 A：不是最后一个放手的</text>
+<rect x="44" y="113" width="466" height="24" fill="#fff8c5"/>
+<rect x="44" y="139" width="466" height="24" fill="#fff8c5"/>
+<text class="c" x="50" y="130">obj-&gt;x = 42;</text>
+<text class="n" x="424" y="130">时刻 1</text>
+<text class="c" x="50" y="156">cnt.decrement();</text>
+<text class="n" x="424" y="156">返回 false</text>
+<text class="c" x="65" y="182">if (n.fetch_sub(1, release) != 1) return false;</text>
+<text class="n" x="424" y="182">时刻 2：2 → 1</text>
+<text class="p" x="596" y="104">线程 B：最后一个放手的，负责销毁对象</text>
+<rect x="604" y="139" width="466" height="24" fill="#fff8c5"/>
+<rect x="604" y="243" width="466" height="24" fill="#fff8c5"/>
+<text class="c" x="610" y="156">if (cnt.decrement())</text>
+<text class="n" x="984" y="156">返回 true</text>
+<text class="c" x="625" y="182">if (n.fetch_sub(1, release) != 1) return false;</text>
+<text class="n" x="984" y="182">时刻 3：1 → 0</text>
+<text class="c" x="625" y="208">atomic_thread_fence(acquire);</text>
+<text class="n" x="984" y="208">时刻 4</text>
+<text class="c" x="625" y="234">return true;</text>
+<text class="c" x="610" y="260">delete obj;</text>
+<text class="n" x="984" y="260">时刻 5</text>
+<rect x="180" y="117" width="130" height="20" rx="10" fill="#bc4c00"/>
+<text class="bw" x="245" y="131" text-anchor="middle">写 ① 对象里的内容</text>
+<rect x="740" y="247" width="130" height="20" rx="10" fill="#bc4c00"/>
+<text class="bw" x="805" y="261" text-anchor="middle">读、写 ① 的内容</text>
+<line x1="34" y1="126" x2="34" y2="176" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="594" y1="180" x2="594" y2="256" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<path d="M510,177 H598" fill="none" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
+<line x1="24" y1="310" x2="64" y2="310" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
+<text class="l" x="74" y="314"><tspan class="lb">横边</tspan>：A 的 release 减 1，到读到它写下的值的那次操作，也就是 B 的 fetch_sub（读到 1）。</text>
+<line x1="24" y1="336" x2="64" y2="336" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<text class="l" x="74" y="340"><tspan class="lb">竖边</tspan>：同一个线程里，前一句到后一句。蓝框里两句合起来是一次 acquire：fetch_sub 读到值，后面跟一道 acquire 栅栏。</text>
+<text class="l" x="24" y="368"><tspan class="lb">内存序护的就是这一条线</tspan>：写 ① → 竖边 → A 的 release → 横边 → B 的 fetch_sub → 竖边 → 栅栏 → delete obj。</text>
+<text class="l" x="24" y="394"><tspan class="lb">结果是一个先后</tspan>：A 在时刻 1 的写，排在 B 在时刻 5 的销毁之前。少了这条线，两者构成数据竞争，析构可能看到写了一半的对象。</text>
+<text class="l" x="24" y="420"><tspan class="lb">每次减 1 都带 release</tspan>：减的时候不知道自己是不是最后一个。B 自己那次 release 没有人接，白做。</text>
+<text class="l" x="24" y="446"><tspan class="lb">只有拿到 1 的线程走到栅栏</tspan>：只有它要销毁对象，A 这样返回 false 的线程不付 acquire 的钱。</text>
+<text class="l" x="24" y="472"><tspan class="lb">线程更多时也成立</tspan>：计数的修改都是 RMW，B 读到的值接在之前每一次 release 减 1 后面（release sequence，见 1.4）。</text>
+</svg>

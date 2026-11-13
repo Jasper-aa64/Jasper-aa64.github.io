@@ -66,6 +66,12 @@ struct LockFreeStickyCounter {
 
 实际里争得不凶时，一次 CAS 就成功，这个版本很轻。要防的是尾部：很多核一起加减同一个计数时，个别线程会重试很多次，对 P99.9 敏感的地方，这就是风险。
 
+`decrement()` 里的两个内存序只护一件事：**放手的线程对对象做过的写，要排在最后一个线程销毁对象之前**。计数器里没有一行代码碰对象，可每个线程放手前都可能写过它；最后一个线程减到 0 以后要 `delete`，析构必须看到这些写已经完成。所以每次减 1 都用 release，把自己之前的写发布出去；减到 0 的线程（`fetch_sub` 返回 1）再加一道 acquire 栅栏，接上前面的 release。两个线程各放手一次，画出来是这样（画法见 [#2 的 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)）：
+
+<a href="/images/wait-free-sticky-counter/release-acquire.zh.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/release-acquire.zh.svg" alt="计数从 2 开始，两个线程各调一次 decrement()。左边线程 A：调用方先写对象 obj->x = 42，再调 decrement()，里面 fetch_sub 用 release 把 2 减成 1，返回 false。右边线程 B：decrement() 里 fetch_sub 用 release 把 1 减成 0，接着 acquire 栅栏，返回 true，调用方 delete obj。蓝色横边从 A 的 release 减 1 连到 B 的 fetch_sub；B 的 fetch_sub 和栅栏合起来是一次 acquire。灰色竖边：A 这边从写对象到 release，B 这边从 fetch_sub 到栅栏再到 delete。" loading="lazy" decoding="async"></a>
+
+栅栏单独放在返回 `true` 的路径上，是为了让不销毁的线程少做一点事。写成 `fetch_sub(1, std::memory_order_acq_rel)` 效果一样，只是每次减 1 都带上 acquire。
+
 ### 1.4 wait-free 版：先做，再看旧值
 
 去掉循环的办法是：不先判断再改，而是无条件地改，再看改之前是什么。要做到这一点，计数里得带着“已经归零了没有”这个状态，所以借两个高位当标志：
