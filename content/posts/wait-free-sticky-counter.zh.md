@@ -68,7 +68,10 @@ struct LockFreeStickyCounter {
 
 `decrement()` 里的两个内存序只护一件事：**放手的线程对对象做过的写，要排在最后一个线程销毁对象之前**。计数器里没有一行代码碰对象，可每个线程放手前都可能写过它；最后一个线程减到 0 以后要 `delete`，析构必须看到这些写已经完成。所以每次减 1 都用 release，把自己之前的写发布出去；减到 0 的线程（`fetch_sub` 返回 1）再加一道 acquire 栅栏，接上前面的 release。两个线程各放手一次，画出来是这样（画法见 [#2 的 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)）：
 
-<a href="/images/wait-free-sticky-counter/release-acquire.zh.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/release-acquire.zh.svg" alt="计数从 2 开始，两个线程各调一次 decrement()。左边线程 A：调用方先写对象 obj->x = 42，再调 decrement()，里面 fetch_sub 用 release 把 2 减成 1，返回 false。右边线程 B：decrement() 里 fetch_sub 用 release 把 1 减成 0，接着 acquire 栅栏，返回 true，调用方 delete obj。蓝色横边从 A 的 release 减 1 连到 B 的 fetch_sub；B 的 fetch_sub 和栅栏合起来是一次 acquire。灰色竖边：A 这边从写对象到 release，B 这边从 fetch_sub 到栅栏再到 delete。" loading="lazy" decoding="async"></a>
+<img src="/images/wait-free-sticky-counter/release-acquire.zh.svg" alt="计数从 2 开始，两个线程各调一次 decrement()。左边线程 A：调用方先写对象 obj->x = 42，再调 decrement()，里面 fetch_sub 用 release 把 2 减成 1，返回 false。右边线程 B：decrement() 里 fetch_sub 用 release 把 1 减成 0，接着 acquire 栅栏，返回 true，调用方 delete obj。蓝色横边从 A 的 release 减 1 连到 B 的 fetch_sub；B 的 fetch_sub 和栅栏合起来是一次 acquire。灰色竖边：A 这边从写对象到 release，B 这边从 fetch_sub 到栅栏再到 delete。" loading="lazy" decoding="async">
+
+- **B 自己那次 release 没有人接**：减的时候不知道自己是不是最后一个，所以每次都得带上；最后一个线程的这次是白做的。
+- **线程更多时也成立**：计数的修改都是 RMW，B 读到的值接在之前每一次 release 减 1 后面（release sequence，1.4 细说），所以 B 和每一个先放手的线程都连上了。
 
 栅栏单独放在返回 `true` 的路径上，是为了让不销毁的线程少做一点事。写成 `fetch_sub(1, std::memory_order_acq_rel)` 效果一样，只是每次减 1 都带上 acquire。
 
@@ -128,7 +131,9 @@ struct WaitFreeStickyCounter {
 
 把 1.7 那个例子里 T2 和 T1 各自走过的代码并排放，连上 release 到 acquire 的边（画法见 [#2 的 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)），第一处细节就看得见了：横边的终点是 T1 钉零的 CAS，T1 的 `fetch_sub` 太早，接不上。图里黄底的几句是调用方的代码，不在计数器里：`obj` 是这个计数管着的对象，`obj->x = 42` 代表 T2 放手之前对它的任意一次写，`delete obj` 是拿到 `true` 的线程销毁它。
 
-<a href="/images/wait-free-sticky-counter/edges.zh.svg" target="_blank" rel="noopener"><img src="/images/wait-free-sticky-counter/edges.zh.svg" alt="两个线程各调一次 decrement()。左边是线程 T2：调用方先 increment_if_not_zero() 把 0 加回 1，写对象 obj->x = 42，再调 decrement()；decrement() 里 fetch_sub 用 release 把 1 减回 0，之后 CAS 失败，返回 false。右边是线程 T1：decrement() 里最早用 fetch_sub 把 1 减到 0，后来 CAS 读到 0、钉零成功，接着是 acquire 栅栏，返回 true，调用方 delete obj。蓝色横边从 T2 的 release 减 1 连到 T1 的 CAS；CAS 和后面的栅栏合起来是一次 acquire。灰色竖边：T2 这边从写对象到 release，T1 这边从 CAS 到栅栏再到 delete。虚线表示 T2 的 release 连不到 T1 的 fetch_sub，因为那次读更早。" loading="lazy" decoding="async"></a>
+<img src="/images/wait-free-sticky-counter/edges.zh.svg" alt="两个线程各调一次 decrement()。左边是线程 T2：调用方先 increment_if_not_zero() 把 0 加回 1，写对象 obj->x = 42，再调 decrement()；decrement() 里 fetch_sub 用 release 把 1 减回 0，之后 CAS 失败，返回 false。右边是线程 T1：decrement() 里最早用 fetch_sub 把 1 减到 0，后来 CAS 读到 0、钉零成功，接着是 acquire 栅栏，返回 true，调用方 delete obj。蓝色横边从 T2 的 release 减 1 连到 T1 的 CAS；CAS 和后面的栅栏合起来是一次 acquire。灰色竖边：T2 这边从写对象到 release，T1 这边从 CAS 到栅栏再到 delete。虚线表示 T2 的 release 连不到 T1 的 fetch_sub，因为那次读更早。" loading="lazy" decoding="async">
+
+- **T2 的 `increment_if_not_zero()` 没有边通到**：里面是 `relaxed` 的 `fetch_add`。T2 之后能用对象，靠的是它拿到 `obj` 这个指针时已有的同步，不靠这次加 1。
 
 在 x86 上这些都不多花指令：带 `lock` 的 RMW 本身就是全屏障，acquire 栅栏只约束编译器，全写 `acq_rel` 和写成最弱的内存序生成的是同一份机器码。差别在 ARM 上：`ldaddal` 变成 `ldaddl`，只有认领者多一条 `dmb ishld`。
 

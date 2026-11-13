@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 500" width="1100" height="500" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 384" width="1100" height="384" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
 <defs><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.p{font-size:14px;font-weight:700;fill:#1f2328}.c{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;fill:#1f2328}.n{font-size:12px;fill:#57606a}.bw{font-size:12px;font-weight:700;fill:#ffffff}.l{font-size:12.5px;fill:#1f2328}.lb{font-size:12.5px;font-weight:700;fill:#1f2328}</style></defs>
-<rect x="0" y="0" width="1100" height="500" fill="#ffffff"/>
+<rect x="0" y="0" width="1100" height="384" fill="#ffffff"/>
 <text class="h" x="20" y="32">把两边的代码并排放，连 release 到 acquire 的边</text>
 <text class="s" x="20" y="54">内存池的 deallocate 和 allocate（代码有删减）。蓝色是横边，灰色是竖边；一处跨线程的读写，从对方的写沿着边走得到，才看得到。</text>
 <rect x="20" y="68" width="500" height="296" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
@@ -45,10 +45,4 @@
 <line x1="594" y1="116" x2="594" y2="322" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
 <path d="M374,269 H520 C556,269 548,113 588,113" fill="none" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
 <path d="M520,269 C556,269 552,295 588,295" fill="none" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
-<line x1="24" y1="392" x2="64" y2="392" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
-<text class="l" x="74" y="396"><tspan class="lb">横边</tspan>：一次 release 的写，到读到它的那次 acquire。跨线程，只在同一个原子变量（这里是 head_）上连。</text>
-<line x1="24" y1="418" x2="64" y2="418" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
-<text class="l" x="74" y="422"><tspan class="lb">竖边</tspan>：同一个线程里，前一句到后一句。release 上面是发布出去的写，acquire 下面是用到它们的读写。</text>
-<text class="l" x="24" y="450"><tspan class="lb">走一遍</tspan>：写 ② → 竖边 → release → 横边 → acquire → 竖边 → 读 ②，走得通，所以 B 读到的 next 是 A 写的那个。① 同理。</text>
-<text class="l" x="24" y="476"><tspan class="lb">没有边通到的读</tspan>：必须读的是原子变量，而且读到旧值也不出错。A 的两处读回来的 old 只当一个数用，不顺着它去读别的槽。</text>
 </svg>

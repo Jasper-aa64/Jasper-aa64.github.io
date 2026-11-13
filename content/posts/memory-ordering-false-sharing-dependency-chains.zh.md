@@ -329,7 +329,7 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 
 [内存池 5.4](/zh/posts/hot-path-memory-allocators/#tagged-head) 的 `deallocate` 和 `allocate` 画出来是这样：
 
-<a href="/images/memory-ordering/edges.zh.svg" target="_blank" rel="noopener"><img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async"></a>
+<img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async">
 
 回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
 

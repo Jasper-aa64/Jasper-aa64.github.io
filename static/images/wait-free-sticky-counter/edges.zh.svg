@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 556" width="1100" height="556" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 348" width="1100" height="348" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
 <defs><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.p{font-size:14px;font-weight:700;fill:#1f2328}.c{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;fill:#1f2328}.n{font-size:12px;fill:#57606a}.bw{font-size:12px;font-weight:700;fill:#ffffff}.l{font-size:12.5px;fill:#1f2328}.lb{font-size:12.5px;font-weight:700;fill:#1f2328}</style></defs>
-<rect x="0" y="0" width="1100" height="556" fill="#ffffff"/>
+<rect x="0" y="0" width="1100" height="348" fill="#ffffff"/>
 <text class="h" x="20" y="32">认领的线程从哪次读接上 release：是钉零的 CAS，不是 fetch_sub</text>
 <text class="s" x="20" y="54">两个线程各调一次 decrement()，白底是 decrement() 里的代码（有删减）。黄底是调用方的代码，不在计数器里：obj 是这个计数管着的对象。</text>
-<text class="s" x="20" y="74">步骤号是 1.7 那个例子里的全局先后。蓝色是横边，灰色是竖边。</text>
+<text class="s" x="20" y="74">步骤号是 1.7 那个例子里的全局先后。蓝色是横边，灰色是竖边；蓝框里的两句合起来是一次 acquire：先有一次读到值的操作，后面跟一道 acquire 栅栏。</text>
 <rect x="20" y="84" width="500" height="244" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
 <rect x="580" y="84" width="500" height="244" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
 <rect x="44" y="192" width="466" height="22" rx="5" fill="#ddf4ff" stroke="#2a78d6"/>
@@ -47,12 +47,4 @@
 <path d="M510,203 H588" fill="none" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
 <path d="M522,203 C552,203 550,151 586,151" fill="none" stroke="#57606a" stroke-width="1.5" stroke-dasharray="5 4"/>
 <text x="549" y="183" text-anchor="middle" style="fill:#cf222e;font-size:15px;font-weight:700">✕</text>
-<line x1="24" y1="358" x2="64" y2="358" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
-<text class="l" x="74" y="362"><tspan class="lb">横边</tspan>：T2 的 release 减 1，到读到它写的 0 的那次操作，也就是 T1 钉零的 CAS。CAS 自己是 relaxed 也算数。</text>
-<line x1="24" y1="384" x2="64" y2="384" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
-<text class="l" x="74" y="388"><tspan class="lb">竖边</tspan>：同一个线程里，前一句到后一句。蓝框里两句合起来是一次 acquire：先有一次读到值的操作，后面跟一道 acquire 栅栏。</text>
-<text class="l" x="24" y="416"><tspan class="lb">内存序护的是黄底的两句</tspan>：计数器里没有一行代码碰对象。T2 放手前写了对象，T1 最后要销毁它，T1 得先看得到 T2 写的内容。</text>
-<text class="l" x="24" y="442"><tspan class="lb">走一遍</tspan>：写 ① → 竖边 → T2 的 release → 横边 → T1 的 CAS → 竖边 → 栅栏 → delete obj，走得通。</text>
-<text class="l" x="24" y="468"><tspan class="lb">虚线连不上</tspan>：T1 的 fetch_sub 在步骤 1，T2 的 release 在步骤 4，早的读读不到晚的写。栅栏紧跟 fetch_sub 的话，T1 接不上 T2。</text>
-<text class="l" x="24" y="494"><tspan class="lb">没有边通到</tspan>：T2 的 increment_if_not_zero()（里面是 relaxed 的 fetch_add）。T2 之后能用对象，靠的是它拿到 obj 这个指针时已有的同步。</text>
 </svg>
