@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 11541)
-Total output lines: 484
-
 ---
 title: "STL 容器的底层：vector、deque、list、hive、map、unordered_map"
 date: 2026-11-02
@@ -212,7 +209,89 @@ libstdc++ 每次翻倍，MSVC 每次乘 1.5。**按倍数长，而不是每次�
 
 ```cpp
 std::vector<int> v{1, 2, 3, 4, 5, 6};
-for (au…1541 tokens truncated…"34" height="26"/>
+for (auto it = v.begin(); it != v.end();) {
+    if (*it % 2 == 0) it = v.erase(it);   // erase 返回被删元素的下一个
+    else ++it;
+}
+// v = 1 3 5
+std::erase_if(v, [](int x) { return x % 2 == 0; });   // C++20 一句搞定
+```
+
+这种写法每删一个就把后面整体挪一次，删得多时是 O(n²)；`std::erase_if`（C++20 之前是 `remove_if` 加 `erase`）只把留下的元素往前挪一遍，O(n)。同样的循环写法对 `map`、`list` 也成立，实测删掉 `map` 里的偶数 key 后剩 `1 3`。
+
+### 1.4 clear 不还内存，shrink_to_fit 才还 {#vector-shrink}
+
+`clear()` 和 `resize(10)` 只是把 `end` 往回挪，容量不变，内存还占着。实测一个容量 1000 的 `vector`，`resize(10)` 以后容量仍是 1000，`shrink_to_fit()` 以后变成 10。标准只把 `shrink_to_fit` 定为“请求”，libstdc++ 的做法是分配一块刚好够的新内存、把元素搬过去。
+
+`std::vector<bool>` 是个例外：它把每个 `bool` 压成 1 位，`v[i]` 返回的是一个代理对象而不是 `bool&`，所以拿不到元素的地址，也不能当普通容器用在要求真引用的地方。
+
+## 2. deque、list、forward_list：不连续的几种
+
+### 2.1 deque：一串固定大小的块 {#deque}
+
+`deque` 想要两头都能 O(1) 插入，又保留下标访问。它把元素存在一个个固定大小的块里（libstdc++ 每块 512 字节，`int` 就是 128 个），再用一个中控数组（map）记各块的地址。`sizeof(std::deque<int>)` 是 80：中控数组的指针和大小，加上指向首尾的两个迭代器，每个迭代器自己要记 4 个指针。
+
+<svg viewBox="0 0 760 266" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="deque 的中控数组有 5 格，中间 3 格指向 3 个固定大小的块；第一块右边 3 格有元素，第二块满，第三块左边 5 格有元素；push_front 往第一块左边的空位放，push_back 往第三块右边的空位放" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .st1bg  { fill: #fbfaf7; }
+    .st1map { fill: #eef1f4; stroke: #b9c2cc; stroke-width: 1.3; }
+    .st1on  { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.2; }
+    .st1off { fill: none; stroke: #b9c2cc; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    .st1ink { fill: #1c1b18; font-size: 12.5px; }
+    .st1mut { fill: #6b6558; font-size: 12px; }
+    .st1ttl { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .st1ln  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .st1hd  { fill: #6b6558; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1bg { fill: #17161b; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1map { fill: #23262c; stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1on { fill: #33421f; stroke: #8fb257; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1off { stroke: #3f4650; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1ink, :root:is([data-theme="dark"], [data-theme="black"]) .st1ttl { fill: #e9e7ef; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1mut { fill: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1ln { stroke: #a19caf; }
+    :root:is([data-theme="dark"], [data-theme="black"]) .st1hd { fill: #a19caf; }
+  </style>
+  <defs><marker id="st1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="st1hd"/></marker></defs>
+  <rect class="st1bg" x="0" y="0" width="760" height="266" rx="10"/>
+  <text class="st1ttl" x="40" y="38">中控数组 map</text>
+  <text class="st1ttl" x="200" y="38">固定大小的块（libstdc++：512 字节一块）</text>
+  <rect class="st1map" x="40" y="56" width="90" height="30"/>
+  <text class="st1mut" x="85" y="76" text-anchor="middle">空</text>
+  <rect class="st1map" x="40" y="88" width="90" height="30"/>
+  <text class="st1ink" x="85" y="108" text-anchor="middle">块地址</text>
+  <rect class="st1map" x="40" y="120" width="90" height="30"/>
+  <text class="st1ink" x="85" y="140" text-anchor="middle">块地址</text>
+  <rect class="st1map" x="40" y="152" width="90" height="30"/>
+  <text class="st1ink" x="85" y="172" text-anchor="middle">块地址</text>
+  <rect class="st1map" x="40" y="184" width="90" height="30"/>
+  <text class="st1mut" x="85" y="204" text-anchor="middle">空</text>
+  <path class="st1ln" d="M130,103 L197,103" marker-end="url(#st1a)"/>
+  <path class="st1ln" d="M130,135 L197,135" marker-end="url(#st1a)"/>
+  <path class="st1ln" d="M130,167 L197,167" marker-end="url(#st1a)"/>
+  <rect class="st1off" x="200" y="90" width="34" height="26"/>
+  <rect class="st1off" x="236" y="90" width="34" height="26"/>
+  <rect class="st1off" x="272" y="90" width="34" height="26"/>
+  <rect class="st1off" x="308" y="90" width="34" height="26"/>
+  <rect class="st1off" x="344" y="90" width="34" height="26"/>
+  <rect class="st1on" x="380" y="90" width="34" height="26"/>
+  <rect class="st1on" x="416" y="90" width="34" height="26"/>
+  <rect class="st1on" x="452" y="90" width="34" height="26"/>
+  <rect class="st1on" x="200" y="122" width="34" height="26"/>
+  <rect class="st1on" x="236" y="122" width="34" height="26"/>
+  <rect class="st1on" x="272" y="122" width="34" height="26"/>
+  <rect class="st1on" x="308" y="122" width="34" height="26"/>
+  <rect class="st1on" x="344" y="122" width="34" height="26"/>
+  <rect class="st1on" x="380" y="122" width="34" height="26"/>
+  <rect class="st1on" x="416" y="122" width="34" height="26"/>
+  <rect class="st1on" x="452" y="122" width="34" height="26"/>
+  <rect class="st1on" x="200" y="154" width="34" height="26"/>
+  <rect class="st1on" x="236" y="154" width="34" height="26"/>
+  <rect class="st1on" x="272" y="154" width="34" height="26"/>
+  <rect class="st1on" x="308" y="154" width="34" height="26"/>
+  <rect class="st1on" x="344" y="154" width="34" height="26"/>
+  <rect class="st1off" x="380" y="154" width="34" height="26"/>
+  <rect class="st1off" x="416" y="154" width="34" height="26"/>
+  <rect class="st1off" x="452" y="154" width="34" height="26"/>
   <text class="st1mut" x="504" y="107">push_front：放进这块左边的空位</text>
   <text class="st1mut" x="504" y="171">push_back：放进这块右边的空位</text>
   <text class="st1mut" x="40" y="236">块满了就再分配一块、在 map 里记一个地址，已有元素一个都不用搬，所以两端插入不让元素的引用失效。</text>
@@ -402,4 +481,3 @@ libstdc++ 的 `sizeof(std::string)` 是 32：指针、长度，再加一块 16 �
 **默认用 `vector`。** 连续内存对缓存最友好，几千个元素以内，中间插入要挪一半元素，也往往比链表“只改两个指针”还快，因为链表那 O(1) 之前先要 O(n) 地一个个节点走到插入位置。真正适合 `list` 的，是手里已经握着节点位置、要频繁在中间摘挂节点，并且需要别的迭代器不失效的场景，比如 LRU。
 
 `map` 和 `unordered_map` 之间看要不要顺序：要按 key 排序遍历、要找“比 x 大的第一个”、要范围查询，用 `map`；只按 key 查，用 `unordered_map`，平均 O(1)，但要付 rehash 的停顿和哈希函数的质量风险，而且每个节点也是一次堆分配。key 很少（几十个以内）时，排好序的 `vector` 加二分查找常常比两者都快。
-
