@@ -1,9 +1,10 @@
 ---
-title: "STL 容器的底层：vector、deque、list、map、unordered_map"
+title: "STL 容器的底层：vector、deque、list、hive、map、unordered_map"
 date: 2026-11-02
+lastmod: 2026-11-15
 slug: "stl-containers"
-description: "常用的 STL 容器在内存里是什么样：vector 是三个指针管着一块连续内存，容量用完就翻倍搬家；deque 是一串固定大小的块加一个中控数组；list 每个元素一个节点；map 是红黑树；unordered_map 是桶加链表，元素多了就 rehash。由此推出各自的复杂度、迭代器什么时候失效、怎么选，以及 list、map、unordered_map 这些节点式容器为什么慢（pointer chasing：每一步要读的地址都得等上一步读回来），priority_queue、string 的短字符串优化和 std::sort。数字都是 GCC 16.2 libstdc++ 上实测的。"
-summary: "容器的复杂度和迭代器失效规则都不用背，从它在内存里的样子就能推出来：连续内存的 vector 搬家时一切都失效，节点式的 list、map 只有被删的那个失效，unordered_map rehash 时迭代器失效、引用不失效。"
+description: "常用的 STL 容器在内存里是什么样：vector 是三个指针管着一块连续内存，容量用完就翻倍搬家；deque 是一串固定大小的块加一个中控数组；list 每个元素一个节点；C++26 的 hive 用分块存储稳定保留存活元素的地址；map 是红黑树；unordered_map 是桶加链表，元素多了就 rehash。由此推出各自的复杂度、迭代器什么时候失效、怎么选，以及节点式容器为什么慢（pointer chasing：每一步要读的地址都得等上一步读回来），priority_queue、string 的短字符串优化和 std::sort。数字都是 GCC 16.2 libstdc++ 上实测的。"
+summary: "容器的复杂度和迭代器失效规则都不用背，从内存布局就能推出来：vector 连续但可能搬家，list 节点地址稳定却分散；C++26 的 hive 用分块存储，让增删时其他存活元素的地址保持稳定，但它不连续、也没有随机访问。"
 toc: true
 math: true
 group: cpplinux
@@ -304,6 +305,40 @@ std::erase_if(v, [](int x) { return x % 2 == 0; });   // C++20 一句搞定
 `std::list` 是双向链表：每个元素单独 `new` 一个节点，节点里除了元素还有 `prev`、`next` 两个指针。`sizeof(std::list<int>)` 是 24：一个哨兵节点的两个指针，加上一个计数（C++11 起 `size()` 必须是 O(1)，所以把个数存了下来）。`forward_list` 是单向链表，`sizeof` 只有 8，连 `size()` 都不提供，为的就是比手写的单链表不多花一个字节。
 
 链表的长处是在已知位置插入、删除是 O(1)，而且不碰别的元素，所以除了被删的那个，迭代器永远有效；`splice` 能把节点从一个链表摘到另一个链表，不分配也不拷贝（[LRU 缓存](/zh/ref/lru-cache/)就靠它）。短处在内存：每个元素一次堆分配，节点散在堆上各处，顺序遍历时每走一步都可能是一次缓存未命中（[第 5 节](#pointer-chasing)）。`std::sort` 要随机访问迭代器，链表用不了，所以 `list` 自带一个成员函数 `sort()`，用归并排序。
+
+### 2.3 `std::hive`：分块存储，稳定存活元素的地址 {#hive}
+
+C++26 新增的 `std::hive`（提案 P0447，源自 `plf::colony`）也把元素放在多个内存块中，但它解决的问题和 `deque` 不同：它面向**元素会频繁增删，同时其他代码要保留存活元素地址**的场景。
+
+| 容器 | 存储形状 | 插入、删除时的取舍 |
+|---|---|---|
+| `vector` | 一整块连续内存 | 遍历局部性好；扩容搬家，中间插入或删除会移动后续元素 |
+| `deque` | 多个定长块，加中控数组 | 两端插入不搬元素，中间操作仍要移动；支持随机访问 |
+| `list` | 每个元素单独一个链表节点 | 节点地址稳定、已知位置增删便宜；节点分散，遍历要追指针 |
+| `hive` | 多个装元素的内存块，块内有 skipfield | 增删不移动其他存活元素；遍历跨过空槽，但不连续、也不支持随机访问 |
+
+删除 `hive` 中的元素时，对象在原槽位析构，其他元素不搬动。skipfield 记录连续空槽，迭代器遍历时可以跳过它们；之后插入可复用空槽，没有合适空槽时才需要分配新块。具体 skipfield 表示由实现决定，标准不保证“无分支遍历”或“插入零分配”。
+
+```cpp
+#include <hive>
+
+struct Order {
+  int id;
+  int price;
+  int quantity;
+};
+
+std::hive<Order> active_orders;
+auto it = active_orders.emplace(Order{42, 101'250, 8});
+Order* stable_address = &*it;
+
+active_orders.emplace(Order{43, 101'200, 3});
+// 其他订单插入或删除时，id 为 42 的存活对象不会被搬动。
+```
+
+例如 OMS 可以用 `std::hive<Order>` 管理活跃订单对象，再用 `order_id -> Order*` 的索引按 ID 查找。撤单时要同时删掉索引项；订单自身从 hive 删除后，指向它的指针就不能再用。`hive` 不保留插入顺序，不提供 `operator[]`、`data()` 或随机访问迭代器，所以它不是 `vector` 的替代品；它更像是在 `list` 的地址稳定性和分块存储的遍历局部性之间作出的另一种取舍。实际性能仍要按对象大小、删除比例和访问模式测量。
+
+参考：[WG21 P0447R27：Introduction of `std::hive` to the standard library](https://www.open-std.org/jtc1/sc22/WG21/docs/papers/2024/p0447r27.html)。
 
 ## 3. map 和 set：红黑树 {#map}
 
