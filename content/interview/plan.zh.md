@@ -1,65 +1,72 @@
 ---
 title: "IV：本周计划：sec，11-17 到 11-20"
 date: 2026-11-16
-lastmod: 2026-11-16
+lastmod: 2026-11-17
 slug: "plan"
-description: "fir 过了，sec 周五 17:30。面试官最在意的是“代码是不是你自己写的”，fir 里简历上每一条都答得像不是自己写的。这四天只做两件事：简历上每一条都能从空白写出代码，每一题都能一句话说清。"
+description: "fir 过了，sec 周五 17:30。面试官最在意的是“代码是不是你自己写的”，fir 里简历上每一条都答得像不是自己写的。这四天要做到：简历上每一条都能从空白写出代码，每一题都能一句话说清。"
 weight: -1
 toc: true
 ---
 
 这一页是 sec 前四天的清单：周二 11-17 到周五 11-20，**sec 周五 17:30–18:30**。上一周的清单（11-11 到 11-16，fir 前）被这一页替换了。
 
+**每天打开先看[第 5 节](#days)**：当天写什么、说什么都在那一行；写的东西在[第 3 节](#handwrite)打勾，说的东西照[第 4 节](#cards)。
+
 > **fir 的反馈，原话整理**
 >
 > - **“经历非常相关，但表达很多地方比较模糊，让我不确定你是真的理解，还是真的做过。”**
 > - **“我只想听一句话，一个原因，最多三个原因。前因后果我不 care。”**
 > - **“伪共享是什么，一句话；怎么解决，align；两句话说完，我就知道你肯定做过。”**
-> - **面试官说 sec 会关注这些东西**：所以 fir 问过的题，sec 很可能原题再问。
->
-> **面试官真正在意的是代码是不是你自己写的。** fir 里简历上的每一条都答得像不是自己写的：SPSC 说“看着代码能讲，手写不易”，LRU 换了题，SPMC 的读写进度、跨进程下标、内存序每问都要停半分钟，回测系统怎么搭的答不上。
+
+**面试官真正在意的是代码是不是你自己写的。** fir 里简历上的每一条都答得像不是自己写的：SPSC 说“看着代码能讲，手写不易”，LRU 换了题，SPMC 的读写进度、跨进程下标、内存序每问都要停半分钟，回测系统怎么搭的答不上。
+
+所以这四天只守三条：
+
+1. **简历上写了的，都能从空白写出代码**，边写边说每一行为什么这样写。实习里的那一版和博客上的那一版分开讲。
+2. **每题先一句话结论，最多三个原因，说完停下来等追问。** 出声说、录音，超过 20 秒的重说。
+3. **面试时不开笔记**：准备在面试前做完。
 
 ## 1. sec 大概什么样 {#expect}
+
+面试官说 sec 会关注 fir 里的这些东西，所以按下面四种情况准备：
 
 1. **fir 问过的原题再问一遍**：SPMC、伪共享、为什么用共享内存、回测做了什么。看的是这次能不能一句话说清。
 2. **简历上任何一条都可能被要求“写出来”**：fir 的 SPSC 和 LRU 都没写，sec 很可能再要一道，或者指着简历说“把你的环 / arena / 增量因子写出来”。
 3. **可能换一个更资深的人**：更多问取舍（为什么这样设计、换个条件会怎样），可能有一道设计题。
 4. **fir 没碰、JD 写了的**：网络编程、Linux 系统编程，可能补。
 
-**两条主线**：
-- **简历上每一条都能从空白写出代码**，边写边说每一行为什么这样写。清单在第 3 节。
-- **每题先一句话结论，最多三个原因，说完停下来等追问。** 第 4 节每题出声说、录音，超过 20 秒的重说。
-
 ## 2. 缺口排序：从大到小 {#gaps}
 
-| # | 缺口 | 为什么排这里 | 看什么 → 马上做什么 | 哪天 | 状态 |
+手写类的缺口（1、2）在第 3 节打勾，这张表只给其余的打勾。
+
+| # | 缺口 | fir 里发生了什么 | 怎么补 | 哪天 | 状态 |
 |---|---|---|---|---|---|
-| 1 | 手写 SPSC、LRU | fir 要了，一个没写、一个换题；sec 最可能再要 | [#4 第 1 节 SPSC](https://jasper-aa64.github.io/zh/posts/lock-free-queue-logger-micro-batching/#spsc)、[LRU 缓存](https://jasper-aa64.github.io/zh/ref/lru-cache/)、[手撕 8 道](https://jasper-aa64.github.io/zh/algo/handwrite-8/) 2.2、2.3 → 从空白写，各 3 遍，各限时 10 分钟 | 周二、周三、周五上午 | ⬜ ⬜ ⬜ |
-| 2 | 简历上每一条都写不出代码 | 面试官最在意“是不是你自己写的”；fir 每一条都答得像没写过 | 第 3 节清单：实习 6 条 + 缓存案例，每条从空白写一遍、能跑通 | 周二到周四 | 见第 3 节 |
-| 3 | 讲的是哪个 SPMC | fir 把实习里那一版和 [#5 博客这一版](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)混着讲：实习版 `fetch_add` 占号、按序发布、格子里没有戳，套圈发现不了；博客版每格带戳，一次减法三种含义 | 写 [7.1](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-feed) 时对着实习代码核一遍 → 两版各一句话，说清实习里是哪版、博客里是哪版 | 周二 | ⬜ |
-| 4 | SPMC 七问说不清 | fir 16–24 分钟问的就是这些，每问都停 | [#5 第 1、2 节](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/) → 第 4.1 节每题 20 秒内说完 | 周二 | ⬜ |
-| 5 | 简历上的数字说不出来源 | fir 里“650 万条”被当场算成每只每天 3250 条；回测系统怎么搭的答不上 | [CV 实习经历拆解](https://jasper-aa64.github.io/zh/interview/cv-internship/) 第 5、6 节 → 每个数字一句：是什么、怎么量的、改了什么；回测系统四句话 | 周二 | ⬜ |
-| 6 | 缓存案例讲了 4 分钟 | fir 被打断，LFB 个数说成 20 | [缓存案例](https://jasper-aa64.github.io/zh/posts/low-latency-cache-case-study/) → 60 秒版：瓶颈一句、几刀各一句、结果一句 | 周三 | ⬜ |
-| 7 | 算法题沉默太久 | fir 的 LC 453 用了 12 分钟、两次提示，中间 6 分钟没说话 | [A4 并查集](https://jasper-aa64.github.io/zh/algo/a4-graphs-shortest-path-topo-dsu/) → 每天 1 道中等题：先说暴力 → 找不变量 → 结论；1 分钟没进展就说卡在哪 | 每天晚上 | ⬜ |
-| 8 | 网络和系统基础 | JD 写了，fir 没问，sec 可能补 | 第 4.3 节 → 每题一句 | 周四 | ⬜ |
-| 9 | 对象池、无锁栈 | 同类岗位面经考过；时间不够先砍这一项 | 学习仓库 `14`、`17` | 有余力再做 | ⬜ |
+| 1 | 手写 SPSC、LRU | 要了两道，一道没写、一道换题；sec 最可能再要 | 从空白写，各 3 遍，各限时 10 分钟 | 周二、周三、周五 | 见[第 3 节](#handwrite) |
+| 2 | 简历上的每一条都写不出代码 | 每一条都答得像没写过 | 实习 6 条加缓存案例，每条从空白写到能跑通 | 周二到周四 | 见[第 3 节](#handwrite) |
+| 3 | 两版 SPMC 混着讲 | 实习版：`fetch_add` 占号、按序发布、格子里没有戳，发现不了套圈。[博客版](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)：每格带戳，一次减法三种含义 | 写 [7.1](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-feed) 时对着实习代码核一遍，两版各准备一句话 | 周二 | ⬜ |
+| 4 | SPMC 的追问说不清 | 16–24 分钟问的就是这些，每问都停 | 读 [SPMC 广播环](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)第 1、2 节，[4.1](#cards-spmc) 每题 20 秒内说完 | 周二 | ⬜ |
+| 5 | 简历上的数字说不出来源 | “650 万条”被当场算成每只每天 3250 条；回测系统怎么搭的答不上 | [实习经历拆解](https://jasper-aa64.github.io/zh/interview/cv-internship/)第 5、6 节：每个数字一句（是什么、怎么量的、改了什么）；回测系统四句话 | 周二 | ⬜ |
+| 6 | 缓存案例讲了 4 分钟 | 被打断，LFB 个数说成 20 | [缓存案例](https://jasper-aa64.github.io/zh/posts/low-latency-cache-case-study/)压成 60 秒：瓶颈一句、几刀各一句、结果一句 | 周三 | ⬜ |
+| 7 | 算法题沉默太久 | LC 453 用了 12 分钟、两次提示，中间 6 分钟没说话 | 每天 1 道中等题（[A4 并查集](https://jasper-aa64.github.io/zh/algo/a4-graphs-shortest-path-topo-dsu/)起）：先说暴力，再找不变量，再给结论；1 分钟没进展就说卡在哪 | 每天晚上 | ⬜ ⬜ ⬜ |
+| 8 | 网络和系统基础 | JD 写了，fir 没问，sec 可能补 | [4.3](#cards-basics) 每题一句 | 周四 | ⬜ |
+| 9 | 对象池、无锁栈 | 没问；同类岗位面经考过 | 学习仓库 `14`、`17`。时间不够先砍这一项 | 有余力再做 | ⬜ |
 
 ## 3. 手写清单：简历上的每一条 {#handwrite}
 
-**规则**：先盖住代码，按“开写前说”出声说 30 秒；从空白写；编译、运行，打印“全部测试通过！”才算对；对不上再看页面里的代码，第二天重写。纯问答的条目（[技能行](https://jasper-aa64.github.io/zh/interview/cv-skills-review/)）不写代码，按第 4 节口述。
+**规则**：先按“开写前说”出声说 30 秒，再从空白写；编译、运行，打印“全部测试通过！”才算对，打一个勾；对不上再展开页面里的参考代码，第二天重写。[技能行](https://jasper-aa64.github.io/zh/interview/cv-skills-review/)是纯问答，不写代码，按第 4 节口述。
 
-| 简历条目 | 写什么 | 参考代码 | 限时 | 哪天 | 状态 |
-|---|---|---|---|---|---|
-| 基础 | SPSC 环形队列 | [#4 第 1 节](https://jasper-aa64.github.io/zh/posts/lock-free-queue-logger-micro-batching/#spsc) | 10 分钟 | 周二、周三、周五 | ⬜ ⬜ ⬜ |
-| 基础 | LRU 缓存 | [LRU 缓存](https://jasper-aa64.github.io/zh/ref/lru-cache/) | 10 分钟 | 周二、周三、周五 | ⬜ ⬜ ⬜ |
-| 实习 1 行情接入 | 两家回调 → 统一结构 → `fetch_add` 占号的广播环 → 写线程批量读 | [7.1](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-feed) | 25 分钟 | 周二、周四 | ⬜ ⬜ |
-| 实习 1 行情接入 | 改进版：每格带戳的 SPMC 广播环，读者发现套圈和撕裂读 | [#5 第 1 节](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/) | 20 分钟 | 周三、周四 | ⬜ ⬜ |
-| 实习 2 行情优化 | 计数按 128 字节隔离 + `static_assert` 钉布局；预触；读时钟；打点取分位数 | [7.2](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-opt) | 15 分钟 | 周二 | ⬜ |
-| 实习 3 因子开发 | 增量滚动标准差（Welford 进一个出一个）；按 key、按容差对拍；边界单元测试 | [7.3](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-factor-dev) | 20 分钟 | 周三 | ⬜ |
-| 实习 4 因子计算优化 | 重点两个：单调队列滚动最大值、CRTP 的 `FactorSet`；其余看一遍能说 | [7.4](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-factor-opt) | 15 分钟 | 周三 | ⬜ |
-| 实习 5 回测框架 | 比输出（门先用错的版本验）+ 配对计时（顺序随机、只看轮内差、先 A/A） | [7.5](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-backtest-flow) | 15 分钟 | 周四 | ⬜ |
-| 实习 6 回测优化 | `TickArena`：`reset` 不够时多要一半、`take` 顺着切、跨天复用；`Tick` 平凡可析构 | [7.6](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-backtest-opt) | 15 分钟 | 周四 | ⬜ |
-| 项目 1 缓存案例 | 基线 → 分批取数 + 预取下一批 → SIMD → 两个核 40 / 24 | [12.1](https://jasper-aa64.github.io/zh/interview/cv-projects/#hw-cache-case) | 25 分钟 | 周四 | ⬜ |
+| # | 简历条目 | 写什么 | 参考代码 | 限时 | 哪天 | 状态 |
+|---|---|---|---|---|---|---|
+| 1 | 基础 | SPSC 环形队列 | [无锁队列 #4 第 1 节](https://jasper-aa64.github.io/zh/posts/lock-free-queue-logger-micro-batching/#spsc) | 10 分钟 | 周二、周三、周五 | ⬜ ⬜ ⬜ |
+| 2 | 基础 | LRU 缓存 | [LRU 缓存](https://jasper-aa64.github.io/zh/ref/lru-cache/) | 10 分钟 | 周二、周三、周五 | ⬜ ⬜ ⬜ |
+| 3 | 实习 1 行情接入 | 实习版：两家回调 → 统一结构 → `fetch_add` 占号的广播环 → 写线程批量读 | [7.1](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-feed) | 25 分钟 | 周二、周四 | ⬜ ⬜ |
+| 4 | 实习 1 行情接入 | 博客版：每格带戳的 SPMC 广播环，读者能发现套圈和撕裂读 | [SPMC 广播环 #5 第 1 节](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/) | 20 分钟 | 周三、周四 | ⬜ ⬜ |
+| 5 | 实习 2 行情优化 | 计数按 128 字节隔离，`static_assert` 钉布局；预触；读时钟；打点取分位数 | [7.2](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-opt) | 15 分钟 | 周二 | ⬜ |
+| 6 | 实习 3 因子开发 | 增量滚动标准差（Welford 进一个出一个）；按 key、按容差对拍；边界单元测试 | [7.3](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-factor-dev) | 20 分钟 | 周三 | ⬜ |
+| 7 | 实习 4 因子计算优化 | 重点两个：单调队列滚动最大值、CRTP 的 `FactorSet`；其余看一遍能说 | [7.4](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-factor-opt) | 15 分钟 | 周三 | ⬜ |
+| 8 | 实习 5 回测框架 | 比输出（门先用错的版本验），再配对计时（顺序随机、只看轮内差、先 A/A） | [7.5](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-backtest-flow) | 15 分钟 | 周四 | ⬜ |
+| 9 | 实习 6 回测优化 | `TickArena`：`reset` 不够时多要一半、`take` 顺着切、跨天复用；`Tick` 平凡可析构 | [7.6](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-backtest-opt) | 15 分钟 | 周四 | ⬜ |
+| 10 | 项目 1 缓存案例 | 基线 → 分批取数加预取下一批 → SIMD → 两个核 40 / 24 | [第 12 节](https://jasper-aa64.github.io/zh/interview/cv-projects/#handwrite) | 25 分钟 | 周四 | ⬜ |
 
 ## 4. 一句话答案卡：不看稿说出来 {#cards}
 
@@ -90,7 +97,7 @@ toc: true
 | 回测系统怎么搭的 | **周二补**：数据从哪来、按交易日怎么回放、按股票怎么分线程、结果到哪去；哪一层是我负责的。 |
 | 缓存案例瓶颈 | 每条行情碰约 140 条缓存行，基本都 miss，延迟串在一起。 |
 | 缓存案例怎么解决 | 成批取数让 miss 同时在路上（一批按 LFB 个数定，D = 4）、预取下一批、两个核分担 40 / 24、四路 SIMD；P50 降约 67%，每步和基线对拍。 |
-| 哪些是 AI 做的 | 瓶颈判断、对拍标准、什么时候停是我定的；代码让 agent 写，我审、我量。现在每一步我都能从空白写出来（第 3 节）。 |
+| 哪些是 AI 做的 | 瓶颈判断、对拍标准、什么时候停是我定的；代码让 agent 写，我审、我量。现在每一步我都能从空白写出来。 |
 
 ### 4.3 C++、系统和网络 {#cards-basics}
 
@@ -110,12 +117,14 @@ toc: true
 
 ## 5. 每天 {#days}
 
-| 日期 | 手写（第 3 节） | 口述 | 要核的事实 | 完成标志 |
+“手写”一列是第 3 节的行，“口述”一列是第 4 节的小节。
+
+| 日期 | 手写 | 口述 | 另外 | 完成标志 |
 |---|---|---|---|---|
-| **11-17 周二** | SPSC、LRU；7.1 行情接入；7.2 行情优化 | 4.1 全部，录音 | 实习版 SPMC 怎么写的（#3）；回测系统四句话；40 / 24 的原因 | 4.2 的“周二补”填上 |
-| **11-18 周三** | SPSC、LRU 第二遍；带戳的 SPMC 第一遍；7.3 因子开发；7.4 因子计算优化 | 4.2 全部；缓存案例 60 秒；自我介绍 45 秒 | — | 写的都能跑通 |
-| **11-19 周四** | 7.1 第二遍；带戳的 SPMC 第二遍；7.5、7.6 回测；12.1 缓存案例 | 4.3 全部；为什么这家、反问；晚上 30 分钟模拟，一题超过 20 秒就打断 | — | 第 3 节每行至少打一个勾 |
-| **11-20 周五** | 上午 SPSC、LRU 第三遍，各 10 分钟内 | 下午把第 4 节过一遍，不学新的 | — | 17:00 试麦克风和共享屏幕，关掉笔记 |
+| **11-17 周二** | SPSC、LRU 第一遍；7.1 行情接入；7.2 行情优化 | 4.1 全部，录音 | 核三件事：实习版 SPMC 怎么写的（缺口 3）、回测系统四句话、40 / 24 的原因。晚上 1 道算法 | 4.2 的“周二补”填上 |
+| **11-18 周三** | SPSC、LRU 第二遍；博客版 SPMC 第一遍；7.3 因子开发；7.4 因子计算优化 | 4.2 全部；缓存案例 60 秒；自我介绍 45 秒 | 晚上 1 道算法 | 写的都能跑通 |
+| **11-19 周四** | 7.1 第二遍；博客版 SPMC 第二遍；7.5、7.6 回测；缓存案例 | 4.3 全部；为什么这家、反问 | 晚上 1 道算法；30 分钟模拟，一题超过 20 秒就打断 | 第 3 节每行至少一个勾 |
+| **11-20 周五** | 上午 SPSC、LRU 第三遍，各 10 分钟内 | 下午把第 4 节过一遍 | 不做算法，不学新的 | 17:00 试麦克风和共享屏幕，关掉笔记 |
 
 ## 6. 为什么这家、反问 {#why}
 
@@ -126,9 +135,3 @@ toc: true
 > - 实习生进来第一个月一般接手什么：行情、交易系统，还是性能优化？
 > - 行情在机器内部是怎么分发给多个策略的？
 > - 这一轮您觉得我还有哪块最需要补？
-
-## 7. 从 fir 带过来的三条 {#lessons}
-
-1. **简历上写了的，空白能写、能说清是谁写的**：面试官看的就是这个；实习版和博客版分开讲。
-2. **一句话结论，最多三个原因，说完停**：面试官要细节会追问。
-3. **面试时不开笔记**：准备在面试前做完。
