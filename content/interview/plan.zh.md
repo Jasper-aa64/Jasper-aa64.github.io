@@ -1,66 +1,115 @@
 ---
-title: "IV：本周计划：C++ 架构方向，11-11 到 11-16"
-date: 2026-11-11
-lastmod: 2026-11-11
+title: "IV：本周计划：二面，11-17 到 11-20"
+date: 2026-11-16
+lastmod: 2026-11-16
 slug: "plan"
-description: "这一周要补的东西，按缺口大小排：JD 写明要的、同类岗位实际考过的、自己最弱的先补；每一项看完马上写或马上说。"
+description: "一面过了，二面周五 17:30。一面暴露的是“说不清、写不出”：这四天只做两件事，简历上的每一点能一句话说清，SPSC、LRU、SPMC 能从空白写出来。"
 weight: -1
 toc: true
 ---
 
-这一页是这一周的清单。排法和找性能热点一样：先补最大的缺口，小缺口留到最后，时间不够就砍掉。
+这一页是二面前四天的清单：周二 11-17 到周五 11-20，**二面周五 17:30–18:30**。上一周的清单（11-11 到 11-16，一面前）被这一页替换了。
 
-> **怎么排、怎么补**
+> **一面的反馈，原话整理**
 >
-> - **缺口大小 = JD 写没写 × 同类岗位考没考过 × 自己有多弱**：三样都占的排最前；只在通用题单里出现、没有出处的，不进手撕，最多口述。
-> - **看完马上用**：要写的，看完对应那一节就从空白写，写完打印 `bad = 0`；要说的，看完就关掉页面出声说。不先把知识点全看完再回头用。
-> - **手撕限时 15–20 分钟**：开写前先用 30 秒说设计；超时就看参考，第二天从空白再写一遍。
-> - **做完一项打勾**：没出处的项发现了就删。
+> - **“经历非常相关，但表达很多地方比较模糊，让我不确定你是真的理解，还是真的做过。”**
+> - **“我只想听一句话，一个原因，最多三个原因。前因后果我不 care。”**
+> - **“伪共享是什么，一句话；怎么解决，align；两句话说完，我就知道你肯定做过。”**
+> - **“如果有二面，会关注这些东西。”** 所以一面问过的题，二面很可能原题再问。
+>
+> 一面丢分最多的三处：手写 SPSC 没写，LRU 换了题，SPMC 的读写进度、跨进程下标、内存序每问都要停半分钟。
 
-## 1. 缺口排序：从大到小 {#gaps}
+## 1. 二面大概什么样 {#expect}
+
+1. **一面问过的原题再问一遍**：SPMC、伪共享、为什么用共享内存、回测做了什么。看的是这次能不能一句话说清。
+2. **大概率有一道手写**：一面的 SPSC 和 LRU 都没写，二面很可能就是其中一道，或者“把你的 SPMC 写出来”。
+3. **可能换一个更资深的人**：更多问取舍（为什么这样设计、换个条件会怎样），可能有一道设计题。
+4. **一面没碰、JD 写了的**：网络编程、Linux 系统编程，可能补。
+
+**答法只有一条：先一句话结论，最多三个原因，说完停下来等追问。** 第 3 节每题出声说、录音，超过 20 秒的重说。
+
+## 2. 缺口排序：从大到小 {#gaps}
 
 | # | 缺口 | 为什么排这里 | 看什么 → 马上做什么 | 哪天 | 状态 |
 |---|---|---|---|---|---|
-| 1 | 无锁哈希表和 epoch 回收 | AG 面经里实际考过；JD 写了多线程并发 | [系统题目第 3 节](https://jasper-aa64.github.io/zh/interview/cpp-systems/#lockfree-map)，展开读 [#3 第 6 节案例](https://jasper-aa64.github.io/zh/posts/hot-path-memory-allocators/#case-lockfree-map) → 从空白写 `18`；再说 [6.4 分片加锁和后台回收](https://jasper-aa64.github.io/zh/posts/hot-path-memory-allocators/#case-shard-lock) | 周三 | ⬜ |
-| 2 | MESI 和缓存行 ping-pong | 同一篇面经原题：用 MESI 解释同一条缓存行上的 ping-pong；JD 写了多线程并发；需要复习 | [MESI 专题](https://jasper-aa64.github.io/zh/posts/low-latency-mesi-cache-coherence/)、[#2 第 3 节案例](https://jasper-aa64.github.io/zh/posts/memory-ordering-false-sharing-dependency-chains/#case) → 不看页面画四个状态和一次写的六步，再说 2 分钟：伪共享和真共享各怎么修 | 周四 | ⬜ |
-| 3 | 低延迟网络和加密交易所接入 | JD 写了网络编程；AG 做加密货币高频，行情和下单走 WebSocket 加 TLS；之前没准备 | 网络补充页（周四上午前放好）→ 默写 epoll 主循环；说清关 Nagle、内核旁路、UDP 组播、WebSocket/TLS/JSON 各自的延迟在哪 | 周四 | ⬜ |
-| 4 | 三道设计题：分布式回测、全链路监控、实时风控和资金管理 | JD 职责前三条原文；之前没准备 | 答法（周四晚前放好）→ 每道按“结论 → 取舍 → 做过的相邻的事”说 2 分钟 | 周五 | ⬜ |
-| 5 | 线程池、阻塞队列 | JD 写了多线程并发；同一篇面经问到 work stealing 线程池 | [线程池和 future](https://jasper-aa64.github.io/zh/ref/thread-pool-future/) → 写 `11`；[线程安全队列 #18](https://jasper-aa64.github.io/zh/posts/thread-safe-queue/) → 写 `12` | 周四 | ⬜ |
-| 6 | 对象池、无锁侵入式栈 | 同类岗位面经里实际考过 | 骨架带讲解（周五前放好）→ 写 `14` 对象池、`17` 无锁栈（ABA） | 周五、周六 | ⬜ |
-| 7 | C++17/20 | JD 原文“熟悉 C++17/20”；没系统看过 | 一页（周五前放好）→ 每个特性说一句解决什么问题 | 周六 | ⬜ |
-| 8 | 性能定位和 benchmark | JD 写了“快速定位性能瓶颈”；同类面经追问过怎么做可信的 benchmark | [perf 专题](https://jasper-aa64.github.io/zh/posts/low-latency-perf-profiling/)、[TSC 延迟测量 #20](https://jasper-aa64.github.io/zh/posts/tsc-latency-measurement/) → 说一遍 SPSC 下移动均值那道优化题：换什么、怎么证明变快了 | 周六 | ⬜ |
-| 9 | 基础算法写得慢 | JD 写了数据结构与算法；上一场限时题超时 | 每天晚上 1–2 道：`09`、`10`、`02`、LC 739、LC 215、LC 23 | 每天晚上 | ⬜ |
-| 10 | C++ 语言和内存基础 | 页面都写过，属于小缺口 | 每页 1 分钟口述，说不顺的才翻页，见第 3 节 | 碎片时间、周一上午 | ⬜ |
+| 1 | 手写 SPSC、LRU | 一面要了，一个没写、一个换题；二面最可能再要 | [#4 第 1 节 SPSC](https://jasper-aa64.github.io/zh/posts/lock-free-queue-logger-micro-batching/#spsc)、[LRU 缓存](https://jasper-aa64.github.io/zh/ref/lru-cache/)、[手撕 8 道](https://jasper-aa64.github.io/zh/algo/handwrite-8/) 2.2、2.3 → 从空白写，各 3 遍，各限时 10 分钟 | 周二、周三、周五上午 | ⬜ ⬜ ⬜ |
+| 2 | 讲的是哪个 SPMC | 一面把实习里那一版和 [#5 博客这一版](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)混着讲：实习版读者读已发布号，格子里没有戳，套圈发现不了；博客版每格带戳，一次减法三种含义 | 对着实习代码核一遍：写环怎么发布、读者读什么、有几个线程在写 → 两版各一句话，说清哪版是谁写的 | 周二 | ⬜ |
+| 3 | SPMC 七问说不清 | 一面 16–24 分钟问的就是这些，每问都停 | [#5 第 1、2 节](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/) → 第 3.1 节每题 20 秒内说完 | 周二 | ⬜ |
+| 4 | 手写 SPMC 广播环 | 二面可能让你把自己的东西写出来 | [#5 第 1 节](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)、[1.5.2 撕裂读](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/) → 从空白写：每格 seqlock，读者自记进度，三种情形 | 周三、周四 | ⬜ ⬜ |
+| 5 | 简历上的数字说不出来源 | 一面“650 万条”被当场算成每只每天 3250 条；回测系统怎么搭的答不上 | [CV 实习经历拆解](https://jasper-aa64.github.io/zh/interview/cv-internship/) 第 2、5 节 → 每个数字一句：是什么、怎么量的、改了什么；回测系统四句话 | 周二 | ⬜ |
+| 6 | 缓存案例讲了 4 分钟 | 一面被打断，LFB 个数说成 20 | [缓存案例](https://jasper-aa64.github.io/zh/posts/low-latency-cache-case-study/) → 60 秒版：瓶颈一句、三刀各一句、结果一句 | 周三 | ⬜ |
+| 7 | 算法题沉默太久 | 一面 LC 453 用了 12 分钟、两次提示，中间 6 分钟没说话 | [A4 并查集](https://jasper-aa64.github.io/zh/algo/a4-graphs-shortest-path-topo-dsu/) → 每天 1 道中等题：先说暴力 → 找不变量 → 结论；1 分钟没进展就说卡在哪 | 每天晚上 | ⬜ |
+| 8 | 对象池、无锁栈 | 同类岗位面经实际考过；上周没写 | 学习仓库 `14`、`17` → 各写一遍，说出 ABA 和怎么防 | 周四 | ⬜ |
+| 9 | 网络和系统基础 | JD 写了，一面没问，二面可能补 | 第 3.3 节 → 每题一句 | 周四 | ⬜ |
 
-**不进手撕的**：String 类、简版智能指针。没有找到这一类岗位考过的出处，只口述：五个特殊成员各做什么、移动构造为什么要 `noexcept`、`shared_ptr` 的控制块和线程安全。
+## 3. 一句话答案卡：不看稿说出来 {#cards}
 
-## 2. 每天 {#days}
+### 3.1 行情和 SPMC {#cards-spmc}
 
-| 日期 | 先做（大缺口） | 晚上 | 口述 |
-|---|---|---|---|
-| **11-11 周三** | #1 无锁哈希表：看第 3 节 → 写 `18` | `09`、`10` | 讲一个因子，90 秒以内；自我介绍 |
-| **11-12 周四** | #2 MESI：看完马上画四个状态、说 ping-pong；#3 网络：看补充页 → 默写 epoll 主循环；#5 写 `11`、`12` | `02`、LC 739 | MESI 和 ping-pong 2 分钟；网络那几个点各 1 分钟 |
-| **11-13 周五** | #4 三道设计题各说 2 分钟；#6 写 `14` 对象池 | LC 215、LC 23 | 系统题目第 1、2 道 |
-| **11-14 周六** | #6 写 `17` 无锁栈；#7 C++17/20；#8 benchmark 那道优化题 | 最不稳的一道重写 | 系统题目第 4、5 道 |
-| **11-15 周日** | 60 分钟整场模拟：自我介绍、项目、基础问答、20 分钟限时手撕、反问 | 卡住的题回填 | 为什么选这个方向，反问 3 个 |
-| **11-16 周一上午** | 最不稳的 2 道从空白重写；第 3 节说不顺的页 | — | 13:30 试麦克风和共享屏幕；14:00 开始 |
+| 问 | 开口这么说 |
+|---|---|
+| 为什么用共享内存 | 行情只接一次、解码一次，多个进程都能读；共享内存读写不走系统调用，socket 每条都要进内核、拷贝。 |
+| 为什么是广播环，不是 SPSC | 生产者不能被慢读者拖住，加读者生产者不用改；代价是慢读者会被覆盖。 |
+| 什么数据能放进共享内存 | 定长、可平凡拷贝、不含指针的数据；vector、string、有虚函数的都不行，指针在别的进程里没意义。 |
+| 读写进度靠什么 | 写者一个只增的序号；每个读者自己记下一条要读的号，不放共享区；读者对比格子里的序号就知道写没写到。 |
+| 被套圈怎么办 | 格子里的序号比要的大，说明中间丢了，跳到还有效的最旧那条，记下丢了几条。 |
+| 撕裂读怎么防 | 每格一个 seqlock：写前标奇数、写完标偶数；读者读前读后各看一次，不一样或是奇数就丢掉。 |
+| 跨进程下标怎么传 | 不用传，序号就放在共享内存里，是 lock-free 的 `std::atomic`，两个进程映射同一块，看到的是同一个变量。 |
+| 内存序 | 写者先写数据，再 release 存序号；读者 acquire 读序号，读到新值就一定看得到数据。x86 上这俩都是普通 mov，只拦编译器重排。 |
+| 回绕 | 容量取 2 的幂，`idx & (N − 1)`；序号本身不取模。 |
+| 伪共享 | 不同核写的变量在同一条缓存行，互相把对方的行打失效；`alignas` 分开，我用 128，因为相邻行预取会成对拉两行。 |
+| 怎么确认是伪共享 | 先看布局（同一行、不同核写），再做只改对齐的对照实验；物理机上用 `perf c2c` 看 HITM。 |
+| 预触内存页为什么要写 | 只读会映射到共享零页，第一次写才真正分配；在绑好核的线程上写，页落在本地 NUMA 节点。 |
+| 中位数降 17%、P99 降 57% | 两项改动各管一头：预触消掉偶发缺页，降尾部；回调自己读时钟，每条省一次跨核读，降中位数。 |
 
-## 3. 小缺口：C++ 基础页，每页 1 分钟口述 {#basics}
+### 3.2 回测和缓存案例 {#cards-backtest}
 
-说得顺就跳过，说不顺才翻页。
+| 问 | 开口这么说 |
+|---|---|
+| 650 万条是什么 | 3 秒快照，不是逐笔，这个回测框架偏中低频；2000 多只，每只一天最多约 4800 个快照。 |
+| 回测你做了什么 | perf 找到两处：日志线程空转，改轮询间隔，CPU 降 31%；每个交易日重复分配约 17.5 GB，按实际量分配、精简结构体、跨天复用，再快约 44%。 |
+| 回测系统怎么搭的 | **周二补**：数据从哪来、按交易日怎么回放、按股票怎么分线程、结果到哪去；哪一层是我负责的。 |
+| 缓存案例瓶颈 | 每条行情碰约 140 条缓存行，基本都 miss 到内存，延迟串在一起。 |
+| 缓存案例怎么解决 | 成批预取让 miss 并行（一批按 LFB 个数，Skylake 12 个）、两个核分担 40 / 24、四路 SIMD；P50 降约 67%，每步逐位对拍。 |
+| 哪些是 AI 做的 | 瓶颈判断、对拍标准、什么时候停是我定的；代码让 agent 写，我审、我量。 |
 
-- ✅ [智能指针](https://jasper-aa64.github.io/zh/ref/smart-pointers/)
-- ⬜ [左值、右值和移动语义](https://jasper-aa64.github.io/zh/ref/move-semantics/)
-- ⬜ [构造、拷贝、析构和 RAII](https://jasper-aa64.github.io/zh/ref/special-members-raii/)
-- ⬜ [函数调用栈帧](https://jasper-aa64.github.io/zh/ref/stack-frame/)
-- ⬜ [new 一次走到哪](https://jasper-aa64.github.io/zh/ref/new-malloc-page-fault/)
-- ⬜ [虚函数](https://jasper-aa64.github.io/zh/ref/virtual-functions/)，和 [CRTP 静态多态](https://jasper-aa64.github.io/zh/posts/crtp-static-polymorphism/)对比着说
-- ⬜ [对象布局](https://jasper-aa64.github.io/zh/ref/object-layout/)
-- ⬜ [lambda 和 std::function](https://jasper-aa64.github.io/zh/ref/lambda-function/)
-- ⬜ [模板](https://jasper-aa64.github.io/zh/ref/templates/)
-- ⬜ [const、constexpr、consteval、constinit](https://jasper-aa64.github.io/zh/ref/const-constexpr/)
-- ⬜ [四种 cast](https://jasper-aa64.github.io/zh/ref/cpp-casts/)
-- ⬜ [未定义行为：UB、严格别名、释放后使用](https://jasper-aa64.github.io/zh/ref/undefined-behavior/)
-- ⬜ [ASan 和 TSan](https://jasper-aa64.github.io/zh/ref/sanitizers/)
-- ⬜ 并发和系统：[线程同步](https://jasper-aa64.github.io/zh/ref/thread-sync/)、[用户态和内核态](https://jasper-aa64.github.io/zh/ref/user-kernel-mode/)、[进程和线程](https://jasper-aa64.github.io/zh/ref/process-thread-fork/)、[进程间通信](https://jasper-aa64.github.io/zh/ref/ipc/)、[文件 IO](https://jasper-aa64.github.io/zh/ref/file-io/)
-- ⬜ 网络基础：[epoll](https://jasper-aa64.github.io/zh/ref/epoll-internals/)、[TCP 状态](https://jasper-aa64.github.io/zh/ref/tcp-states/)、[TCP 可靠性](https://jasper-aa64.github.io/zh/ref/tcp-reliability/)、[socket 编程](https://jasper-aa64.github.io/zh/ref/socket-programming/)
+### 3.3 C++、系统和网络 {#cards-basics}
+
+| 问 | 开口这么说 |
+|---|---|
+| RAII | 资源生命周期绑在对象上，构造拿、析构还；内存、锁、fd 都适用，异常时也会释放。 |
+| CRTP | 基类以派生类为模板参数，`static_cast` 调派生类实现；静态分派，收益主要是能内联。 |
+| x86 内存模型 | TSO：只有“写后读不同地址”可能乱序（store buffer），所以 acquire/release 免费，seq_cst 的 store 要 `xchg` 或 `mfence`。 |
+| MESI | 每条缓存行四种状态；一个核要写，先把别的核的副本作废，伪共享和 ping-pong 的代价就在这。 |
+| 大页 | 一页 2 MB，同样的 TLB 覆盖更多内存，少 TLB miss；行情环、订单簿这类大块热数据适合。 |
+| 系统调用为什么慢 | 要切到内核态、保存恢复寄存器，还会污染缓存和 TLB；热路径上避免。 |
+| 忙等还是睡眠 | 延迟敏感的读者绑核忙等（加 `pause`）；落盘这类读者睡几毫秒醒来批量读，省 CPU。 |
+| 行情为什么用 UDP 组播 | 一份发给多个订阅者，没有 TCP 重传和拥塞控制带来的抖动；丢包靠序号发现，另走 TCP 补。 |
+| `TCP_NODELAY` | 关掉 Nagle，小包立即发，不等攒满；下单链路都要开。 |
+| 内核旁路 | 网卡数据直接到用户态（DPDK、onload / ef_vi），省掉内核协议栈和中断。 |
+| lock-free 和 wait-free | lock-free：整体总有线程在前进；wait-free：每个线程都在有限步内完成。SPSC 环是 wait-free 的。 |
+
+## 4. 每天 {#days}
+
+| 日期 | 手写 | 口述 | 要核的事实 | 完成标志 |
+|---|---|---|---|---|
+| **11-17 周二** | SPSC、LRU 各一遍 | 3.1 全部，录音 | #2 实习版 SPMC 怎么写的；#5 回测系统四句话；40 / 24 的原因 | 3.2 的“周二补”填上 |
+| **11-18 周三** | SPSC、LRU 第二遍；SPMC 广播环第一遍 | 3.2 全部；缓存案例 60 秒；自我介绍 45 秒 | — | 三道都能跑 |
+| **11-19 周四** | SPMC 第二遍；对象池；无锁栈 | 3.3 全部；为什么这家、反问；晚上 30 分钟模拟，一题超过 20 秒就打断 | — | 3.1–3.3 每题 20 秒内 |
+| **11-20 周五** | 上午 SPSC、LRU 第三遍，各 10 分钟内 | 下午把第 3 节过一遍，不学新的 | — | 17:00 试麦克风和共享屏幕，关掉笔记 |
+
+## 5. 为什么这家、反问 {#why}
+
+**为什么这家**
+> 基础设施全自建，我实习做的行情接入、队列、性能优化正好是这一类；你们要进 A 股，我接过两家 Level-2，知道沪深的差别。
+
+**反问**（一面问过“平时做什么”和“我哪里要提升”，这次换）
+> - 实习生进来第一个月一般接手什么：行情、交易系统，还是性能优化？
+> - 行情在机器内部是怎么分发给多个策略的？
+> - 这一轮您觉得我还有哪块最需要补？
+
+## 6. 从一面带过来的三条 {#lessons}
+
+1. **一句话结论，最多三个原因，说完停**：面试官要细节会追问。
+2. **写在简历上的，空白能写、能说清是谁写的**：实习版和博客版分开讲。
+3. **面试时不开笔记**：准备在面试前做完。
