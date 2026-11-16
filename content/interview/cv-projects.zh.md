@@ -2,7 +2,7 @@
 title: "IV：CV 项目经历拆解"
 date: 2026-11-12T00:00:00+08:00
 slug: "cv-projects"
-description: "简历“项目经历”的两个项目、9 条，一条一节。项目 1 是 C++ 性能自动优化 Agent Skill：分诊与 perf、按信号加载修法、正确性与配对计时、缓存案例。项目 2 是 AI 实时语音雅思平台：状态机、四个线程、音频与二进制帧、LLM 结构化输出、Pimpl 与测试。每节先放简历原文，再按步骤讲做法，配简化后的代码。"
+description: "简历“项目经历”的两个项目、9 条，一条一节。项目 1 是 C++ 性能自动优化 Agent Skill：分诊与 perf、按信号加载修法、正确性与配对计时、缓存案例。项目 2 是 AI 实时语音雅思平台：状态机、四个线程、音频与二进制帧、LLM 结构化输出、Pimpl 与测试。每节先放简历原文，再按步骤讲做法，配简化后的代码。第 12 节是缓存案例能跑的完整代码，用来手写练习。"
 weight: 6
 toc: true
 math: true
@@ -853,3 +853,161 @@ TEST(StateMachine, IllegalEventKeepsState) {
 > 2. **测试**：GTest 测协议打包解包、状态机转移、JSON 校验，这些不依赖设备和网络。
 > 3. **ASan**：抓越界、释放后使用；管不到数据竞争，那要 TSan，后来加了。
 > 4. **UI**：Qt 只显示，跨线程更新走投递，可以导出 JSON 报告。
+
+## 12. 手写练习：缓存案例的完整代码 {#handwrite}
+
+第 5 节的代码是片段，这一节把它补成一个完整的程序：基线、分批取数加预取、SIMD、两个核 40 / 24，四个版本跑同一串事件，和基线比结果，再看每个事件的中位耗时。
+
+> **怎么练**
+>
+> 1. **先盖住代码**，按“开写前说”那几句出声说一遍设计，30 秒以内。
+> 2. **从空白写**，写完编译、运行，打印“全部测试通过！”才算写对；对不上再看下面的代码。
+> 3. **第二天从空白再写一遍**。面试官要确认的是“这是你自己写的”，能边写边说出每一行为什么这样写，比写得快更重要。
+>
+> 代码是为了能在一个文件里跑起来重写的简化版：名字和结构不是原工程的，厂商 SDK、文件、设备都用假的代替；只用标准库，g++ 15 加 `-Wall -Wextra` 零警告。
+
+### 12.1 一条行情重算 64 个期权：四个版本 {#hw-cache-case}
+
+- **开写前说**：基线一个一个读、一个一个算；分批时一批 D = 4 个，第一趟只取数，第二趟集中算；两趟之间预取下一批的两条行，用 `T0` 不用 `NTA`；SIMD 把 4 个期权的同一套算式放进一条指令；两个核时主核算前 40 个、辅核算后 24 个，请求和结果各占一条缓存行，release 写、acquire 读。
+- **写的时候注意**：编译加 `-ffp-contract=off`，否则编译器会自己把标量的 `a*x+c` 合成 fma，标量版之间末位也会不一样；SIMD 版用了 fma，按容差比；两个核那一版没加 SIMD，好和基线逐位比。
+- **我机器上的一次输出**（Windows，不是案例原来的机器）：每个事件的中位耗时，基线约 3200 ns，分批加预取约 1700 ns，再加 SIMD 约 1500 ns，两个核约 1200 ns。
+
+```cpp
+// 项目 1 案例：一条行情重算 64 个期权，卡在等内存。基线 → 分批取数 → 预取下一批 → SIMD → 两个核 40 / 24
+// 每个版本都和基线比结果（SIMD 用了 fma，按容差比；其余逐位一致），再看每个事件的中位耗时
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra -pthread -mavx2 -mfma -ffp-contract=off p5_cache_case.cpp -o cache_case && ./cache_case
+// -ffp-contract=off：不让编译器自己把标量的 a*x+c 合成 fma，否则标量版之间末位也会不一样，逐位比对过不了
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <random>
+#include <thread>
+#include <vector>
+#include <immintrin.h>
+
+struct alignas(64) Option {                // 两条缓存行
+    double curr_px, actual_px, aux[6];     // 第 1 条：价格那条
+    double ema, alpha, pad[6];             // 第 2 条：状态那条
+};
+static_assert(sizeof(Option) == 128, "一个期权正好两条缓存行");
+struct Holding { uint32_t option; double delta; };
+constexpr int kPerStock = 64, kMain = 40, D = 4;   // 一批 D 个：2D 条行，留出 LFB 给股票记录和硬件预取
+struct Stock { Holding h[kPerStock]; };
+
+inline double alpha_of(double px, double ref, double arg, double& ema) {   // 一串前后相依的运算
+    ema = 0.9 * ema + 0.1 * px;
+    double x = (px - ref) / (arg + 1.0), a = x;
+    for (int i = 0; i < 10; ++i) a = a * x + 0.01 * i;
+    return 0.01 * (px - ema) + a;
+}
+
+// ---- 基线：一个一个读、一个一个算 ----
+void update_base(Option* opt, const Stock& s, double move, int lo, int hi) {
+    for (int k = lo; k < hi; ++k) {
+        Option& o = opt[s.h[k].option];
+        double px = o.curr_px + move * s.h[k].delta;
+        o.alpha = alpha_of(px, o.actual_px, o.aux[0] + o.aux[4], o.ema);
+    }
+}
+
+// ---- 分批 + 预取下一批（+ 可选 SIMD）：第一趟只取数，第二趟集中算 ----
+template <bool kSimd>
+void update_batched(Option* opt, const Stock& s, double move, int lo, int hi) {
+    for (int b = lo; b < hi; b += D) {
+        Option* o[D]; alignas(32) double px[D], ref[D], arg[D], ema[D], alpha[D];
+        for (int k = 0; k < D; ++k) {                               // 第一趟：D 个期权的读紧挨着发出去
+            o[k] = &opt[s.h[b + k].option];
+            px[k] = o[k]->curr_px + move * s.h[b + k].delta;
+            ref[k] = o[k]->actual_px; arg[k] = o[k]->aux[0] + o[k]->aux[4]; ema[k] = o[k]->ema;
+        }
+        for (int k = b + D; k < std::min(b + 2 * D, hi); ++k) {     // 下一批的两条行先预取
+            const char* p = reinterpret_cast<const char*>(&opt[s.h[k].option]);
+            _mm_prefetch(p, _MM_HINT_T0);
+            _mm_prefetch(p + 64, _MM_HINT_T0);                      // 用 T0，不用 NTA：下一条行情还要用
+        }
+        if constexpr (kSimd) {                                      // 4 个期权并排走同一条依赖链
+            __m256d P = _mm256_load_pd(px), R = _mm256_load_pd(ref), A = _mm256_load_pd(arg), E = _mm256_load_pd(ema);
+            E = _mm256_fmadd_pd(_mm256_set1_pd(0.9), E, _mm256_mul_pd(_mm256_set1_pd(0.1), P));
+            __m256d x = _mm256_div_pd(_mm256_sub_pd(P, R), _mm256_add_pd(A, _mm256_set1_pd(1.0))), a = x;
+            for (int i = 0; i < 10; ++i) a = _mm256_fmadd_pd(a, x, _mm256_set1_pd(0.01 * i));
+            _mm256_store_pd(alpha, _mm256_fmadd_pd(_mm256_set1_pd(0.01), _mm256_sub_pd(P, E), a));
+            _mm256_store_pd(ema, E);
+        } else {
+            for (int k = 0; k < D; ++k) alpha[k] = alpha_of(px[k], ref[k], arg[k], ema[k]);
+        }
+        for (int k = 0; k < D; ++k) { o[k]->alpha = alpha[k]; o[k]->ema = ema[k]; }   // 写回
+    }
+}
+
+// ---- 两个核：主核做前 40 个，辅核做后 24 个；请求、结果各占一条缓存行，release 写、acquire 读 ----
+struct alignas(64) Request { const Stock* stock; double move; std::atomic<uint64_t> seq{0}; };
+struct alignas(64) Result  { std::atomic<uint64_t> seq{0}; };
+class Helper {
+    Request req_; Result res_; std::atomic<bool> stop_{false}; Option* opt_; std::thread t_;
+public:
+    explicit Helper(Option* opt) : opt_(opt), t_([this] { loop(); }) {}
+    ~Helper() { stop_ = true; t_.join(); }
+    void loop() {
+        uint64_t seen = 0;
+        while (!stop_.load(std::memory_order_relaxed)) {
+            uint64_t s = req_.seq.load(std::memory_order_acquire);   // 看到序号，请求内容一定写好了
+            if (s == seen) { _mm_pause(); continue; }
+            update_batched<false>(opt_, *req_.stock, req_.move, kMain, kPerStock);
+            seen = s;
+            res_.seq.store(s, std::memory_order_release);            // 结果反过来走一遍
+        }
+    }
+    void event(const Stock& s, double move, uint64_t seq) {
+        req_.stock = &s; req_.move = move;
+        req_.seq.store(seq, std::memory_order_release);              // 先写请求，再发布序号
+        update_batched<false>(opt_, s, move, 0, kMain);              // 主核同时算自己那 40 个
+        while (res_.seq.load(std::memory_order_acquire) != seq) _mm_pause();
+    }
+};
+
+int main() {
+    const size_t kOptions = 520000, kStocks = kOptions / kPerStock, kEvents = 20000;
+    std::mt19937 rng(3);
+    std::vector<Option> init(kOptions);
+    for (auto& o : init) { o.curr_px = 1 + rng() % 1000 * 0.01; o.actual_px = o.curr_px * 0.99; o.aux[0] = 0.5; o.aux[4] = 0.25; o.ema = o.curr_px; o.alpha = 0; }
+    std::vector<uint32_t> perm(kOptions); for (size_t i = 0; i < kOptions; ++i) perm[i] = uint32_t(i);
+    std::shuffle(perm.begin(), perm.end(), rng);                      // 期权散在整块内存里
+    std::vector<Stock> stocks(kStocks);
+    for (size_t s = 0; s < kStocks; ++s) for (int k = 0; k < kPerStock; ++k) stocks[s].h[k] = {perm[s * kPerStock + k], 0.1 + 0.01 * k};
+    std::vector<std::pair<uint32_t, double>> events(kEvents);
+    for (auto& e : events) e = {uint32_t(rng() % kStocks), (int(rng() % 21) - 10) * 0.01};
+
+    auto run = [&](auto&& update_event, std::vector<Option>& opt) {
+        opt = init;
+        std::vector<double> ns; ns.reserve(kEvents);
+        for (size_t i = 0; i < kEvents; ++i) {
+            auto t0 = std::chrono::steady_clock::now();
+            update_event(stocks[events[i].first], events[i].second, i + 1);
+            ns.push_back(std::chrono::duration<double, std::nano>(std::chrono::steady_clock::now() - t0).count());
+        }
+        std::nth_element(ns.begin(), ns.begin() + ns.size() / 2, ns.end());
+        return ns[ns.size() / 2];
+    };
+
+    std::vector<Option> base, batched, simd, dual;
+    double t_base = run([&](const Stock& s, double m, uint64_t) { update_base(base.data(), s, m, 0, kPerStock); }, base);
+    double t_bat  = run([&](const Stock& s, double m, uint64_t) { update_batched<false>(batched.data(), s, m, 0, kPerStock); }, batched);
+    double t_simd = run([&](const Stock& s, double m, uint64_t) { update_batched<true>(simd.data(), s, m, 0, kPerStock); }, simd);
+    dual = init;
+    double t_dual;
+    { Helper h(dual.data()); t_dual = run([&](const Stock& s, double m, uint64_t seq) { h.event(s, m, seq); }, dual); }
+
+    for (size_t i = 0; i < kOptions; ++i) {
+        assert(batched[i].alpha == base[i].alpha && batched[i].ema == base[i].ema);   // 只改顺序，逐位一致
+        assert(dual[i].alpha == base[i].alpha);
+        assert(std::fabs(simd[i].alpha - base[i].alpha) <= 1e-12 * (1 + std::fabs(base[i].alpha)));  // fma 改了舍入
+    }
+    std::printf("每个事件的中位耗时：基线 %.0f ns，分批+预取 %.0f ns，再加 SIMD %.0f ns，两个核 %.0f ns\n",
+                t_base, t_bat, t_simd, t_dual);
+    std::printf("全部测试通过！\n");
+}
+```

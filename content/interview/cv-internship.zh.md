@@ -2,7 +2,7 @@
 title: "IV：CV 实习经历拆解"
 date: 2026-11-11T00:00:00+08:00
 slug: "cv-internship"
-description: "简历“实习经历”的 6 条，一条一节：行情接入、行情优化、因子开发、因子计算优化、因子回测框架、因子回测优化。每节先放简历原文，再按步骤讲当时的问题是什么、每一步改了什么、为什么有效，配简化后的代码，最后是数字的口径和讲的顺序。"
+description: "简历“实习经历”的 6 条，一条一节：行情接入、行情优化、因子开发、因子计算优化、因子回测框架、因子回测优化。每节先放简历原文，再按步骤讲当时的问题是什么、每一步改了什么、为什么有效，配简化后的代码，最后是数字的口径和讲的顺序。第 7 节把每一条补成能跑的完整代码，用来手写练习。"
 weight: 5
 toc: true
 math: true
@@ -829,3 +829,830 @@ public:
 > 4. **5 处改动**：按实际条数分配，结构体精简，字符串共享，arena 统一分配，跨交易日复用。前 3 处是少碰、少分配，后 2 处是复用。
 > 5. **结果和验证**：约 44%，缺页降到原来的三分之一左右，输出 md5 不变。
 > 6. **可以补的一个细节**：arena 第一版没复用上，是靠“预期少 57 万次缺页、实测只少 6 万”发现的。
+
+## 7. 手写练习：每一条一份能跑的完整代码 {#handwrite}
+
+前面 6 节的代码是片段，这一节把每一条补成一个完整的程序，带测试。
+
+> **怎么练**
+>
+> 1. **先盖住代码**，按“开写前说”那几句出声说一遍设计，30 秒以内。
+> 2. **从空白写**，写完编译、运行，打印“全部测试通过！”才算写对；对不上再看下面的代码。
+> 3. **第二天从空白再写一遍**。面试官要确认的是“这是你自己写的”，能边写边说出每一行为什么这样写，比写得快更重要。
+>
+> 代码是为了能在一个文件里跑起来重写的简化版：名字和结构不是原工程的，厂商 SDK、文件、设备都用假的代替；只用标准库，g++ 15 加 `-Wall -Wextra` 零警告。
+
+### 7.1 行情接入：两家回调 → 统一结构 → 广播环 → 写线程 {#hw-md-feed}
+
+- **开写前说**：两家各一个回调，只做转换和写环；环用 `fetch_add` 占号、填格子、按序号顺序发布；写线程自己记游标，醒来批量读到 `published` 为止。
+- **写的时候注意**：第 3 步要等前一个序号发布完才发布自己，因为 SDK 可能用不止一个线程回调；读者不改任何共享状态；测试核三样：条数、同一家的顺序、单位换算。
+- **这就是实习里那一版**：格子里没有戳，读者只能拿 `claimed` 判断自己有没有被套圈。每格带戳、能发现套圈和撕裂读的改进版见 [SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/)。
+
+```cpp
+// 实习 1：行情接入。两家厂商回调 → 转成统一结构 → 写进 SPMC 广播环 → 写线程批量读、落盘
+// 要点：回调线程只做转换和写环；fetch_add 占序号，按序号顺序发布；读者自记游标，只读到 published 为止
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra -pthread i1_md_feed.cpp -o md_feed && ./md_feed
+#include <atomic>
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
+#include <chrono>
+#include <cstring>
+#include <memory>
+#include <thread>
+#include <vector>
+#if defined(__x86_64__) || defined(_M_X64)
+#include <immintrin.h>
+#define CPU_PAUSE() _mm_pause()
+#else
+#define CPU_PAUSE() std::this_thread::yield()
+#endif
+
+// ---- 统一结构：两家转换后都是它 ----
+struct Snapshot {
+    char     code[8];
+    int64_t  time_ms;
+    double   last;
+    double   bid_px[10];
+    int64_t  bid_vol[10];
+    uint32_t src;          // 来自哪一家、第几条（测试用）
+    uint32_t src_seq;
+};
+
+// ---- 两家厂商各自的结构（字段名、单位都不一样）----
+struct VendorASnap { char code[8]; int64_t t; int64_t last_px; int64_t bid_px[10]; int64_t bid_vol[10]; };  // 价格放大 10000 倍
+struct VendorBSnap { char symbol[8]; int64_t ts; double price; double bids[10]; int32_t lots[10]; };       // 量是手，1 手 = 100 股
+
+// ---- SPMC 广播环：多个回调线程写（fetch_add 占号），多个读者各读全部 ----
+template <class T>
+class BroadcastRing {
+    std::unique_ptr<T[]> slots_;
+    uint64_t len_;
+    alignas(128) std::atomic<uint64_t> claimed_{0};     // 已经占掉的序号
+    alignas(128) std::atomic<uint64_t> published_{0};   // 这个序号之前的格子都写完了
+public:
+    explicit BroadcastRing(uint64_t len) : slots_(new T[len]), len_(len) {}
+
+    template <class Fill>
+    void push(Fill&& fill) {
+        uint64_t seq = claimed_.fetch_add(1, std::memory_order_relaxed);   // 1. 占一个序号
+        fill(slots_[seq % len_]);                                          // 2. 直接在格子里填
+        while (published_.load(std::memory_order_acquire) != seq) CPU_PAUSE();  // 3. 等前一个发布完
+        published_.store(seq + 1, std::memory_order_release);              //    再发布自己
+    }
+
+    // 读者：自己记游标，读到 published 为止。返回这次读了几条
+    template <class Sink>
+    uint64_t drain(uint64_t& cursor, Sink&& sink) const {
+        uint64_t end = published_.load(std::memory_order_acquire);
+        uint64_t n = 0;
+        for (; cursor < end; ++cursor, ++n) sink(slots_[cursor % len_]);
+        // 读完再看一眼：生产者已经占到 cursor + len 之后，刚才读的可能被覆盖了（套圈）
+        return n;
+    }
+    bool lapped(uint64_t cursor) const {
+        return claimed_.load(std::memory_order_acquire) >= cursor + len_;
+    }
+};
+
+using Ring = BroadcastRing<Snapshot>;
+
+// ---- 两家的回调：只做转换和写环 ----
+void on_vendor_a(Ring& ring, const VendorASnap& in, uint32_t seq) {
+    ring.push([&](Snapshot& out) {
+        std::memcpy(out.code, in.code, 8);
+        out.time_ms = in.t;
+        out.last = in.last_px / 10000.0;
+        for (int i = 0; i < 10; ++i) {
+            out.bid_px[i]  = in.bid_px[i] / 10000.0;
+            out.bid_vol[i] = in.bid_vol[i];
+        }
+        out.src = 0; out.src_seq = seq;
+    });
+}
+void on_vendor_b(Ring& ring, const VendorBSnap& in, uint32_t seq) {
+    ring.push([&](Snapshot& out) {
+        std::memcpy(out.code, in.symbol, 8);
+        out.time_ms = in.ts;
+        out.last = in.price;
+        for (int i = 0; i < 10; ++i) {
+            out.bid_px[i]  = in.bids[i];
+            out.bid_vol[i] = int64_t(in.lots[i]) * 100;   // 手 → 股
+        }
+        out.src = 1; out.src_seq = seq;
+    });
+}
+
+int main() {
+    constexpr uint32_t kPerVendor = 200000;
+    Ring ring(1 << 20);                 // 环开得比一次能积压的量大，落盘读者批量读不会被套圈
+    std::atomic<bool> done{false};
+
+    // 写线程：睡一会儿醒来批量读，“落盘”（这里只校验和计数）
+    uint64_t lines = 0, bad = 0;
+    uint32_t next_seq[2] = {0, 0};
+    std::thread writer([&] {
+        uint64_t cursor = 0;
+        auto sink = [&](const Snapshot& s) {
+            if (s.src_seq != next_seq[s.src]) ++bad;    // 同一家的行情按顺序到、不丢不重
+            next_seq[s.src] = s.src_seq + 1;
+            double expect = 10.0 + (s.src_seq % 100) * 0.01;
+            if (s.last < expect - 1e-9 || s.last > expect + 1e-9) ++bad;   // 转换对不对
+            if (s.bid_vol[0] != 500) ++bad;
+            ++lines;
+        };
+        for (;;) {
+            bool fin = done.load(std::memory_order_acquire);
+            ring.drain(cursor, sink);
+            if (ring.lapped(cursor)) ++bad;
+            if (fin && cursor == 2ull * kPerVendor) break;
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+        }
+    });
+
+    // 两个“SDK 线程”同时回调
+    std::thread a([&] {
+        for (uint32_t i = 0; i < kPerVendor; ++i) {
+            VendorASnap in{};
+            std::memcpy(in.code, "600000\0", 8);
+            in.t = i; in.last_px = 100000 + (i % 100) * 100;     // 10.00 + 0.01·k
+            for (int k = 0; k < 10; ++k) { in.bid_px[k] = in.last_px - k * 100; in.bid_vol[k] = 500; }
+            on_vendor_a(ring, in, i);
+        }
+    });
+    std::thread b([&] {
+        for (uint32_t i = 0; i < kPerVendor; ++i) {
+            VendorBSnap in{};
+            std::memcpy(in.symbol, "000001\0", 8);
+            in.ts = i; in.price = 10.0 + (i % 100) * 0.01;
+            for (int k = 0; k < 10; ++k) { in.bids[k] = in.price - k * 0.01; in.lots[k] = 5; }
+            on_vendor_b(ring, in, i);
+        }
+    });
+    a.join(); b.join();
+    done.store(true, std::memory_order_release);
+    writer.join();
+
+    assert(bad == 0);
+    assert(lines == 2ull * kPerVendor);
+    std::printf("落盘 %llu 行，0 处错误\n", (unsigned long long)lines);
+
+    // 小环 + 不读：生产者不等读者，读者落后一整圈后能发现自己被套圈
+    Ring small(8);
+    uint64_t cur = 0;
+    for (uint32_t i = 0; i < 20; ++i) on_vendor_a(small, VendorASnap{}, i);
+    assert(small.lapped(cur));
+    std::printf("全部测试通过！\n");
+}
+```
+
+### 7.2 行情优化：计数隔离、预触、读时钟、打点 {#hw-md-opt}
+
+- **开写前说**：每个环的计数独占一个 128 字节的块，用 `static_assert` 钉死布局；启动时在绑好核的线程上每页写一个字节；回调自己 `clock_gettime`；延迟打点进预分配的数组，跑完离线取分位数。
+- **写的时候注意**：预触必须写、不能只读；分位数用 `nth_element`，不用整个排序；伪共享的演示数字因机器而异，在我的 Windows 机器上同一条行约 440 ms，隔开约 40 ms。
+
+```cpp
+// 实习 2：行情优化。① 计数按 128 字节隔离并钉死布局 ② 启动时预触内存页 ③ 回调自己读时钟 ④ 打点和分位数
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra -pthread i2_md_opt.cpp -o md_opt && ./md_opt
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <ctime>
+#include <memory>
+#include <thread>
+#include <vector>
+#ifdef __linux__
+#include <sched.h>
+#endif
+
+struct Snapshot { int64_t recv_ns; double last; double bid_px[10]; int64_t bid_vol[10]; };
+struct Order    { int64_t recv_ns; double px; int64_t vol; };
+
+// ---- ① 伪共享：只读的指针放一起，每个环的计数独占一个 128 字节的块 ----
+struct alignas(128) Counters {
+    std::atomic<uint64_t> claimed{0};      // 回调线程每条都改
+    std::atomic<uint64_t> published{0};
+};
+struct RingSet {
+    Snapshot* snap_slots;                  // 启动后只读，写线程每写一行都读
+    Order*    order_slots;
+    Counters  snap_cnt;
+    Counters  order_cnt;
+};
+// 把布局钉死：以后有人增删成员，编译就报错
+static_assert(sizeof(Counters) == 128 && alignof(Counters) == 128, "计数要独占 128 字节");
+static_assert(offsetof(RingSet, snap_cnt)  % 128 == 0, "snap_cnt 要从块边界开始");
+static_assert(offsetof(RingSet, order_cnt) % 128 == 0, "order_cnt 要从块边界开始");
+static_assert(offsetof(RingSet, snap_cnt) >= 128, "只读指针不能和计数同一块");
+
+// ---- ② 预触：每页写一个字节，逼内核现在就分配；要在绑到回调核的线程上调 ----
+void pin_to_core(int core) {
+#ifdef __linux__
+    cpu_set_t set; CPU_ZERO(&set); CPU_SET(core, &set);
+    sched_setaffinity(0, sizeof(set), &set);     // 绑核后再写，页落在这个核的 NUMA 节点
+#else
+    (void)core;
+#endif
+}
+void prefault(void* p, size_t bytes, size_t page = 4096) {
+    auto* c = static_cast<volatile char*>(p);
+    for (size_t off = 0; off < bytes; off += page) c[off] = 0;   // 必须写：只读会映射到共享零页
+}
+
+// ---- ③ 读时钟：回调自己读，走 vDSO 不进内核；不再读别的核不停改写的共享字段 ----
+inline int64_t now_ns() {
+#if defined(CLOCK_REALTIME)
+    timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return int64_t(ts.tv_sec) * 1'000'000'000 + ts.tv_nsec;
+#else
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+#endif
+}
+
+// ---- ④ 打点：热路径只往预分配数组里写差值，跑完离线取分位数 ----
+class LatencyRecorder {
+    std::vector<int64_t> samples_;
+    size_t n_ = 0;
+public:
+    explicit LatencyRecorder(size_t cap) : samples_(cap) {}   // 预先分配，热路径不分配
+    void add(int64_t ns) { if (n_ < samples_.size()) samples_[n_++] = ns; }
+    int64_t percentile(double p) {                           // 离线算，p 取 0–100
+        assert(n_ > 0);
+        size_t k = std::min(n_ - 1, size_t(p / 100.0 * double(n_)));
+        std::nth_element(samples_.begin(), samples_.begin() + k, samples_.begin() + n_);
+        return samples_[k];
+    }
+};
+
+// ---- 演示：两个线程各写各的计数，同一块 vs 隔开 ----
+template <class Pair>
+double race_ms(Pair& p, uint64_t iters) {
+    auto t0 = std::chrono::steady_clock::now();
+    std::thread a([&] { for (uint64_t i = 0; i < iters; ++i) p.x.fetch_add(1, std::memory_order_relaxed); });
+    std::thread b([&] { for (uint64_t i = 0; i < iters; ++i) p.y.fetch_add(1, std::memory_order_relaxed); });
+    a.join(); b.join();
+    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+}
+struct SameLine  { std::atomic<uint64_t> x{0}; std::atomic<uint64_t> y{0}; };
+struct Separated { alignas(128) std::atomic<uint64_t> x{0}; alignas(128) std::atomic<uint64_t> y{0}; };
+
+int main() {
+    // 预触：一个 64 MB 的环，启动时每页写一个字节
+    pin_to_core(0);
+    size_t bytes = 64u << 20;
+    std::unique_ptr<char[]> ring(new char[bytes]);
+    auto t0 = std::chrono::steady_clock::now();
+    prefault(ring.get(), bytes);
+    double pre_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    std::printf("预触 64 MB 用了 %.1f ms（启动时付一次，开盘时不再缺页）\n", pre_ms);
+
+    // 打点 + 分位数：分位数本身要算对
+    LatencyRecorder rec(1000);
+    for (int i = 1; i <= 1000; ++i) rec.add(i);
+    assert(rec.percentile(50) == 501 && rec.percentile(99) == 991);
+
+    // 用打点量一次“读时钟”的开销
+    LatencyRecorder clk(100000);
+    for (int i = 0; i < 100000; ++i) { int64_t a = now_ns(); int64_t b = now_ns(); clk.add(b - a); }
+    std::printf("读一次时钟：P50 %lld ns，P99 %lld ns\n",
+                (long long)clk.percentile(50), (long long)clk.percentile(99));
+
+    // 伪共享演示（数字因机器而异，只看相对大小）
+    SameLine s; Separated d;
+    double t_same = race_ms(s, 20'000'000), t_sep = race_ms(d, 20'000'000);
+    std::printf("两个计数同一条缓存行 %.0f ms，隔开 128 字节 %.0f ms\n", t_same, t_sep);
+    assert(s.x == 20'000'000 && d.y == 20'000'000);
+    std::printf("全部测试通过！\n");
+}
+```
+
+### 7.3 因子开发：增量滚动标准差、按 key 对拍、边界单元测试 {#hw-factor-dev}
+
+- **开写前说**：窗口没满时 Welford 加一个，满了进一个、出一个；参考答案是整窗重算；对拍按 key 对齐、按绝对加相对容差比，对拍的门自己也要用故意做错的数据验一遍。
+- **写的时候注意**：除以 N − 1；窗口没满输出 NaN；第一个 bar 没有收益率；价格不变时离差平方和可能因为舍入变成极小的负数，开根号前取 `max(0, ·)`（3.1 节的片段没写这一句）。
+
+```cpp
+// 实习 3：因子开发。研究侧 rolling(20).std() 改成 on_bar 增量；按 key 对齐、按容差逐值对拍；单元测试覆盖边界
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra i3_factor_dev.cpp -o factor_dev && ./factor_dev
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <limits>
+#include <map>
+#include <random>
+#include <string>
+#include <tuple>
+#include <vector>
+
+constexpr double NaN = std::numeric_limits<double>::quiet_NaN();
+
+// ---- 生产版：每个 bar 收盘调一次，O(1) 更新 ----
+// 对应 pandas：ret = mid.pct_change(); factor = ret.rolling(N).std()   （ddof = 1，窗口没满是 NaN）
+template <int N>
+class RollingVol {
+    std::array<double, N> buf_{};
+    int    n_ = 0, pos_ = 0;
+    double mean_ = 0, s_ = 0;          // s_ = 窗口内 Σ(x − mean)²
+    double prev_mid_ = NaN;
+public:
+    void on_bar(double mid) {
+        double x = mid / prev_mid_ - 1;    // 第一个 bar 没有前值，得到 NaN
+        prev_mid_ = mid;
+        if (std::isnan(x)) return;
+        if (n_ < N) {                      // 窗口没满：Welford 加一个
+            buf_[pos_] = x; ++n_;
+            double d = x - mean_;
+            mean_ += d / n_;
+            s_    += d * (x - mean_);
+        } else {                           // 窗口满了：进一个、出一个
+            double old = buf_[pos_];
+            buf_[pos_] = x;
+            double new_mean = mean_ + (x - old) / N;
+            s_   += (x - old) * (x - new_mean + old - mean_);
+            mean_ = new_mean;
+        }
+        pos_ = (pos_ + 1) % N;
+    }
+    double value() const { return n_ < N ? NaN : std::sqrt(std::max(0.0, s_) / (N - 1)); }
+};
+
+// ---- 研究版（参考答案）：拿到整列，每个位置把窗口从头算一遍 ----
+std::vector<double> rolling_std_ref(const std::vector<double>& mid, int N) {
+    std::vector<double> ret(mid.size(), NaN), out(mid.size(), NaN);
+    for (size_t i = 1; i < mid.size(); ++i) ret[i] = mid[i] / mid[i - 1] - 1;
+    for (size_t i = N; i < mid.size(); ++i) {          // ret[0] 是 NaN，所以第一个满窗在 i = N
+        double m = 0, s = 0;
+        for (size_t j = i + 1 - N; j <= i; ++j) m += ret[j];
+        m /= N;
+        for (size_t j = i + 1 - N; j <= i; ++j) s += (ret[j] - m) * (ret[j] - m);
+        out[i] = std::sqrt(s / (N - 1));
+    }
+    return out;
+}
+
+// ---- 3 秒 bar 的下标：按距开盘的秒数除以 3，午休单独处理（端点归属要和研究侧一致）----
+int bar_index(int sec_of_day) {
+    constexpr int kOpen = 9 * 3600 + 30 * 60, kNoon = 11 * 3600 + 30 * 60, kPm = 13 * 3600;
+    if (sec_of_day <= kNoon) return (sec_of_day - kOpen) / 3;
+    return 2400 + (sec_of_day - kPm) / 3;               // 上午 2 小时 = 2400 个 bar
+}
+
+// ---- 对拍：按 key 对齐，不按行序；容差 = 绝对 + 相对 ----
+using Key = std::tuple<int, std::string>;               // (bar, code)
+struct DiffReport { int missing = 0, extra = 0, bad = 0; };
+DiffReport compare(const std::map<Key, double>& ref, const std::map<Key, double>& out,
+                   double atol = 1e-12, double rtol = 1e-9) {
+    DiffReport r;
+    for (auto& [k, v] : ref) {
+        auto it = out.find(k);
+        if (it == out.end()) { ++r.missing; continue; }
+        bool both_nan = std::isnan(v) && std::isnan(it->second);
+        if (!both_nan && !(std::fabs(it->second - v) <= atol + rtol * std::fabs(v))) ++r.bad;
+    }
+    for (auto& [k, v] : out) if (!ref.count(k)) ++r.extra;
+    return r;
+}
+
+int main() {
+    // 1. 对拍：同一天的数据两边各算一遍
+    std::mt19937 rng(42);
+    std::normal_distribution<double> step(0, 0.002);
+    std::vector<double> mid{10.0};
+    for (int i = 1; i < 4800; ++i) mid.push_back(mid.back() * (1 + step(rng)));
+
+    auto ref_vals = rolling_std_ref(mid, 20);
+    RollingVol<20> f;
+    std::map<Key, double> ref, out;
+    for (size_t i = 0; i < mid.size(); ++i) {
+        f.on_bar(mid[i]);
+        out[{int(i), "600000"}] = f.value();
+        ref[{int(i), "600000"}] = ref_vals[i];
+    }
+    auto r = compare(ref, out);
+    std::printf("对拍：缺 %d 行，多 %d 行，超容差 %d 个\n", r.missing, r.extra, r.bad);
+    assert(r.missing == 0 && r.extra == 0 && r.bad == 0);
+
+    // 对拍的门自己也要验：故意做错一个，必须被抓到
+    out[{100, "600000"}] += 1e-6;
+    out[{9999, "000001"}] = 0;
+    r = compare(ref, out);
+    assert(r.bad == 1 && r.extra == 1);
+
+    // 2. 单元测试：手算的小例子和边界
+    RollingVol<3> g;
+    g.on_bar(100); assert(std::isnan(g.value()));          // 第一个 bar 没有收益率
+    g.on_bar(101); g.on_bar(102); assert(std::isnan(g.value()));   // 只有 2 个收益率，窗口没满
+    g.on_bar(103);                                          // 收益率 1%、0.990…%、0.980…%
+    double r1 = 0.01, r2 = 102.0 / 101 - 1, r3 = 103.0 / 102 - 1, m = (r1 + r2 + r3) / 3;
+    double expect = std::sqrt(((r1 - m) * (r1 - m) + (r2 - m) * (r2 - m) + (r3 - m) * (r3 - m)) / 2);
+    assert(std::fabs(g.value() - expect) < 1e-15);
+    RollingVol<3> flat;                                     // 价格不变：方差是 0，不能因为舍入变成负数开根号
+    for (int i = 0; i < 10; ++i) flat.on_bar(10.0);
+    assert(flat.value() == 0.0);
+
+    assert(bar_index(9 * 3600 + 30 * 60) == 0);             // 09:30:00 整
+    assert(bar_index(9 * 3600 + 30 * 60 + 2) == 0);         // 09:30:02 还在第 0 个
+    assert(bar_index(9 * 3600 + 30 * 60 + 3) == 1);
+    assert(bar_index(11 * 3600 + 30 * 60) == 2400);         // 11:30:00 整：这里归到上午的末尾
+    assert(bar_index(13 * 3600) == 2400);                   // 13:00:00 接着往下数
+    assert(bar_index(15 * 3600) == 4800);
+    std::printf("全部测试通过！\n");
+}
+```
+
+### 7.4 因子计算优化：每一类“改之前 / 改之后”，输出一致才算 {#hw-factor-opt}
+
+- **开写前说**：每一类改法两版都写，跑同一份数据，输出一致才算数；改了求和顺序的按容差比。
+- **重点手写两个**：单调队列求滚动最大值（队列里只留还可能成为最大值的，值单调递减），和 CRTP 的 `FactorSet`（折叠表达式依次调每个因子）。
+
+```cpp
+// 实习 4：因子计算优化。每一类都写“改之前 / 改之后”，并检查两版输出一致（改了运算顺序的按容差）
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra i4_factor_opt.cpp -o factor_opt && ./factor_opt
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <deque>
+#include <memory>
+#include <random>
+#include <tuple>
+#include <vector>
+
+struct Tick { int sec; double bid_px[10], ask_px[10]; double bid_vol[10]; double last; };
+
+// ---- 4.1 同一个量的几档参数：一次循环，路过时记下 ----
+void depth_before(const Tick& t, double out[4]) {
+    const int lv[4] = {1, 3, 5, 10};
+    for (int k = 0; k < 4; ++k) { out[k] = 0; for (int i = 0; i < lv[k]; ++i) out[k] += t.bid_vol[i]; }
+}
+void depth_after(const Tick& t, double out[4]) {
+    double acc = 0;
+    for (int i = 0; i < 10; ++i) {
+        acc += t.bid_vol[i];
+        if (i == 0) out[0] = acc;
+        if (i == 2) out[1] = acc;
+        if (i == 4) out[2] = acc;
+    }
+    out[3] = acc;
+}
+
+// ---- 4.2 滚动窗口：和用“进一个加、出一个减”；最大值用单调队列 ----
+class RollingMax {                       // 队列里只留“还可能成为最大值”的下标，值单调递减
+    std::deque<std::pair<long, double>> q_;
+    long i_ = 0; int n_;
+public:
+    explicit RollingMax(int n) : n_(n) {}
+    double push(double x) {
+        while (!q_.empty() && q_.back().second <= x) q_.pop_back();   // 比 x 小的以后不可能是最大
+        q_.emplace_back(i_, x);
+        if (q_.front().first <= i_ - n_) q_.pop_front();             // 滑出窗口
+        ++i_;
+        return q_.front().second;
+    }
+};
+
+// ---- 4.3 找 bar：线性找 → 直接算下标 ----
+std::vector<int> g_bar_end;              // 每个 bar 的结束秒（含），线性查找用
+int bar_linear(int sec) {
+    for (size_t i = 0; i < g_bar_end.size(); ++i) if (g_bar_end[i] >= sec) return int(i);
+    return int(g_bar_end.size());
+}
+int bar_direct(int sec) {
+    constexpr int kOpen = 9 * 3600 + 30 * 60, kNoon = 11 * 3600 + 30 * 60, kPm = 13 * 3600;
+    if (sec <= kNoon) return (sec - kOpen) / 3;
+    return 2400 + (sec - kPm) / 3;                       // 上午 2 小时 = 2400 个 bar
+}
+
+// ---- 4.4 由数据决定的分支 → 条件表达式 / 算术 ----
+double pick_before(const Tick& t, int i, double last) { if (t.bid_px[i] > 0) return t.bid_px[i]; else return last; }
+double pick_after (const Tick& t, int i, double last) { return t.bid_px[i] > 0 ? t.bid_px[i] : last; }   // 通常编成 cmov
+
+// ---- 4.6 一个累加器串着加 → 4 个累加器 ----
+double sum_before(const double* x, int n) { double s = 0; for (int i = 0; i < n; ++i) s += x[i]; return s; }
+double sum_after(const double* x, int n) {
+    double s0 = 0, s1 = 0, s2 = 0, s3 = 0; int i = 0;
+    for (; i + 4 <= n; i += 4) { s0 += x[i]; s1 += x[i + 1]; s2 += x[i + 2]; s3 += x[i + 3]; }
+    double s = (s0 + s1) + (s2 + s3);
+    for (; i < n; ++i) s += x[i];
+    return s;
+}
+
+// ---- 4.7 虚函数 → CRTP，一组因子在编译期拼好 ----
+struct IFactor { virtual void on_tick(const Tick& t) = 0; virtual double value() const = 0; virtual ~IFactor() = default; };
+struct SpreadV : IFactor { double v = 0; void on_tick(const Tick& t) override { v += t.ask_px[0] - t.bid_px[0]; } double value() const override { return v; } };
+struct MidV    : IFactor { double v = 0; void on_tick(const Tick& t) override { v += (t.ask_px[0] + t.bid_px[0]) / 2; } double value() const override { return v; } };
+
+template <class D> struct FactorBase { void on_tick(const Tick& t) { static_cast<D*>(this)->on_tick_impl(t); } };
+struct Spread : FactorBase<Spread> { double v = 0; void on_tick_impl(const Tick& t) { v += t.ask_px[0] - t.bid_px[0]; } };
+struct Mid    : FactorBase<Mid>    { double v = 0; void on_tick_impl(const Tick& t) { v += (t.ask_px[0] + t.bid_px[0]) / 2; } };
+template <class... Fs> struct FactorSet {
+    std::tuple<Fs...> fs;
+    void on_tick(const Tick& t) { std::apply([&](auto&... f) { (f.on_tick(t), ...); }, fs); }
+};
+
+// ---- 4.8 热循环里的分配 → 提到外面、复用 ----
+void fill(std::vector<double>& v, const Tick& t) { for (int i = 0; i < 10; ++i) v.push_back(t.bid_px[i] * t.bid_vol[i]); }
+double alloc_before(const std::vector<Tick>& ts) {
+    double s = 0;
+    for (auto& t : ts) { std::vector<double> tmp; fill(tmp, t); s += tmp[3]; }
+    return s;
+}
+double alloc_after(const std::vector<Tick>& ts) {
+    double s = 0; std::vector<double> tmp; tmp.reserve(16);
+    for (auto& t : ts) { tmp.clear(); fill(tmp, t); s += tmp[3]; }   // clear 只把长度归零，不释放
+    return s;
+}
+
+int main() {
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<double> px(9.5, 10.5), vol(0, 1000);
+    std::vector<Tick> ticks(20000);
+    for (auto& t : ticks) {
+        for (int i = 0; i < 10; ++i) { t.bid_px[i] = (rng() % 5 == 0) ? 0 : px(rng); t.ask_px[i] = t.bid_px[i] + 0.01; t.bid_vol[i] = vol(rng); }
+        t.last = px(rng);
+    }
+
+    for (auto& t : ticks) { double a[4], b[4]; depth_before(t, a); depth_after(t, b); for (int k = 0; k < 4; ++k) assert(a[k] == b[k]); }
+
+    // 滚动和 + 滚动最大值，对暴力
+    const int N = 20; double run = 0; RollingMax rm(N); std::vector<double> xs;
+    for (auto& t : ticks) {
+        double x = t.last; xs.push_back(x);
+        run += x; if (xs.size() > N) run -= xs[xs.size() - 1 - N];
+        double mx = rm.push(x);
+        size_t lo = xs.size() > N ? xs.size() - N : 0;
+        double brute_sum = 0, brute_max = -1e300;
+        for (size_t j = lo; j < xs.size(); ++j) { brute_sum += xs[j]; brute_max = std::max(brute_max, xs[j]); }
+        assert(std::fabs(run - brute_sum) < 1e-9 && mx == brute_max);
+    }
+
+    // bar：两种写法对全天每一秒结果一样
+    for (int b = 0; b < 2400; ++b) g_bar_end.push_back(9 * 3600 + 30 * 60 + 3 * b + 2);
+    for (int b = 0; b < 2400; ++b) g_bar_end.push_back(13 * 3600 + 3 * b + 2);
+    for (int s = 9 * 3600 + 30 * 60; s <= 11 * 3600 + 30 * 60; ++s) assert(bar_linear(s) == bar_direct(s));
+    for (int s = 13 * 3600; s < 15 * 3600; ++s) assert(bar_linear(s) == bar_direct(s));
+
+    for (auto& t : ticks) for (int i = 0; i < 10; ++i) assert(pick_before(t, i, t.last) == pick_after(t, i, t.last));
+
+    std::vector<double> big(1'000'003); for (auto& v : big) v = px(rng);
+    double s1 = sum_before(big.data(), int(big.size())), s2 = sum_after(big.data(), int(big.size()));
+    assert(std::fabs(s1 - s2) <= 1e-9 * std::fabs(s1));      // 换了求和顺序，末位会变：按容差比
+    std::printf("串行和 %.17g，4 路和 %.17g（末位不同是正常的）\n", s1, s2);
+
+    std::vector<std::unique_ptr<IFactor>> virt; virt.emplace_back(new SpreadV); virt.emplace_back(new MidV);
+    FactorSet<Spread, Mid> crtp;
+    for (auto& t : ticks) { for (auto& f : virt) f->on_tick(t); crtp.on_tick(t); }
+    assert(virt[0]->value() == std::get<0>(crtp.fs).v && virt[1]->value() == std::get<1>(crtp.fs).v);
+
+    assert(alloc_before(ticks) == alloc_after(ticks));
+    std::printf("全部测试通过！\n");
+}
+```
+
+### 7.5 回测框架：比输出 + 配对计时 {#hw-backtest-flow}
+
+- **开写前说**：第一关比输出，不一致直接否决，这道门先用一个故意做错的版本验；第二关每轮新旧紧挨着各跑一次、顺序随机，只看轮内的差；先跑 A/A 看噪声多大；判据事先写死：区间整个在 0 的负侧才采纳。
+- **页面 5.4 节是 Python 驱动两个可执行文件**，这里把同样的流程写成一个 C++ 程序。我机器上的一次输出：A/A 中位差 +1.1%、区间 [−4.7%, +10.4%]，不采纳；新版中位差 −86%、30 轮全快，采纳。
+
+```cpp
+// 实习 5：回测框架的验证流程。第一关比输出（不一致直接否决）；第二关配对计时（每轮新旧紧挨着、顺序随机，只看轮内的差）
+// 页面里是 Python 驱动两个可执行文件；这里把同样的流程写在一个 C++ 程序里，方便手写
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra i5_backtest_flow.cpp -o bt_flow && ./bt_flow
+#include <algorithm>
+#include <cassert>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <random>
+#include <string>
+#include <vector>
+
+struct Tick { int32_t time; double last; };
+using Day = std::vector<std::vector<Tick>>;               // 每只股票一天的行情，文件里已按时间排好
+
+// ---- 被测的“一个交易日”：装数据 → 算因子 → 输出。返回输出（这里用每只股票一行结果代替文件）----
+std::vector<std::string> run_old(const Day& day) {          // 原版：每只股票装完再排一次序
+    std::vector<std::string> out;
+    for (auto ticks : day) {
+        std::sort(ticks.begin(), ticks.end(), [](const Tick& a, const Tick& b) { return a.time < b.time; });
+        double s = 0; for (auto& t : ticks) s += t.last;
+        out.push_back(std::to_string(s));
+    }
+    return out;
+}
+std::vector<std::string> run_new(const Day& day) {          // 候选：数据本来有序，去掉排序
+    std::vector<std::string> out;
+    for (auto& ticks : day) { double s = 0; for (auto& t : ticks) s += t.last; out.push_back(std::to_string(s)); }
+    return out;
+}
+std::vector<std::string> run_wrong(const Day& day) {        // 故意做错：跳过每只股票前 100 条
+    std::vector<std::string> out;
+    for (auto& ticks : day) { double s = 0; for (size_t i = 100; i < ticks.size(); ++i) s += ticks[i].last; out.push_back(std::to_string(s)); }
+    return out;
+}
+
+// ---- 第一关：逐行比输出（页面里是逐个文件比 md5）----
+bool same_output(const std::vector<std::string>& a, const std::vector<std::string>& b) { return a == b; }
+
+// ---- 第二关：配对计时 ----
+using Runner = std::function<std::vector<std::string>(const Day&)>;
+double time_once(const Runner& f, const Day& d, std::vector<std::string>* out) {
+    auto t0 = std::chrono::steady_clock::now();
+    auto r = f(d);
+    double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    if (out) *out = std::move(r);
+    return s;
+}
+struct Verdict { double median, lo, hi; int faster, rounds; };
+Verdict paired(const Runner& old_f, const Runner& new_f, const Day& d, int rounds, std::mt19937& rng) {
+    std::vector<std::string> ref, got;
+    time_once(old_f, d, &ref); time_once(new_f, d, nullptr);       // 各预热一次，丢掉
+    std::vector<double> diffs;
+    for (int r = 0; r < rounds; ++r) {
+        bool old_first = rng() & 1;                                 // 谁先跑随机定
+        double t_old, t_new;
+        if (old_first) { t_old = time_once(old_f, d, nullptr); t_new = time_once(new_f, d, &got); }
+        else           { t_new = time_once(new_f, d, &got); t_old = time_once(old_f, d, nullptr); }
+        assert(same_output(ref, got));                              // 每次运行都过第一关
+        diffs.push_back((t_new - t_old) / t_old);                   // 只看同一轮里的差，用比例
+    }
+    std::sort(diffs.begin(), diffs.end());
+    int faster = int(std::count_if(diffs.begin(), diffs.end(), [](double x) { return x < 0; }));
+    return {diffs[rounds / 2], diffs[size_t(0.05 * rounds)], diffs[size_t(0.95 * rounds) - 1], faster, rounds};
+}
+void print(const char* name, const Verdict& v) {
+    bool accept = v.hi < 0;                                         // 判据事先写死：区间整个在 0 的负侧
+    std::printf("%-6s 中位差 %+6.1f%%  90%% 区间 [%+6.1f%%, %+6.1f%%]  更快 %d/%d 轮  → %s\n",
+                name, v.median * 100, v.lo * 100, v.hi * 100, v.faster, v.rounds, accept ? "采纳" : "不采纳");
+}
+
+int main() {
+    std::mt19937 rng(1);
+    Day day(300);
+    for (auto& s : day) { int n = 2000 + rng() % 2000; for (int i = 0; i < n; ++i) s.push_back({i * 3, 10.0 + (rng() % 100) * 0.01}); }
+
+    // 第一关的门自己要验：错的版本必须被抓到
+    assert(!same_output(run_old(day), run_wrong(day)));
+    assert(same_output(run_old(day), run_new(day)));
+
+    // 先跑 A/A：同一个程序当两边，它告诉你噪声有多大
+    print("A/A", paired(run_old, run_old, day, 30, rng));
+    print("新/旧", paired(run_old, run_new, day, 30, rng));
+    std::printf("全部测试通过！\n");
+}
+```
+
+### 7.6 回测优化：按实际条数从 arena 切，跨交易日复用 {#hw-backtest-opt}
+
+- **开写前说**：一天的行情同生同死，用一块 arena；每天开头 `reset(今天总条数)`，够用就偏移归零、原地覆盖，不够才换块，换的时候多要一半；每只股票 `take(实际条数)`；`Tick` 必须平凡可析构。
+- **写的时候注意**：Linux 上用 `mmap`，其他平台用 `malloc` 代替；测试钉住了 6.4 节那个坑：扩容规则是“刚好够”时，第二天多 2.6% 就要换块，复用没有发生。
+
+```cpp
+// 实习 6：回测装数据。改之前：每天每只股票 new 一个定长 6000 条的对象；改之后：按实际条数从 arena 切、跨交易日复用
+// 规模缩小了（300 只股票），结构和页面一致；重点是 TickArena 和“不够时多要一半”的扩容规则
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra i6_backtest_opt.cpp -o bt_opt && ./bt_opt
+#include <cassert>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <vector>
+#ifdef __linux__
+#include <sys/mman.h>
+#endif
+
+// ---- 改之前：照着行情源定义的大结构，每只股票一个定长对象 ----
+struct TickOld {
+    std::string code, exchange;            // 每条两个 string：装一行就向分配器要两次
+    int64_t time; double pre_close, last, open, high, low, upper, lower;
+    double others[40];                     // 装载时没人写、因子也不读的几十个字段
+    double bid_px[10], ask_px[10]; int64_t bid_vol[10], ask_vol[10];
+};
+struct Bar { int32_t time; };
+struct StockDayOld {
+    TickOld ticks[6000];                   // 不管今天几条，都是 6000 个槽，构造时全碰一遍
+    Bar     bars[4801];                    // 每只股票一份自己的 bar 时间轴
+    int     tick_count = 0;
+};
+
+// ---- 改之后：只留被写、被读的字段；没有需要析构的成员 ----
+struct Tick {
+    int64_t time; double pre_close, last; int64_t volume; double amount;
+    double bid_px[10], ask_px[10]; int64_t bid_vol[10], ask_vol[10];
+};
+static_assert(std::is_trivially_destructible_v<Tick>, "没有析构要跑，才能整块丢");
+
+class TickArena {
+    Tick*  base_ = nullptr;
+    size_t cap_ = 0, used_ = 0;            // 单位是条
+    double grow_;
+public:
+    int    remaps = 0;                     // 换了几次块（测试用）
+    explicit TickArena(double grow = 1.5) : grow_(grow) {}
+    ~TickArena() { release(); }
+    void reset(size_t need) {              // 每个交易日开头调一次，need 是今天的总条数
+        if (need > cap_) {                 // 不够才换块，换的时候多要一些
+            release();
+            cap_ = size_t(double(need) * grow_);
+#ifdef __linux__
+            void* p = mmap(nullptr, cap_ * sizeof(Tick), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            assert(p != MAP_FAILED);
+            base_ = static_cast<Tick*>(p);
+#else
+            base_ = static_cast<Tick*>(std::malloc(cap_ * sizeof(Tick)));
+#endif
+            ++remaps;
+        }
+        used_ = 0;                         // 够用：偏移归零，原地覆盖着写（上一天的页已经映射好，不再缺页）
+    }
+    Tick* take(size_t n) { assert(used_ + n <= cap_); Tick* p = base_ + used_; used_ += n; return p; }
+private:
+    void release() {
+        if (!base_) return;
+#ifdef __linux__
+        munmap(base_, cap_ * sizeof(Tick));
+#else
+        std::free(base_);
+#endif
+        base_ = nullptr;
+    }
+};
+
+struct StockDay {
+    std::string code, exchange;            // 是股票的属性，存一份，行情记录里不放
+    Tick* ticks = nullptr;
+    int   tick_count = 0;
+};
+
+// 装一条：每个字段都无条件写，所以复用 arena 不用清零
+void load_tick(Tick& t, int i) {
+    t.time = i * 3; t.pre_close = 10; t.last = 10 + i % 7 * 0.01; t.volume = i; t.amount = i * 10.0;
+    for (int k = 0; k < 10; ++k) { t.bid_px[k] = t.last - k * 0.01; t.ask_px[k] = t.last + k * 0.01; t.bid_vol[k] = t.ask_vol[k] = 100; }
+}
+
+int main() {
+    std::printf("一条行情：改之前 %zu 字节，改之后 %zu 字节；一只股票的旧对象 %.1f MB\n",
+                sizeof(TickOld), sizeof(Tick), sizeof(StockDayOld) / 1048576.0);
+
+    // 两天的行数：第二天比第一天多 2.6%
+    const int kStocks = 300;
+    std::vector<std::vector<int>> rows(2, std::vector<int>(kStocks));
+    for (int s = 0; s < kStocks; ++s) { rows[0][s] = 2000 + s * 5; rows[1][s] = int(rows[0][s] * 1.026); }
+
+    // 改之前：每天每只 new 一个，当天结束 delete
+    auto t0 = std::chrono::steady_clock::now();
+    double check_old = 0;
+    for (int d = 0; d < 2; ++d) {
+        std::vector<std::unique_ptr<StockDayOld>> stocks;
+        for (int s = 0; s < kStocks; ++s) {
+            stocks.emplace_back(new StockDayOld());
+            for (int i = 0; i < rows[d][s]; ++i) { stocks[s]->ticks[i].code = "600000"; stocks[s]->ticks[i].last = 10 + i % 7 * 0.01; }
+            stocks[s]->tick_count = rows[d][s];
+            check_old += stocks[s]->ticks[rows[d][s] - 1].last;
+        }
+    }
+    double ms_old = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+
+    // 改之后：先数出今天总条数，arena 一次 reset，每只股票顺着切一段
+    auto run_new = [&](TickArena& arena, double& check) {
+        std::vector<StockDay> stocks(kStocks);
+        for (auto& s : stocks) { s.code = "600000"; s.exchange = "SH"; }
+        for (int d = 0; d < 2; ++d) {
+            size_t total = 0; for (int s = 0; s < kStocks; ++s) total += rows[d][s];
+            arena.reset(total);
+            for (int s = 0; s < kStocks; ++s) {
+                stocks[s].ticks = arena.take(rows[d][s]);
+                stocks[s].tick_count = rows[d][s];
+                for (int i = 0; i < rows[d][s]; ++i) load_tick(stocks[s].ticks[i], i);
+                check += stocks[s].ticks[rows[d][s] - 1].last;   // 只读到 tick_count 为止
+            }
+        }
+    };
+    t0 = std::chrono::steady_clock::now();
+    TickArena arena(1.5); double check_new = 0;
+    run_new(arena, check_new);
+    double ms_new = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    assert(std::abs(check_old - check_new) < 1e-6);                 // 两版装出来的数据一样
+
+    // 第一版的扩容规则“刚好够”：第二天多 2.6% 就得换块，复用没发生
+    TickArena exact(1.0); double dummy = 0;
+    run_new(exact, dummy);
+    std::printf("改之前 %.0f ms，改之后 %.0f ms\n", ms_old, ms_new);
+    std::printf("两天里换块次数：刚好够 %d 次，多要一半 %d 次\n", exact.remaps, arena.remaps);
+    assert(exact.remaps == 2 && arena.remaps == 1);
+    std::printf("全部测试通过！\n");
+}
+```
