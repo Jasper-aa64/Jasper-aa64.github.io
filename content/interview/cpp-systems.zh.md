@@ -1,9 +1,9 @@
 ---
-title: "IV：C++ 系统题目：UB、内存序、无锁哈希表、futex 锁、DAG 调度"
+title: "IV：C++ 系统题目：UB、内存序、futex 锁、DAG 调度"
 date: 2026-11-11
 slug: "cpp-systems"
 aliases: ["/interview/cpp-systems-five/"]
-description: "C++ 系统方向的题目：未定义行为、严格别名和释放后使用；x86 上的内存序和同一条缓存行上的 ping-pong；无锁哈希表和 epoch-based reclamation；用 futex 实现互斥锁、把线程 id 缓存在 TLS 里；单线程 DAG 调度器和用线程池并行化。每道写题目和简短答法，知识点展开在对应的知识页。"
+description: "C++ 系统方向的题目：未定义行为、严格别名和释放后使用；x86 上的内存序和同一条缓存行上的 ping-pong；用 futex 实现互斥锁、把线程 id 缓存在 TLS 里；单线程 DAG 调度器和用线程池并行化。每道写题目和简短答法，知识点展开在对应的知识页。"
 weight: 2
 toc: true
 math: true
@@ -46,27 +46,7 @@ math: true
 - [3.5 自旋锁：先读后抢](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-spinlock)
 - [3.6 用 `perf c2c` 分辨伪共享和真共享](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-c2c)
 
-## 3. 无锁哈希表和 epoch 回收：表不难写，难的是旧节点什么时候能释放 {#lockfree-map}
-
-**题目**：设计并实现一个无锁哈希表，说明怎么用 epoch-based reclamation（和 RCU 是同一个思路）做平滑回收。
-
-> **表用固定容量加开放寻址，难的是旧节点什么时候能释放**
->
-> - **先说前提**：键的个数有上限（合约 id 这类），所以表定成固定容量；没有上限时再说扩容怎么做（新表、逐格搬、旧表走同一套回收）。
-> - **表**：键用 CAS 占槽，写进去就不再改，删除只把值指针换成空；更新时分配新节点，一次原子交换换上去，读者要么看到旧的、要么看到新的。
-> - **回收用 epoch**：读者进出临界区时公告自己在第几代，写者把旧节点按摘下时的代数挂起；全局 epoch 比它多 2，摘之前进来的读者都已经离开，才释放。弱点是一个读者卡在临界区里，内存就一直涨。
-> - **不追求无锁时**：按哈希低位分片，每片一把锁；释放交给后台线程，写线程只入队。
-
-**展开见：[#3 第 6 节案例：无锁哈希表](/zh/posts/hot-path-memory-allocators/#case-lockfree-map)**
-
-- [6.1 表：固定容量、开放寻址，键只占槽不腾槽，值整个换指针](/zh/posts/hot-path-memory-allocators/#case-map)
-- [6.2 卡在哪：旧节点换下来的那一刻，可能还有读者拿着它](/zh/posts/hot-path-memory-allocators/#case-problem)
-- [6.3 epoch 回收：为什么 epoch 多 2 才能释放](/zh/posts/hot-path-memory-allocators/#case-ebr)
-- [6.4 取舍：读者卡住内存就涨，hazard pointer 和 RCU](/zh/posts/hot-path-memory-allocators/#case-ebr-tradeoff)
-- [6.5 分片加锁和后台回收](/zh/posts/hot-path-memory-allocators/#case-shard-lock)
-- [6.6 键的个数没有上限时：扩容、腾槽、小的值直接放进槽里](/zh/posts/hot-path-memory-allocators/#case-map-full)
-
-## 4. futex 互斥锁和 TLS 里的线程 id：没人抢时不进内核，抢不到才睡 {#futex}
+## 3. futex 互斥锁和 TLS 里的线程 id：没人抢时不进内核，抢不到才睡 {#futex}
 
 **题目**：用 `futex_wait_private` 实现一个互斥锁，并说明怎么实现放在 TLS 里的线程 id（tid）。
 
@@ -83,7 +63,7 @@ math: true
 - [3.3 三个状态：解锁时看旧值，就知道要不要叫人](/zh/posts/spinlock-implementation/#case-futex-three)
 - [3.4 线程 id：每个线程只取一次，存在 TLS 里](/zh/posts/spinlock-implementation/#case-tid)
 
-## 5. DAG 调度器：单线程按拓扑序跑，并行靠原子的入度计数 {#dag}
+## 4. DAG 调度器：单线程按拓扑序跑，并行靠原子的入度计数 {#dag}
 
 **题目**：实现一个单线程的 DAG 调度器，并说明怎么用线程池把它并行化。
 
