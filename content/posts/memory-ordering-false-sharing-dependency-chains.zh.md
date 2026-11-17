@@ -273,24 +273,26 @@ if (!ready) { while (true) {} }   // 死循环，再也不读内存
 
 这和 CPU 的内存模型无关，是编译器的合法优化。`volatile` 能阻止它，强制每一轮都真的读一次，但也只能做到这一点：**`volatile` 不等于同步**，它不规定和别的内存操作之间的顺序，管不了 1.1 那段时间。修好这个循环要用 `std::atomic<bool>`，也就是下一节。
 
-### 1.5 内存序：每种管什么，用有向边分析 {#release-acquire}
+### 1.5 内存序：在需要的地方不许乱 {#release-acquire}
+
+前四节讲的是乱从哪来：写先进 store buffer，别的核晚一点才看见；作废请求先排队，读可能拿到旧值；编译器也会挪。`memory_order` 就是告诉编译器和 CPU：**这几处的先后不许乱**。
 
 #### 1.5.1 六种内存序各管什么 {#mo-kinds}
 
-`std::atomic` 的读写可以带一个 `memory_order` 参数，说明这次操作要保证什么顺序。后面分析都用同一张图：每次读写是一个点，“谁先于谁”是一条有向边，表里第三列是每种内存序在这张图上的样子（1.5.3 细讲）：
+| 内存序 | 管什么 |
+|---|---|
+| `relaxed` | 只保证这个变量自己的读写不撕裂；读到的不一定是最新的，也不管和别的变量谁先谁后 |
+| `release`（写） | 这次写前面的读写，不许挪到它后面 |
+| `acquire`（读） | 这次读后面的读写，不许挪到它前面 |
+| `acq_rel`（读改写） | 两样都有，用在 `fetch_add`、CAS 上 |
+| `seq_cst` | 在 acquire/release 之上再加一条：所有 `seq_cst` 操作排成一个所有线程都认的顺序，“先写后读”也不许乱；不写参数时的默认值 |
+| `consume` | 已不推荐，编译器按 `acquire` 处理 |
 
-| 内存序 | 保证什么 | 画成图 |
-|---|---|---|
-| `relaxed` | 只保证这一个变量的读写是原子的，不管和别的变量之间的顺序 | 不连横边；读回来的值只当一个数用 |
-| `release`（写） | 这次写之前的所有读写，都不能被挪到它后面 | 横边的起点：它上面这个线程写过的东西，都跟着这条边过去 |
-| `acquire`（读） | 这次读之后的所有读写，都不能被挪到它前面 | 横边的终点，前提是读到了那次 release 写的值；它下面的读写都接在这条边后面 |
-| `acq_rel`（读改写） | 同时是 acquire 和 release | 一个点上一条边进、一条边出，是接力（1.5.3 末尾的图） |
-| `seq_cst` | 在 acquire/release 之上，所有 `seq_cst` 操作还有一个全局一致的先后顺序；不写参数时的默认值 | 横边照常连；另外所有 `seq_cst` 操作排成一条全局顺序，和读没读到无关（1.5.4） |
-| `consume` | 已不推荐使用，编译器实际按 `acquire` 处理 | 同 `acquire` |
+**release 只管它前面的，acquire 只管它后面的。** 一个线程里“release 写在前、acquire 读在后”这一对，两条都不管，1.5.4 就卡在这里。
 
-#### 1.5.2 release / acquire：发布和订阅 {#mo-pubsub}
+#### 1.5.2 release / acquire 配对：发布和订阅 {#mo-pubsub}
 
-最常用的是一对 release 和 acquire，用法像“发布、订阅”：**一个 acquire 读在同一个原子变量上读到了一个 release 写的值，写方在 release 之前写的所有东西，读方在 acquire 之后都看得到。** 别的变量不用是原子的：
+**一个线程用 acquire 读到了另一个线程用 release 写进去的值，写方在这次写之前做的事，读方在这次读之后都看得见。** 别的变量不用是原子的：
 
 ```cpp
 struct SPSCFlag {
@@ -313,37 +315,33 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 }
 ```
 
-`payload` 能安全地传过去，靠的只是 `ready` 上这一对 release/acquire。交易系统里的单生产者单消费者（SPSC）环形队列都是这个形状：一个原子下标负责同步，其余都是普通变量。
+`payload` 能安全地传过去，靠的是代码的形状：**先读标志，读到了才用数据，没读到就不用。** 交易系统里的 SPSC 环形队列也是这个形状。
 
 回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
 
 <iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
 
-#### 1.5.3 有向边：把两边的代码并排放，连边 {#mo-edges}
+#### 1.5.3 用连边分析一段代码 {#mo-edges}
 
-> **别的线程写的东西看不看得到，只看沿边走不走得到。边只有两种**
+> **别的线程写的东西看不看得到，只看沿边走不走得到**
 >
-> - **第一种边：同一个线程里，前一句到后一句**。
-> - **第二种边：一次 release 的写，到读到它的那次 acquire**。
-> - **边可以接起来**：上面的例子里，1 → 2 是第一种，2 → 3 是第二种，3 → 4 是第一种，所以第 4 步看得到第 1 步写的值。
-> - **原子变量自己被修改的先后不算边**：另一个线程更早改过同一个原子变量，只说明这个变量的值是按这个顺序变的，不说明它写的别的内存我看得到。
-> - **release 之后紧接着的 CAS、`fetch_add` 不会弄断第二种边**：它们是接着前一个值写的，算作那次 release 的延续，读到延续里的值也和那次 release 配对；普通的 `store` 是盲写，会弄断（[内存池 5.5](/zh/posts/hot-path-memory-allocators/#pool-ordering) 有一个 4 步的例子）。
-> - **图上不会有环**：`acq_rel` 的读改写在图上是一个点，一条边进来、一条边出去，是接力，不是自环。画出了环，说明这种执行不可能发生。
+> - **竖边**：同一个线程里，前一句到后一句。
+> - **横边**：一次 release 写，到读到了它写的值的那次 acquire 读。没读到，就没有这条边。
+> - **走不到的，没人保证**：别的线程的写什么时候被你看见，除了沿竖边、横边走得到的，没有任何保证。
+> - **原子变量自己被改的先后不算边**：另一个线程更早改过同一个原子变量，只说明这个变量的值是按这个顺序变的，不说明它写的别的内存我看得到。
+> - **release 之后紧接着的 CAS、`fetch_add` 不会弄断横边**：它们是接着前一个值写的，算作那次 release 的延续；普通的 `store` 是盲写，会弄断（[内存池 5.5](/zh/posts/hot-path-memory-allocators/#pool-ordering) 有一个 4 步的例子）。
 
-> **分析一段内存序代码：把两边的代码并排放，连边**
+> **分析步骤：只问一句，读到旧值会不会出错**
 >
-> 边是对某一次执行说的，不是对代码说的：同一段代码，每次跑各个读读到的值可能不同，横边也就不同。代码只给出候选，读到了哪个值才决定哪条候选成了边。
->
-> 1. **连候选横边**：在同一个原子变量上，把每个 release 的写连到可能读到它的 acquire 的读。它是候选的：那次读真读到了这个写的值，这条边才成立。
-> 2. **标出竖边两头挂着什么**：release 上面，这个线程写了什么；acquire 下面，这个线程读了、写了什么。
-> 3. **逐个检查跨线程的访问，每个读分两种情况**：配对到了（读到了对方那次写），从对方的写出发，沿着竖边、横边、竖边走得到，就看得到；没配对到（读到的是旧值），看代码在这种情况下做了什么，不能出错。
-> 4. **走不到的读单独审**：读的必须是原子变量，而且读到旧值也不出错。
+> 1. **两边代码并排放**，画竖边；同一个原子变量上，把 release 写和读它的 acquire 读连成横边。
+> 2. **找出跨线程用的数据**，逐个问：读到旧值会不会出错？
+> 3. **不会出错**：不用管，`relaxed` 就够。
+> 4. **会出错**：代码必须是“读到标志才用数据”。这样走到用数据的地方时，横边一定在，从对方的写沿竖边、横边、竖边走得到。
 > - **两类错误一眼看得出**：横边只有一头，是少了 release 或者少了 acquire；要发布的写画在了 release 下面，或者要用的读画在了 acquire 上面，是位置放错了。
-> - **问某个结果可不可能：先假设它成立，按它连边，再找矛盾**：矛盾只有一种，一个写沿边走得到某个读，这个读却读到了比它更旧的值。找不到矛盾，这个结果就允许。
-> - **候选横边可能不成立、又要排除某个结果，只能靠 `seq_cst`**：它多出来的全局顺序和“读没读到”无关，见 [1.5.4](#mo-seq-cst)。
+> - **要的是“一定读得到”，不是“读到了才用”**：release/acquire 给不了，见 1.5.4。
 
-按这个方法走一遍 SPSC 环形队列。先给每次访问标号：
+**SPSC 环形队列**：
 
 ```cpp
 template <class T, std::size_t N>   // N 是 2 的幂
@@ -353,82 +351,49 @@ class SpscQueue {
     alignas(64) std::atomic<std::size_t> write_idx_{0};   // 只有生产者写
 public:
     bool push(const T& x) {                                          // 生产者
-        std::size_t w = write_idx_.load(std::memory_order_relaxed);  // P1 读自己的下标
-        if (w - read_idx_.load(std::memory_order_acquire) == N)      // P2 读对方的下标
-            return false;                                            //    满
-        buf_[w & (N - 1)] = x;                                       // P3 普通写格子
-        write_idx_.store(w + 1, std::memory_order_release);          // P4 发布
+        std::size_t w = write_idx_.load(std::memory_order_relaxed);  // 自己的下标
+        if (w - read_idx_.load(std::memory_order_acquire) == N)      // 读到有空位才往下
+            return false;
+        buf_[w & (N - 1)] = x;                                       // 写格子
+        write_idx_.store(w + 1, std::memory_order_release);          // 发布
         return true;
     }
     bool pop(T& out) {                                               // 消费者
-        std::size_t r = read_idx_.load(std::memory_order_relaxed);   // C1 读自己的下标
-        if (r == write_idx_.load(std::memory_order_acquire))         // C2 读对方的下标
-            return false;                                            //    空
-        out = buf_[r & (N - 1)];                                     // C3 普通读格子
-        read_idx_.store(r + 1, std::memory_order_release);           // C4 归还
+        std::size_t r = read_idx_.load(std::memory_order_relaxed);   // 自己的下标
+        if (r == write_idx_.load(std::memory_order_acquire))         // 读到有数据才往下
+            return false;
+        out = buf_[r & (N - 1)];                                     // 读格子
+        read_idx_.store(r + 1, std::memory_order_release);           // 归还
         return true;
     }
 };
 ```
 
-**要靠边保证的只有格子。** 原子变量只保证自己的读写不撕裂，读到的可能是旧值。下标是原子的，读到旧下标只会把队列判成空或满、多等一轮（第 4 步），可以容忍。格子是普通变量，读到没写完的就错了，所以要靠下标上的两条边保证两件事：
-
-- **读之前已经写完**：消费者读一格时，生产者已经把它写完了。
-- **写之前已经读完**：生产者下一圈覆盖这一格时，消费者已经把它读完了。
-
-**第 1 步，连候选横边**，一件事一条：
-
-- P4 → C2，在 `write_idx_` 上，管“读之前已经写完”。
-- C4 → P2，在 `read_idx_` 上，管“写之前已经读完”。
-
-**第 2 步，标出竖边两头挂着什么**：P4 上面是 P3（写格子），C2 下面是 C3（读格子）；C4 上面是 C3，P2 下面是 P3。
-
-**第 3 步，每个读分两种情况**：
-
-- **C2 读 `write_idx_`**
-  - **配对到**：读到了某次 P4 写的 `t`，`t > r` 才往下走。写第 r 格的那次 P3 排在这次 P4 前面（这次 P4 写的是 r + 1 或更大），所以 P3 →竖→ P4 →横→ C2 →竖→ C3 走得到：读之前已经写完。
-  - **没配对到**：读到的是旧值，等于 r，返回 false，不碰格子。
-- **P2 读 `read_idx_`**
-  - **配对到**：读到了某次 C4 写的 `h`，`w - h != N` 才往下走。上一圈读这一格的那次 C3 排在这次 C4 前面，所以 C3 →竖→ C4 →横→ P2 →竖→ P3 走得到：写之前已经读完。
-  - **没配对到**：读到的是旧值，看起来满了，返回 false，不写格子。
-
-**第 4 步，走不到的读**：P1、C1 读的是只有本线程写的下标，竖边就够了，用 relaxed。读对方的下标读到旧值，只会把队列判成空或满，多等一轮，不会读到没写完的格子，也不会覆盖没读完的格子。
-
-改错一处，断在哪一眼看得出：
-
-| 改动 | 断的是哪条 | 后果 |
-|---|---|---|
-| P4 改成 relaxed | `write_idx_` 上的边 | C3 可能读到还没写完的格子 |
-| C4 或 P2 改成 relaxed | `read_idx_` 上的边 | 消费者还没读完，生产者就覆盖了格子 |
-| C4 挪到 C3 前面 | C3 跑到了 release 下面 | 先还格子再读，可能读到下一圈的数据 |
-
-两个方向各有一条边，生产者要等消费者还格子，所以 SPSC 不会被套圈。只有一个方向的边时，比如每格带戳、生产者不等读者的 [SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/)，读者就可能被套圈，要另外处理。每次都读对方下标带来的缓存行来回搬，在 [3.4](#case-spsc) 讲。
+- **下标读到旧值不会出错**：只会以为空了或满了，多等一轮。所以读自己的下标用 `relaxed`。
+- **格子读到旧值会出错**，两处都是“读到了才用”：
+  - 消费者读到 `write_idx_` 比自己的位置大，才去读格子：写格子 →竖→ release 写 `write_idx_` →横→ acquire 读到它 →竖→ 读格子。
+  - 生产者读到 `read_idx_` 说明有空位，才去覆盖格子：读格子 →竖→ release 写 `read_idx_` →横→ acquire 读到它 →竖→ 覆盖格子。
+- **改错一处就断一条边**：`write_idx_` 的 release 改成 relaxed，消费者可能读到没写完的格子；`read_idx_` 这一对改成 relaxed，生产者可能覆盖没读完的格子。
 
 再看一个带 CAS 的例子，[内存池 5.4](/zh/posts/hot-path-memory-allocators/#tagged-head) 的 `deallocate` 和 `allocate` 画出来是这样：
 
 <img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async">
 
-`acq_rel` 的读改写在图上是什么样，拿引用计数看：几个线程各用一次对象，用完把计数减一，减到 0 的那个删对象。
+**`acq_rel` 的读改写，一条边进、一条边出。** 引用计数：每个线程用完对象减一，减到 0 的那个删对象。
 
 <img src="/images/memory-ordering/acq-rel.zh.svg" alt="引用计数从 3 开始，三个线程各自先用对象（U1、U2、U3），再 fetch_sub(1, acq_rel)（F1、F2、F3）。这一次执行里依次减：F1 读到 3 写 2，F2 读到 2 写 1，F3 读到 1 写 0，T3 删对象。蓝色横边从 F1 到 F2、从 F2 到 F3。F2 一条边进、一条边出：acquire 一半接住 F1 的边，release 一半把 U1、U2 一起交给 F3。U1、U2、U3 都沿边走得到 delete。" loading="lazy" decoding="async">
 
-- **值决定谁读到谁**：这一次执行里 T1、T2、T3 依次减。F2 读到 F1 写的 2，F3 读到 F2 写的 1，两条横边就是这么来的。
-- **F2 一条边进、一条边出**：acquire 一半接住 F1 的边，U1 跟着过来；release 一半把 U1、U2 一起交给 F3。边都是从前一个点指向后一个点，F2 在中间接力，不是自环。
-- **删之前大家都用完了**：U1、U2、U3 都沿边走得到 delete。
-- **为什么每次减都要两半**：谁最后减到 0，事先不知道。换一次执行，T2 可能就是删的那个，要靠 acquire 接住别人的使用；不是最后一个时，要靠 release 把自己的使用交出去。
+谁最后减到 0，事先不知道。不是最后一个时，release 把自己用过的交出去；是最后一个时，acquire 接住别人用过的，删之前大家都用完了。所以每次减都要两半。
 
-#### 1.5.4 候选横边不成立的时候：seq_cst 的全局顺序 {#mo-seq-cst}
+#### 1.5.4 release / acquire 管不住的：先写后读 {#mo-seq-cst}
 
-两个线程各自先写自己的变量、再读对方的变量（[3.1](#case-x86) 从硬件讲它为什么会乱）。问的是 `r1 == 0` 且 `r2 == 0` 可不可能。两栏代码一样，只换了内存序：
+两个线程各自先写自己的变量、再读对方的变量，要的是**至少一边读到 1**：
 
-<img src="/images/memory-ordering/seq-cst.zh.svg" alt="问 r1 == 0 且 r2 == 0 可不可能：假设它成立，按它连边，找矛盾。左右两栏都是线程 1 写 x、读 y，线程 2 写 y、读 x。左栏 release/acquire：① 到 ④、③ 到 ② 是候选横边（红色虚线，打问号），只在读到 1 时成立；假设两个都读到 0，两条都不成立，只剩竖边，① 走不到 ④，读到旧值不矛盾，所以允许。右栏 seq_cst：四个操作排成一条全局顺序 S，S 里最早的只能是某个写，排在它后面的另一边的读一定读到 1，A、B 两条橙色虚线至少成立一条，推出矛盾，所以不可能。" loading="lazy" decoding="async">
+<img src="/images/memory-ordering/seq-cst.zh.svg" alt="两个线程各自先写、再读对方，初始 x = y = 0。左栏 release/acquire：① ③ 两个写还在各自的 store buffer 里，② ④ 两个读先走了，都读到 0；release 只管它前面的，acquire 只管它后面的，写在前、读在后这一对两条都不管，所以两边都读到 0 是可能的。右栏 seq_cst：所有 seq_cst 操作排成一个所有线程都认的顺序，排最早的一定是某个写，排在它后面的另一边的读一定读到 1，所以两边都读到 0 不可能。" loading="lazy" decoding="async">
 
-- **① 和 ④ 能不能连边：能连，但只是候选**：同一个变量 x 上，一个 release 写、一个 acquire 读，第 1 步就该连。可 release/acquire 只是一句“如果……就……”：如果 ④ 读到了 ① 写的 1，④ 就看得见 ① 之前写的东西。边是读到之后才有的，是结果，不是原因；它不会逼 ④ 去读 1，也不管 ① 的写什么时候被别人看见。③ 和 ② 一样。
-- **假设两个都读到 0，找矛盾**：两条候选边都不成立，只剩两条竖边。矛盾只有一种：一个写沿边走得到某个读，这个读却读到了更旧的值。① 要走到 ④，得从线程 1 过到线程 2，过线程只能走横边，现在没有，所以 ④ 读到 0 不矛盾；② 同理。找不到矛盾，这个结果就允许。
-- **换成重排的说法：release 写在上、acquire 读在下，这一对谁都不管**：release 只拦它上面的读写往下挪，acquire 只拦它下面的读写往上挪（1.5.1 的表）。“先写后读”里，写后面的那个读不归 release 管，读前面的那个写不归 acquire 管，读就可以先于写生效。硬件上就是写还停在 store buffer 里，读已经从缓存拿到了旧值（[3.1](#case-x86)）。两个线程都这样，就都读到 0。
-- **x、y 都是原子变量也没用**：原子只保证这一个变量的读写不撕裂，每次读到的是某一次写进去的值；不保证读到最新的，也不管它和别的变量谁先谁后（1.5.1 表里 `relaxed` 那一行）。这里要的“至少一边读到 1”，正是 x 和 y 两个变量之间的先后。
-- **seq_cst 多出来的是一条全局顺序，和读没读到无关**：所有 `seq_cst` 操作排成一条 S，每个线程都认，线程里的先后不能反；一个 `seq_cst` 读拿到的，是 S 里排在它前面、同一变量的最后那次写。同样假设两个都读到 0：S 里最早的只能是某个写，排在它后面的另一边的读就一定读到 1，和假设矛盾，所以不可能。
-- **发布、订阅用不着它**：读方本来就靠读到那个标志来同步，横边连得上，release/acquire 就够了。不写参数时默认就是 `seq_cst`，x86 上每次写都多一次 `xchg`（1.6）。
+- **原因**：这里要的不是“读到了才用”，而是“一定读得到”。release 只管它前面的，acquire 只管它后面的，“写在前、读在后”这一对谁都不管；硬件上就是写还在 store buffer 里，读已经先走了（[3.1](#case-x86)）。两边都这样，就都读到 0。x、y 是原子的也没用，原子只保证不撕裂。
+- **seq_cst 把这一对也管上**：所有 `seq_cst` 操作排成一个所有线程都认的顺序，同一线程里的先后在这个顺序里不能反。四个操作里排最早的一定是某个写，排在它后面的另一边的读就一定读到 1。x86 上 `seq_cst` 的写编成 `xchg`，要等 store buffer 排空（1.6）。
+- **发布订阅用不着它**：它本来就是“读到了才用”，release/acquire 就够了。
 
 ### 1.6 价钱：acquire / release 在 x86 上几乎免费，ARM 上要专门的指令 {#cost}
 
@@ -585,7 +550,7 @@ void t2() {
 
 **为什么 release 加 acquire 管不住它**：它们在 x86 上都是普通的 `mov`，TSO 本来就保证了它们要的那三种顺序，唯独不管“先写后读”。换成 `seq_cst` 以后，读还是 `mov`，写编成 `xchg`：它要等 store buffer 排空，写真正可见了才往下走，后面的读就越不过去。
 
-用 1.5 的连边法看同一件事：release/acquire 下两条候选横边都可以不成立，排除不了 `r1 == r2 == 0`；`seq_cst` 多一条全局顺序才排除得了，图在 [1.5.4](#mo-seq-cst)。
+1.5.4 有一张对照图：release/acquire 下两边都可能读到 0，`seq_cst` 下不可能。
 
 每种内存序在 x86 上编成什么：
 
