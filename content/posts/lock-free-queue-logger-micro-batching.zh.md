@@ -1,7 +1,7 @@
 ---
 title: "交易系统笔记 #4：无锁队列与 Micro-Batching"
 date: 2026-09-20
-lastmod: 2026-11-10
+lastmod: 2026-11-17
 slug: "lock-free-queue-logger-micro-batching"
 description: "单生产者单消费者环形队列怎么做到不用锁：2 的幂掩码、两步交接、两边各用什么内存序；悄悄把竞争带回来的陷阱：共享的元素计数器、每次都读对方的下标。然后在它上面搭日志器和 micro-batching，最后讲 lock-free 和 wait-free 各承诺了什么。"
 summary: "无锁 SPSC 队列成立，是因为每个共享变量只有一个写者：每一边只写自己的下标，只读对方的。剩下的工作是别让这个性质被悄悄破坏：元素个数用两个下标相减而不是共享计数器，对方的下标缓存一份、只在看起来满了或空了时才刷新，日志按文本段推而不是按字符推。SPSC 只在“失败就返回”的接口下才是 wait-free，有界队列满了总得在丢弃和阻塞之间选一个。"
@@ -90,7 +90,45 @@ class SpscQueue {
 
 如果判满用的是取过掩码的下标而不是只增不减的下标，要小心运算符优先级：`(w + 1) & mask == r & mask` 里 `==` 比 `&` 先算，实际是 `((w + 1) & (mask == r)) & mask`，几乎永远是假，生产者会覆盖还没读的数据。要么给两边都加括号，要么像上面那样用不回绕的下标相减。
 
-### 1.3 元素个数用两个下标相减，不另设计数器 {#size-from-indices}
+### 1.3 最短的写法：`push` / `pop`，容量放进模板参数 {#spsc-minimal}
+
+上面的版本为了让元素直接在槽里构造，把入队拆成 `try_claim`、`publish` 两步，容量也是运行时给的。只需要一个能用的队列、元素又只有几个机器字时，写成 `push` / `pop`，容量放进模板参数，更短：
+
+```cpp
+template <typename T, std::size_t N>              // 容量是模板参数
+class SpscQueue {
+  static_assert(N >= 2 && (N & (N - 1)) == 0, "N 必须是 2 的幂");
+  static constexpr std::size_t kMask = N - 1;    // 编译期常量
+
+  std::array<T, N> slots_;
+  alignas(64) std::atomic<std::size_t> write_idx_{0};   // 只有生产者写
+  alignas(64) std::atomic<std::size_t> read_idx_{0};    // 只有消费者写
+
+ public:
+  bool push(const T& v) {                        // 满了返回 false
+    const std::size_t w = write_idx_.load(std::memory_order_relaxed);
+    if (w - read_idx_.load(std::memory_order_acquire) == N) return false;
+    slots_[w & kMask] = v;                       // 先写数据
+    write_idx_.store(w + 1, std::memory_order_release);   // 再发布
+    return true;
+  }
+  bool pop(T& out) {                             // 空了返回 false
+    const std::size_t r = read_idx_.load(std::memory_order_relaxed);
+    if (r == write_idx_.load(std::memory_order_acquire)) return false;
+    out = slots_[r & kMask];                     // 先读数据
+    read_idx_.store(r + 1, std::memory_order_release);    // 再把槽还回去
+    return true;
+  }
+};
+```
+
+- **`push` 就是 `try_claim`、拷贝、`publish` 三步合在一起**：判满、算槽位、内存序都和上面一样，只是元素要先在别处构造好，再拷进槽里。元素小的时候这次拷贝可以忽略；元素大，或者要在槽里原地构造，就用上面两步的写法。
+- **容量放进模板参数，掩码就是编译期常量**：`static_assert` 一行检查 2 的幂，不用再写向上取整的函数；`& kMask` 编译成一条带立即数的 `and`。代价是容量编译时就要定下来。
+- **`pop` 对称**：先读出数据，再 release 写 `read_idx_`，生产者看到这个槽空出来时，数据一定已经拷走了。
+
+这个版本用两个线程推 1000 万个递增的数，消费者逐个检查顺序，不丢、不重、不乱；容量 8 时能装满 8 个。
+
+### 1.4 元素个数用两个下标相减，不另设计数器 {#size-from-indices}
 
 很容易想再加一个原子的元素计数，生产者发布后加一，消费者释放后减一，`size()` 就是读一次：
 
@@ -421,7 +459,7 @@ void on_fill(const Fill& f) {
 
 由此得出四点：
 
-- **“SPSC 是 wait-free”说的是接口，不是数据结构**：它之所以做得到，是把满了、空了怎么办推给了调用者，`try_` 失败就返回，由调用者决定丢弃、重试还是阻塞。空转等空位的版本把“阻塞”写死在了里面。去掉 1.3 的共享计数器以后，热路径上只剩普通的读和写，这个说法也就不依赖硬件怎么实现原子读改写了。
+- **“SPSC 是 wait-free”说的是接口，不是数据结构**：它之所以做得到，是把满了、空了怎么办推给了调用者，`try_` 失败就返回，由调用者决定丢弃、重试还是阻塞。空转等空位的版本把“阻塞”写死在了里面。去掉 1.4 的共享计数器以后，热路径上只剩普通的读和写，这个说法也就不依赖硬件怎么实现原子读改写了。
 - **“消费者挂了也伤不到生产者”只在队列还有空位时成立**：环是有界的，一满，生产者只能丢掉这一项或者等，而一等，消费者的状况又回到了你的关键路径上。缓冲区越大，离满越远，但满的那一刻总会来。所以成熟的日志库把“满了阻塞还是丢弃”做成配置，3.2 里每次调用占几个槽也就不只是速度问题，还是可靠性问题。
 - **有限步不等于有限时间**：wait-free 只限制你执行的步数，管不了操作系统在中途抢占你、缺页、缓存未命中。可预测的延迟要三层一起做到：算法上不依赖别的线程，操作系统上绑核、隔离、实时优先级（[#1](/zh/posts/cpu-affinity-core-isolation-numa/)），内存和硬件上提前缺页、锁页（[#3](/zh/posts/hot-path-memory-allocators/)）、注意缓存行（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）、热路径上不做系统调用。
 - **wait-free 不会自动更快**：竞争不多时，普通的 CAS 循环通常第一次就成功，做的事比一个为了保证上界而带着整套机制的实现还少。wait-free 买到的是上界，目标是 P99.9 这类尾延迟时才值得。用 CAS 抢槽的多生产者队列是典型的“lock-free 但不是 wait-free”，而且常常就是对的选择。
@@ -475,7 +513,7 @@ size_t drain(Queue& q, std::vector<Msg>& out, size_t target) {
 
 ### 5.2 积压量从队列读，不另设计数器 {#backlog}
 
-很容易想用一个计数器记积压：入队时 `fetch_add(1)`，每批之后 `fetch_sub(batch_size)`。这又是 1.3 那个两个核抢着写的变量，而且它还不准：计数是在入队之后才加的，一个快的消费者可能在生产者加一之前就把消息取走、先减了，对无符号计数器来说，值会短暂地变成一个巨大的数，恰好这时读的人会以为积压了很多。
+很容易想用一个计数器记积压：入队时 `fetch_add(1)`，每批之后 `fetch_sub(batch_size)`。这又是 1.4 那个两个核抢着写的变量，而且它还不准：计数是在入队之后才加的，一个快的消费者可能在生产者加一之前就把消息取走、先减了，对无符号计数器来说，值会短暂地变成一个巨大的数，恰好这时读的人会以为积压了很多。
 
 所以直接问队列。代价体现在类型上：一个通用的批处理器只认识 `try_pop`，看不到队列的下标，所以要求队列类型提供一个 O(1) 的近似大小：
 
@@ -491,6 +529,6 @@ concept BatchSource = requires(Q q, Msg& m) {
 
 ## 应用 {#in-practice}
 
-1.3 节那个两个核抢着写的计数器，在实际优化里对应“{{% bottleneck-ref "shared-counter" "plain" %}}”这张卡片：在 perf 里看到什么、怎么改、怎么验证。
+1.4 节那个两个核抢着写的计数器，在实际优化里对应“{{% bottleneck-ref "shared-counter" "plain" %}}”这张卡片：在 perf 里看到什么、怎么改、怎么验证。
 
 {{% bottleneck "shared-counter" %}}

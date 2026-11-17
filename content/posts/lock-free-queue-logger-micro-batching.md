@@ -1,7 +1,7 @@
 ---
 title: "Trading System Notes #4: Lock-Free Queues and Micro-Batching"
 date: 2026-09-20
-lastmod: 2026-11-10
+lastmod: 2026-11-17
 slug: "lock-free-queue-logger-micro-batching"
 description: "How a single-producer single-consumer ring buffer avoids locks — the power-of-two mask, the two-step handoff, the memory order each side needs — and the traps that quietly bring contention back: a shared element counter, a full-check that reads the other core on every call. Then a logger and micro-batching built on top, and what lock-free and wait-free actually promise."
 summary: "A lock-free SPSC queue works because every shared variable has exactly one writer: each side writes only its own index and merely reads the other's. The rest is keeping that property from being quietly undone: compute the element count by subtracting the two indices instead of keeping a shared counter, cache the other side's index and refresh it only when the queue looks full or empty, and push log lines as text runs, not one character per slot. SPSC is wait-free only through a fail-fast interface, and a bounded queue must always choose between dropping and blocking when it fills."
@@ -90,7 +90,45 @@ The code makes three design choices:
 
 If you write the full-check with masked indices instead of increasing ones, watch the operator precedence: in `(w + 1) & mask == r & mask`, `==` binds tighter than `&`, so it parses as `((w + 1) & (mask == r)) & mask`. That is almost always false, and the producer overwrites unread data. Either parenthesize both sides, or subtract unwrapped indices as above.
 
-### 1.3 Subtract, Don't Count: The Counter That Made Two Cores Fight {#size-from-indices}
+### 1.3 The Shortest Version: `push` / `pop`, Capacity as a Template Parameter {#spsc-minimal}
+
+The version above splits enqueue into `try_claim` and `publish` so the element can be built in place, and takes its capacity at run time. When all you need is a working queue and the element is only a few machine words, `push` / `pop` with the capacity as a template parameter is shorter:
+
+```cpp
+template <typename T, std::size_t N>              // capacity is a template parameter
+class SpscQueue {
+  static_assert(N >= 2 && (N & (N - 1)) == 0, "N must be a power of 2");
+  static constexpr std::size_t kMask = N - 1;    // compile-time constant
+
+  std::array<T, N> slots_;
+  alignas(64) std::atomic<std::size_t> write_idx_{0};   // written only by the producer
+  alignas(64) std::atomic<std::size_t> read_idx_{0};    // written only by the consumer
+
+ public:
+  bool push(const T& v) {                        // false when full
+    const std::size_t w = write_idx_.load(std::memory_order_relaxed);
+    if (w - read_idx_.load(std::memory_order_acquire) == N) return false;
+    slots_[w & kMask] = v;                       // write the data first
+    write_idx_.store(w + 1, std::memory_order_release);   // then publish
+    return true;
+  }
+  bool pop(T& out) {                             // false when empty
+    const std::size_t r = read_idx_.load(std::memory_order_relaxed);
+    if (r == write_idx_.load(std::memory_order_acquire)) return false;
+    out = slots_[r & kMask];                     // read the data first
+    read_idx_.store(r + 1, std::memory_order_release);    // then hand the slot back
+    return true;
+  }
+};
+```
+
+- **`push` is `try_claim`, a copy and `publish` in one call**: the full check, the slot index and the memory orders are the same as above; the element is just built elsewhere and copied in. For small elements that copy doesn't matter; for large ones, or when you want to construct in the slot, use the two-step version.
+- **With the capacity in the template, the mask is a compile-time constant**: one `static_assert` checks the power of 2, no round-up function needed, and `& kMask` compiles to a single `and` with an immediate. The cost is that the capacity is fixed at compile time.
+- **`pop` mirrors it**: read the data out first, then release-store `read_idx_`, so when the producer sees the slot free, the data has already been copied out.
+
+Tested with two threads pushing 10 million increasing numbers: the consumer checks each one, nothing lost, repeated or out of order; with capacity 8 it holds all 8.
+
+### 1.4 Subtract, Don't Count: The Counter That Made Two Cores Fight {#size-from-indices}
 
 It's tempting to add an atomic element count, incremented by the producer after publishing and decremented by the consumer after releasing, so that `size()` is a single load:
 
@@ -485,7 +523,7 @@ The background thread can take over ten milliseconds to get there, long after `s
 
 Four things follow:
 
-- **"SPSC is wait-free" is a statement about the interface, not the data structure**: it gets there by pushing the full and empty decisions to the caller. The `try_` operations fail and return, and the caller chooses to drop, retry or block. The spin-until-space version bakes "block" in. With the shared counter from 1.3 gone, the hot path is left with plain loads and stores, so the claim no longer depends on how the hardware implements atomic read-modify-writes.
+- **"SPSC is wait-free" is a statement about the interface, not the data structure**: it gets there by pushing the full and empty decisions to the caller. The `try_` operations fail and return, and the caller chooses to drop, retry or block. The spin-until-space version bakes "block" in. With the shared counter from 1.4 gone, the hot path is left with plain loads and stores, so the claim no longer depends on how the hardware implements atomic read-modify-writes.
 - **"A crashed consumer can't hurt the producer" is only true while the queue has room**: the ring is bounded. Once it fills, the producer can only drop the item or wait, and waiting puts the consumer's health back on your critical path. A bigger buffer is further from full, but the moment it fills always comes. That's why mature logging libraries make "block or drop when full" a configuration option, and why the number of slots per call in 3.2 is a reliability question, not just a speed one.
 - **Finite steps are not finite time**: wait-free bounds the number of steps you execute; it can't stop the OS from preempting you midway, a page fault, or a cache miss. Predictable latency takes three layers together: an algorithm that doesn't depend on other threads; an OS layer with pinning, isolation and real-time priority ([#1](/posts/cpu-affinity-core-isolation-numa/)); and a memory and hardware layer with pre-faulted, locked pages ([#3](/posts/hot-path-memory-allocators/)), cache-line care ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)) and no system calls on the hot path.
 - **Wait-free is not automatically faster**: with little contention, a plain CAS loop usually succeeds on the first try and does less work than an implementation carrying the machinery to guarantee a bound. What wait-free buys is the upper bound, worth it when the target is a tail like P99.9. A multi-producer queue that claims slots with CAS is the textbook "lock-free but not wait-free" shape, and often the right choice.
@@ -539,7 +577,7 @@ The key is the loop condition: `drain` takes **at most** `target` messages and s
 
 ### 5.2 Read the Backlog from the Queue, Not a Counter {#backlog}
 
-The tempting answer is a counter for the backlog: `fetch_add(1)` on enqueue, `fetch_sub(batch_size)` after each batch. That's the counter both cores fight over from 1.3 again, and it isn't even exact: the count is bumped after the enqueue, so a fast consumer can take the message and decrement before the producer has incremented. For an unsigned counter the value briefly becomes an enormous number, and a read that lands in that moment sees a huge backlog.
+The tempting answer is a counter for the backlog: `fetch_add(1)` on enqueue, `fetch_sub(batch_size)` after each batch. That's the counter both cores fight over from 1.4 again, and it isn't even exact: the count is bumped after the enqueue, so a fast consumer can take the message and decrement before the producer has incremented. For an unsigned counter the value briefly becomes an enormous number, and a read that lands in that moment sees a huge backlog.
 
 So ask the queue directly. The cost shows up in the type: a generic batcher only knows `try_pop` and can't see the queue's indices, so it requires the queue type to provide an O(1) approximate size:
 
@@ -555,6 +593,6 @@ An approximate value is enough: it only picks one of three tiers, and being off 
 
 ## In Practice {#in-practice}
 
-The counter that made two cores fight in 1.3 matches the {{% bottleneck-ref "shared-counter" "plain" %}} card below: what perf shows, how to fix it, how to verify the fix.
+The counter that made two cores fight in 1.4 matches the {{% bottleneck-ref "shared-counter" "plain" %}} card below: what perf shows, how to fix it, how to verify the fix.
 
 {{% bottleneck "shared-counter" %}}
