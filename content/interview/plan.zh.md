@@ -43,7 +43,7 @@ toc: true
 |---|---|---|---|---|---|
 | 1 | 手写 SPSC、LRU | 要了两道，一道没写、一道换题；sec 最可能再要 | 从空白写，各 3 遍，各限时 10 分钟 | 周二、周三、周五 | 见[第 3 节](#handwrite) |
 | 2 | 简历上的每一条都写不出代码 | 每一条都答得像没写过 | 实习 6 条加缓存案例，每条从空白写到能跑通 | 周二到周四 | 见[第 3 节](#handwrite) |
-| 3 | 两版 SPMC 混着讲 | 实习版：`fetch_add` 占号、按序发布、格子里没有戳，发现不了套圈。[博客版](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)：每格带戳，一次减法三种含义 | 写 [7.1](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-feed) 时对着实习代码核一遍，两版各准备一句话 | 周二 | ⬜ |
+| 3 | 两版 SPMC 混着讲 | 统一讲每格带戳那一版：一个生产者、读者各记进度、一次减法三种含义，和 fir 里说的一致 | 照 [行情接入和 SPMC](https://jasper-aa64.github.io/zh/interview/md-feed-spmc/) 第 1 节说一遍，第 3、4 节逐题答 | 周二 | ⬜ |
 | 4 | SPMC 的追问说不清 | 16–24 分钟问的就是这些，每问都停 | 读 [SPMC 广播环](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)第 1、2 节，[4.1](#cards-spmc) 每题 20 秒内说完 | 周二 | ⬜ |
 | 5 | 简历上的数字说不出来源 | “650 万条”被当场算成每只每天 3250 条；回测系统怎么搭的答不上 | [实习经历拆解](https://jasper-aa64.github.io/zh/interview/cv-internship/)第 5、6 节：每个数字一句（是什么、怎么量的、改了什么）；回测系统四句话 | 周二 | ⬜ |
 | 6 | 缓存案例讲了 4 分钟 | 被打断，LFB 个数说成 20 | [缓存案例](https://jasper-aa64.github.io/zh/posts/low-latency-cache-case-study/)压成 60 秒：瓶颈一句、几刀各一句、结果一句 | 周三 | ⬜ |
@@ -59,7 +59,7 @@ toc: true
 |---|---|---|---|---|---|---|
 | 1 | 基础 | SPSC 环形队列 | [无锁队列 #4 第 1 节](https://jasper-aa64.github.io/zh/posts/lock-free-queue-logger-micro-batching/#spsc) | 10 分钟 | 周二、周三、周五 | ✅ ⬜ ⬜ |
 | 2 | 基础 | LRU 缓存 | [LRU 缓存](https://jasper-aa64.github.io/zh/ref/lru-cache/) | 10 分钟 | 周二、周三、周五 | ✅ ⬜ ⬜ |
-| 3 | 实习 1 行情接入 | 实习版：两家回调 → 统一结构 → `fetch_add` 占号的广播环 → 写线程批量读 | [7.1](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-feed) | 25 分钟 | 周二、周四 | ⬜ ⬜ |
+| 3 | 实习 1 行情接入 | 不手写，看代码 + 答追问：按配置接一家 → 统一结构 → 每格带戳的广播环 → 落盘线程批量读 | [行情接入和 SPMC](https://jasper-aa64.github.io/zh/interview/md-feed-spmc/) | 20 分钟 | 周二、周四 | ⬜ ⬜ |
 | 4 | 实习 1 行情接入 | 博客版：每格带戳的 SPMC 广播环，读者能发现套圈和撕裂读 | [SPMC 广播环 #5 第 1 节](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/) | 20 分钟 | 周三、周四 | ⬜ ⬜ |
 | 5 | 实习 2 行情优化 | 计数按 128 字节隔离，`static_assert` 钉布局；预触；读时钟；打点取分位数 | [7.2](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-opt) | 15 分钟 | 周二 | ⬜ |
 | 6 | 实习 3 因子开发 | 增量滚动标准差（Welford 进一个出一个）；按 key、按容差对拍；边界单元测试 | [7.3](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-factor-dev) | 20 分钟 | 周三 | ⬜ |
@@ -79,7 +79,7 @@ toc: true
 | 什么数据能放进共享内存 | 定长、可平凡拷贝、不含指针的数据；vector、string、有虚函数的都不行，指针在别的进程里没意义。 |
 | 读写进度靠什么 | 写者一个只增的序号；每个读者自己记下一条要读的号，不放共享区；读者对比序号就知道写没写到。 |
 | 被套圈怎么办 | 序号比要的大，说明中间丢了，跳到还有效的最旧那条，记下丢了几条。 |
-| 撕裂读怎么防 | 每格一个 seqlock：写前标奇数、写完标偶数；读者读前读后各看一次，不一样或是奇数就丢掉。 |
+| 撕裂读怎么防 | 生产者先把戳作废成 0、再写数据、最后盖新号；读者复制完再读一次戳，变了就丢。 |
 | 跨进程下标怎么传 | 不用传，序号就放在共享内存里，是 lock-free 的 `std::atomic`，两个进程映射同一块，看到的是同一个变量。 |
 | 内存序 | 写者先写数据，再 release 存序号；读者 acquire 读序号，读到新值就一定看得到数据。x86 上这俩都是普通 mov，只拦编译器重排。 |
 | 回绕 | 容量取 2 的幂，`idx & (N − 1)`；序号本身不取模。 |
