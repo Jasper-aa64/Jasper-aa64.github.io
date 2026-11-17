@@ -50,19 +50,19 @@ SPMC 是 single producer, multiple consumers，一个写、多个读。广播的
 ```cpp
 template <class T, uint32_t CNT>                                // CNT 是 2 的幂
 class SPMCQueue {
-    struct alignas(64) Block { uint32_t idx = 0; T data; } blks[CNT];   // 每格带一个序号戳
+    struct alignas(64) Block { std::atomic<uint32_t> idx{0}; T data; } blks[CNT];   // 每格带一个序号戳
     alignas(128) uint32_t write_idx = 0;                        // 只有回调线程写
 public:
     template <class Fill>
     void write(Fill fill) {
         auto& blk = blks[++write_idx & (CNT - 1)];              // 1. 下一格，序号从 1 开始
         fill(blk.data);                                         // 2. 直接在格子里填
-        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // 3. 最后盖戳
+        blk.idx.store(write_idx, std::memory_order_release);  // 3. 最后盖戳
     }
     // 读者：自己记 next_idx，看那一格的戳
     T* read(uint32_t& next_idx) {
         auto& blk = blks[next_idx & (CNT - 1)];
-        uint32_t new_idx = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+        uint32_t new_idx = blk.idx.load(std::memory_order_acquire);
         if (int(new_idx - next_idx) < 0) return nullptr;        // 还没写到
         next_idx = new_idx + 1;                                 // 正好，或被套圈后跳到这一条
         return &blk.data;
@@ -899,7 +899,7 @@ public:
     struct Reader {
         T* read() {
             auto& blk = q->blks[next_idx & (CNT - 1)];
-            uint32_t new_idx = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+            uint32_t new_idx = blk.idx.load(std::memory_order_acquire);
             int d = int(new_idx - next_idx);
             if (d < 0) return nullptr;              // 还没写到
             skipped += uint32_t(d);                 // 大于 0：被套圈，跳过了 d 条
@@ -917,11 +917,11 @@ public:
     void write(Fill fill) {                         // 只有一个线程调
         auto& blk = blks[++write_idx & (CNT - 1)];  // ① 下一格，序号从 1 开始
         fill(blk.data);                             // ② 原地填
-        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // ③ 最后盖戳
+        blk.idx.store(write_idx, std::memory_order_release);  // ③ 最后盖戳
     }
 
 private:
-    struct alignas(64) Block { uint32_t idx = 0; T data; } blks[CNT];
+    struct alignas(64) Block { std::atomic<uint32_t> idx{0}; T data; } blks[CNT];
     alignas(128) uint32_t write_idx = 0;
 };
 
@@ -1060,7 +1060,7 @@ struct alignas(128) WriteIdx { uint32_t v = 0; };
 struct alignas(128) Reader   { uint32_t next_idx = 0; };
 template <class T, uint32_t CNT>
 struct QueueLayout {
-    struct alignas(64) Block { uint32_t idx; T data; } blks[CNT];
+    struct alignas(64) Block { std::atomic<uint32_t> idx{0}; T data; } blks[CNT];
     WriteIdx write_idx;
 };
 using Q = QueueLayout<Snapshot, 1024>;

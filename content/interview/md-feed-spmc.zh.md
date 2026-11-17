@@ -33,11 +33,12 @@ math: true
 template <class T, uint32_t CNT>
 class SPMCQueue {
     static_assert(CNT && !(CNT & (CNT - 1)), "CNT 必须是 2 的幂");
+    static_assert(std::atomic<uint32_t>::is_always_lock_free, "跨进程用的原子量必须是 lock-free 的");
 public:
     struct Reader {
         T* read() {
             auto& blk = q->blks[next_idx & (CNT - 1)];
-            uint32_t new_idx = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+            uint32_t new_idx = blk.idx.load(std::memory_order_acquire);
             if (int(new_idx - next_idx) < 0) return nullptr;   // 还没写到
             next_idx = new_idx + 1;                             // 正好，或被套圈后跳到这一条
             return &blk.data;
@@ -62,12 +63,12 @@ public:
     void write(Fill fill) {                                     // 只有一个线程调
         auto& blk = blks[++write_idx & (CNT - 1)];              // ① 下一格
         fill(blk.data);                                         // ② 原地填
-        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // ③ 最后盖戳
+        blk.idx.store(write_idx, std::memory_order_release);  // ③ 最后盖戳
     }
 
 private:
     struct alignas(64) Block {
-        uint32_t idx = 0;                                       // 这一格装的是第几条
+        std::atomic<uint32_t> idx{0};                           // 这一格装的是第几条
         T data;
     } blks[CNT];
     alignas(128) uint32_t write_idx = 0;                        // 只有生产者写
@@ -197,7 +198,7 @@ template <class T, uint32_t CNT>
 struct OldQueue {
     Block<T> blks[CNT];
     uint32_t write_idx = 0;                    // 回调线程每条都写
-    uint32_t disk_next = 1;                    // 落盘线程每读一条都写
+    std::atomic<uint32_t> disk_next{1};        // 落盘线程每读一条都写
 };
 ```
 
@@ -249,25 +250,25 @@ static_assert(sizeof(NQ::Reader) == 128, "读游标独占一块");
 struct Snapshot { uint64_t seq; double last; double bid_px[5]; };
 
 template <class T>
-struct alignas(64) Block { uint32_t idx = 0; T data; };
+struct alignas(64) Block { std::atomic<uint32_t> idx{0}; T data; };
 
 // ---- 改之前：读游标放在队列里，和写序号挨着，同一条缓存行 ----
 template <class T, uint32_t CNT>
 struct OldQueue {
     Block<T> blks[CNT];
     uint32_t write_idx = 0;                    // 回调线程每条都写
-    uint32_t disk_next = 1;                    // 落盘线程每读一条都写
+    std::atomic<uint32_t> disk_next{1};        // 落盘线程每读一条都写
 
     template <class Fill> void write(Fill fill) {
         auto& blk = blks[++write_idx & (CNT - 1)];
         fill(blk.data);
-        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);
+        blk.idx.store(write_idx, std::memory_order_release);
     }
     T* read() {                                // 只有一个读者：落盘线程
         auto& blk = blks[disk_next & (CNT - 1)];
-        uint32_t s = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+        uint32_t s = blk.idx.load(std::memory_order_acquire);
         if (int(s - disk_next) < 0) return nullptr;
-        ((std::atomic<uint32_t>*)&disk_next)->store(s + 1, std::memory_order_relaxed);   // 写的是共享的那条行
+        disk_next.store(s + 1, std::memory_order_relaxed);   // 写的是共享的那条行
         return &blk.data;
     }
 };
@@ -283,7 +284,7 @@ struct NewQueue {
         uint32_t next_idx;
         T* read() {
             auto& blk = q->blks[next_idx & (CNT - 1)];
-            uint32_t s = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+            uint32_t s = blk.idx.load(std::memory_order_acquire);
             if (int(s - next_idx) < 0) return nullptr;
             next_idx = s + 1;
             return &blk.data;
@@ -294,7 +295,7 @@ struct NewQueue {
     template <class Fill> void write(Fill fill) {
         auto& blk = blks[++write_idx & (CNT - 1)];
         fill(blk.data);
-        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);
+        blk.idx.store(write_idx, std::memory_order_release);
     }
 };
 
@@ -402,7 +403,7 @@ int main() {
 | 问 | 开口这么说 |
 |---|---|
 | 没有构造函数运行，环怎么初始化 | 靠全 0：`ftruncate` 扩出来的内存全是 0，戳 0、`write_idx` 0 就是空队列。 |
-| `(std::atomic<uint32_t>*)&blk.idx` 这种强转合法吗 | 严格说不合法，把普通对象当原子对象用。实践中 `atomic<uint32_t>` 和 `uint32_t` 大小、对齐一样又是 lock-free 的，GCC 上能用；C++20 有 `std::atomic_ref` 专门干这件事。 |
+| 戳为什么直接声明成 `std::atomic`，放进共享内存行不行 | 行，前提是 lock-free：`atomic<uint32_t>` 就是 4 个字节，全 0 就是值 0，不需要谁跑构造函数，所以加了一句 `static_assert(is_always_lock_free)`。也有写法是声明成普通 `uint32_t`、用的时候强转成 atomic 指针，严格说是未定义行为；C++20 要这样做，该用 `std::atomic_ref`。 |
 | 读者进程后启动，`getReader()` 读 `write_idx` 有什么问题 | 这是非原子读，生产者同时在写，严格说是数据竞争。x86 上对齐的 32 位读不会读出半个值，最多拿到一个稍旧的号，从前几条开始读；要严格，就把 `write_idx` 改成原子量、读者用 `relaxed` 读。 |
 | 落盘进程崩了重启，会丢数据吗 | 会：`getReader()` 从下一条开始，崩掉那几秒全丢。要续读，就把 `next_idx` 存到进程外面，重启后从它接着读，落后不到一圈就一条不丢。 |
 | 每天重建队列，老读者还在跑会怎样 | 新戳从 1 开始，老读者的游标是几百万，差值一直是负的，`read()` 一直返回空，看起来像没行情，实际是卡住。重建队列时一起重启读者。 |
