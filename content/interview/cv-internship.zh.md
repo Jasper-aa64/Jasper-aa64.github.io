@@ -957,8 +957,7 @@ enum class Vendor { A, B };                        // 启动时读配置决定�
 
 // 跑一家：回调线程写 n 条，落盘线程每 200 µs 醒一次批量读，边读边核
 void run(Vendor vendor, uint32_t n) {
-    using Ring = SPMCQueue<Snapshot, 1 << 16>;
-    std::unique_ptr<Ring> q(new Ring());           // 真实工程里是 shm_open + mmap，全 0 就是空队列
+    auto q = std::make_unique<SPMCQueue<Snapshot, 1 << 16>>();   // 真实工程里是 shm_open + mmap，全 0 就是空队列
     auto r = q->getReader();                       // 读者在生产者开始写之前建好
     std::atomic<bool> done{false};
     uint64_t lines = 0, bad = 0;

@@ -96,8 +96,7 @@ template <class Q> Q* shmmap(const char* name) {
 ### 2.3 回调写、落盘线程读 {#usage}
 
 ```cpp
-using Ring = SPMCQueue<Snapshot, 1 << 19>;
-Ring* q = shmmap<Ring>("/md_snapshot");          // 接入进程和每个读者进程都这样拿到同一个环
+auto* q = shmmap<SPMCQueue<Snapshot, 1 << 19>>("/md_snapshot");   // 接入进程和每个读者进程都这样拿到同一个环
 
 // SDK 的快照回调线程：快照这个环唯一的生产者，只做转换和写环（逐笔委托、逐笔成交各一个环，写法一样）
 void on_snapshot(const VendorSnap* in) {
