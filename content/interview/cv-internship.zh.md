@@ -29,7 +29,7 @@ math: true
 ```cpp
 // 两家各有自己的回调和结构，转换后都是同一个 Snapshot
 void VendorA::on_snapshot(const VendorASnap* in) {
-    push(snap_ring_, [&](Snapshot& out) {          // 直接在环的格子里填，省一次拷贝
+    snap_q_->write([&](Snapshot& out) {            // 直接在环的格子里填，省一次拷贝
         copy_code(out.code, in->code);
         out.last = in->last_px / 10000.0;          // 这家的价格是放大 10000 倍的整数
         for (int i = 0; i < 10; ++i) {
@@ -45,39 +45,38 @@ void VendorA::on_snapshot(const VendorASnap* in) {
 
 ### 1.2 生产者不能等读者：SPMC 广播环 {#md-ring}
 
-SPMC 是 single producer, multiple consumers，一个写、多个读。广播的意思是每个读者都读到全部数据，读者之间不抢。
+SPMC 是 single producer, multiple consumers，一个写、多个读。广播的意思是每个读者都读到全部数据，读者之间不抢。按配置只接一家，一个进程里只有这一家 SDK 的回调线程在写，所以是单生产者。
 
 ```cpp
-template <class T>
-struct BroadcastRing {
-    T*     slots;                                   // 启动时分配好的定长数组
-    size_t len;
-    alignas(128) std::atomic<uint64_t> claimed{0};    // 已经占掉的序号
-    alignas(128) std::atomic<uint64_t> published{0};  // 这个序号之前的格子都写完了
-
-    template <class Fill>
-    void push(Fill&& fill) {
-        // 1. 占一个序号
-        uint64_t seq = claimed.fetch_add(1, std::memory_order_relaxed);
-        // 2. 直接在格子里填
-        fill(slots[seq % len]);
-        // 3. 等前一个序号发布完，再发布自己
-        while (published.load(std::memory_order_acquire) != seq) _mm_pause();
-        published.store(seq + 1, std::memory_order_release);
+template <class T, uint32_t CNT>                                // CNT 是 2 的幂
+class SPMCQueue {
+    struct alignas(64) Block { uint32_t idx = 0; T data; } blks[CNT];   // 每格带一个序号戳
+    alignas(128) uint32_t write_idx = 0;                        // 只有回调线程写
+public:
+    template <class Writer>
+    void write(Writer writer) {
+        auto& blk = blks[++write_idx & (CNT - 1)];              // 1. 下一格，序号从 1 开始
+        writer(blk.data);                                       // 2. 直接在格子里填
+        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // 3. 最后盖戳
+    }
+    // 读者：自己记 next_idx，看那一格的戳
+    T* read(uint32_t& next_idx) {
+        auto& blk = blks[next_idx & (CNT - 1)];
+        uint32_t new_idx = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+        if (int(new_idx - next_idx) < 0) return nullptr;        // 还没写到
+        next_idx = new_idx + 1;                                 // 正好，或被套圈后跳到这一条
+        return &blk.data;
     }
 };
-
-// 读者：自己记游标，只读到 published 为止
-uint64_t end = ring.published.load(std::memory_order_acquire);
-for (; cursor < end; ++cursor) write_line(ring.slots[cursor % ring.len]);
 ```
 
-- **第 1 步用 `fetch_add`**：SDK 可能用不止一个线程回调，原子加保证每个线程拿到不同的格子。
-- **第 3 步按序号顺序发布**：读者只读到 `published` 为止，所以读不到写了一半的格子。写的一方用 `release`，读的一方用 `acquire`，读者看到新的 `published` 时，格子里的内容一定已经写好。
-- **读者不改任何共享状态**：每个读者只记自己的游标。以后同一路行情再接策略、监控读者，生产者一行都不用改。这是选广播环、不选 SPSC 队列的原因。
-- **代价是会丢**：生产者不等读者，读者落后一整圈，没读的格子就被覆盖。落盘的写线程是批量读的，所以环开到几百万格。要保证不丢有两种改法：每格带一个序号戳，让读者发现自己被套圈；或者落盘这一路改成满了就让生产者等。
+- **写只有三步，不等任何读者**：取下一格，原地填，最后用 `release` 把序号写进这一格的戳。读者 `acquire` 读到这个戳，格子里的内容一定已经写好。
+- **大小取 2 的幂，下标用 `& (CNT − 1)`**：一条与指令代替取模；2³² 是 `CNT` 的整数倍，序号回绕成 0 时格子位置还是连着的。
+- **读者一次减法分三种情况**：`int(戳 − next_idx)` 小于 0 是还没写到，等于 0 是正好，大于 0 是被套圈、中间丢了这么多条。没写过的格子戳是 0，读者要的号从 1 起，永远读不到空格子。
+- **读者不往共享区写任何东西**：每个读者只记自己的 `next_idx`。以后再接策略、监控读者，生产者一行都不用改。这是选广播环、不选 SPSC 队列的原因。
+- **代价是会丢**：生产者不等读者，读者落后一整圈，没读的格子就被覆盖。落盘的写线程是批量读的，环要开得比一次积压的量大得多。
 
-环的细节见 [SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/)。
+环的细节见 [SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/)，每一行会被怎么问见 [行情接入和 SPMC 广播环](/zh/interview/md-feed-spmc/)。
 
 ### 1.3 厂商给的字段不能直接信：拿真实行情逐字段核 {#md-verify}
 
@@ -111,7 +110,7 @@ for (; cursor < end; ++cursor) write_line(ring.slots[cursor % ring.len]);
 > **讲的时候按这个顺序**
 >
 > 1. **结构一句话**：SDK 回调线程只做转换和写环，写线程从环里批量读、落盘，因为回调线程上不能做慢 I/O。
-> 2. **环怎么写的**：`fetch_add` 占序号，填格子，按序号顺序发布；读者自己记游标，所以加读者不用改生产者。
+> 2. **环怎么写的**：每格带一个序号戳，写就是取下一格、原地填、release 盖戳；读者自己记下一条要第几条，一次减法分三种情况，所以加读者不用改生产者。
 > 3. **难点在数据口径**：举上海成交金额差几毛的例子，改成价乘量自己算。
 > 4. **怎么验证**：整日 4.5 亿条回放，看条数、内存、有没有被套圈。
 
@@ -123,50 +122,43 @@ for (; cursor < end; ++cursor) write_line(ring.slots[cursor % ring.len]);
 
 **手写练习**：这一条带测试的完整代码在 [7.2 节](#hw-md-opt)。
 
-### 2.1 计数和只读指针挤在一条缓存行里：计数各占一块 {#md-false-sharing}
+### 2.1 写序号和读游标挤在一条缓存行里：各占一块 {#md-false-sharing}
 
 **伪共享**：两个核访问的是不同的变量，但变量落在同一条 64 字节的缓存行里。一个核一写，另一个核手里的整条行就作废，下次访问要重新搬过来（[#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/#false-sharing)）。
 
 这里的两方是：
 
-- **回调线程每条行情都改计数**：`fetch_add` 占序号，再写已发布号。
-- **写线程每写一行都读环的指针**：指针启动以后就不变。
+- **回调线程每条行情都写一次写序号 `write_idx`**。
+- **写线程每读一条都写一次自己的读游标**。
 
-改之前，几个环的计数和指针挨着放在同一个结构体里，落在同一条行上。指针一个字节都没变，这条行却跟着计数每条行情在两个核之间搬一趟。`fetch_add` 是带 `lock` 前缀的指令，必须先独占这条行才能执行，行被搬走一次，回调线程就要等一次。
+改之前，写序号和读游标挨着放，落在同一条行上。两个变量逻辑上毫无关系，这条行却每条行情都在两个核之间搬一趟：哪个核要写，都得先把整条行独占过来，另一个核手里的副本就作废了，回调线程每写一次都可能要等一次。
 
 ```cpp
-// 改之前：只读的指针和每条都改的计数挨在一起
-struct RingSet {
-    Snapshot* snap_slots;                     // 启动后只读
-    Order*    order_slots;
-    std::atomic<uint64_t> snap_claimed;       // 回调线程每条都改
-    std::atomic<uint64_t> snap_published;
-    std::atomic<uint64_t> order_claimed;
-    std::atomic<uint64_t> order_published;
+// 改之前：写序号和读游标挨在一起，同一条缓存行
+struct QueueTail {
+    uint32_t write_idx;                       // 回调线程每条都写
+    uint32_t disk_next;                       // 写线程每读一条都写
 };
 
-// 改之后：只读的放一起；每个环的计数独占一个 128 字节的块
-struct alignas(128) Counters {
-    std::atomic<uint64_t> claimed{0};
-    std::atomic<uint64_t> published{0};
+// 改之后：写序号在队列里独占一个 128 字节的块；读游标挪进读者自己的对象，也独占一块
+template <class T, uint32_t CNT>
+struct SPMCQueue {
+    Block blks[CNT];
+    alignas(128) uint32_t write_idx = 0;
 };
-struct RingSet {
-    Snapshot* snap_slots;
-    Order*    order_slots;
-    Counters  snap_cnt;
-    Counters  order_cnt;
-};
+struct alignas(128) Reader { uint32_t next_idx = 0; };   // 读者私有，不放共享区
 
 // 把布局钉死：以后有人增删成员，编译就报错
-static_assert(sizeof(Counters) == 128 && alignof(Counters) == 128);
-static_assert(offsetof(RingSet, snap_cnt)  % 128 == 0);
-static_assert(offsetof(RingSet, order_cnt) % 128 == 0);
+using Q = SPMCQueue<Snapshot, 1 << 19>;
+static_assert(offsetof(Q, write_idx) % 128 == 0);
+static_assert(sizeof(Q) - offsetof(Q, write_idx) == 128);   // 写序号后面不能再挤别的成员
+static_assert(sizeof(Reader) == 128 && alignof(Reader) == 128);
 ```
 
 - **为什么隔 128 字节，不是 64**：Intel 的相邻行预取会把同一个 128 字节块里的两条行成对取进来，只隔 64 可能被顺带拉走。这是照 Intel 优化手册和 folly 这类库的做法定的；实测隔 64 和隔 128 没有测出差别，留着当保险。
 - **为什么要加布局检查**：这类布局很脆。之前有一次删掉了两个成员，后面的成员整体挪位，谁和谁在同一条行上全变了。检查先在改之前的代码上跑一遍，确认它会失败，再改代码让它通过。
 
-**40% 是有条件的**：另一个核读指针读得很密（每 0.5 µs 读一次）时，写入延迟的中位数降低约 40%。按写线程实际的节奏，每写一行要几微秒，才读一次指针，每条行情平均只省几纳秒。所以这一条真正的价值是把布局钉死、并且说清收益在什么条件下才有。
+**40% 是有条件的**：写线程读得很密（每 0.5 µs 读一次、更新一次游标）时，写入延迟的中位数降低约 40%。按写线程实际的节奏，每写一行要几微秒，才动一次游标，每条行情平均只省几纳秒。所以这一条真正的价值是把布局钉死、并且说清收益在什么条件下才有。
 
 **怎么确认是伪共享**：先看布局，两样东西在同一条行里、又被不同的核访问，条件成立；再做对照，只改对齐、别的不动，新旧配对交替跑，写入延迟下降。物理机上可以用 `perf c2c` 直接看到这条行的跨核争用（[#2 第 3.6 节](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-c2c)）；测试机是虚拟机，拿不到硬件计数器，所以靠对照实验和布局检查确认。
 
@@ -227,7 +219,7 @@ out.recv_time = to_recv_format(ts);
 
 > **讲的时候按这个顺序**
 >
-> 1. **伪共享**：环的计数和只读指针在同一条缓存行里，回调改计数、写线程读指针，行来回搬；计数用 `alignas(128)` 各占一块，再用布局检查钉死。主动说 40% 只在读得很密时成立。
+> 1. **伪共享**：回调线程的写序号和写线程的读游标在同一条缓存行里，两边每条都写，行来回搬；写序号用 `alignas(128)` 独占一块，读游标挪进读者自己的对象，再用布局检查钉死。主动说 40% 只在读得很密时成立。
 > 2. **预触**：第一圈写的全是新内存，缺页挤在开盘；启动时每页写一个字节，P99 降约 57%。
 > 3. **读时钟**：回调原来读时间线程刷新的字段，每条一次跨核搬行；改成自己读时钟，走 vDSO，中位数降约 17%。
 > 4. **为什么两个数差这么多**：一个去掉偶发的大开销，一个去掉每条都有的小开销。
@@ -856,94 +848,87 @@ public:
 
 | 小节 | 对应简历 | 写出来的东西 | 限时 |
 |---|---|---|---|
-| [7.1](#hw-md-feed) | [第 1 节](#md-feed) 行情接入 | 两家回调 → 统一结构 → 广播环 → 写线程 | 25 分钟 |
-| [7.2](#hw-md-opt) | [第 2 节](#md-opt) 行情优化 | 计数隔离、预触、读时钟、延迟打点 | 15 分钟 |
+| [7.1](#hw-md-feed) | [第 1 节](#md-feed) 行情接入 | 按配置接一家 → 统一结构 → 每格带戳的广播环 → 写线程 | 25 分钟 |
+| [7.2](#hw-md-opt) | [第 2 节](#md-opt) 行情优化 | 读写计数隔离、预触、读时钟、延迟打点 | 15 分钟 |
 | [7.3](#hw-factor-dev) | [第 3 节](#factor-dev) 因子开发 | 增量滚动标准差、对拍、边界测试 | 20 分钟 |
 | [7.4](#hw-factor-opt) | [第 4 节](#factor-opt) 因子计算优化 | 单调队列、CRTP 的 `FactorSet` | 15 分钟 |
 | [7.5](#hw-backtest-flow) | [第 5 节](#backtest-flow) 回测框架 | 比输出的门、配对计时 | 15 分钟 |
 | [7.6](#hw-backtest-opt) | [第 6 节](#backtest-opt) 回测优化 | 跨交易日复用的 `TickArena` | 15 分钟 |
 
-### 7.1 行情接入：两家回调 → 统一结构 → 广播环 → 写线程 {#hw-md-feed}
+### 7.1 行情接入：按配置接一家 → 统一结构 → 广播环 → 写线程 {#hw-md-feed}
 
-- **开写前说**：两家各一个回调，只做转换和写环；环用 `fetch_add` 占号、填格子、按序号顺序发布；写线程自己记游标，醒来批量读到 `published` 为止。
-- **写的时候注意**：发布那一步要等前一个序号发布完才发布自己，因为 SDK 可能用不止一个线程回调；读者不改任何共享状态；测试核三样：条数、同一家的顺序、单位换算。
-- **和博客那一版的区别**：这是实习里的那一版，格子里没有戳，读者只能拿 `claimed` 判断自己有没有被套圈。每格带戳、能发现套圈和撕裂读的是改进版，见 [SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/)。面试时两版分开讲。
+- **开写前说**：启动时按配置接一家，回调线程是唯一的生产者，只做转换和写环；写就是取下一格、原地填、release 盖戳；落盘线程自己记 `next_idx`，醒来读到没有为止，一次减法分三种情况。
+- **写的时候注意**：序号从 1 开始，全 0 的格子才不会被读成数据；比较写成 `int(戳 − next_idx) < 0`，回绕时也对；读者在生产者开始写之前建好；测试核四样：条数、序号连续、单位换算、没被套圈，再用一个小环测套圈时跳过的条数。
+- **每一行会被怎么问**：见 [行情接入和 SPMC 广播环](/zh/interview/md-feed-spmc/)。
 
 <details>
-<summary><strong>参考代码</strong>（155 行，先自己写，写完或卡住再展开）</summary>
+<summary><strong>参考代码</strong>（153 行，先自己写，写完或卡住再展开）</summary>
 
 ```cpp
-// 实习 1：行情接入。两家厂商回调 → 转成统一结构 → 写进 SPMC 广播环 → 写线程批量读、落盘
-// 要点：回调线程只做转换和写环；fetch_add 占序号，按序号顺序发布；读者自记游标，只读到 published 为止
+// 实习 1：行情接入。按配置接一家 → 回调线程转成统一结构 → 写进每格带戳的 SPMC 广播环 → 落盘线程批量读
+// 要点：回调线程是唯一的生产者，只做转换和写环；写 = 下一格、原地填、release 盖戳；读者自记 next_idx，一次减法三种情况
 // 编译：g++ -std=c++17 -O2 -Wall -Wextra -pthread i1_md_feed.cpp -o md_feed && ./md_feed
 #include <atomic>
 #include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <chrono>
 #include <cstring>
 #include <memory>
 #include <thread>
-#include <vector>
-#if defined(__x86_64__) || defined(_M_X64)
-#include <immintrin.h>
-#define CPU_PAUSE() _mm_pause()
-#else
-#define CPU_PAUSE() std::this_thread::yield()
-#endif
 
-// ---- 统一结构：两家转换后都是它 ----
+// ---- 统一结构：哪一家转换后都是它 ----
 struct Snapshot {
     char     code[8];
     int64_t  time_ms;
     double   last;
     double   bid_px[10];
     int64_t  bid_vol[10];
-    uint32_t src;          // 来自哪一家、第几条（测试用）
-    uint32_t src_seq;
+    uint32_t seq;          // 这一家的第几条（测试用）
 };
 
 // ---- 两家厂商各自的结构（字段名、单位都不一样）----
 struct VendorASnap { char code[8]; int64_t t; int64_t last_px; int64_t bid_px[10]; int64_t bid_vol[10]; };  // 价格放大 10000 倍
 struct VendorBSnap { char symbol[8]; int64_t ts; double price; double bids[10]; int32_t lots[10]; };       // 量是手，1 手 = 100 股
 
-// ---- SPMC 广播环：多个回调线程写（fetch_add 占号），多个读者各读全部 ----
-template <class T>
-class BroadcastRing {
-    std::unique_ptr<T[]> slots_;
-    uint64_t len_;
-    alignas(128) std::atomic<uint64_t> claimed_{0};     // 已经占掉的序号
-    alignas(128) std::atomic<uint64_t> published_{0};   // 这个序号之前的格子都写完了
+// ---- SPMC 广播环：一个生产者，每格带戳，读者各记各的 ----
+template <class T, uint32_t CNT>
+class SPMCQueue {
+    static_assert(CNT && !(CNT & (CNT - 1)), "CNT 必须是 2 的幂");
 public:
-    explicit BroadcastRing(uint64_t len) : slots_(new T[len]), len_(len) {}
+    struct Reader {
+        T* read() {
+            auto& blk = q->blks[next_idx & (CNT - 1)];
+            uint32_t new_idx = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+            int d = int(new_idx - next_idx);
+            if (d < 0) return nullptr;              // 还没写到
+            skipped += uint32_t(d);                 // 大于 0：被套圈，跳过了 d 条
+            next_idx = new_idx + 1;
+            return &blk.data;
+        }
+        SPMCQueue* q = nullptr;
+        uint32_t next_idx = 0;                      // 读者私有，不在共享区
+        uint64_t skipped = 0;
+    };
 
-    template <class Fill>
-    void push(Fill&& fill) {
-        uint64_t seq = claimed_.fetch_add(1, std::memory_order_relaxed);   // 1. 占一个序号
-        fill(slots_[seq % len_]);                                          // 2. 直接在格子里填
-        while (published_.load(std::memory_order_acquire) != seq) CPU_PAUSE();  // 3. 等前一个发布完
-        published_.store(seq + 1, std::memory_order_release);              //    再发布自己
+    Reader getReader() { Reader r; r.q = this; r.next_idx = write_idx + 1; return r; }
+
+    template <class Writer>
+    void write(Writer writer) {                     // 只有一个线程调
+        auto& blk = blks[++write_idx & (CNT - 1)];  // ① 下一格，序号从 1 开始
+        writer(blk.data);                           // ② 原地填
+        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // ③ 最后盖戳
     }
 
-    // 读者：自己记游标，读到 published 为止。返回这次读了几条
-    template <class Sink>
-    uint64_t drain(uint64_t& cursor, Sink&& sink) const {
-        uint64_t end = published_.load(std::memory_order_acquire);
-        uint64_t n = 0;
-        for (; cursor < end; ++cursor, ++n) sink(slots_[cursor % len_]);
-        // 读完再看一眼：生产者已经占到 cursor + len 之后，刚才读的可能被覆盖了（套圈）
-        return n;
-    }
-    bool lapped(uint64_t cursor) const {
-        return claimed_.load(std::memory_order_acquire) >= cursor + len_;
-    }
+private:
+    struct alignas(64) Block { uint32_t idx = 0; T data; } blks[CNT];
+    alignas(128) uint32_t write_idx = 0;
 };
 
-using Ring = BroadcastRing<Snapshot>;
-
-// ---- 两家的回调：只做转换和写环 ----
-void on_vendor_a(Ring& ring, const VendorASnap& in, uint32_t seq) {
-    ring.push([&](Snapshot& out) {
+// ---- 两家的转换：回调里只做这个，然后写环 ----
+template <class Q>
+void on_vendor_a(Q& q, const VendorASnap& in, uint32_t seq) {
+    q.write([&](Snapshot& out) {
         std::memcpy(out.code, in.code, 8);
         out.time_ms = in.t;
         out.last = in.last_px / 10000.0;
@@ -951,11 +936,12 @@ void on_vendor_a(Ring& ring, const VendorASnap& in, uint32_t seq) {
             out.bid_px[i]  = in.bid_px[i] / 10000.0;
             out.bid_vol[i] = in.bid_vol[i];
         }
-        out.src = 0; out.src_seq = seq;
+        out.seq = seq;
     });
 }
-void on_vendor_b(Ring& ring, const VendorBSnap& in, uint32_t seq) {
-    ring.push([&](Snapshot& out) {
+template <class Q>
+void on_vendor_b(Q& q, const VendorBSnap& in, uint32_t seq) {
+    q.write([&](Snapshot& out) {
         std::memcpy(out.code, in.symbol, 8);
         out.time_ms = in.ts;
         out.last = in.price;
@@ -963,86 +949,90 @@ void on_vendor_b(Ring& ring, const VendorBSnap& in, uint32_t seq) {
             out.bid_px[i]  = in.bids[i];
             out.bid_vol[i] = int64_t(in.lots[i]) * 100;   // 手 → 股
         }
-        out.src = 1; out.src_seq = seq;
+        out.seq = seq;
     });
 }
 
-int main() {
-    constexpr uint32_t kPerVendor = 200000;
-    Ring ring(1 << 20);                 // 环开得比一次能积压的量大，落盘读者批量读不会被套圈
-    std::atomic<bool> done{false};
+enum class Vendor { A, B };                        // 启动时读配置决定接哪一家
 
-    // 写线程：睡一会儿醒来批量读，“落盘”（这里只校验和计数）
+// 跑一家：回调线程写 n 条，落盘线程每 200 µs 醒一次批量读，边读边核
+void run(Vendor vendor, uint32_t n) {
+    using Ring = SPMCQueue<Snapshot, 1 << 16>;
+    std::unique_ptr<Ring> q(new Ring());           // 真实工程里是 shm_open + mmap，全 0 就是空队列
+    auto r = q->getReader();                       // 读者在生产者开始写之前建好
+    std::atomic<bool> done{false};
     uint64_t lines = 0, bad = 0;
-    uint32_t next_seq[2] = {0, 0};
-    std::thread writer([&] {
-        uint64_t cursor = 0;
-        auto sink = [&](const Snapshot& s) {
-            if (s.src_seq != next_seq[s.src]) ++bad;    // 同一家的行情按顺序到、不丢不重
-            next_seq[s.src] = s.src_seq + 1;
-            double expect = 10.0 + (s.src_seq % 100) * 0.01;
-            if (s.last < expect - 1e-9 || s.last > expect + 1e-9) ++bad;   // 转换对不对
-            if (s.bid_vol[0] != 500) ++bad;
-            ++lines;
-        };
+
+    std::thread disk([&] {
         for (;;) {
             bool fin = done.load(std::memory_order_acquire);
-            ring.drain(cursor, sink);
-            if (ring.lapped(cursor)) ++bad;
-            if (fin && cursor == 2ull * kPerVendor) break;
+            while (Snapshot* s = r.read()) {       // 读到没有为止
+                if (s->seq != lines) ++bad;        // 不丢、不乱
+                double expect = 10.0 + (s->seq % 100) * 0.01;
+                if (s->last < expect - 1e-9 || s->last > expect + 1e-9) ++bad;   // 价格换算
+                if (s->bid_vol[0] != 500) ++bad;                                  // 量的换算
+                ++lines;
+            }
+            if (fin) break;
             std::this_thread::sleep_for(std::chrono::microseconds(200));
         }
     });
 
-    // 两个“SDK 线程”同时回调
-    std::thread a([&] {
-        for (uint32_t i = 0; i < kPerVendor; ++i) {
-            VendorASnap in{};
-            std::memcpy(in.code, "600000\0", 8);
-            in.t = i; in.last_px = 100000 + (i % 100) * 100;     // 10.00 + 0.01·k
-            for (int k = 0; k < 10; ++k) { in.bid_px[k] = in.last_px - k * 100; in.bid_vol[k] = 500; }
-            on_vendor_a(ring, in, i);
+    std::thread sdk([&] {                          // SDK 的回调线程：唯一的生产者
+        for (uint32_t i = 0; i < n; ++i) {
+            if (vendor == Vendor::A) {
+                VendorASnap in{};
+                std::memcpy(in.code, "600000\0", 8);
+                in.t = i; in.last_px = 100000 + (i % 100) * 100;      // 10.00 + 0.01·k
+                for (int k = 0; k < 10; ++k) { in.bid_px[k] = in.last_px - k * 100; in.bid_vol[k] = 500; }
+                on_vendor_a(*q, in, i);
+            } else {
+                VendorBSnap in{};
+                std::memcpy(in.symbol, "000001\0", 8);
+                in.ts = i; in.price = 10.0 + (i % 100) * 0.01;
+                for (int k = 0; k < 10; ++k) { in.bids[k] = in.price - k * 0.01; in.lots[k] = 5; }
+                on_vendor_b(*q, in, i);
+            }
         }
+        done.store(true, std::memory_order_release);
     });
-    std::thread b([&] {
-        for (uint32_t i = 0; i < kPerVendor; ++i) {
-            VendorBSnap in{};
-            std::memcpy(in.symbol, "000001\0", 8);
-            in.ts = i; in.price = 10.0 + (i % 100) * 0.01;
-            for (int k = 0; k < 10; ++k) { in.bids[k] = in.price - k * 0.01; in.lots[k] = 5; }
-            on_vendor_b(ring, in, i);
-        }
-    });
-    a.join(); b.join();
-    done.store(true, std::memory_order_release);
-    writer.join();
 
-    assert(bad == 0);
-    assert(lines == 2ull * kPerVendor);
-    std::printf("落盘 %llu 行，0 处错误\n", (unsigned long long)lines);
+    sdk.join(); disk.join();
+    std::printf("%s：写 %u 条，落盘 %llu 条，出错 %llu，被套圈跳过 %llu\n", vendor == Vendor::A ? "A" : "B",
+                n, (unsigned long long)lines, (unsigned long long)bad, (unsigned long long)r.skipped);
+    assert(lines == n && bad == 0 && r.skipped == 0);
+}
 
-    // 小环 + 不读：生产者不等读者，读者落后一整圈后能发现自己被套圈
-    Ring small(8);
-    uint64_t cur = 0;
-    for (uint32_t i = 0; i < 20; ++i) on_vendor_a(small, VendorASnap{}, i);
-    assert(small.lapped(cur));
+int main() {
+    run(Vendor::A, 200000);
+    run(Vendor::B, 200000);
+
+    // 套圈：CNT = 8，读者要第 2 条时生产者已经写到第 21 条
+    SPMCQueue<int, 8> small;
+    auto r = small.getReader();
+    small.write([](int& x) { x = 1; });
+    assert(*r.read() == 1 && r.read() == nullptr); // 读完第 1 条，第 2 条还没写到
+    for (int i = 2; i <= 21; ++i) small.write([&](int& x) { x = i; });
+    int* p = r.read();                              // 要第 2 条，那一格先后装过 2、10、18
+    assert(*p == 18 && r.skipped == 16);            // 跳过 16 条，正好两圈
+    std::printf("套圈：要第 2 条拿到第 %d 条，跳过 %llu 条\n", *p, (unsigned long long)r.skipped);
     std::printf("全部测试通过！\n");
 }
 ```
 
 </details>
 
-### 7.2 行情优化：计数隔离、预触、读时钟、打点 {#hw-md-opt}
+### 7.2 行情优化：读写计数隔离、预触、读时钟、打点 {#hw-md-opt}
 
-- **开写前说**：每个环的计数独占一个 128 字节的块，用 `static_assert` 钉死布局；启动时在绑好核的线程上每页写一个字节；回调自己 `clock_gettime`；延迟打点进预分配的数组，跑完离线取分位数。
+- **开写前说**：写序号独占一个 128 字节的块，读游标挪进读者自己的对象，用 `static_assert` 钉死布局；启动时在绑好核的线程上每页写一个字节；回调自己 `clock_gettime`；延迟打点进预分配的数组，跑完离线取分位数。
 - **写的时候注意**：预触必须写、不能只读；分位数用 `nth_element`，不用整个排序。
 - **我机器上的一次输出**（Windows）：两个计数在同一条缓存行约 440 ms，隔开约 40 ms。这个数字因机器而异。
 
 <details>
-<summary><strong>参考代码</strong>（118 行，先自己写，写完或卡住再展开）</summary>
+<summary><strong>参考代码</strong>（121 行，先自己写，写完或卡住再展开）</summary>
 
 ```cpp
-// 实习 2：行情优化。① 计数按 128 字节隔离并钉死布局 ② 启动时预触内存页 ③ 回调自己读时钟 ④ 打点和分位数
+// 实习 2：行情优化。① 写序号和读游标按 128 字节隔离并钉死布局 ② 启动时预触内存页 ③ 回调自己读时钟 ④ 打点和分位数
 // 编译：g++ -std=c++17 -O2 -Wall -Wextra -pthread i2_md_opt.cpp -o md_opt && ./md_opt
 #include <algorithm>
 #include <atomic>
@@ -1060,24 +1050,27 @@ int main() {
 #endif
 
 struct Snapshot { int64_t recv_ns; double last; double bid_px[10]; int64_t bid_vol[10]; };
-struct Order    { int64_t recv_ns; double px; int64_t vol; };
-
-// ---- ① 伪共享：只读的指针放一起，每个环的计数独占一个 128 字节的块 ----
-struct alignas(128) Counters {
-    std::atomic<uint64_t> claimed{0};      // 回调线程每条都改
-    std::atomic<uint64_t> published{0};
+// ---- ① 伪共享：回调线程每条都写的写序号、写线程每读一条都写的读游标，各占一个 128 字节的块 ----
+// 改之前：两个挨着，落在同一条缓存行，两个核每条都要把这一行抢过来
+struct TailBefore {
+    uint32_t write_idx;                    // 回调线程每条都写
+    uint32_t disk_next;                    // 写线程每读一条都写
 };
-struct RingSet {
-    Snapshot* snap_slots;                  // 启动后只读，写线程每写一行都读
-    Order*    order_slots;
-    Counters  snap_cnt;
-    Counters  order_cnt;
+// 改之后：写序号在队列里独占一块；读游标挪进读者自己的对象，也独占一块
+struct alignas(128) WriteIdx { uint32_t v = 0; };
+struct alignas(128) Reader   { uint32_t next_idx = 0; };
+template <class T, uint32_t CNT>
+struct QueueLayout {
+    struct alignas(64) Block { uint32_t idx; T data; } blks[CNT];
+    WriteIdx write_idx;
 };
+using Q = QueueLayout<Snapshot, 1024>;
 // 把布局钉死：以后有人增删成员，编译就报错
-static_assert(sizeof(Counters) == 128 && alignof(Counters) == 128, "计数要独占 128 字节");
-static_assert(offsetof(RingSet, snap_cnt)  % 128 == 0, "snap_cnt 要从块边界开始");
-static_assert(offsetof(RingSet, order_cnt) % 128 == 0, "order_cnt 要从块边界开始");
-static_assert(offsetof(RingSet, snap_cnt) >= 128, "只读指针不能和计数同一块");
+static_assert(sizeof(WriteIdx) == 128 && alignof(WriteIdx) == 128, "写序号要独占 128 字节");
+static_assert(sizeof(Reader) == 128 && alignof(Reader) == 128, "读游标要独占 128 字节");
+static_assert(offsetof(Q, write_idx) % 128 == 0, "写序号要从块边界开始");
+static_assert(sizeof(Q) - offsetof(Q, write_idx) == 128, "写序号后面不能再挤别的成员");
+static_assert(offsetof(TailBefore, disk_next) < 64, "改之前：两个在同一条缓存行");
 
 // ---- ② 预触：每页写一个字节，逼内核现在就分配；要在绑到回调核的线程上调 ----
 void pin_to_core(int core) {
@@ -1120,7 +1113,7 @@ public:
     }
 };
 
-// ---- 演示：两个线程各写各的计数，同一块 vs 隔开 ----
+// ---- 演示：两个线程各写各的计数（像写序号和读游标），同一条行 vs 隔开 ----
 template <class Pair>
 double race_ms(Pair& p, uint64_t iters) {
     auto t0 = std::chrono::steady_clock::now();
