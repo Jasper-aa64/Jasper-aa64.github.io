@@ -58,7 +58,7 @@ toc: true
 | # | 简历条目 | 写什么 | 参考代码 | 限时 | 哪天 | 状态 |
 |---|---|---|---|---|---|---|
 | 1 | 基础 | SPSC 环形队列 | [无锁队列 #4 第 1 节](https://jasper-aa64.github.io/zh/posts/lock-free-queue-logger-micro-batching/#spsc) | 10 分钟 | 周二、周三、周五 | ✅ ⬜ ⬜ |
-| 2 | 基础 | LRU 缓存 | [LRU 缓存](https://jasper-aa64.github.io/zh/ref/lru-cache/) | 10 分钟 | 周二、周三、周五 | ⬜ ⬜ ⬜ |
+| 2 | 基础 | LRU 缓存 | [LRU 缓存](https://jasper-aa64.github.io/zh/ref/lru-cache/) | 10 分钟 | 周二、周三、周五 | ✅ ⬜ ⬜ |
 | 3 | 实习 1 行情接入 | 实习版：两家回调 → 统一结构 → `fetch_add` 占号的广播环 → 写线程批量读 | [7.1](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-feed) | 25 分钟 | 周二、周四 | ⬜ ⬜ |
 | 4 | 实习 1 行情接入 | 博客版：每格带戳的 SPMC 广播环，读者能发现套圈和撕裂读 | [SPMC 广播环 #5 第 1 节](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/) | 20 分钟 | 周三、周四 | ⬜ ⬜ |
 | 5 | 实习 2 行情优化 | 计数按 128 字节隔离，`static_assert` 钉布局；预触；读时钟；打点取分位数 | [7.2](https://jasper-aa64.github.io/zh/interview/cv-internship/#hw-md-opt) | 15 分钟 | 周二 | ⬜ |
