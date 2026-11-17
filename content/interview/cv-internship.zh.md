@@ -53,10 +53,10 @@ class SPMCQueue {
     struct alignas(64) Block { uint32_t idx = 0; T data; } blks[CNT];   // 每格带一个序号戳
     alignas(128) uint32_t write_idx = 0;                        // 只有回调线程写
 public:
-    template <class Writer>
-    void write(Writer writer) {
+    template <class Fill>
+    void write(Fill fill) {
         auto& blk = blks[++write_idx & (CNT - 1)];              // 1. 下一格，序号从 1 开始
-        writer(blk.data);                                       // 2. 直接在格子里填
+        fill(blk.data);                                         // 2. 直接在格子里填
         ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // 3. 最后盖戳
     }
     // 读者：自己记 next_idx，看那一格的戳
@@ -913,10 +913,10 @@ public:
 
     Reader getReader() { Reader r; r.q = this; r.next_idx = write_idx + 1; return r; }
 
-    template <class Writer>
-    void write(Writer writer) {                     // 只有一个线程调
+    template <class Fill>
+    void write(Fill fill) {                         // 只有一个线程调
         auto& blk = blks[++write_idx & (CNT - 1)];  // ① 下一格，序号从 1 开始
-        writer(blk.data);                           // ② 原地填
+        fill(blk.data);                             // ② 原地填
         ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // ③ 最后盖戳
     }
 

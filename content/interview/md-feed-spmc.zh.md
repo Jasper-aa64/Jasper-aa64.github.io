@@ -58,10 +58,10 @@ public:
         return r;
     }
 
-    template <class Writer>
-    void write(Writer writer) {                                 // 只有一个线程调
+    template <class Fill>
+    void write(Fill fill) {                                     // 只有一个线程调
         auto& blk = blks[++write_idx & (CNT - 1)];              // ① 下一格
-        writer(blk.data);                                       // ② 原地填
+        fill(blk.data);                                         // ② 原地填
         ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);  // ③ 最后盖戳
     }
 
@@ -258,9 +258,9 @@ struct OldQueue {
     uint32_t write_idx = 0;                    // 回调线程每条都写
     uint32_t disk_next = 1;                    // 落盘线程每读一条都写
 
-    template <class W> void write(W w) {
+    template <class Fill> void write(Fill fill) {
         auto& blk = blks[++write_idx & (CNT - 1)];
-        w(blk.data);
+        fill(blk.data);
         ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);
     }
     T* read() {                                // 只有一个读者：落盘线程
@@ -291,9 +291,9 @@ struct NewQueue {
     };
     Reader getReader() { return Reader{this, write_idx + 1}; }
 
-    template <class W> void write(W w) {
+    template <class Fill> void write(Fill fill) {
         auto& blk = blks[++write_idx & (CNT - 1)];
-        w(blk.data);
+        fill(blk.data);
         ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);
     }
 };
