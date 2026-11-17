@@ -74,6 +74,51 @@ private:
 };
 ```
 
+Here is how it is used: the market-data callback thread is the only producer, a disk thread wants every message, and a strategy thread wants only the newest. Each reader gets its own `Reader`:
+
+```cpp
+struct Trade {                                   // one trade
+  uint64_t seq;
+  int64_t  price, qty;
+  char     code[16];
+};
+
+SPMCQueue<Trade, 1 << 16> q;                     // 65,536 slots
+
+// producer: the market-data callback thread
+void on_trade(const RawTrade& m) {
+  q.write([&](Trade& t) {                        // 1. fill the slot in place
+    t.seq   = m.seq;
+    t.price = m.price;
+    t.qty   = m.qty;
+    std::memcpy(t.code, m.code, sizeof t.code);
+  });                                            // 2. when write returns, the stamp is set and readers can see it
+}
+
+// reader 1: the disk thread, wants every message
+void disk_loop() {
+  auto r = q.getReader();                        // starts at the next message, no replay
+  for (;;) {
+    while (Trade* t = r.read()) write_to_file(*t);   // take everything there is, until nullptr
+  }
+}
+
+// reader 2: the strategy thread, wants only the newest
+void strategy_loop() {
+  auto r = q.getReader();
+  for (;;) {
+    if (Trade* t = r.readLast()) on_trade_update(*t);  // skip the middle, keep the newest
+  }
+}
+```
+
+- **The producer has one step**: `write` takes a lambda, fills the slot and stamps it. There is no pair of calls to match up as with [#4](/posts/lock-free-queue-logger-micro-batching/#spsc-ring)'s `try_claim` / `publish`, and no "full": after a lap it overwrites the oldest slot.
+- **One `Reader` per reader, never shared between threads**: `next_idx` belongs to that reader alone; two threads sharing one overwrite each other's progress.
+- **Create the readers before the producer starts writing**: the `write_idx` that `getReader()` reads is not an atomic, so reading it while the producer writes is a data race; and messages written before a reader exists never reach it anyway.
+- **`read()` returns a pointer into the slot**: the producer overwrites it after a lap. A slow reader can be lapped or read a half-written message; both are in 1.5.
+
+Run with two readers over 1 million messages this way, the producer staying less than one lap ahead of the disk reader: the disk reader checks every `seq`, nothing lost or out of order; the last message the strategy reader gets is number 1,000,000.
+
 Three things to notice before reading any function:
 
 - **The stamp `idx` lives in every slot.** Each block records *which message number it currently holds*. The publication signal is no longer one shared index that everyone reads; it travels with the data.

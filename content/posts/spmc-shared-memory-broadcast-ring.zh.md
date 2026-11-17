@@ -73,6 +73,51 @@ private:
 };
 ```
 
+用起来是这样：行情回调线程是唯一的生产者，落盘线程每一条都要，策略线程只要最新一条。每个读者自己拿一个 `Reader`：
+
+```cpp
+struct Trade {                                   // 一条逐笔成交
+  uint64_t seq;
+  int64_t  price, qty;
+  char     code[16];
+};
+
+SPMCQueue<Trade, 1 << 16> q;                     // 容量 65536 条
+
+// 生产者：行情回调线程
+void on_trade(const RawTrade& m) {
+  q.write([&](Trade& t) {                        // 1. 直接在槽位里填
+    t.seq   = m.seq;
+    t.price = m.price;
+    t.qty   = m.qty;
+    std::memcpy(t.code, m.code, sizeof t.code);
+  });                                            // 2. write 返回时戳已经盖好，读者看得到
+}
+
+// 读者 1：落盘线程，每一条都要
+void disk_loop() {
+  auto r = q.getReader();                        // 从下一条开始，之前写的不回放
+  for (;;) {
+    while (Trade* t = r.read()) write_to_file(*t);   // 有多少读多少，读到 nullptr 为止
+  }
+}
+
+// 读者 2：策略线程，只要最新一条
+void strategy_loop() {
+  auto r = q.getReader();
+  for (;;) {
+    if (Trade* t = r.readLast()) on_trade_update(*t);  // 中间的跳过，只看最新的
+  }
+}
+```
+
+- **生产者只有一步**：`write` 收一个 lambda，在槽位里填完就盖戳。不像 [#4](/zh/posts/lock-free-queue-logger-micro-batching/#spsc-ring) 的 `try_claim` / `publish` 那样要两次调用、一一配对，也没有“满了”：写满一圈就覆盖最老的槽位。
+- **每个读者一个 `Reader`，不能几个线程共用**：`next_idx` 只属于这一个读者，两个线程共用一个，会互相把对方的进度改掉。
+- **读者要在生产者开始写之前建好**：`getReader()` 读的 `write_idx` 不是原子量，生产者写的同时去读，是数据竞争；而且建读者之前写的消息本来就读不到。
+- **`read()` 返回的是槽位里的指针**：生产者写满一圈就会覆盖它。读得慢的读者会被套圈，或者读到写了一半的数据，这两件事 1.5 节讲。
+
+两个读者按这个写法跑 100 万条，生产者领先落盘读者不到一圈：落盘读者逐条检查 `seq`，不丢、不乱；策略读者拿到的最后一条是第 100 万条。
+
 读任何一个函数之前，先注意三件事：
 
 - **戳 `idx` 在每个槽位里**。每个块自己记着“我现在装的是第几条消息”。发布信号不再是一个所有人都读的共享下标，而是跟着数据走。
