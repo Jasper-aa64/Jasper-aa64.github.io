@@ -104,38 +104,60 @@ auto* order_q = shmmap<SPMCQueue<Order,    1 << 22>>("/md_order");     // 逐笔
 auto* trade_q = shmmap<SPMCQueue<Trade,    1 << 22>>("/md_trade");     // 逐笔成交
 
 // 快照回调：厂商的快照结构 → 统一的 Snapshot
+//   伪码：write 交出环里的下一格 → 逐字段转换填进去（代码定长拷贝，时间换成毫秒，
+//         价格 ÷ 10000 转成元，十档价、量逐档转换）→ write 盖戳
 void on_snapshot(const VendorSnap* in) {
-    snap_q->write([&](Snapshot& out) {   // out 就是环里的那一格，直接填
-        // 代码：定长拷贝
-        // 时间：换成统一的毫秒
-        // 最新价、十档价：厂商给的是放大 10000 倍的整数，÷ 10000 转成元
-        // 十档量：逐档拷贝
+    snap_q->write([&](Snapshot& out) {           // out 就是环里的那一格，直接填
+        copy_code(out.code, in->code);
+        out.time_ms = in->t;
+        out.last    = in->last_px / 10000.0;     // 这家的价格是放大 10000 倍的整数
+        for (int i = 0; i < 10; ++i) {
+            out.bid_px[i]  = in->bid_px[i] / 10000.0;
+            out.bid_vol[i] = in->bid_vol[i];
+        }
     });
 }
 
 // 逐笔委托回调：厂商的委托结构 → 统一的 Order
+//   伪码：代码、委托序号（成交回查委托时用）、价、量、方向逐字段转换；
+//         委托类型深圳的 0 / 1 / U → 限价 / 市价 / 本方最优
 void on_order(const VendorOrder* in) {
     order_q->write([&](Order& out) {
-        // 代码、委托序号（成交回查委托时用）、价、量、买卖方向
-        // 委托类型：深圳的 0 / 1 / U → 限价 / 市价 / 本方最优
+        copy_code(out.code, in->code);
+        out.order_no = in->order_no;
+        out.price    = in->price / 10000.0;
+        out.qty      = in->qty;
+        out.side     = in->side;
+        out.type     = to_order_type(in->ord_type);
     });
 }
 
 // 逐笔成交回调：厂商的成交结构 → 统一的 Trade
+//   伪码：代码、价、量、买卖双方的委托序号逐字段转换；深圳的撤单也在这一路，价格是 0 就标成撤单
 void on_trade(const VendorTrade* in) {
     trade_q->write([&](Trade& out) {
-        // 代码、价、量、买卖双方的委托序号
-        // 深圳的撤单也在这一路：价格是 0 就标成撤单
+        copy_code(out.code, in->code);
+        out.price    = in->price / 10000.0;
+        out.qty      = in->qty;
+        out.bid_no   = in->bid_order_no;
+        out.ask_no   = in->ask_order_no;
+        out.canceled = (in->price == 0);
     });
 }
 
 // 落盘线程
+//   伪码：每一路建一个读者（在接入开始写之前建好）；循环：每个环都 read() 到 nullptr，
+//         拿到一条就格式化进这一路的缓冲、不留指针 → 一批写一次文件 → 睡几毫秒
 void disk_loop() {
-    // 每一路建一个读者，在接入开始写之前建好
+    auto rs = snap_q->getReader();
+    auto ro = order_q->getReader();
+    auto rt = trade_q->getReader();
     for (;;) {
-        // 每个环都 read() 到 nullptr：拿到一条就格式化进这一路的缓冲，不留指针
-        // 一批写一次文件
-        // 睡几毫秒
+        while (Snapshot* s = rs.read()) append_line(snap_buf,  *s);
+        while (Order*    o = ro.read()) append_line(order_buf, *o);
+        while (Trade*    t = rt.read()) append_line(trade_buf, *t);
+        flush_all();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
 ```
