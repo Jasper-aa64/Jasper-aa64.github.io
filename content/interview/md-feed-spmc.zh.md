@@ -93,14 +93,19 @@ template <class Q> Q* shmmap(const char* name) {
 
 **全 0 就是空队列**：没有人跑构造函数，`idx = 0`、`write_idx = 0` 正好是初始状态，`ftruncate` 保证新扩出来的部分是 0。
 
-### 2.3 回调写、落盘线程读 {#usage}
+### 2.3 每一路一个回调、一个环，落盘线程挨个读 {#usage}
+
+SDK 按数据类型分路推送，每一路注册一个回调：快照一个，逐笔委托一个，逐笔成交一个。**每个回调只写自己那一路的环**，所以每个环都只有一个写者。
 
 ```cpp
-auto* q = shmmap<SPMCQueue<Snapshot, 1 << 19>>("/md_snapshot");   // 接入进程和每个读者进程都这样拿到同一个环
+// 每一路一个环：接入进程和每个读者进程都按名字拿到同一组环
+auto* snap_q  = shmmap<SPMCQueue<Snapshot, 1 << 19>>("/md_snapshot");  // 快照
+auto* order_q = shmmap<SPMCQueue<Order,    1 << 22>>("/md_order");     // 逐笔委托
+auto* trade_q = shmmap<SPMCQueue<Trade,    1 << 22>>("/md_trade");     // 逐笔成交
 
-// SDK 的快照回调线程：快照这个环唯一的生产者，只做转换和写环（逐笔委托、逐笔成交各一个环，写法一样）
+// 快照回调：十档盘口，约 3 秒一条
 void on_snapshot(const VendorSnap* in) {
-    q->write([&](Snapshot& out) {                // 直接在环的格子里填，不先构造再拷贝
+    snap_q->write([&](Snapshot& out) {           // 直接在环的格子里填，不先构造再拷贝
         copy_code(out.code, in->code);
         out.time_ms = in->t;
         out.last    = in->last_px / 10000.0;     // 这家的价格是放大 10000 倍的整数
@@ -111,16 +116,47 @@ void on_snapshot(const VendorSnap* in) {
     });
 }
 
-// 落盘线程：睡几毫秒醒一次，读到没有为止
+// 逐笔委托回调
+void on_order(const VendorOrder* in) {
+    order_q->write([&](Order& out) {
+        copy_code(out.code, in->code);
+        out.order_no = in->order_no;             // 委托序号，成交回查委托时用
+        out.price    = in->price / 10000.0;
+        out.qty      = in->qty;
+        out.side     = in->side;
+        out.type     = to_order_type(in->ord_type);   // 深圳 0、1、U → 限价、市价、本方最优
+    });
+}
+
+// 逐笔成交回调：深圳的撤单也在这一路，价格是 0
+void on_trade(const VendorTrade* in) {
+    trade_q->write([&](Trade& out) {
+        copy_code(out.code, in->code);
+        out.price    = in->price / 10000.0;
+        out.qty      = in->qty;
+        out.bid_no   = in->bid_order_no;         // 买卖双方的委托序号
+        out.ask_no   = in->ask_order_no;
+        out.canceled = (in->price == 0);
+    });
+}
+
+// 落盘线程：每一路一个读者，睡几毫秒醒一次，每个环都读到没有为止
 void disk_loop() {
-    auto r = q->getReader();
+    auto rs = snap_q->getReader();
+    auto ro = order_q->getReader();
+    auto rt = trade_q->getReader();
     for (;;) {
-        while (Snapshot* s = r.read()) append_line(buf, *s);   // 拿到就格式化进缓冲，不留指针
-        flush(buf);                                             // 一批一次写文件
+        while (Snapshot* s = rs.read()) append_line(snap_buf,  *s);   // 拿到就格式化进缓冲，不留指针
+        while (Order*    o = ro.read()) append_line(order_buf, *o);
+        while (Trade*    t = rt.read()) append_line(trade_buf, *t);
+        flush_all();                                                   // 一批一次写文件
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
 ```
+
+- **上海不一样**：委托、撤单、成交在同一路里推，按业务序号排，所以是一个回调、一个环，格子里带一个字段区分是哪一类。
+- **逐笔的环开得比快照大**：逐笔一天几亿条，快照一天几百万条，落盘线程每次醒来，逐笔积压得多。
 
 ## 3. 常问的知识点 {#classic}
 
