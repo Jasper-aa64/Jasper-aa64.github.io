@@ -45,6 +45,12 @@ A hot thread has to hand work to another thread: a log line, a market-data tick,
 A single-producer single-consumer (SPSC) queue is a fixed array of slots plus two indices that only ever increase. The producer owns `write_idx`: only it ever stores to it. The consumer owns `read_idx`. Each side reads the other's index, the producer to learn whether there is room and the consumer to learn whether there is data, but never writes it. With one writer per variable there is nothing to lock and nothing to retry.
 
 ```cpp
+inline size_t round_up_pow2(size_t n) {      // round up to a power of two
+  size_t p = 1;
+  while (p < n) p <<= 1;
+  return p;
+}
+
 template <typename T>
 class SpscQueue {
   std::vector<T> slots_;                       // capacity is a power of two
@@ -82,7 +88,49 @@ class SpscQueue {
 };
 ```
 
-The code makes three design choices:
+Using it takes three steps on each side. Here a market-data thread hands ticks to a strategy thread. A `Tick` is a few hundred bytes; the producer fills it in the slot and the consumer reads it in the slot, with no copy on either side:
+
+```cpp
+struct Tick {                                  // one tick, a few hundred bytes
+  char     code[16];
+  uint64_t seq;
+  double   bid_px[10], ask_px[10];
+  int64_t  bid_qty[10], ask_qty[10];
+};
+
+SpscQueue<Tick> q(1000);                       // actual capacity 1024
+
+// producer: the market-data callback thread
+void on_market_data(const RawMsg& m) {
+  Tick* t;
+  while ((t = q.try_claim()) == nullptr) {}    // 1. get a free slot; spin when full (or drop and count)
+  std::memcpy(t->code, m.code, sizeof t->code);// 2. fill it in place
+  t->seq       = m.seq;
+  t->bid_px[0] = m.bid1;
+  t->ask_px[0] = m.ask1;
+  q.publish();                                 // 3. publish only when filled; now the consumer can see it
+}
+
+// consumer: the strategy thread
+void strategy_loop() {
+  for (;;) {
+    const Tick* t = q.try_peek();              // 1. anything new? nullptr if not
+    if (t == nullptr) continue;
+    on_tick(*t);                               // 2. read it in the slot, no copy out
+    q.release();                               // 3. hand the slot back; t must not be used after this
+  }
+}
+```
+
+The two-step interface brings three rules that `push` / `pop` don't have:
+
+- **Claims and publishes come in pairs**: call `try_claim()` again before `publish()` and the index hasn't moved, so you get the same slot.
+- **After `release()` the pointer is dead**: the slot belongs to the producer again and can be overwritten at any time.
+- **Peek without release returns the same element next time**: you can look first and release after processing; forget the release and the producer soon sees the queue as full.
+
+Tested with two threads handing over 1 million ticks this way; the consumer checks every sequence number, nothing lost or out of order.
+
+The queue itself makes three design choices:
 
 - **A slot's position is `idx & mask_`, so the capacity is a power of two**: with a power-of-two capacity, `mask_ = capacity - 1` is a run of low ones, and `idx & mask_` equals `idx % capacity`. The capacity is only known at run time, so the compiler can't turn `%` into a bit operation for you; the constructor rounds the capacity up to a power of two, and the hot path gets one AND instead of a divide. The indices only increase, so the full-check `w - r == capacity` never has to worry about wrapping.
 - **The producer works in two steps: get a pointer to the slot, then publish**: `try_claim` returns the slot's address and the element is constructed in place, written once. A `push(const T&)` would build it somewhere else and copy it in. Publishing is a separate step because it's the only moment the consumer is allowed to see the element.

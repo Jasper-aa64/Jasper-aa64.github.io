@@ -45,6 +45,12 @@ homepage: false
 单生产者单消费者（SPSC）队列就是一个固定大小的槽数组，加两个只增不减的下标。生产者独占 `write_idx`，只有它写；消费者独占 `read_idx`。每一边都读对方的下标，生产者用它判断还有没有空位，消费者用它判断有没有数据，但从不去写它。每个变量只有一个写者，就没有什么需要加锁，也没有什么需要重试。
 
 ```cpp
+inline size_t round_up_pow2(size_t n) {      // 向上取到 2 的幂
+  size_t p = 1;
+  while (p < n) p <<= 1;
+  return p;
+}
+
 template <typename T>
 class SpscQueue {
   std::vector<T> slots_;                       // 容量是 2 的幂
@@ -82,7 +88,49 @@ class SpscQueue {
 };
 ```
 
-这段代码有三处设计：
+用起来，两边各三步。下面是一个行情线程把行情交给策略线程的例子，`Tick` 有几百字节，生产者直接在槽里填，消费者直接在槽里读，一次都不拷：
+
+```cpp
+struct Tick {                                  // 一条行情，几百字节
+  char     code[16];
+  uint64_t seq;
+  double   bid_px[10], ask_px[10];
+  int64_t  bid_qty[10], ask_qty[10];
+};
+
+SpscQueue<Tick> q(1000);                       // 实际容量 1024
+
+// 生产者：行情回调线程
+void on_market_data(const RawMsg& m) {
+  Tick* t;
+  while ((t = q.try_claim()) == nullptr) {}    // 1. 要一个空槽，满了就等（也可以丢掉、记一次）
+  std::memcpy(t->code, m.code, sizeof t->code);// 2. 直接往槽里填
+  t->seq       = m.seq;
+  t->bid_px[0] = m.bid1;
+  t->ask_px[0] = m.ask1;
+  q.publish();                                 // 3. 填完才发布，消费者这时才看得到
+}
+
+// 消费者：策略线程
+void strategy_loop() {
+  for (;;) {
+    const Tick* t = q.try_peek();              // 1. 看有没有新的，没有返回 nullptr
+    if (t == nullptr) continue;
+    on_tick(*t);                               // 2. 直接在槽里读，不拷出来
+    q.release();                               // 3. 用完才还槽，之后不能再碰 t
+  }
+}
+```
+
+两步接口比 `push` / `pop` 多三条约束：
+
+- **claim 和 publish 一一配对**：`publish()` 之前再调 `try_claim()`，下标还没加，拿到的还是同一格。
+- **`release()` 之后不能再用那个指针**：这一格已经还给生产者，随时会被覆盖。
+- **只 peek 不 release，下次 peek 还是同一条**：可以先看、处理完再还；忘了 release，生产者很快就卡在“满了”。
+
+用两个线程按这个写法交接 100 万条，消费者逐条检查序号，不丢、不乱。
+
+队列本身有三处设计：
 
 - **槽的位置用 `idx & mask_` 算，所以容量取 2 的幂**：容量是 2 的幂时，`mask_ = 容量 - 1` 的低位全是 1，`idx & mask_` 就等于 `idx % 容量`。容量是运行时才知道的值，编译器没法把 `%` 换成位运算，所以构造函数把容量向上取整到 2 的幂，热路径上就只是一次按位与，而不是一次除法。下标只增不减，判满用 `w - r == 容量`，不用担心回绕。
 - **生产者分两步：先拿到槽的指针，再发布**：`try_claim` 返回槽的地址，元素直接在槽里构造，只写一次；`push(const T&)` 的写法要先在别处构造好再拷进来。发布单独一步，因为那是消费者唯一可以看到这个元素的时刻。
