@@ -333,15 +333,65 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 
 > **分析一段内存序代码：把两边的代码并排放，连边**
 >
+> 边是对某一次执行说的，不是对代码说的：同一段代码，每次跑各个读读到的值可能不同，横边也就不同。代码只给出候选，读到了哪个值才决定哪条候选成了边。
+>
 > 1. **连候选横边**：在同一个原子变量上，把每个 release 的写连到可能读到它的 acquire 的读。它是候选的：那次读真读到了这个写的值，这条边才成立。
 > 2. **标出竖边两头挂着什么**：release 上面，这个线程写了什么；acquire 下面，这个线程读了、写了什么。
-> 3. **逐个检查跨线程的访问**：从对方的写出发，沿着竖边、横边、竖边走得到，就看得到。
+> 3. **逐个检查跨线程的访问，每个读分两种情况**：配对到了（读到了对方那次写），从对方的写出发，沿着竖边、横边、竖边走得到，就看得到；没配对到（读到的是旧值），看代码在这种情况下做了什么，不能出错。
 > 4. **走不到的读单独审**：读的必须是原子变量，而且读到旧值也不出错。
 > - **两类错误一眼看得出**：横边只有一头，是少了 release 或者少了 acquire；要发布的写画在了 release 下面，或者要用的读画在了 acquire 上面，是位置放错了。
 > - **问某个结果可不可能：先假设它成立，按它连边，再找矛盾**：矛盾只有一种，一个写沿边走得到某个读，这个读却读到了比它更旧的值。找不到矛盾，这个结果就允许。
 > - **候选横边可能不成立、又要排除某个结果，只能靠 `seq_cst`**：它多出来的全局顺序和“读没读到”无关，见 [1.5.4](#mo-seq-cst)。
 
-[内存池 5.4](/zh/posts/hot-path-memory-allocators/#tagged-head) 的 `deallocate` 和 `allocate` 画出来是这样：
+按这个方法走一遍 SPSC 环形队列。先给每次访问标号：
+
+```cpp
+template <class T, std::size_t N>   // N 是 2 的幂
+class SpscQueue {
+    std::array<T, N> buf_;
+    alignas(64) std::atomic<std::size_t> read_idx_{0};    // 只有消费者写
+    alignas(64) std::atomic<std::size_t> write_idx_{0};   // 只有生产者写
+public:
+    bool push(const T& x) {                                          // 生产者
+        std::size_t w = write_idx_.load(std::memory_order_relaxed);  // P1 读自己的下标
+        if (w - read_idx_.load(std::memory_order_acquire) == N)      // P2 读对方的下标
+            return false;                                            //    满
+        buf_[w & (N - 1)] = x;                                       // P3 普通写格子
+        write_idx_.store(w + 1, std::memory_order_release);          // P4 发布
+        return true;
+    }
+    bool pop(T& out) {                                               // 消费者
+        std::size_t r = read_idx_.load(std::memory_order_relaxed);   // C1 读自己的下标
+        if (r == write_idx_.load(std::memory_order_acquire))         // C2 读对方的下标
+            return false;                                            //    空
+        out = buf_[r & (N - 1)];                                     // C3 普通读格子
+        read_idx_.store(r + 1, std::memory_order_release);           // C4 归还
+        return true;
+    }
+};
+```
+
+1. **候选横边两条，一个方向一条**：P4 → C2，在 `write_idx_` 上，格子填好了交给消费者；C4 → P2，在 `read_idx_` 上，格子读完了还给生产者。
+2. **要查的跨线程访问有两处**：格子是普通变量，两个线程都碰它。(a) C3 要看得到 P3 写进去的值；(b) 下一圈的 P3 覆盖这一格时，C3 必须已经读完。
+3. **(a) 消费者读格子，分两种情况**：
+   - **配对到**：C2 读到了某次 P4 写的 `t`，`t > r` 才往下走。写第 r 格的那次 P3，在线程里排在这次 P4 前面（这次 P4 写的是 r + 1 或更大），所以 P3 →竖→ P4 →横→ C2 →竖→ C3 走得到，C3 读到的是写完的值。
+   - **没配对到**：C2 读到的是旧下标，等于 r，返回 false，不碰格子。
+4. **(b) 生产者覆盖格子，分两种情况**：
+   - **配对到**：P2 读到了某次 C4 写的 `h`，`w - h != N` 才往下走。上一圈读这一格的那次 C3，在线程里排在这次 C4 前面，所以 C3 →竖→ C4 →横→ P2 →竖→ P3 走得到，覆盖发生在读完之后。
+   - **没配对到**：P2 读到的是旧下标，看起来满了，返回 false，不写格子。
+5. **走不到的读**：P1、C1 读的是只有本线程写的变量，竖边就够了，用 relaxed。读对方的下标读到旧值，只会把队列判成空或满，多等一轮，不会读到没写完的格子，也不会覆盖没读走的格子。
+
+改错一处，断在哪一眼看得出：
+
+| 改动 | 断的是哪条 | 后果 |
+|---|---|---|
+| P4 改成 relaxed | (a) 的横边 | C3 可能读到还没写完的格子 |
+| C4 或 P2 改成 relaxed | (b) 的横边 | 消费者还没读完，生产者就覆盖了格子 |
+| C4 挪到 C3 前面 | C3 跑到了 release 下面 | 先还格子再读，可能读到下一圈的数据 |
+
+两个方向各有一条边，生产者要等消费者还格子，所以 SPSC 不会被套圈。只有一个方向的边时，比如每格带戳、生产者不等读者的 [SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/)，读者就可能被套圈，要另外处理。每次都读对方下标带来的缓存行来回搬，在 [3.4](#case-spsc) 讲。
+
+再看一个带 CAS 的例子，[内存池 5.4](/zh/posts/hot-path-memory-allocators/#tagged-head) 的 `deallocate` 和 `allocate` 画出来是这样：
 
 <img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async">
 
