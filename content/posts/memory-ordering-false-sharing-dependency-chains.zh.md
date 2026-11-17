@@ -364,9 +364,11 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 | `release` 写 | 普通 `mov` | `stlr` |
 | `seq_cst` 读 | 普通 `mov` | `ldar` |
 | `seq_cst` 写 | `xchg`（或 `mov` 加 `mfence`） | `stlr` |
-| `fetch_add` 这类读改写 | 带 `lock` 前缀的指令 | `ldadd` 一类原子指令，或 `ldaxr`/`stlxr` 循环 |
+| 读改写（`fetch_add`、CAS），`relaxed` 到 `acq_rel` | 都是带 `lock` 前缀的同一条指令 | `ldadd`（relaxed）、`ldadda`（acquire）、`ldaddl`（release）、`ldaddal`（acq_rel），或 `ldxr`/`stxr` 循环加 a、l 后缀 |
 
 **x86 上 acquire 和 release 编出来就是普通的 `mov`**：它们要禁止的三种乱序，TSO 本来就禁止了。x86 上真正贵的是 `seq_cst` 的写和所有读改写操作，它们要把 store buffer 清空，等前面的写都可见了才能往下走，也就是要禁止 StoreLoad。这一笔大约 20–30 个周期，要等 store buffer 排空。所以 `std::atomic` 不写参数、用默认的 `seq_cst` 时，只需要发布、订阅的代码就多付了一笔。
+
+**`acq_rel` 的读改写在 x86 上不便宜，但钱不是花在内存序上**：x86 的读改写只能用带 `lock` 的指令做，`lock` 本身就是一道全屏障，约 20 个周期。同一个 `fetch_add`，写 `relaxed` 和写 `acq_rel` 编出来是同一条 `lock xadd`，价钱一样；在 x86 上换成 `relaxed` 省不下钱，只是把顺序保证丢了。要省，得少做读改写：比如每个线程各记一份计数（[3.3](#case-counter)）。ARM 上内存序才真正有区别，`ldadd` 后面带不带 a、l 决定加不加顺序约束。
 
 ARM 的硬件四种乱序都可能做，所以 acquire/release 要用专门的 `ldar`、`stlr`（ARMv7 上是 `dmb` 屏障）。在 x86 上碰巧能跑的代码，比如用 `volatile` 代替 `atomic` 来传数据，到了 ARM 上就会读到旧值。C++ 内存模型按语义规定，而不是照搬 x86 的行为，就是为了让同一份代码在两种 CPU 上都对。
 
