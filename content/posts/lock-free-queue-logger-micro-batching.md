@@ -145,6 +145,8 @@ The version above splits enqueue into `try_claim` and `publish` so the element c
 ```cpp
 template <typename T, std::size_t N>              // capacity is a template parameter
 class SpscQueue {
+  static_assert(N >= 2 && (N & (N - 1)) == 0, "N must be a power of 2");
+
   std::array<T, N> slots_;
   alignas(64) std::atomic<std::size_t> write_idx_{0};   // written only by the producer
   alignas(64) std::atomic<std::size_t> read_idx_{0};    // written only by the consumer
@@ -168,7 +170,7 @@ class SpscQueue {
 ```
 
 - **`push` is `try_claim`, a copy and `publish` in one call**: the full check, the slot index and the memory orders are the same as above; the element is just built elsewhere and copied in. For small elements that copy doesn't matter; for large ones, or when you want to construct in the slot, use the two-step version.
-- **With the capacity in the template, `N - 1` is a compile-time constant**: no `mask_` member and no round-up function, and `& (N - 1)` compiles to a single `and` with an immediate. The cost is that the capacity is fixed at compile time, and the caller makes sure `N` is a power of 2.
+- **With the capacity in the template, `N - 1` is a compile-time constant**: no `mask_` member and no round-up function, and `& (N - 1)` compiles to a single `and` with an immediate. The cost is that the capacity is fixed at compile time. If `N` isn't a power of 2, `& (N - 1)` silently picks the wrong slot, so a `static_assert` stops it at compile time.
 - **`pop` mirrors it**: read the data out first, then release-store `read_idx_`, so when the producer sees the slot free, the data has already been copied out.
 
 Tested with two threads pushing 10 million increasing numbers: the consumer checks each one, nothing lost, repeated or out of order; with capacity 8 it holds all 8.
