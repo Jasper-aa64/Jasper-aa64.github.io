@@ -2,7 +2,7 @@
 title: "IV：行情接入和 SPMC 广播环"
 date: 2026-11-17T00:00:00+08:00
 slug: "md-feed-spmc"
-description: "简历第一条“行情接入”专页：按配置接一家行情，回调线程是唯一的生产者，把统一结构写进共享内存里每格带戳的广播环，落盘线程批量读。先是一分钟讲法和完整代码，再是两类追问：常问的知识点，和对着代码一行一行问的细节。"
+description: "简历第一条“行情接入”专页，带上第二条里消伪共享那一项：按配置接一家行情，回调线程是唯一的生产者，把统一结构写进共享内存里每格带戳的广播环，落盘线程批量读。先是一分钟讲法和完整代码，再是两类追问：常问的知识点，和对着代码一行一行问的细节。"
 weight: 3
 toc: true
 math: true
@@ -18,7 +18,7 @@ math: true
 > 2. **环的大小取 2 的幂，下标用 `& (N − 1)`，每格带一个序号戳**：写就是三步，取下一格、原地填、最后用 release 盖戳，不等任何读者。
 > 3. **每个读者自己记“下一条要第几条”，不放进共享区**：acquire 读格子里的戳，算 `int(戳 − 我要的)`，小于 0 是还没写到，等于 0 是正好，大于 0 是被套圈。
 > 4. **落盘线程睡几毫秒醒一次**：读到没有为止，批量写文件。代价是读者落后满一圈会被覆盖。
-> 5. **是在原来的代码上改的**：顺手消了一处伪共享，回调线程的写下标和写线程的读下标原来挤在同一条缓存行，用 `alignas(128)` 隔开。
+> 5. **是在原来的代码上改的**：顺手消了一处伪共享，回调线程的写下标和写线程的读下标原来挤在同一条缓存行，写下标用 `alignas(128)` 独占一块，读下标挪进读者自己的对象（[2.4 节](#false-sharing)）。
 
 **两家行情怎么接：启动时读配置决定接哪一家**。每一路只有一个回调线程在写它的环，所以单生产者成立；换一家只改配置，环、落盘线程、文件格式一行不用动。
 
@@ -185,6 +185,169 @@ void disk_loop() {
 - **上海不一样**：委托、撤单、成交在同一路里推，按业务序号排，所以是一个回调、一个环，格子里带一个字段区分是哪一类。
 - **逐笔的环开得比快照大**：逐笔一天几亿条，快照一天几百万条，落盘线程每次醒来，逐笔积压得多。
 
+### 2.4 在原来的代码上消伪共享：写序号和读游标分开 {#false-sharing}
+
+这是简历第二条“行情优化”的第一项，在原来那份环的代码上改的。
+
+**原来的布局**：落盘线程的读游标放在队列里，紧挨着写序号。两个变量逻辑上毫无关系，可在同一条缓存行上：回调线程每写一条改 `write_idx`，落盘线程每读一条改 `disk_next`，哪个核要写，都得先把整条行独占过来，另一个核的副本就作废了。这条行每条行情都在两个核之间搬一趟。
+
+```cpp
+// 改之前：读游标放在队列里，和写序号挨着，同一条缓存行
+template <class T, uint32_t CNT>
+struct OldQueue {
+    Block<T> blks[CNT];
+    uint32_t write_idx = 0;                    // 回调线程每条都写
+    uint32_t disk_next = 1;                    // 落盘线程每读一条都写
+};
+```
+
+**改法**：写序号独占一个 128 字节的块；读游标挪出队列，放进读者自己的 `Reader`，也独占一块。再用 `static_assert` 把布局钉死。
+
+```cpp
+// 改之后
+template <class T, uint32_t CNT>
+struct NewQueue {
+    Block<T> blks[CNT];
+    alignas(128) uint32_t write_idx = 0;       // 只有回调线程写，这一块里没有别人
+
+    struct alignas(128) Reader {               // 读者私有，也独占一块
+        NewQueue* q;
+        uint32_t next_idx;
+        T* read();
+    };
+};
+
+// 把布局钉死：以后有人在 write_idx 后面加成员，编译就报错
+using NQ = NewQueue<Snapshot, 1 << 16>;
+static_assert(offsetof(NQ, write_idx) % 128 == 0, "写序号要从 128 字节边界开始");
+static_assert(sizeof(NQ) - offsetof(NQ, write_idx) == 128, "写序号后面不能再挤别的成员");
+static_assert(sizeof(NQ::Reader) == 128, "读游标独占一块");
+```
+
+- **为什么读游标挪出去，而不是在队列里也 `alignas(128)`**：游标只有这个读者自己用，放进共享区没有任何好处；挪到读者自己的对象里，加读者就是多建一个 `Reader`，队列的布局一点不用动。
+- **为什么是 128，不是 64**：Intel 的相邻行预取会把同一个 128 字节块里的两条行成对取进来，只隔 64 还可能被顺带拉走。
+- **布局检查先在老代码上跑红**：老布局里 `write_idx` 后面紧跟着 `disk_next`，“后面不能再挤别的成员”那一条一定过不了。确认检查会失败，再改代码让它通过。
+
+**对照实验**：同一个程序里新旧两种布局交替跑 7 轮，读者在另一个核上全速读，看生产者每写一条花多久。我的 Windows 机器上，改之前约 17 ns，改之后约 3 ns。这是读者全速紧跟的极端情况；按落盘线程实际的节奏，差得少得多，这也是简历上说“高频读取场景下”的原因。
+
+<details>
+<summary><strong>完整的对照程序</strong>（能直接编译运行）</summary>
+
+```cpp
+// 伪共享对照：老布局（写序号和读游标挨着）vs 新布局（写序号独占 128 字节，读游标在读者自己的对象里）
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra -pthread fs.cpp -o fs && ./fs
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <memory>
+#include <thread>
+#include <vector>
+
+struct Snapshot { uint64_t seq; double last; double bid_px[5]; };
+
+template <class T>
+struct alignas(64) Block { uint32_t idx = 0; T data; };
+
+// ---- 改之前：读游标放在队列里，和写序号挨着，同一条缓存行 ----
+template <class T, uint32_t CNT>
+struct OldQueue {
+    Block<T> blks[CNT];
+    uint32_t write_idx = 0;                    // 回调线程每条都写
+    uint32_t disk_next = 1;                    // 落盘线程每读一条都写
+
+    template <class W> void write(W w) {
+        auto& blk = blks[++write_idx & (CNT - 1)];
+        w(blk.data);
+        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);
+    }
+    T* read() {                                // 只有一个读者：落盘线程
+        auto& blk = blks[disk_next & (CNT - 1)];
+        uint32_t s = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+        if (int(s - disk_next) < 0) return nullptr;
+        ((std::atomic<uint32_t>*)&disk_next)->store(s + 1, std::memory_order_relaxed);   // 写的是共享的那条行
+        return &blk.data;
+    }
+};
+
+// ---- 改之后：写序号独占一个 128 字节的块；读游标挪进读者自己的 Reader ----
+template <class T, uint32_t CNT>
+struct NewQueue {
+    Block<T> blks[CNT];
+    alignas(128) uint32_t write_idx = 0;       // 只有回调线程写，这一块里没有别人
+
+    struct alignas(128) Reader {               // 读者私有，也独占一块
+        NewQueue* q;
+        uint32_t next_idx;
+        T* read() {
+            auto& blk = q->blks[next_idx & (CNT - 1)];
+            uint32_t s = ((std::atomic<uint32_t>*)&blk.idx)->load(std::memory_order_acquire);
+            if (int(s - next_idx) < 0) return nullptr;
+            next_idx = s + 1;
+            return &blk.data;
+        }
+    };
+    Reader getReader() { return Reader{this, write_idx + 1}; }
+
+    template <class W> void write(W w) {
+        auto& blk = blks[++write_idx & (CNT - 1)];
+        w(blk.data);
+        ((std::atomic<uint32_t>*)&blk.idx)->store(write_idx, std::memory_order_release);
+    }
+};
+
+// 把布局钉死：以后有人在 write_idx 后面加成员，编译就报错
+using NQ = NewQueue<Snapshot, 1 << 16>;
+static_assert(offsetof(NQ, write_idx) % 128 == 0, "写序号要从 128 字节边界开始");
+static_assert(sizeof(NQ) - offsetof(NQ, write_idx) == 128, "写序号后面不能再挤别的成员");
+static_assert(sizeof(NQ::Reader) == 128, "读游标独占一块");
+// 老布局一定过不了上面那条“后面不能再挤”：
+using OQ = OldQueue<Snapshot, 1 << 16>;
+static_assert(offsetof(OQ, disk_next) - offsetof(OQ, write_idx) < 64, "改之前：两个在同一条行里");
+
+constexpr uint32_t kN = 20'000'000;
+
+// 生产者写 kN 条，读者在另一个核上一直读；返回生产者每写一条的平均 ns
+template <class MakeReader, class Q>
+double run(Q& q, MakeReader make_reader) {
+    std::atomic<bool> stop{false};
+    auto reader = make_reader();
+    std::thread rd([&] {
+        uint64_t sum = 0;
+        while (!stop.load(std::memory_order_relaxed))
+            while (Snapshot* s = reader.read()) sum += s->seq;
+        if (sum == 42) std::puts("");          // 不让编译器把读删掉
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    auto t0 = std::chrono::steady_clock::now();
+    for (uint32_t i = 1; i <= kN; ++i)
+        q.write([&](Snapshot& s) { s.seq = i; s.last = i * 0.01; });
+    auto t1 = std::chrono::steady_clock::now();
+    stop = true;
+    rd.join();
+    return std::chrono::duration<double, std::nano>(t1 - t0).count() / kN;
+}
+
+struct OldReader { OQ* q; Snapshot* read() { return q->read(); } };
+
+int main() {
+    std::vector<double> olds, news;
+    for (int round = 0; round < 7; ++round) {            // 新旧交替跑，取中位数
+        auto o = std::make_unique<OQ>();
+        olds.push_back(run(*o, [&] { return OldReader{o.get()}; }));
+        auto n = std::make_unique<NQ>();
+        news.push_back(run(*n, [&] { return n->getReader(); }));
+    }
+    std::sort(olds.begin(), olds.end());
+    std::sort(news.begin(), news.end());
+    std::printf("每写一条：改之前 %.1f ns，改之后 %.1f ns（7 轮中位数）\n", olds[3], news[3]);
+}
+```
+
+</details>
+
 ## 3. 常问的知识点 {#classic}
 
 每题先说结论，一到三句。
@@ -253,3 +416,14 @@ void disk_loop() {
 | 为什么落盘要批量 | 一次写文件是一次系统调用，攒一批写一次，开销摊到每条上就很小。 |
 | 怎么知道整日回放没被套圈 | 读者里累加差值大于 0 时跳过的条数，跑完是 0；落盘条数等于写入条数。 |
 | 生产者会不会因为落盘慢而变慢 | 不会，生产者从不看读者；落盘慢的后果是落后、最终被套圈，代价在读者那一侧。 |
+
+### 4.5 伪共享那一处 {#details-false-sharing}
+
+| 问 | 开口这么说 |
+|---|---|
+| 原来是哪两个变量在同一行 | 回调线程的写序号 `write_idx`，和落盘线程的读游标；读游标原来放在队列里，紧挨着写序号。 |
+| 只读的变量和写的变量在一行，算不算伪共享 | 算，只要有一个核在写：读的那个核每次都要把行重新取回来，写的那个核每次都要先作废对方的副本。 |
+| 为什么不把读游标也放在队列里、加 `alignas(128)` 就完了 | 也能消掉伪共享，但游标只有读者自己用，放共享区没有好处；放进 `Reader`，加读者不用改队列的布局。 |
+| `static_assert` 钉的是什么 | 写序号从 128 字节边界开始，而且它后面不再有别的成员；读者对象正好 128 字节。以后谁加成员挤进这一块，编译就报错。 |
+| 怎么证明是伪共享、改了有效 | 先看布局，两个变量在同一行、被不同的核写；再做对照，只改布局、别的不动，新旧交替跑多轮比中位数。物理机上可以用 `perf c2c` 看这条行的 HITM。 |
+| 40% 和你实验里差好几倍，哪个对 | 都对，条件不一样：读者全速紧跟时差好几倍；简历的 40% 是按“高频读取”的节奏测的；落盘线程实际几毫秒醒一次，每条平均只省几纳秒。 |
