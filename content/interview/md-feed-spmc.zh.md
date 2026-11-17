@@ -81,6 +81,9 @@ private:
 ### 2.2 放进共享内存：四个调用 {#shm}
 
 ```cpp
+// 伪码：按名字打开一块共享内存（没有就创建）→ 设成队列那么大（新内存全是 0）
+//       → 映射进本进程的地址空间（可读写、MAP_SHARED 让别的进程看得到）→ 关掉 fd，映射还在
+// mmap 六个参数：地址（nullptr 让内核挑）、长度、权限、共享方式、fd、偏移
 template <class Q> Q* shmmap(const char* name) {
     int fd = shm_open(name, O_CREAT | O_RDWR, 0666);                          // ① 按名字打开，没有就创建
     if (fd == -1) return nullptr;
