@@ -45,7 +45,7 @@ void VendorA::on_snapshot(const VendorASnap* in) {
 
 ### 1.2 生产者不能等读者：SPMC 广播环 {#md-ring}
 
-SPMC 是 single producer, multiple consumers，一个写、多个读。广播的意思是每个读者都读到全部数据，读者之间不抢。按配置只接一家，一个进程里只有这一家 SDK 的回调线程在写，所以是单生产者。
+SPMC 是 single producer, multiple consumers，一个写、多个读。广播的意思是每个读者都读到全部数据，读者之间不抢。按配置只接一家；快照、逐笔委托、逐笔成交每一路一个环，每个环只有这一路的回调线程在写，所以是单生产者。下面以快照为例。
 
 ```cpp
 template <class T, uint32_t CNT>                                // CNT 是 2 的幂
