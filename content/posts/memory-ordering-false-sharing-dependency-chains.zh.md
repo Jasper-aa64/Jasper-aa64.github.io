@@ -285,14 +285,20 @@ if (!ready) { while (true) {} }   // 死循环，再也不读内存
 | `release`（写） | 这次写前面的读写，不许挪到它后面 |
 | `acquire`（读） | 这次读后面的读写，不许挪到它前面 |
 | `acq_rel`（读改写） | 两样都有，用在 `fetch_add`、CAS 上 |
-| `seq_cst` | 在 acquire/release 之上再加一条：所有 `seq_cst` 操作排成一个所有线程都认的顺序，“先写后读”也不许乱；不写参数时的默认值 |
+| `seq_cst` | 在 acquire/release 之上再加一条：同一线程里 `seq_cst` 操作的先后，对所有线程都成立，“先写后读”也不许乱；不写参数时的默认值 |
 | `consume` | 已不推荐，编译器按 `acquire` 处理 |
 
 **release 只管它前面的，acquire 只管它后面的。** 一个线程里“release 写在前、acquire 读在后”这一对，两条都不管，1.5.4 就卡在这里。
 
-#### 1.5.2 release / acquire 配对：发布和订阅 {#mo-pubsub}
+#### 1.5.2 三句话：别的线程写的，看不看得到 {#mo-pubsub}
 
-**一个线程用 acquire 读到了另一个线程用 release 写进去的值，写方在这次写之前做的事，读方在这次读之后都看得见。** 别的变量不用是原子的：
+> 1. **同一个线程里，写在前面的先发生。** 只对本线程算数：别的线程什么时候看到，这句不管。
+> 2. **B 用 acquire 读一个变量，读到的正好是 A 用 release 写进去的值，那么 A 在这次写之前做的事，B 在这次读之后都看得见。** 别的线程要用上 A 线程里的先后，只有这一个办法。
+> 3. **除此之外，别的线程的写，你什么时候能看到，没人保证。**
+
+**第 2 句要配上，两个条件都要满足**：一是同一个原子变量；二是 acquire 读到的正是这次 release 写进去的值。读到的是更早的旧值，就没配上。变量是原子的也不够，原子只保证不撕裂，它照样归第 3 句管。
+
+最常见的用法是发布和订阅，别的变量不用是原子的：
 
 ```cpp
 struct SPSCFlag {
@@ -315,34 +321,25 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 }
 ```
 
-`payload` 能安全地传过去，靠的是代码的形状：**先读标志，读到了才用数据，没读到就不用。** 交易系统里的 SPSC 环形队列也是这个形状。
+`payload` 能安全地传过去，靠的是代码的形状：**先读标志，读到了才用数据，没读到就不用。** 读到了，第 2 句就生效；没读到，也不碰数据。
 
 回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
 
 <iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
 
-#### 1.5.3 用连边分析一段代码 {#mo-edges}
+#### 1.5.3 画成图分析代码 {#mo-edges}
 
-> **别的线程写的东西看不看得到，只记三句话**
->
-> 1. **同一个线程里，写在前面的先发生。**
-> 2. **B 用 acquire 读一个变量，读到的正好是 A 用 release 写进去的值，那么 A 在这次写之前做的事，B 在这次读之后都看得见。**
-> 3. **除此之外，别的线程的写，你什么时候能看到，没人保证。**
->
-> - **第 2 句先看配没配上，两个条件都要满足**：一是同一个原子变量；二是 acquire 读到的正是这次 release 写进去的值。只是同一个变量还不够：读到的是更早的旧值，就没配上，第 2 句不生效。
-> - **画成图**：第 1 句是竖边，第 2 句是横边，横边只在配上了时才画。从对方的写沿竖边、横边走得到的，就看得见；走不到的，归第 3 句。
-> - **原子变量自己被改的先后不算边**：另一个线程更早改过同一个原子变量，只说明这个变量的值是按这个顺序变的，不说明它写的别的内存我看得到。
-> - **release 之后紧接着的 CAS、`fetch_add` 不会弄断横边**：它们是接着前一个值写的，算作那次 release 的延续；普通的 `store` 是盲写，会弄断（[内存池 5.5](/zh/posts/hot-path-memory-allocators/#pool-ordering) 有一个 4 步的例子）。
+两边的代码并排放：第 1 句画成竖边，第 2 句画成横边（配上了才画）。从对方的写出发，沿竖边、横边、竖边走得到，就看得见；走不到的，归第 3 句。
 
 > **分析步骤：只问一句，读到旧值会不会出错**
 >
-> 1. **两边代码并排放**，画竖边；同一个原子变量上，把 release 写和读它的 acquire 读连成横边。
-> 2. **找出跨线程用的数据**，逐个问：读到旧值会不会出错？
-> 3. **不会出错**：不用管，`relaxed` 就够。
-> 4. **会出错**：代码必须是“读到标志才用数据”。这样走到用数据的地方时，横边一定在，从对方的写沿竖边、横边、竖边走得到。
+> 1. **找出跨线程用的数据**，逐个问：读到旧值会不会出错？
+> 2. **不会出错**：不用管，`relaxed` 就够。
+> 3. **会出错**：代码必须是“读到标志才用数据”，这样用数据时横边一定在。
 > - **两类错误一眼看得出**：横边只有一头，是少了 release 或者少了 acquire；要发布的写画在了 release 下面，或者要用的读画在了 acquire 上面，是位置放错了。
-> - **要的是“一定读得到”，不是“读到了才用”**：release/acquire 给不了，见 1.5.4。
+> - **原子变量自己被改的先后不算边**：另一个线程更早改过同一个原子变量，只说明这个变量的值是按这个顺序变的，不说明它写的别的内存我看得到。
+> - **release 之后紧接着的 CAS、`fetch_add` 不会弄断横边**：它们接着前一个值写，算作那次 release 的延续；普通的 `store` 是盲写，会弄断（[内存池 5.5](/zh/posts/hot-path-memory-allocators/#pool-ordering) 有一个 4 步的例子）。
 
 **SPSC 环形队列**：
 
@@ -372,7 +369,7 @@ public:
 };
 ```
 
-- **下标读到旧值不会出错**：只会以为空了或满了，多等一轮。所以读自己的下标用 `relaxed`。
+- **下标读到旧值不会出错**：只会以为空了或满了，多等一轮。
 - **格子读到旧值会出错**，两处都是“读到了才用”：
   - 消费者读到 `write_idx_` 比自己的位置大，才去读格子：写格子 →竖→ release 写 `write_idx_` →横→ acquire 读到它 →竖→ 读格子。
   - 生产者读到 `read_idx_` 说明有空位，才去覆盖格子：读格子 →竖→ release 写 `read_idx_` →横→ acquire 读到它 →竖→ 覆盖格子。
@@ -386,16 +383,17 @@ public:
 
 <img src="/images/memory-ordering/acq-rel.zh.svg" alt="引用计数从 3 开始，三个线程各自先用对象（U1、U2、U3），再 fetch_sub(1, acq_rel)（F1、F2、F3）。这一次执行里依次减：F1 读到 3 写 2，F2 读到 2 写 1，F3 读到 1 写 0，T3 删对象。蓝色横边从 F1 到 F2、从 F2 到 F3。F2 一条边进、一条边出：acquire 一半接住 F1 的边，release 一半把 U1、U2 一起交给 F3。U1、U2、U3 都沿边走得到 delete。" loading="lazy" decoding="async">
 
-谁最后减到 0，事先不知道。不是最后一个时，release 把自己用过的交出去；是最后一个时，acquire 接住别人用过的，删之前大家都用完了。所以每次减都要两半。
+谁最后减到 0，事先不知道。不是最后一个时，release 把自己用过的交出去；是最后一个时，acquire 接住别人用过的。所以每次减都要两半。
 
 #### 1.5.4 release / acquire 管不住的：先写后读 {#mo-seq-cst}
 
 两个线程各自先写自己的变量、再读对方的变量，要的是**至少一边读到 1**：
 
-<img src="/images/memory-ordering/seq-cst.zh.svg" alt="两个线程各自先写、再读对方，初始 x = y = 0。左栏 release/acquire：① ③ 两个写还在各自的 store buffer 里，② ④ 两个读先走了，都读到 0；release 只管它前面的，acquire 只管它后面的，写在前、读在后这一对两条都不管，所以两边都读到 0 是可能的。右栏 seq_cst：所有 seq_cst 操作排成一个所有线程都认的顺序，排最早的一定是某个写，排在它后面的另一边的读一定读到 1，所以两边都读到 0 不可能。" loading="lazy" decoding="async">
+<img src="/images/memory-ordering/seq-cst.zh.svg" alt="两个线程各自先写、再读对方，初始 x = y = 0。左栏 release/acquire：竖边 ① 到 ② 只对线程 1 算数，线程 2 要看到 ① 得沿边走到 ④，走到 ② 就断了，② 是读，发不出横边；硬件上 ①、③ 还在 store buffer 里，②、④ 先读完了，两边都读到 0 是可能的。右栏 seq_cst：线程里的先后对所有线程都成立，① 先于 ②、③ 先于 ④，交错只有 6 种，列出每种的 r1、r2，没有一种是两个 0。" loading="lazy" decoding="async">
 
-- **原因**：这里要的不是“读到了才用”，而是“一定读得到”。release 只管它前面的，acquire 只管它后面的，“写在前、读在后”这一对谁都不管；硬件上就是写还在 store buffer 里，读已经先走了（[3.1](#case-x86)）。两边都这样，就都读到 0。x、y 是原子的也没用，原子只保证不撕裂。
-- **seq_cst 把这一对也管上**：所有 `seq_cst` 操作排成一个所有线程都认的顺序，同一线程里的先后在这个顺序里不能反。四个操作里排最早的一定是某个写，排在它后面的另一边的读就一定读到 1。x86 上 `seq_cst` 的写编成 `xchg`，要等 store buffer 排空（1.6）。
+- **竖边在，为什么不管用**：① → ② 只对线程 1 算数（第 1 句）。线程 2 要看到 ①，得从 ① 沿边走到 ④，走到 ② 就断了：② 是读，读发不出横边。硬件上就是 ①、③ 还在各自的 store buffer 里，②、④ 已经读完了（[3.1](#case-x86)）。
+- **seq_cst 让线程里的先后对所有线程都成立**：① 一定先于 ② 生效，③ 一定先于 ④。四个操作交错只有 6 种排法，排第一的都是写，另一边的读在它后面，读到 1，所以没有一种是两个 0。
+- **怎么做到的**：x86 上 `seq_cst` 的写编成 `xchg`，等 store buffer 排空、写生效了才往下走；ARMv8 上 `stlr` 后面的 `ldar` 不许越过它（1.6）。
 - **发布订阅用不着它**：它本来就是“读到了才用”，release/acquire 就够了。
 
 ### 1.6 价钱：acquire / release 在 x86 上几乎免费，ARM 上要专门的指令 {#cost}
@@ -410,11 +408,11 @@ public:
 | `seq_cst` 写 | `xchg`（或 `mov` 加 `mfence`） | `stlr` |
 | 读改写（`fetch_add`、CAS），`relaxed` 到 `acq_rel` | 都是带 `lock` 前缀的同一条指令 | `ldadd`（relaxed）、`ldadda`（acquire）、`ldaddl`（release）、`ldaddal`（acq_rel），或 `ldxr`/`stxr` 循环加 a、l 后缀 |
 
-**x86 上 acquire 和 release 编出来就是普通的 `mov`**：它们要禁止的三种乱序，TSO 本来就禁止了。x86 上真正贵的是 `seq_cst` 的写和所有读改写操作，它们要把 store buffer 清空，等前面的写都可见了才能往下走，也就是要禁止 StoreLoad。这一笔大约 20–30 个周期，要等 store buffer 排空。所以 `std::atomic` 不写参数、用默认的 `seq_cst` 时，只需要发布、订阅的代码就多付了一笔。
+**x86 上 acquire 和 release 编出来就是普通的 `mov`**：store buffer 先进先出，只让写晚一点被看见，不会把写排乱；读和读之间，被改了就作废重做，也不乱。release/acquire 要的正好是这两种顺序，晚一点被看见没关系，读到了才用。x86 上真正贵的是 `seq_cst` 的写和所有读改写操作，它们要把 store buffer 清空，等前面的写都可见了才能往下走，也就是要禁止 StoreLoad。这一笔大约 20–30 个周期，要等 store buffer 排空。所以 `std::atomic` 不写参数、用默认的 `seq_cst` 时，只需要发布、订阅的代码就多付了一笔。
 
 **`acq_rel` 的读改写在 x86 上不便宜，但钱不是花在内存序上**：x86 的读改写只能用带 `lock` 的指令做，`lock` 本身就是一道全屏障，约 20 个周期。同一个 `fetch_add`，写 `relaxed` 和写 `acq_rel` 编出来是同一条 `lock xadd`，价钱一样；在 x86 上换成 `relaxed` 省不下钱，只是把顺序保证丢了。要省，得少做读改写：比如每个线程各记一份计数（[3.3](#case-counter)）。ARM 上内存序才真正有区别，`ldadd` 后面带不带 a、l 决定加不加顺序约束。
 
-ARM 的硬件四种乱序都可能做，所以 acquire/release 要用专门的 `ldar`、`stlr`（ARMv7 上是 `dmb` 屏障）。在 x86 上碰巧能跑的代码，比如用 `volatile` 代替 `atomic` 来传数据，到了 ARM 上就会读到旧值。C++ 内存模型按语义规定，而不是照搬 x86 的行为，就是为了让同一份代码在两种 CPU 上都对。
+ARM 的硬件四种乱序都可能做：store buffer 不保证先进先出，后面的读也可以先执行。所以 acquire/release 要用专门的 `ldar`、`stlr`（ARMv7 上是 `dmb` 屏障）。ARMv8 还规定 `stlr` 后面的 `ldar` 不许越过它，“先写后读”也管住了，所以 `seq_cst` 用的也是这一对，不像 x86 要多一条 `xchg`。在 x86 上碰巧能跑的代码，比如用 `volatile` 代替 `atomic` 来传数据，到了 ARM 上就会读到旧值。C++ 内存模型按语义规定，而不是照搬 x86 的行为，就是为了让同一份代码在两种 CPU 上都对。
 
 ---
 
