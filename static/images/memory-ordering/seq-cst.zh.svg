@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" width="1100" height="520" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#bc4c00"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.p{font-size:14px;font-weight:700;fill:#1f2328}.t{font-size:12.5px;font-weight:700;fill:#57606a}.c{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;fill:#1f2328}.l{font-size:12.5px;fill:#1f2328}.lb{font-size:12.5px;font-weight:700;fill:#1f2328}.r{font-size:12.5px;font-weight:700;fill:#cf222e}.o{font-size:12.5px;font-weight:700;fill:#bc4c00}.bw{font-size:12.5px;font-weight:700;fill:#ffffff}</style></defs>
+<rect x="0" y="0" width="1100" height="520" fill="#ffffff"/>
+<text class="h" x="20" y="32">同一段代码，两种内存序：边怎么连</text>
+<text class="s" x="20" y="54">初始 x = y = 0。灰色：线程里的先后。红色虚线：想连却连不上的横边。橙色虚线：seq_cst 的全局顺序 S 推出来的先后。</text>
+
+<!-- 左：release / acquire -->
+<rect x="20" y="70" width="520" height="430" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="40" y="96">release / acquire：横边连不上</text>
+<text class="t" x="40" y="126">线程 1</text>
+<text class="t" x="310" y="126">线程 2</text>
+<rect x="40" y="140" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="50" y="158">① x.store(1, release);</text>
+<rect x="40" y="220" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="50" y="238">② r1 = y.load(acquire);</text>
+<rect x="310" y="140" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="320" y="158">③ y.store(1, release);</text>
+<rect x="310" y="220" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="320" y="238">④ r2 = x.load(acquire);</text>
+<line x1="145" y1="166" x2="145" y2="217" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="415" y1="166" x2="415" y2="217" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="250" y1="153" x2="310" y2="233" stroke="#cf222e" stroke-width="2" stroke-dasharray="5 4"/>
+<line x1="310" y1="153" x2="250" y2="233" stroke="#cf222e" stroke-width="2" stroke-dasharray="5 4"/>
+<circle cx="280" cy="193" r="11" fill="#ffffff" stroke="#cf222e" stroke-width="2"/>
+<text class="r" x="280" y="198" text-anchor="middle">✕</text>
+<text class="r" x="40" y="270">② 读到 0（初始值）</text>
+<text class="r" x="310" y="270">④ 读到 0（初始值）</text>
+<text class="lb" x="40" y="306">横边要 acquire 真读到了那次 release 写的值才有。</text>
+<text class="l" x="40" y="330">② 和 ④ 都读到初始值 0，对方的写谁也没读到：</text>
+<text class="l" x="40" y="352">两条横边都连不上，图上只剩两条竖边，</text>
+<text class="l" x="40" y="374">没有哪条规则排除这个结果。</text>
+<text class="l" x="40" y="406">x86 上就是：两个写还在各自的 store buffer 里，读先走了。</text>
+<rect x="40" y="446" width="230" height="28" rx="14" fill="#cf222e"/>
+<text class="bw" x="155" y="465" text-anchor="middle">r1 == 0 且 r2 == 0：允许</text>
+
+<!-- 右：seq_cst -->
+<rect x="560" y="70" width="520" height="430" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="580" y="96">seq_cst：多一条全局顺序 S</text>
+<text class="t" x="580" y="126">线程 1</text>
+<text class="t" x="850" y="126">线程 2</text>
+<rect x="580" y="140" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="590" y="158">① x.store(1, seq_cst);</text>
+<rect x="580" y="220" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="590" y="238">② r1 = y.load(seq_cst);</text>
+<rect x="850" y="140" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="860" y="158">③ y.store(1, seq_cst);</text>
+<rect x="850" y="220" width="210" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="860" y="238">④ r2 = x.load(seq_cst);</text>
+<line x1="685" y1="166" x2="685" y2="217" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="955" y1="166" x2="955" y2="217" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="790" y1="153" x2="848" y2="230" stroke="#bc4c00" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ao)"/>
+<line x1="850" y1="153" x2="792" y2="230" stroke="#bc4c00" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ao)"/>
+<text class="o" x="796" y="182">A</text>
+<text class="o" x="836" y="182">B</text>
+<text class="o" x="580" y="270">A、B 两条至少成立一条：② 和 ④ 至少一个读到 1</text>
+<text class="lb" x="580" y="306">所有 seq_cst 操作排成一条 S，每个线程都认，两条规矩：</text>
+<text class="l" x="580" y="330">· 线程里的先后 S 不能反：① 在 ② 前，③ 在 ④ 前</text>
+<text class="l" x="580" y="352">· seq_cst 读拿到的，是 S 里排在它前面、同一变量的最后那次写</text>
+<text class="l" x="580" y="374">S 里最早的只能是 ① 或 ③（读都排在本线程的写后面）：</text>
+<text class="l" x="580" y="396">① 最早，④ 排在 ① 后面，r2 = 1，就是橙线 A；</text>
+<text class="l" x="580" y="418">③ 最早，② 排在 ③ 后面，r1 = 1，就是橙线 B。</text>
+<rect x="580" y="446" width="230" height="28" rx="14" fill="#1a7f37"/>
+<text class="bw" x="695" y="465" text-anchor="middle">r1 == 0 且 r2 == 0：不可能</text>
+<text class="s" x="824" y="458">x86 上写编成 xchg，</text>
+<text class="s" x="824" y="476">要等 store buffer 排空</text>
+</svg>
