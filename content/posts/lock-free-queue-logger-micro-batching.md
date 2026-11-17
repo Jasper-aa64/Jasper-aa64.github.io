@@ -97,9 +97,6 @@ The version above splits enqueue into `try_claim` and `publish` so the element c
 ```cpp
 template <typename T, std::size_t N>              // capacity is a template parameter
 class SpscQueue {
-  static_assert(N >= 2 && (N & (N - 1)) == 0, "N must be a power of 2");
-  static constexpr std::size_t kMask = N - 1;    // compile-time constant
-
   std::array<T, N> slots_;
   alignas(64) std::atomic<std::size_t> write_idx_{0};   // written only by the producer
   alignas(64) std::atomic<std::size_t> read_idx_{0};    // written only by the consumer
@@ -108,14 +105,14 @@ class SpscQueue {
   bool push(const T& v) {                        // false when full
     const std::size_t w = write_idx_.load(std::memory_order_relaxed);
     if (w - read_idx_.load(std::memory_order_acquire) == N) return false;
-    slots_[w & kMask] = v;                       // write the data first
+    slots_[w & (N - 1)] = v;                       // write the data first
     write_idx_.store(w + 1, std::memory_order_release);   // then publish
     return true;
   }
   bool pop(T& out) {                             // false when empty
     const std::size_t r = read_idx_.load(std::memory_order_relaxed);
     if (r == write_idx_.load(std::memory_order_acquire)) return false;
-    out = slots_[r & kMask];                     // read the data first
+    out = slots_[r & (N - 1)];                     // read the data first
     read_idx_.store(r + 1, std::memory_order_release);    // then hand the slot back
     return true;
   }
@@ -123,7 +120,7 @@ class SpscQueue {
 ```
 
 - **`push` is `try_claim`, a copy and `publish` in one call**: the full check, the slot index and the memory orders are the same as above; the element is just built elsewhere and copied in. For small elements that copy doesn't matter; for large ones, or when you want to construct in the slot, use the two-step version.
-- **With the capacity in the template, the mask is a compile-time constant**: one `static_assert` checks the power of 2, no round-up function needed, and `& kMask` compiles to a single `and` with an immediate. The cost is that the capacity is fixed at compile time.
+- **With the capacity in the template, `N - 1` is a compile-time constant**: no `mask_` member and no round-up function, and `& (N - 1)` compiles to a single `and` with an immediate. The cost is that the capacity is fixed at compile time, and the caller makes sure `N` is a power of 2.
 - **`pop` mirrors it**: read the data out first, then release-store `read_idx_`, so when the producer sees the slot free, the data has already been copied out.
 
 Tested with two threads pushing 10 million increasing numbers: the consumer checks each one, nothing lost, repeated or out of order; with capacity 8 it holds all 8.

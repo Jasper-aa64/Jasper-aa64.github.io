@@ -97,9 +97,6 @@ class SpscQueue {
 ```cpp
 template <typename T, std::size_t N>              // 容量是模板参数
 class SpscQueue {
-  static_assert(N >= 2 && (N & (N - 1)) == 0, "N 必须是 2 的幂");
-  static constexpr std::size_t kMask = N - 1;    // 编译期常量
-
   std::array<T, N> slots_;
   alignas(64) std::atomic<std::size_t> write_idx_{0};   // 只有生产者写
   alignas(64) std::atomic<std::size_t> read_idx_{0};    // 只有消费者写
@@ -108,14 +105,14 @@ class SpscQueue {
   bool push(const T& v) {                        // 满了返回 false
     const std::size_t w = write_idx_.load(std::memory_order_relaxed);
     if (w - read_idx_.load(std::memory_order_acquire) == N) return false;
-    slots_[w & kMask] = v;                       // 先写数据
+    slots_[w & (N - 1)] = v;                       // 先写数据
     write_idx_.store(w + 1, std::memory_order_release);   // 再发布
     return true;
   }
   bool pop(T& out) {                             // 空了返回 false
     const std::size_t r = read_idx_.load(std::memory_order_relaxed);
     if (r == write_idx_.load(std::memory_order_acquire)) return false;
-    out = slots_[r & kMask];                     // 先读数据
+    out = slots_[r & (N - 1)];                     // 先读数据
     read_idx_.store(r + 1, std::memory_order_release);    // 再把槽还回去
     return true;
   }
@@ -123,7 +120,7 @@ class SpscQueue {
 ```
 
 - **`push` 就是 `try_claim`、拷贝、`publish` 三步合在一起**：判满、算槽位、内存序都和上面一样，只是元素要先在别处构造好，再拷进槽里。元素小的时候这次拷贝可以忽略；元素大，或者要在槽里原地构造，就用上面两步的写法。
-- **容量放进模板参数，掩码就是编译期常量**：`static_assert` 一行检查 2 的幂，不用再写向上取整的函数；`& kMask` 编译成一条带立即数的 `and`。代价是容量编译时就要定下来。
+- **容量放进模板参数，`N - 1` 就是编译期常量**：不用存 `mask_`，也不用写向上取整的函数，`& (N - 1)` 编译成一条带立即数的 `and`。代价是容量编译时就要定下来，`N` 由使用的人保证是 2 的幂。
 - **`pop` 对称**：先读出数据，再 release 写 `read_idx_`，生产者看到这个槽空出来时，数据一定已经拷走了。
 
 这个版本用两个线程推 1000 万个递增的数，消费者逐个检查顺序，不丢、不重、不乱；容量 8 时能装满 8 个。
