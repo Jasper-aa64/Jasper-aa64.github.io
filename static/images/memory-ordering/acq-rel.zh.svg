@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 440" width="1100" height="440" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.p{font-size:14px;font-weight:700;fill:#1f2328}.c{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;fill:#1f2328}.l{font-size:12.5px;fill:#1f2328}.lb{font-size:12.5px;font-weight:700;fill:#1f2328}.b{font-size:12.5px;font-weight:700;fill:#2a78d6}.v{font-size:12px;fill:#57606a}</style></defs>
+<rect x="0" y="0" width="1100" height="440" fill="#ffffff"/>
+<text class="h" x="20" y="32">acq_rel 的读改写：一条边进、一条边出，是接力</text>
+<text class="s" x="20" y="54">引用计数从 3 开始，三个线程各用一次对象再减一，减到 0 的那个删对象。这一次执行里 T1、T2、T3 依次减。灰色是竖边，蓝色是横边。</text>
+
+<rect x="20" y="70" width="330" height="250" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="36" y="96">线程 1</text>
+<rect x="36" y="112" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="46" y="130">use(obj);                   // U1</text>
+<rect x="36" y="190" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="46" y="208">cnt.fetch_sub(1, acq_rel);  // F1</text>
+<text class="v" x="46" y="236">读到 3，写 2</text>
+<line x1="185" y1="138" x2="185" y2="187" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+
+<rect x="385" y="70" width="330" height="250" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="401" y="96">线程 2</text>
+<rect x="401" y="112" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="411" y="130">use(obj);                   // U2</text>
+<rect x="401" y="190" width="298" height="26" rx="5" fill="#ddf4ff" stroke="#2a78d6" stroke-width="2"/>
+<text class="c" x="411" y="208">cnt.fetch_sub(1, acq_rel);  // F2</text>
+<text class="v" x="411" y="236">读到 2，写 1</text>
+<line x1="550" y1="138" x2="550" y2="187" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<text class="b" x="411" y="266">acquire 一半：接住 F1 的边，U1 跟着过来</text>
+<text class="b" x="411" y="290">release 一半：把 U1、U2 一起交给 F3</text>
+
+<rect x="750" y="70" width="330" height="250" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="766" y="96">线程 3</text>
+<rect x="766" y="112" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="776" y="130">use(obj);                   // U3</text>
+<rect x="766" y="190" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="776" y="208">cnt.fetch_sub(1, acq_rel);  // F3</text>
+<text class="v" x="776" y="236">读到 1，写 0：最后一个</text>
+<rect x="766" y="270" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="776" y="288">delete obj;                 // D</text>
+<line x1="915" y1="138" x2="915" y2="187" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="915" y1="242" x2="915" y2="267" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+
+<line x1="334" y1="203" x2="398" y2="203" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
+<line x1="699" y1="203" x2="763" y2="203" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
+<text class="b" x="366" y="184" text-anchor="middle">F2 读到</text>
+<text class="b" x="366" y="230" text-anchor="middle">F1 写的 2</text>
+<text class="b" x="731" y="184" text-anchor="middle">F3 读到</text>
+<text class="b" x="731" y="230" text-anchor="middle">F2 写的 1</text>
+
+<text class="lb" x="20" y="356">沿边走：U1 → F1 → F2 → F3 → D，U2 → F2 → F3 → D，U3 → F3 → D。三个线程都用完了，才删。</text>
+<text class="l" x="20" y="382">边都是从前一个点指向后一个点，F2 在中间接力，不是自环。</text>
+<text class="l" x="20" y="408">谁最后减到 0 事先不知道：换一次执行，T2 可能就是删的那个，要靠 acquire 接住别人的使用；不是最后一个时，要靠 release 交出自己的使用。</text>
+</svg>

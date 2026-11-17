@@ -284,7 +284,7 @@ if (!ready) { while (true) {} }   // 死循环，再也不读内存
 | `relaxed` | 只保证这一个变量的读写是原子的，不管和别的变量之间的顺序 | 不连横边；读回来的值只当一个数用 |
 | `release`（写） | 这次写之前的所有读写，都不能被挪到它后面 | 横边的起点：它上面这个线程写过的东西，都跟着这条边过去 |
 | `acquire`（读） | 这次读之后的所有读写，都不能被挪到它前面 | 横边的终点，前提是读到了那次 release 写的值；它下面的读写都接在这条边后面 |
-| `acq_rel`（读改写） | 同时是 acquire 和 release | 一个点上一条边进、一条边出，是接力 |
+| `acq_rel`（读改写） | 同时是 acquire 和 release | 一个点上一条边进、一条边出，是接力（1.5.3 末尾的图） |
 | `seq_cst` | 在 acquire/release 之上，所有 `seq_cst` 操作还有一个全局一致的先后顺序；不写参数时的默认值 | 横边照常连；另外所有 `seq_cst` 操作排成一条全局顺序，和读没读到无关（1.5.4） |
 | `consume` | 已不推荐使用，编译器实际按 `acquire` 处理 | 同 `acquire` |
 
@@ -394,6 +394,15 @@ public:
 再看一个带 CAS 的例子，[内存池 5.4](/zh/posts/hot-path-memory-allocators/#tagged-head) 的 `deallocate` 和 `allocate` 画出来是这样：
 
 <img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async">
+
+`acq_rel` 的读改写在图上是什么样，拿引用计数看：几个线程各用一次对象，用完把计数减一，减到 0 的那个删对象。
+
+<img src="/images/memory-ordering/acq-rel.zh.svg" alt="引用计数从 3 开始，三个线程各自先用对象（U1、U2、U3），再 fetch_sub(1, acq_rel)（F1、F2、F3）。这一次执行里依次减：F1 读到 3 写 2，F2 读到 2 写 1，F3 读到 1 写 0，T3 删对象。蓝色横边从 F1 到 F2、从 F2 到 F3。F2 一条边进、一条边出：acquire 一半接住 F1 的边，release 一半把 U1、U2 一起交给 F3。U1、U2、U3 都沿边走得到 delete。" loading="lazy" decoding="async">
+
+- **值决定谁读到谁**：这一次执行里 T1、T2、T3 依次减。F2 读到 F1 写的 2，F3 读到 F2 写的 1，两条横边就是这么来的。
+- **F2 一条边进、一条边出**：acquire 一半接住 F1 的边，U1 跟着过来；release 一半把 U1、U2 一起交给 F3。边都是从前一个点指向后一个点，F2 在中间接力，不是自环。
+- **删之前大家都用完了**：U1、U2、U3 都沿边走得到 delete。
+- **为什么每次减都要两半**：谁最后减到 0，事先不知道。换一次执行，T2 可能就是删的那个，要靠 acquire 接住别人的使用；不是最后一个时，要靠 release 把自己的使用交出去。
 
 #### 1.5.4 候选横边不成立的时候：seq_cst 的全局顺序 {#mo-seq-cst}
 
