@@ -273,18 +273,22 @@ if (!ready) { while (true) {} }   // 死循环，再也不读内存
 
 这和 CPU 的内存模型无关，是编译器的合法优化。`volatile` 能阻止它，强制每一轮都真的读一次，但也只能做到这一点：**`volatile` 不等于同步**，它不规定和别的内存操作之间的顺序，管不了 1.1 那段时间。修好这个循环要用 `std::atomic<bool>`，也就是下一节。
 
-### 1.5 release / acquire：只在需要的地方补上顺序 {#release-acquire}
+### 1.5 内存序：每种管什么，用有向边分析 {#release-acquire}
 
-`std::atomic` 的读写可以带一个 `memory_order` 参数，说明这次操作要保证什么顺序：
+#### 1.5.1 六种内存序各管什么 {#mo-kinds}
 
-| 内存序 | 保证什么 |
-|---|---|
-| `relaxed` | 只保证这一个变量的读写是原子的，不管和别的变量之间的顺序 |
-| `release`（写） | 这次写之前的所有读写，都不能被挪到它后面 |
-| `acquire`（读） | 这次读之后的所有读写，都不能被挪到它前面 |
-| `acq_rel`（读改写） | 同时是 acquire 和 release |
-| `seq_cst` | 在 acquire/release 之上，所有 `seq_cst` 操作还有一个全局一致的先后顺序；不写参数时的默认值 |
-| `consume` | 已不推荐使用，编译器实际按 `acquire` 处理 |
+`std::atomic` 的读写可以带一个 `memory_order` 参数，说明这次操作要保证什么顺序。后面分析都用同一张图：每次读写是一个点，“谁先于谁”是一条有向边，表里第三列是每种内存序在这张图上的样子（1.5.3 细讲）：
+
+| 内存序 | 保证什么 | 画成图 |
+|---|---|---|
+| `relaxed` | 只保证这一个变量的读写是原子的，不管和别的变量之间的顺序 | 不连横边；读回来的值只当一个数用 |
+| `release`（写） | 这次写之前的所有读写，都不能被挪到它后面 | 横边的起点：它上面这个线程写过的东西，都跟着这条边过去 |
+| `acquire`（读） | 这次读之后的所有读写，都不能被挪到它前面 | 横边的终点，前提是读到了那次 release 写的值；它下面的读写都接在这条边后面 |
+| `acq_rel`（读改写） | 同时是 acquire 和 release | 一个点上一条边进、一条边出，是接力 |
+| `seq_cst` | 在 acquire/release 之上，所有 `seq_cst` 操作还有一个全局一致的先后顺序；不写参数时的默认值 | 横边照常连；另外所有 `seq_cst` 操作排成一条全局顺序，和读没读到无关（1.5.4） |
+| `consume` | 已不推荐使用，编译器实际按 `acquire` 处理 | 同 `acquire` |
+
+#### 1.5.2 release / acquire：发布和订阅 {#mo-pubsub}
 
 最常用的是一对 release 和 acquire，用法像“发布、订阅”：**一个 acquire 读在同一个原子变量上读到了一个 release 写的值，写方在 release 之前写的所有东西，读方在 acquire 之后都看得到。** 别的变量不用是原子的：
 
@@ -311,13 +315,21 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 
 `payload` 能安全地传过去，靠的只是 `ready` 上这一对 release/acquire。交易系统里的单生产者单消费者（SPSC）环形队列都是这个形状：一个原子下标负责同步，其余都是普通变量。
 
-> **别的线程写的东西看不看得到，只沿两种边传递**
+回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
+
+<iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
+
+#### 1.5.3 有向边：把两边的代码并排放，连边 {#mo-edges}
+
+> **别的线程写的东西看不看得到，只看沿边走不走得到。边只有两种**
 >
 > - **第一种边：同一个线程里，前一句到后一句**。
 > - **第二种边：一次 release 的写，到读到它的那次 acquire**。
 > - **边可以接起来**：上面的例子里，1 → 2 是第一种，2 → 3 是第二种，3 → 4 是第一种，所以第 4 步看得到第 1 步写的值。
 > - **原子变量自己被修改的先后不算边**：另一个线程更早改过同一个原子变量，只说明这个变量的值是按这个顺序变的，不说明它写的别的内存我看得到。
 > - **release 之后紧接着的 CAS、`fetch_add` 不会弄断第二种边**：它们是接着前一个值写的，算作那次 release 的延续，读到延续里的值也和那次 release 配对；普通的 `store` 是盲写，会弄断（[内存池 5.5](/zh/posts/hot-path-memory-allocators/#pool-ordering) 有一个 4 步的例子）。
+> - **图上不会有环**：`acq_rel` 的读改写在图上是一个点，一条边进来、一条边出去，是接力，不是自环。画出了环，说明这种执行不可能发生。
 
 > **分析一段内存序代码：把两边的代码并排放，连边**
 >
@@ -326,16 +338,21 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 > 3. **逐个检查跨线程的访问**：从对方的写出发，沿着竖边、横边、竖边走得到，就看得到。
 > 4. **走不到的读单独审**：读的必须是原子变量，而且读到旧值也不出错。
 > - **两类错误一眼看得出**：横边只有一头，是少了 release 或者少了 acquire；要发布的写画在了 release 下面，或者要用的读画在了 acquire 上面，是位置放错了。
-> - **全是 `seq_cst` 时还多一条约束**：所有 `seq_cst` 操作排成一条每个线程都认的全局顺序，它和“读没读到”无关，能管住横边连不上的情形。图在 [3.1](#case-x86) 末尾。
+> - **横边连不上、又要排除某个结果，只能靠 `seq_cst`**：它多出来的全局顺序和“读没读到”无关，见 [1.5.4](#mo-seq-cst)。
 
 [内存池 5.4](/zh/posts/hot-path-memory-allocators/#tagged-head) 的 `deallocate` 和 `allocate` 画出来是这样：
 
 <img src="/images/memory-ordering/edges.zh.svg" alt="左边是线程 A 的 deallocate，右边是线程 B 的 allocate。蓝色横边从 deallocate 里 CAS 成功时的 release 出发，一条连到 allocate 开头的 head_.load(acquire)，一条连到 allocate 里 CAS 失败时的 acquire。灰色竖边在每个线程内部从上到下：A 这边 release 上面有两处写，析构时写的槽里的字节和 next；B 这边 acquire 下面读 next，再在同一段字节上构造对象。A 的 head_.load(relaxed) 和 CAS 失败的 relaxed 没有边通到，读回来的 old 只当一个数用。" loading="lazy" decoding="async">
 
-回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
+#### 1.5.4 横边连不上的时候：seq_cst 的全局顺序 {#mo-seq-cst}
 
-<iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
-<p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
+两个线程各自先写自己的变量、再读对方的变量（[3.1](#case-x86) 从硬件讲它为什么会乱）。两栏代码一样，只换了内存序：
+
+<img src="/images/memory-ordering/seq-cst.zh.svg" alt="左右两栏都是线程 1 写 x、读 y，线程 2 写 y、读 x。左栏用 release/acquire：两个读都读到初始值 0，没读到对方的写，两条横边都连不上（红色虚线打叉），只剩线程内的竖边，r1 和 r2 都是 0 是允许的。右栏用 seq_cst：四个操作排成一条全局顺序 S，线程内的先后不能反；S 里最早的只能是某个写，排在它后面的那个读一定读到 1，所以 A、B 两条橙色虚线至少成立一条，两个都是 0 不可能。" loading="lazy" decoding="async">
+
+- **acquire/release 的横边要“读到了”才有**：一个 acquire 读到了某个 release 写的值，才从那次写连一条边过来。这里两个读都可能读到初始值，谁也没读到谁，图上只剩两条竖边，没有哪条规则排除 `r1 == r2 == 0`。
+- **seq_cst 多出来的是一条全局顺序，和读没读到无关**：所有 `seq_cst` 操作排成一条 S，每个线程都认，线程里的先后不能反；一个 `seq_cst` 读拿到的，是 S 里排在它前面、同一变量的最后那次写。S 里最早的只能是某个写，排在它后面的另一边的读就一定读到 1。
+- **发布、订阅用不着它**：读方本来就靠读到那个标志来同步，横边连得上，release/acquire 就够了。不写参数时默认就是 `seq_cst`，x86 上每次写都多一次 `xchg`（1.6）。
 
 ### 1.6 价钱：x86 上几乎免费，ARM 上要专门的指令 {#cost}
 
@@ -490,14 +507,7 @@ void t2() {
 
 **为什么 release 加 acquire 管不住它**：它们在 x86 上都是普通的 `mov`，TSO 本来就保证了它们要的那三种顺序，唯独不管“先写后读”。换成 `seq_cst` 以后，读还是 `mov`，写编成 `xchg`：它要等 store buffer 排空，写真正可见了才往下走，后面的读就越不过去。
 
-上面是从硬件看。用 [1.5](#release-acquire) 的连边法再看一遍：两栏代码一样，只换了内存序。
-
-<img src="/images/memory-ordering/seq-cst.zh.svg" alt="左右两栏都是线程 1 写 x、读 y，线程 2 写 y、读 x。左栏用 release/acquire：两个读都读到初始值 0，没读到对方的写，两条横边都连不上（红色虚线打叉），只剩线程内的竖边，r1 和 r2 都是 0 是允许的。右栏用 seq_cst：四个操作排成一条全局顺序 S，线程内的先后不能反；S 里最早的只能是某个写，排在它后面的那个读一定读到 1，所以 A、B 两条橙色虚线至少成立一条，两个都是 0 不可能。" loading="lazy" decoding="async">
-
-- **acquire/release 的横边要“读到了”才有**：一个 acquire 读到了某个 release 写的值，才从那次写连一条边过来。这里两个读都可能读到初始值，谁也没读到谁，图上只剩两条竖边，没有哪条规则排除 `r1 == r2 == 0`。
-- **seq_cst 多出来的是一条全局顺序，和读没读到无关**：所有 `seq_cst` 操作排成一条 S，每个线程都认，线程里的先后不能反；一个 `seq_cst` 读拿到的，是 S 里排在它前面、同一变量的最后那次写。S 里最早的只能是某个写，排在它后面的另一边的读就一定读到 1。
-- **它不是“先 acquire 再 release”连成的自环**：`seq_cst` 的写至少是 release，读至少是 acquire，读改写是 `acq_rel`。`acq_rel` 的读改写在图上是一个点：一条边从前一个 release 连进来，再从它连出去给后面的 acquire，是接力。“谁先于谁”这张图不会有环，画出了环，说明这种执行不可能发生。
-- **发布、订阅用不着它**：读方本来就是靠读到那个标志来同步的，横边连得上，release/acquire 就够了。不写参数时默认就是 `seq_cst`，x86 上每次写都多一次 `xchg`。
+用 1.5 的连边法看同一件事：release/acquire 下两条横边都连不上，排除不了 `r1 == r2 == 0`；`seq_cst` 多一条全局顺序才排除得了，图在 [1.5.4](#mo-seq-cst)。
 
 每种内存序在 x86 上编成什么：
 
