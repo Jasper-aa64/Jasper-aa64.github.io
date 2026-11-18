@@ -29,7 +29,7 @@ toc: true
 |---|---|---|---|
 | ① 读行情文件 | `read_day` | 当天的快照按时间排好，一行是“哪只股票 + 一条快照” | — |
 | ② 装进每只股票的数组 | `load_day`（[4 节](#load)） | 先数每只股票今天几条，从 arena 切一段，再按行写进去 | [6.4 ①③④⑤](/zh/interview/cv-internship/#bt-five)、[6.1 ③](/zh/interview/cv-internship/#bt-init) |
-| ③ 逐条回放 | `replay_and_write` 的内层循环（[5 节](#replay)） | 一只股票走到底，bar 收盘点之前的行情都喂 `on_tick` | 因子侧的改法见[实习拆解页 4 节](/zh/interview/cv-internship/#factor-opt) |
+| ③ 逐条回放 | `replay_and_write` 的内层循环（[5 节](#replay)） | 一只股票走到底，bar 收盘点之前的行情都喂 `on_tick` | 因子侧的改法，见 [6.1](#factor-opt)、[6.2](#factor-measured) |
 | ④ 写结果 | `replay_and_write` 里的 `fprintf` | 每个 bar 收盘写一行：日期、时间、代码、因子值 | [6.1 ②](/zh/interview/cv-internship/#bt-init) |
 
 主循环就这几行：
@@ -177,7 +177,7 @@ size_t replay_and_write(const char* date, const std::vector<StockDay>& stocks,
 - **结果写多少**：2000 多只 × 4801 个 bar，一天约 1000 万行。装载优化完以后，写结果成了新的大头（[6.5](/zh/interview/cv-internship/#bt-result)）。
 - **时间字符串只格式化一次**：4801 个时间点，每只股票写出来的字符串都一样，原来每一行都格式化一次；第一轮优化改成一张表，按 bar 下标取（[6.1 ②](/zh/interview/cv-internship/#bt-init)）。
 
-## 6. 因子：和实盘同一份代码 {#factors}
+## 6. 因子：和实盘同一份代码，以及因子侧的优化 {#factors}
 
 ```cpp
 struct Spread {                                // 盘口价差占最新价的比例
@@ -223,6 +223,34 @@ struct Factors {                               // 一只股票的全部因子状
 - **状态跨天保留**：`state` 在所有交易日之外建一次，第二天开盘时 20 个 bar 的窗口里还是前一天的收益率，和实盘连续跑的结果一样。
 - **`std::max(s, 0.0)` 不是多余的**：行情停下以后收益率一直是 0，窗口方差应该正好是 0，舍入会让 `s` 落到 −1e−17 这样的数，直接开方得到 NaN。自测第三天只给了半天行情，就是这样测出来的；[实习拆解页 7.3](/zh/interview/cv-internship/#hw-factor-dev) 的写法也带这一句。
 - **`Factors` 这里是手写的组合**：上线的因子在编译期拼好，用 CRTP 的 `FactorSet`（[实习拆解页 4.7](/zh/interview/cv-internship/#opt-crtp)）。
+
+### 6.1 因子侧的优化：改的是第 ③ 步每条都调的 `on_tick` {#factor-opt}
+
+简历第 4 条“因子计算优化”的 8 类改法，改的都是第 ③ 步里每条行情调一次的 `on_tick`、每个 bar 调一次的 `on_bar`，在回测里也是拿这个循环量的。每类改法改之前、改之后的代码在[实习拆解页 4 节](/zh/interview/cv-internship/#factor-opt)，这里只对到这一页的代码。
+
+> **本质：先算上限。** 在这个框架里，算因子只占一次运行的一成左右，装数据（第 ② 步）才是大头。计算侧一个改法就算把这一段全省掉，整次运行也快不到一成，收益常常落在测量波动里，所以每个改法都单独比输出、配对计时（[实习拆解页 4.9](/zh/interview/cv-internship/#opt-measure)）。
+
+| 改法 | 对到这一页的哪里 |
+|---|---|
+| 共用的中间量每条只算一次（[4.1](/zh/interview/cv-internship/#opt-shared)） | 这一页只有两个因子，各自读盘口；因子多了以后，中间价、价差这类每个因子都要的量，由 `Factors::on_tick` 每条算一次再传下去。同一个因子有几档参数（前 1、3、5、10 档）时，一个循环算完，路过时记下各档的值。 |
+| 滚动窗口改成增量（[4.2](/zh/interview/cv-internship/#opt-rolling)） | `RollingVol::on_bar` 已经是增量写法：进一个、出一个，每次 $O(1)$，不重算整个窗口。 |
+| 直接算下标，不查找（[4.3](/zh/interview/cv-internship/#opt-index)） | 这一页的回放用 `k`、`b` 两个下标同步往前走，没有查找；4.3 改的是因子内部按时间找 bar 下标的地方。 |
+| 无分支（[4.4](/zh/interview/cv-internship/#opt-branchless)） | `on_tick` 里由数据决定走向的判断，比如这一档有没有挂单。 |
+| 精简布局（[4.5](/zh/interview/cv-internship/#opt-layout)） | 和第二轮装载优化是同一处改动：`Tick` 从 856 B 减到 376 B（[实习拆解页 6.4](/zh/interview/cv-internship/#bt-five)）。装载时要写的字节少了，回放时每条要读的缓存行也少了。 |
+| 拆依赖链（[4.6](/zh/interview/cv-internship/#opt-dep-chain)） | 跨档累加这类串行求和。求和顺序变了，末位会变，对拍按容差。 |
+| CRTP（[4.7](/zh/interview/cv-internship/#opt-crtp)） | 这一页的 `Factors` 是手写组合；上线的因子用 `FactorSet` 在编译期拼好，`on_tick` 能一路内联。 |
+| 消掉热循环里的分配和拷贝（[4.8](/zh/interview/cv-internship/#opt-alloc)） | `on_tick` 里的临时容器提到外面，`reserve` 一次，每条只 `clear`。 |
+
+### 6.2 在这个框架里实际量过的三个 {#factor-measured}
+
+| 改法 | 量出来 | 结论 |
+|---|---|---|
+| 几档参数共用一遍行情 | 输出一致，配对计时更快 | 收了 |
+| 找 bar 改成哈希表 | 输出一致，配对计时更慢 | 拒了。行情按时间来，从上次的位置往后找，多半一两步就到；哈希多了一次哈希计算和一次不连续的访存。bar 是等距的，应该直接算下标 |
+| 补空 bar 改成一遍线性 | 单看快了一点，多轮配对后差值的区间跨过 0 | 判为噪声，没有收 |
+
+- **改哪一段就量哪一段**：程序日志里有分阶段计时，改动有没有起作用看“算因子”那一段，值不值得收再看整次运行（[实习拆解页 5.5](/zh/interview/cv-internship/#flow-phase)）。
+- **被问“简历上这 8 类各快了多少”**：这 8 类是逐条调用路径上日常做的改法，在回测框架里单独量过的是上面三个；哈希那次量出来更慢，没有收，正好说明每个改法都是先量再收。
 
 ## 7. 完整程序和自测 {#full}
 
@@ -462,6 +490,7 @@ int main() {
 | arena 为什么按天，不按更短的时间 | **一天的行情一起生、一起死，并且一天能整块放进内存。** 切得更小也省不出什么：按天复用以后缺页已经没了；真要切小是内存不够的时候，比如换成逐笔数据。 |
 | 跨天的状态怎么办 | 因子状态在所有交易日之外建一次，第二天接着用，滚动窗口能接上前一天。 |
 | 一年的数据怎么跑快 | 按交易日分片给多个核、多台机器；每片要先把开盘前的因子状态算好（预热），这是分片唯一要接上的东西。 |
+| 因子计算优化在回测里快了多少 | 算因子只占一次运行的一成左右，单个改法的收益常常落在测量波动里。单独量过三个：几档共用一遍行情，收了；找 bar 改成哈希，输出一致但更慢，拒了；补空 bar 改成一遍线性，区间跨过 0，判为噪声（[6.2](#factor-measured)）。 |
 | 你在里面做了什么 | 先搭验证流程：每个改动先比输出，再配对计时（[5 节](/zh/interview/cv-internship/#backtest-flow)）。再按这个流程优化：第一轮去掉每天重复的初始化，约 22%；第二轮按实际条数分配、结构体减半、字符串共享、arena、跨天复用，约 44%（[6 节](/zh/interview/cv-internship/#backtest-opt)）。 |
 
 ## 9. 对着代码问的细节 {#details}
