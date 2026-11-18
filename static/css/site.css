@@ -1711,9 +1711,10 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 @media (hover: none) { .code-block__copy { opacity: 1; } }
 .code-block__copy:hover { color: var(--ink); border-color: var(--rule-strong); }
 .code-block__copy.is-copied { color: var(--accent); border-color: var(--accent); }
-/* Narrow screens: drop the traffic-light dots so the label hugs the code's left edge
-   and the header reads as one clean strip. */
-@media (max-width: 760px) {
+/* Narrow screens and touch devices: drop the traffic-light dots so the label hugs the code's left edge
+   and the header reads as one clean strip. Touch is matched separately because a phone in landscape,
+   or one asking for the desktop site, can be wider than 760px. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
   .code-block__bar { padding: 0 8px 0 12px; }
   .code-block__bar::before { display: none; }
 }
