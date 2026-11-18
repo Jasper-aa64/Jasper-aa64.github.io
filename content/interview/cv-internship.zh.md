@@ -761,29 +761,38 @@ struct StockDay { std::string code, exchange; Tick* ticks; /*...*/ };
 arena 是一种分配方式：先要一大块内存，以后的分配只是把一个偏移往后挪；不单独释放其中的任何一个，用完整块一起丢。
 
 ```cpp
-static_assert(std::is_trivially_destructible_v<Tick>);   // 没有析构要跑，才能整块丢
-
-class TickArena {
-    Tick*  base_ = nullptr;
-    size_t cap_ = 0, used_ = 0;       // 单位是条
+class Arena {
+    char*  base_ = nullptr;
+    size_t cap_ = 0, used_ = 0;       // 单位是字节
 public:
-    // 每个交易日开头调一次，need 是今天的总条数
+    // 每个交易日开头调一次，need 是今天要用的总字节数
     void reset(size_t need) {
         if (need > cap_) {            // 不够才换块，换的时候多要一半
-            if (base_) munmap(base_, cap_ * sizeof(Tick));
+            if (base_) munmap(base_, cap_);
             cap_  = need + need / 2;
-            base_ = static_cast<Tick*>(mmap(nullptr, cap_ * sizeof(Tick),
+            base_ = static_cast<char*>(mmap(nullptr, cap_,
                         PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
         }
         used_ = 0;                    // 够用：偏移归零，原地覆盖着写
     }
-    // 每只股票顺着切一段
-    Tick* take(size_t n) { Tick* p = base_ + used_; used_ += n; return p; }
+    // 切 n 个 T，每只股票顺着切一段；放不下返回空
+    template <class T>
+    T* take(size_t n) {
+        static_assert(std::is_trivially_destructible_v<T>);   // 没有析构要跑，才能整块丢
+        // 偏移向上取整到 alignof(T)（一定是 2 的幂）；base_ 来自 mmap、页对齐，偏移对齐了指针就对齐
+        size_t start = (used_ + alignof(T) - 1) & ~(alignof(T) - 1);
+        if (start + n * sizeof(T) > cap_) return nullptr;
+        used_ = start + n * sizeof(T);
+        return reinterpret_cast<T*>(base_ + start);
+    }
 };
+
+// 用法：arena.reset(今天总条数 * sizeof(Tick));  Tick* p = arena.take<Tick>(n);
 ```
 
 - **为什么适合用 arena：一天的行情一起生、一起死，并且能整块放进内存。** 一个交易日的行情一起来、一起走，寿命完全相同。2300 多块数组、650 万条记录，都不用逐个释放和析构。
-- **前提是 `Tick` 里没有需要析构的成员**：③ 把 `string` 挪走以后，`Tick` 才成了平凡类型，用 `static_assert` 钉住。
+- **前提是 `Tick` 里没有需要析构的成员**：③ 把 `string` 挪走以后，`Tick` 才成了平凡类型，`take` 里用 `static_assert` 钉住。
+- **按字节记账、切之前对齐，是为了什么类型都能放**：现在只放 `Tick`，每段都是 `sizeof(Tick)` 的整数倍，取整那一行实际不改变偏移；以后同一块里混放别的结构，也不用改 arena。
 - **和对象池的区别**：对象池管的是大小相同、各自生死的对象，每个都要能单独归还；arena 管的是同生同死的一批，只能整块丢。
 
 **⑤ 同一块 arena 跨交易日复用**

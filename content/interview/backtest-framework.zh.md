@@ -43,7 +43,7 @@ const auto bars = build_bar_timeline();          // bar 时间轴：建一次，
 std::vector<std::string> time_str;               // 时间字符串：4801 个，只格式化一次
 for (int64_t t : bars) time_str.push_back(format_time(t));
 std::vector<Factors> state(n_stocks);            // 每只股票的因子状态，跨交易日保留
-TickArena arena;                                 // 一块 arena，跨交易日复用
+Arena arena;                                     // 一块 arena，跨交易日复用
 
 for (const auto& date : dates) {                 // 按交易日一天一天跑
     auto file = read_day(date);                  // ① 读行情文件
@@ -79,38 +79,49 @@ struct StockDay {
     int   tick_count = 0;
 };
 
-// 一天的行情记录放进一块 arena，跨交易日复用
-class TickArena {
-    Tick*  base_ = nullptr;
-    size_t cap_ = 0, used_ = 0;                          // 单位是条
+// 一天的行情记录放进一块 arena，跨交易日复用；按字节记账，什么类型都能切
+class Arena {
+    char*  base_ = nullptr;
+    size_t cap_ = 0, used_ = 0;                          // 单位是字节
 public:
-    void reset(size_t need) {                            // 每个交易日开头调一次
+    void reset(size_t need) {                            // 每个交易日开头调一次，need 是今天要用的总字节数
         if (need > cap_) {                               // 不够才换块，换的时候多要一半
-            if (base_) munmap(base_, cap_ * sizeof(Tick));
+            if (base_) munmap(base_, cap_);
             cap_  = need + need / 2;
-            base_ = static_cast<Tick*>(mmap(nullptr, cap_ * sizeof(Tick),
+            base_ = static_cast<char*>(mmap(nullptr, cap_,
                         PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
         }
         used_ = 0;                                       // 够用：偏移归零，原地覆盖着写
     }
-    Tick* take(size_t n) { Tick* p = base_ + used_; used_ += n; return p; }
+    template <class T>
+    T* take(size_t n) {                                  // 切 n 个 T；放不下返回空
+        static_assert(std::is_trivially_destructible_v<T>);   // 没有析构要跑，才能整块丢
+        // 偏移向上取整到 alignof(T)（一定是 2 的幂）；base_ 来自 mmap、页对齐，偏移对齐了指针就对齐
+        size_t start = (used_ + alignof(T) - 1) & ~(alignof(T) - 1);
+        if (start + n * sizeof(T) > cap_) return nullptr;
+        used_ = start + n * sizeof(T);
+        return reinterpret_cast<T*>(base_ + start);
+    }
 };
+
+// 用法：arena.reset(今天总条数 * sizeof(Tick));  Tick* p = arena.take<Tick>(n);
 ```
 
 - **`Tick` 只有标量和定长数组**：没有要析构的成员，`static_assert` 钉住，arena 才能整块丢、整块覆盖。
 - **`StockDay` 只放这只股票的属性和一个指针**：代码、交易所存一份；行情在 arena 里，按实际条数切一段给它。
 - **一天多大**：650 万条 × 约 370 字节，约 2.4 GB，放进一块 arena，跨交易日复用。
+- **`Arena` 按字节记账，`take<T>` 切之前先对齐**：现在只放 `Tick`，每段都是 `sizeof(Tick)` 的整数倍，取整那一行实际不改变偏移；留着它，以后同一块里混放别的结构也不用改 arena。
 - **这三个结构都是第二轮优化以后的样子**：`Tick` 原来约 850 字节、带两个 `string`，`StockDay` 原来是 6000 条的定长数组，改了什么见 [3.2](#opt-load)。
 
 ### 2.3 第 1、2 步：读文件，装进每只股票的数组 {#load}
 
 ```cpp
-void load_day(const std::vector<Row>& file, std::vector<StockDay>& stocks, TickArena& arena) {
+void load_day(const std::vector<Row>& file, std::vector<StockDay>& stocks, Arena& arena) {
     std::vector<int> rows_today(stocks.size(), 0);
     for (const Row& r : file) ++rows_today[r.stock];          // 第一遍：每只股票今天几条
-    arena.reset(file.size());                                 // 一天一块，够用就原地覆盖
+    arena.reset(file.size() * sizeof(Tick));                  // 一天一块，够用就原地覆盖
     for (size_t i = 0; i < stocks.size(); ++i) {
-        stocks[i].ticks = arena.take(rows_today[i]);          // 按实际条数切一段
+        stocks[i].ticks = arena.take<Tick>(rows_today[i]);    // 按实际条数切一段
         stocks[i].tick_count = 0;
     }
     for (const Row& r : file) {                               // 第二遍：按行写进去
@@ -262,22 +273,29 @@ static_assert(std::is_trivially_destructible_v<Tick>);   // 没有析构要跑�
 // ---- 行情文件里的一行：哪只股票 + 这条快照；文件按时间排好 ----
 struct Row { int stock; Tick tick; };                    // stock 是读文件时把代码换成的编号
 
-// ---- 一天的行情记录放进一块 arena，跨交易日复用 ----
-class TickArena {
-    Tick*  base_ = nullptr;
-    size_t cap_ = 0, used_ = 0;                          // 单位是条
+// ---- 一天的行情记录放进一块 arena，跨交易日复用；按字节记账，什么类型都能切 ----
+class Arena {
+    char*  base_ = nullptr;
+    size_t cap_ = 0, used_ = 0;                          // 单位是字节
 public:
-    void reset(size_t need) {                            // 每个交易日开头调一次
+    void reset(size_t need) {                            // 每个交易日开头调一次，need 是总字节数
         if (need > cap_) {                               // 不够才换块，换的时候多要一半
-            if (base_) munmap(base_, cap_ * sizeof(Tick));
+            if (base_) munmap(base_, cap_);
             cap_  = need + need / 2;
-            base_ = static_cast<Tick*>(mmap(nullptr, cap_ * sizeof(Tick),
+            base_ = static_cast<char*>(mmap(nullptr, cap_,
                         PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
         }
         used_ = 0;                                       // 够用：偏移归零，原地覆盖着写
     }
-    Tick* take(size_t n) { Tick* p = base_ + used_; used_ += n; return p; }
-    const Tick* base() const { return base_; }
+    template <class T>
+    T* take(size_t n) {                                  // 切 n 个 T；放不下返回空
+        static_assert(std::is_trivially_destructible_v<T>);
+        size_t start = (used_ + alignof(T) - 1) & ~(alignof(T) - 1);   // 偏移对齐到 alignof(T)
+        if (start + n * sizeof(T) > cap_) return nullptr;
+        used_ = start + n * sizeof(T);
+        return reinterpret_cast<T*>(base_ + start);
+    }
+    const char* base() const { return base_; }
 };
 
 // ---- 每只股票一天的对象：只放代码、指针和条数 ----
@@ -341,12 +359,12 @@ std::string format_time(int64_t ms) {
 }
 
 // ---- 第 1、2 步：读一天的行情，装进每只股票的数组 ----
-void load_day(const std::vector<Row>& file, std::vector<StockDay>& stocks, TickArena& arena) {
+void load_day(const std::vector<Row>& file, std::vector<StockDay>& stocks, Arena& arena) {
     std::vector<int> rows_today(stocks.size(), 0);
     for (const Row& r : file) ++rows_today[r.stock];          // 第一遍：每只股票今天几条
-    arena.reset(file.size());                                 // 一天一块，够用就原地覆盖
+    arena.reset(file.size() * sizeof(Tick));                  // 一天一块，够用就原地覆盖
     for (size_t i = 0; i < stocks.size(); ++i) {
-        stocks[i].ticks = arena.take(rows_today[i]);          // 按实际条数切一段
+        stocks[i].ticks = arena.take<Tick>(rows_today[i]);    // 按实际条数切一段
         stocks[i].tick_count = 0;
     }
     for (const Row& r : file) {                               // 第二遍：按行写进去
@@ -409,10 +427,10 @@ int main() {
     for (int64_t t : bars) time_str.push_back(format_time(t));
     assert(bars.size() == 4801 && time_str.front() == "09:30:00" && time_str.back() == "15:00:00");
 
-    TickArena arena;
+    Arena arena;
     std::FILE* out = std::fopen("factors.csv", "w");
     const char* dates[] = {"20260105", "20260106", "20260107"};
-    const Tick* first_base = nullptr;
+    const char* first_base = nullptr;
     for (int d = 0; d < 3; ++d) {                      // 按交易日一天一天跑
         auto file = make_day(d, n_stocks);             // 第 1 步：读行情文件（这里是造的）
         if (d == 2) file.resize(file.size() / 2);      // 第三天条数少一半
@@ -496,11 +514,11 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 
 | 改动 | 改之前 → 改之后 | 在第 2 节的哪里 | 砍掉的开销 | 少了多少 |
 |---|---|---|---|---|
-| ① 按实际条数分配，bar 时间轴共用 | 每只 6000 个槽、各一份时间轴 → 先数今天几条，按这个数要；时间轴全局一份 | `load_day` 第一遍、`arena.take(rows_today[i])` | 缺页：没用到的槽不再被碰 | 12.3 秒 |
+| ① 按实际条数分配，bar 时间轴共用 | 每只 6000 个槽、各一份时间轴 → 先数今天几条，按这个数要；时间轴全局一份 | `load_day` 第一遍、`arena.take<Tick>(rows_today[i])` | 缺页：没用到的槽不再被碰 | 12.3 秒 |
 | ② `Tick` 瘦身 | 约 850 字节 → 约 370 字节 | `struct Tick`（[2.2](#data)） | 缺页，以及算因子时读的缓存行 | 6.3 秒 |
 | ③ 字符串挪出去共享 | 每条 `Tick` 带 `code`、`exchange` → 挪进 `StockDay`，每只股票一份 | `struct StockDay` 的两个 `string` | 1300 万个小块的分配和释放 | 4.9 秒 |
-| ④ arena 统一分配 | 每只股票一块 → 一天一块，按股票切 | `TickArena::take` | 逐条析构、逐块释放 | 1.3 秒 |
-| ⑤ arena 跨交易日复用 | 每天 `new` / `delete` → 偏移归零，原地覆盖 | `TickArena::reset` | 第二天的缺页和还内存 | 1.7 秒 |
+| ④ arena 统一分配 | 每只股票一块 → 一天一块，按股票切 | `Arena::take` | 逐条析构、逐块释放 | 1.3 秒 |
+| ⑤ arena 跨交易日复用 | 每天 `new` / `delete` → 偏移归零，原地覆盖 | `Arena::reset` | 第二天的缺页和还内存 | 1.7 秒 |
 
 **② `Tick` 怎么瘦的**：
 

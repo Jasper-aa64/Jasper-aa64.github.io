@@ -70,7 +70,7 @@ toc: true
 
 [去掉每个交易日重复执行的初始化，运行耗时降低约 22%](/zh/interview/cv-internship/#bt-init)；[再用 perf 剖析定位到行情装载的开销](/zh/interview/cv-internship/#bt-perf)：[每个交易日为每只股票按固定 6000 条预分配行情数组，一天约 17.5 GB，时间大量耗在缺页与内存分配上](/zh/interview/cv-internship/#bt-account)；[改为按实际条数分配、行情结构体精简一半以上、bar 时间轴与字符串改为共享，行情记录用 arena 统一分配、跨交易日复用](/zh/interview/cv-internship/#bt-five)，[耗时在此基础上再降约 44%](/zh/interview/cv-internship/#bt-result)。
 
-→ 代码：[改之前的定长数组](/zh/interview/backtest-framework/#load)、[改之后的 `Tick`、`StockDay`、`TickArena`](/zh/interview/backtest-framework/#data)；完整程序 [7.6](/zh/interview/cv-internship/#hw-backtest-opt)
+→ 代码：[改之前的定长数组](/zh/interview/backtest-framework/#load)、[改之后的 `Tick`、`StockDay`、`Arena`](/zh/interview/backtest-framework/#data)；完整程序 [7.6](/zh/interview/cv-internship/#hw-backtest-opt)
 
 ## 3. 项目 1：C++ 性能自动优化 Agent Skill {#project}
 
