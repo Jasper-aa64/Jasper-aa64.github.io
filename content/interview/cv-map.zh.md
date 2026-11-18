@@ -98,4 +98,4 @@ toc: true
 
 [公开 C++ 低延迟案例（期权定价，单条行情访问上百条缓存行，性能瓶颈在访存延迟与长依赖链）](/zh/interview/cv-projects/#case-what)，[Agent 按流程优化](/zh/interview/cv-projects/#case-diagnose)，采用[双核分担](/zh/interview/cv-projects/#case-split)、[软件预取](/zh/interview/cv-projects/#case-prefetch)、[SIMD 向量化](/zh/interview/cv-projects/#case-simd)，[P50 延迟降低约 67%](/zh/interview/cv-projects/#case-honest)。
 
-→ 代码：四个版本的完整程序 [第 12 节](/zh/interview/cv-projects/#handwrite)；逐步的账 [缓存案例](/zh/posts/low-latency-cache-case-study/)
+→ 代码：[缓存案例博客](/zh/posts/low-latency-cache-case-study/)里的 7 段，[1.1 数据布局](/zh/posts/low-latency-cache-case-study/#11-数据怎么摆期权的地址在股票记录里)、[1.2 基线](/zh/posts/low-latency-cache-case-study/#12-基线一个期权一个期权地取数计算)、[2.2 两趟](/zh/posts/low-latency-cache-case-study/#22-两趟先把一批的行都要过来再集中算)、[3.2 预取](/zh/posts/low-latency-cache-case-study/#32-什么时候要第一趟之后第二趟之前)、[4.2 clflushopt](/zh/posts/low-latency-cache-case-study/#42-clflush-与-clflushopt一个串行一个能并行)、[5.1 两个核 40 / 24](/zh/posts/low-latency-cache-case-study/#51-怎么拆主核留-40-个辅核拿-24-个)、[5.2 读回刚写的行](/zh/posts/low-latency-cache-case-study/#52-读回自己刚写的行对面一读副本就没了)；四个版本的完整程序 [第 12 节](/zh/interview/cv-projects/#handwrite)
