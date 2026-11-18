@@ -732,9 +732,9 @@ struct TickOld {
 // 改之后：只留真正被写、被读的字段
 struct Tick {
     int64_t time;
-    double  pre_close, last;
-    int64_t volume;
-    double  amount;
+    double  pre_close, last;      // 昨收价、最新价
+    int64_t volume;               // 成交总量
+    double  amount;               // 成交总金额
     double  bid_px[10], ask_px[10];
     int64_t bid_vol[10], ask_vol[10];
 };

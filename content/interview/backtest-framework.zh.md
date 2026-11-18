@@ -61,9 +61,9 @@ for (const auto& date : dates) {                 // 按交易日一天一天跑
 // 一条行情：3 秒快照。这里的简化版 360 字节（原工程约 370），怎么从约 850 字节减下来的见 3.2 ②
 struct Tick {
     int64_t time;                 // 当天的毫秒数，比如 9:30:00 是 34200000
-    double  pre_close, last;
-    int64_t volume;
-    double  amount;
+    double  pre_close, last;      // 昨收价、最新价
+    int64_t volume;               // 成交总量
+    double  amount;               // 成交总金额
     double  bid_px[10], ask_px[10];
     int64_t bid_vol[10], ask_vol[10];
 };
@@ -262,9 +262,9 @@ constexpr double NaN = std::numeric_limits<double>::quiet_NaN();
 // ---- 一条行情：3 秒快照，这里的简化版 360 字节 ----
 struct Tick {
     int64_t time;                 // 当天的毫秒数，比如 9:30:00 是 34200000
-    double  pre_close, last;
-    int64_t volume;
-    double  amount;
+    double  pre_close, last;      // 昨收价、最新价
+    int64_t volume;               // 成交总量
+    double  amount;               // 成交总金额
     double  bid_px[10], ask_px[10];
     int64_t bid_vol[10], ask_vol[10];
 };
