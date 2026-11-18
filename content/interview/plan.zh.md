@@ -125,14 +125,14 @@ toc: true
 
 每天的事分**必做**和**选做**：选做做不完就放掉，不往后挪。
 
-**有代码的地方，面试官看到就会问**：[简历地图](/zh/interview/cv-map/)链到的页面里，每一段代码都要看过，能说出每一行为什么这样写。缓存案例除了第 12 节的完整程序，[博客](/zh/posts/low-latency-cache-case-study/)里的 7 段代码也算。
+**有代码的地方，面试官看到就会问**：[简历地图](/zh/interview/cv-map/)链到的页面里，每一段代码都要看过，能说出每一行为什么这样写。缓存案例除了第 12 节的完整程序，[博客](/zh/posts/low-latency-cache-case-study/)里的 8 段代码也算。
 
 | 日期 | 手写（每天一道） | 看代码、能讲 | 口述 | 选做 |
 |---|---|---|---|---|
 | **11-17 周二** ✅ | SPSC、LRU、博客版 SPMC 各写过一遍 | — | 4.1 的前几题 | — |
 | **11-18 周三** | SPMC：[专页 1.2 节](/zh/interview/md-feed-spmc/#ring)那一版，20 分钟 | [回测框架专页](/zh/interview/backtest-framework/)；[简历地图](/zh/interview/cv-map/)实习部分每句点一遍 | 4.2 全部；自我介绍 45 秒 | 4.1 剩下的 |
 | **11-19 周四** | 因子开发 [7.3](/zh/interview/cv-internship/#hw-factor-dev)，20 分钟 | [7.2](/zh/interview/cv-internship/#hw-md-opt)、[7.4](/zh/interview/cv-internship/#hw-factor-opt)、[7.6](/zh/interview/cv-internship/#hw-backtest-opt)、[缓存案例第 12 节](/zh/interview/cv-projects/#handwrite) | 4.3 全部；第 6 节三段加反问 | 晚上 30 分钟模拟，一题超过 20 秒就打断 |
-| **11-20 周五** | 不写新代码：看 SPSC、LRU、SPMC、7.3 四份参考代码，背结构 | [缓存案例博客](/zh/posts/low-latency-cache-case-study/)的 7 段代码过一遍：[1.1 数据布局](/zh/posts/low-latency-cache-case-study/#11-数据怎么摆期权的地址在股票记录里)、[1.2 基线](/zh/posts/low-latency-cache-case-study/#12-基线一个期权一个期权地取数计算)、[2.2 两趟](/zh/posts/low-latency-cache-case-study/#22-两趟先把一批的行都要过来再集中算)、[3.2 预取](/zh/posts/low-latency-cache-case-study/#32-什么时候要第一趟之后第二趟之前)、[4.2 clflushopt](/zh/posts/low-latency-cache-case-study/#42-clflush-与-clflushopt一个串行一个能并行)、[5.1 两个核 40 / 24](/zh/posts/low-latency-cache-case-study/#51-怎么拆主核留-40-个辅核拿-24-个)、[5.2 读回刚写的行](/zh/posts/low-latency-cache-case-study/#52-读回自己刚写的行对面一读副本就没了) | 下午把第 4 节过一遍 | — |
+| **11-20 周五** | 不写新代码：看 SPSC、LRU、SPMC、7.3 四份参考代码，背结构 | [缓存案例博客](/zh/posts/low-latency-cache-case-study/)的 8 段代码过一遍：[1.1 数据布局](/zh/posts/low-latency-cache-case-study/#11-数据怎么摆期权的地址在股票记录里)、[1.2 基线](/zh/posts/low-latency-cache-case-study/#12-基线一个期权一个期权地取数计算)、[2.2 两趟](/zh/posts/low-latency-cache-case-study/#22-两趟先把一批的行都要过来再集中算)、[3.2 预取](/zh/posts/low-latency-cache-case-study/#32-什么时候要第一趟之后第二趟之前)、[4.2 clflushopt](/zh/posts/low-latency-cache-case-study/#42-clflush-与-clflushopt一个串行一个能并行)、[5.1 两个核 40 / 24](/zh/posts/low-latency-cache-case-study/#51-怎么拆主核留-40-个辅核拿-24-个)、[5.2 读回刚写的行](/zh/posts/low-latency-cache-case-study/#52-读回自己刚写的行对面一读副本就没了)、[6.2 SIMD](/zh/posts/low-latency-cache-case-study/#simd-code) | 下午把第 4 节过一遍 | — |
 
 周五 17:00 试麦克风和共享屏幕，关掉笔记。
 

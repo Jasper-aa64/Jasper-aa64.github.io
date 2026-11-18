@@ -2,11 +2,11 @@
 title: "低时延交易 —— 缓存案例：一次行情重算 64 个期权"
 date: 2026-10-20
 slug: "low-latency-cache-case-study"
-description: "CppCon 2026 的一场演讲，把一段期权重算代码的中位数从 510 ns 压到 329 ns，浮点运算一条没少。顺着它走四步：两趟循环让一批期权的缺失同时在路上，批多大要按 LFB 的 16 个槽位、按行来算；算这一批之前先预取下一批，换成普通读或 NTA 反而更慢；用 clflushopt 交出只读一次的事件行，只在缓存挤满时才值；拆到两个核以后，跨核读一条行约 30 ns：别读回自己刚写、对面正盯着的那条行，结果行先用 clwb 写回，让 L3 直接回答。"
+description: "CppCon 2026 的一场演讲，把一段期权重算代码的中位数从 510 ns 压到 329 ns，浮点运算一条没少。顺着它走四步：两趟循环让一批期权的缺失同时在路上，批多大要按 LFB 的 16 个槽位、按行来算；算这一批之前先预取下一批，换成普通读或 NTA 反而更慢；用 clflushopt 交出只读一次的事件行，只在缓存挤满时才值；拆到两个核以后，跨核读一条行约 30 ns：别读回自己刚写、对面正盯着的那条行，结果行先用 clwb 写回，让 L3 直接回答。演讲之外补了一步 SIMD：批处理把 4 个期权的数据排进小数组以后，同一套算式放进一条 AVX2 指令；在等内存的代码上，它只压得动计算那一段。"
 summary: "一条行情要碰 140 条缓存行，时间大多花在等它们。四步改的都不是计算，是数据什么时候到、到哪一层、在谁手里：让缺失同时在路上，提前要下一批，交出读一次就没用的行，跨核交接时少读一次，把要给对面读的行先放进 L3。"
 chapter: 1
 categories: [Systems]
-tags: [cpp, cache, mlp, prefetch, clflushopt, clwb, mesi, hft, low-latency]
+tags: [cpp, cache, mlp, prefetch, clflushopt, clwb, mesi, simd, hft, low-latency]
 toc: true
 math: true
 homepage: false
@@ -14,7 +14,7 @@ homepage: false
 
 一条行情进来，要把这只股票挂着的 64 个期权重算一遍：每个期权的价格跟着标的挪一点，再算一个 alpha，越过阈值的记下来。每个期权只有 25 次浮点运算，这段代码的中位数却要 510 ns，p90 超过 1 µs，CPU 大部分时间在等数据。
 
-CppCon 2026 上，高频交易公司 Graviton Research Capital 的 Sanchit Gupta 拿这段代码讲了一场（[视频](https://youtu.be/FDjXUP6Am1M)、[幻灯片](https://github.com/CppCon/CppCon2026/blob/main/Presentations/The_Latency_Slippage.pdf)、[代码](https://github.com/0xsanchit/CacheLatency)；我是从[知乎上的一篇介绍](https://zhuanlan.zhihu.com/p/2095095452555391143)看到的）。他分四步把中位数压到 329 ns，p90 压到 550 ns。浮点运算一条没少，改的是数据什么时候到、到哪一层、那时在哪个核手里。
+CppCon 2026 上，高频交易公司 Graviton Research Capital 的 Sanchit Gupta 拿这段代码讲了一场（[视频](https://youtu.be/FDjXUP6Am1M)、[幻灯片](https://github.com/CppCon/CppCon2026/blob/main/Presentations/The_Latency_Slippage.pdf)、[代码](https://github.com/0xsanchit/CacheLatency)；我是从[知乎上的一篇介绍](https://zhuanlan.zhihu.com/p/2095095452555391143)看到的）。他分四步把中位数压到 329 ns，p90 压到 550 ns。浮点运算一条没少，改的是数据什么时候到、到哪一层、那时在哪个核手里。[第 6 节](#simd)是演讲之外的一步：SIMD，是我做[项目 1](/zh/interview/cv-projects/#case-simd) 时 Agent 在批处理版本上加的。
 
 每一步用到的机制，博客里大多单独讲过：MLP（memory-level parallelism，内存级并行）和 LFB（line fill buffer，行填充缓冲）、软件预取、MESI。放进同一段代码里，能看到它们各值多少，也能看到它们在抢同一样东西：每个核只有 16 个 LFB，批处理、预取、`clflushopt` 都要占。下面的数字都是演讲那台机器上测的：i9-14900KS，核心 5.9 GHz，只开 4 个大核、关掉超线程，程序跑在隔离的核上；周期数按 3.19 GHz 的 TSC（time stamp counter，时间戳计数器）计。
 
@@ -404,3 +404,73 @@ void aux_tick(const Req& req, Res& res, Option* options, uint64_t seq) {
 主核每条事件的跨核转发 0.87 → 0.34 次，普通的 L3 命中 2.53 → 3.07 次：结果在 L3 里等主核，而不是在辅核的 L1 里。主核等辅核结果的那一段从 111 ns 降到 97 ns；辅核的计算一点没少，少的只是主核的等待。中位数 344 → 329 ns，p90 555 → 550 ns。
 
 演讲只推了辅核到主核这一个方向。主核交出去的 `req` 行，辅核读它时同样要去主核那里拿，也可以写完就 `clwb`；只是主核在关键路径上，多出来的这几条指令要算进事件的时间里，值不值得要测了才知道。
+
+## 6. 演讲之外：SIMD，4 个期权并排算 {#simd}
+
+> **演讲的四步里没有这一步。** 它是我做[项目 1](/zh/interview/cv-projects/#skill-case)（性能优化 skill）时，Agent 在第 2、3 节的批处理加预取版本上加的；简历上的“SIMD 向量化”指的就是这里。
+
+### 6.1 为什么批处理以后才好向量化 {#simd-why}
+
+- **第二趟里一批 D = 4 个期权的算式完全一样**，只是数据不同。
+- **第一趟已经把数据排好了**：4 个期权的字段读进了 `px[]`、`ref[]`、`arg[]`、`ema[]` 四个小数组，在内存里挨着。AVX2 的一个 256 位寄存器正好装 4 个 `double`，一次就能整个装进去。
+- **基线没法这样做**：每个期权的字段散在各自的两条行里，要向量化得先一个一个收集起来。批处理的第一趟替它做了这件事。
+
+### 6.2 代码：第二趟换成 4 路 {#simd-code}
+
+先把一个期权的算式改成同时算 4 个（[SIMD 向量化](/zh/posts/simd-vectorization-intrinsics/)讲了这些 intrinsic）：
+
+```cpp
+#include <immintrin.h>   // 编译加 -mavx2 -mfma
+
+// 和 alpha_of 是同一套算式，每条指令同时做 4 个期权
+inline __m256d alpha4(__m256d px, __m256d ref, __m256d arg, __m256d& ema) {
+    ema = _mm256_fmadd_pd(_mm256_set1_pd(0.9), ema, _mm256_mul_pd(_mm256_set1_pd(0.1), px));
+    __m256d x = _mm256_div_pd(_mm256_sub_pd(px, ref), _mm256_add_pd(arg, _mm256_set1_pd(1.0)));
+    __m256d a = x;
+    for (int i = 0; i < 10; ++i)
+        a = _mm256_fmadd_pd(a, x, _mm256_set1_pd(0.01 * i));     // a * x + 0.01 * i，一条乘加
+    return _mm256_fmadd_pd(_mm256_set1_pd(0.01), _mm256_sub_pd(px, ema), a);   // a + 0.01 * (px - ema)
+}
+```
+
+再改 2.2 节的 `price_span_batched`（D = 4）：小数组按 32 字节对齐，第二趟凑满 4 个就走向量版。
+
+```cpp
+        alignas(32) double px[D], ref[D], arg[D], ema[D], alpha[D];   // 对齐，才能整块装进寄存器
+        // ……第一趟取数、预取下一批，和 2.2、3.2 节一样……
+        if (m == D) {                                     // 凑满 4 个：一次算完
+            __m256d E = _mm256_load_pd(ema);
+            _mm256_store_pd(alpha, alpha4(_mm256_load_pd(px), _mm256_load_pd(ref),
+                                          _mm256_load_pd(arg), E));
+            _mm256_store_pd(ema, E);
+        } else {                                          // 不满 4 个的尾巴：走标量
+            for (int k = 0; k < m; ++k) alpha[k] = alpha_of(px[k], ref[k], arg[k], ema[k]);
+        }
+        for (int k = 0; k < m; ++k) {                     // 写回，和原来一样
+            o[k]->curr_px = px[k];
+            o[k]->alpha = alpha[k];
+            o[k]->ema = ema[k];
+            if (alpha[k] > kThreshold) hits[n++] = h[b + k].option;
+        }
+```
+
+- **为什么要 `alignas(32)`**：`_mm256_load_pd` 要求地址按 32 字节对齐，不对齐会崩；不想管对齐就换成 `_mm256_loadu_pd`。
+- **为什么留标量的尾巴**：一只股票 64 个期权，拆到两个核时是 40 和 24，都是 4 的倍数，平时走不到；留着是为了个数不是 4 的倍数时也对。
+
+### 6.3 依赖链没变短，4 条并排走 {#simd-chain}
+
+一个期权里那 10 次乘加还是一步等一步，链的长度没变。变的是一条指令同时推进 4 个期权的链：原来 4 个期权的计算接连做，现在一起做，总时间接近一个期权的。
+
+### 6.4 代价：结果的最后几位变了 {#simd-rounding}
+
+- **乘加合成一条指令，只舍入一次**：标量的 `a * x + c` 先乘后加，舍入两次。所以 SIMD 版和标量版差在最后几位，比对要按容差：我对拍 52 万个期权，最大相对差 7.6e-17。
+- **标量版编译要加 `-ffp-contract=off`**：不然编译器会自己把标量的 `a * x + c` 合成乘加，标量版换个编译选项结果就变（[因子生产 4.7](/zh/ref/factor-production/#flags)）。
+- **贴着阈值的期权要留意**：alpha 正好在 0.5 附近时，最后一位的差别可能让一个版本记下它、另一个不记。
+
+### 6.5 量出来多少：只压得动计算那一段 {#simd-result}
+
+不是演讲那台机器：我在自己的 Windows 机器上跑[项目拆解页第 12 节](/zh/interview/cv-projects/#handwrite)的完整程序，计时精度 100 ns。批处理加预取以后，再加 SIMD，中位数大约 1600 → 1500 ns，三次里有一次没差别。
+
+原因就是第 1 节那笔账：时间大多花在等 140 条行，计算本来就只占一小段。SIMD 只缩短计算这一段，等内存的时间一点没少。**所以它排在最后**：先让缺失重叠（第 2、3 节），等的时间压下来了，计算占的比例变大，向量化才看得出效果。
+
+简历上的“P50 降约 67%”是 Agent 在测试机（虚拟机）上把分批、预取、两个核、SIMD 整套做下来的结果；和这一节的数、和演讲每一步的数，都不连着讲。
