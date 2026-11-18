@@ -193,7 +193,97 @@ unswitching 就是把判断提到循环外，拆成两个各自干净的循环�
 
 ## 3. 执行单元、指令级并行和依赖链：耗时由最长的那条链决定 {#dependency-chains}
 
-一个核每个周期能同时执行好几条指令，前提是这几条互不依赖。3.1、3.2 讲它为什么能同时执行：核里有几组执行单元，乱序执行负责把它们填满。3.3 起讲什么挡住它：依赖链，以及怎么拆。
+把开头点积里的求和单独拿出来看：
+
+```cpp
+for (int i = 0; i < n; ++i) s += x[i];
+```
+
+**每一轮里，有的指令要等，有的不用等**：
+
+- **读 `x[i]` 不用等别的轮**：第 5 轮读 `x[5]`，地址直接算得出来，不需要第 4 轮做完，CPU 可以把好几轮的读提前发出去。
+- **`s += x[i]` 要等上一轮的 `s`**：第 5 轮的加法要用第 4 轮加完的 `s`，第 4 轮又要用第 3 轮的，一路串下去。
+- **这样首尾相接的一串指令叫依赖链**：前一条的结果是后一条的输入，链上任何时刻只有一条指令能执行。
+
+**依赖链决定了这个循环最快能多快**：
+
+- **链上的时间只能相加**：一次浮点加法从开始到出结果约 4 个周期，$n$ 个元素的求和至少要 $4n$ 个周期。
+- **硬件本来能做得更多**：一个核每周期能开始 2 次浮点加法（3.1），这个循环每 4 个周期才用上 1 次，只用了八分之一。
+- **所以耗时由最长的那条链决定，不由指令条数决定**：指令再少，也快不过链上延迟的总和。
+
+**办法是让几条链同时跑**：
+
+- **四个累加器把一条链拆成四条**：`s0` 加 `x[0]`、`x[4]`、`x[8]`……，`s1` 加 `x[1]`、`x[5]`……，四条链互相不用等。
+- **加法次数没有变**：变的是同一时刻在执行单元里的加法有几条，下图是前 4 个元素的时间线。
+
+<svg viewBox="0 0 480 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一个累加器时 4 次加法一次接一次，16 个周期出 4 个结果；四个累加器时 4 次加法同时在执行单元里，约 5 个周期出 4 个结果" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .dc-title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .dc-lab   { fill: #6b6558; font-size: 12px; }
+    .dc-bar1  { fill: #f6ddd6; stroke: #c98a76; stroke-width: 1.2; }
+    .dc-bar4  { fill: #dcecc6; stroke: #6f8f3f; stroke-width: 1.2; }
+    .dc-in    { fill: #3a372f; font-size: 11.5px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .dc-ax    { stroke: #8a8474; stroke-width: 1; }
+    .dc-grid  { stroke: #d9d4c7; stroke-width: 1; stroke-dasharray: 3 3; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dc-title { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dc-lab { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dc-bar1 { fill: #4a2f2c; stroke: #8f5a4c; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dc-bar4 { fill: #33421f; stroke: #8fb257; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dc-in { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dc-ax { stroke: #8a8696; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .dc-grid { stroke: #3a3945; }
+  </style>
+  <!-- 网格：每 4 个周期一条，x = 80 + 周期 × 24 -->
+  <line class="dc-grid" x1="176" y1="30" x2="176" y2="250"/>
+  <line class="dc-grid" x1="272" y1="30" x2="272" y2="250"/>
+  <line class="dc-grid" x1="368" y1="30" x2="368" y2="250"/>
+  <line class="dc-grid" x1="464" y1="30" x2="464" y2="250"/>
+  <!-- 一个累加器 -->
+  <text class="dc-title" x="10" y="22">一个累加器：每次加法都等上一次，16 个周期出 4 个结果</text>
+  <text class="dc-lab" x="10" y="57">s</text>
+  <rect class="dc-bar1" x="81" y="40" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="88" y="57">s += x[0]</text>
+  <rect class="dc-bar1" x="177" y="40" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="184" y="57">s += x[1]</text>
+  <rect class="dc-bar1" x="273" y="40" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="280" y="57">s += x[2]</text>
+  <rect class="dc-bar1" x="369" y="40" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="376" y="57">s += x[3]</text>
+  <!-- 四个累加器：每周期开始 2 条 -->
+  <text class="dc-title" x="10" y="104">四个累加器：4 条链互不等待，约 5 个周期出 4 个结果</text>
+  <text class="dc-lab" x="10" y="135">s0</text>
+  <rect class="dc-bar4" x="81" y="118" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="88" y="135">s0 += x[0]</text>
+  <text class="dc-lab" x="10" y="167">s1</text>
+  <rect class="dc-bar4" x="81" y="150" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="88" y="167">s1 += x[1]</text>
+  <text class="dc-lab" x="10" y="199">s2</text>
+  <rect class="dc-bar4" x="105" y="182" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="112" y="199">s2 += x[2]</text>
+  <text class="dc-lab" x="10" y="231">s3</text>
+  <rect class="dc-bar4" x="105" y="214" width="94" height="26" rx="4"/>
+  <text class="dc-in" x="112" y="231">s3 += x[3]</text>
+  <!-- 时间轴 -->
+  <line class="dc-ax" x1="80" y1="252" x2="464" y2="252"/>
+  <text class="dc-lab" x="10" y="272">周期</text>
+  <text class="dc-lab" x="76" y="272">0</text>
+  <text class="dc-lab" x="172" y="272">4</text>
+  <text class="dc-lab" x="268" y="272">8</text>
+  <text class="dc-lab" x="362" y="272">12</text>
+  <text class="dc-lab" x="456" y="272">16</text>
+</svg>
+
+**常见的依赖链**：
+
+| 例子 | 每一步要等什么 | 每一步约多久 |
+|---|---|---|
+| 求和 | `s += x[i]` 要等上一轮加完的 `s` | 一次加法，约 4 个周期 |
+| 递推 | `x = x * a + b` 要等上一轮算出的 `x` | 一次乘加，约 4 个周期 |
+| 链表 | `p = p->next` 要等这一次读回来的地址 | 一次访存，缓存缺失时约 100 ns |
+
+- **认链的办法**：找每一轮都用自己的旧值算新值的变量，比如 `s`、`x`、`p`。
+- **访存也会成链**：链表每走一步，下一个地址都要等这一次读回来，缺失的延迟一次接一次地付。[缓存案例](/zh/posts/low-latency-cache-case-study/)的批处理，就是让几条这样的链同时跑。
+
 
 ### 3.1 执行单元：同一类运算电路复制几份，每份切成几级流水 {#execution-units}
 
