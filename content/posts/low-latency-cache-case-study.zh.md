@@ -319,6 +319,10 @@ int main_tick(Event& ev, Stock* stocks, Option* options, uint32_t* hits,
     int n = price_span_batched<4>(st.holds, K - kAux, req.move, options, hits);
     while (res.seq.load(std::memory_order_acquire) != seq) {}
     for (int i = 0; i < res.n; ++i) hits[n++] = res.hit[i];
+    char* e = reinterpret_cast<char*>(&ev);          // 接着第 4 节：这条事件不会再访问，照样逐出
+    _mm_clflushopt(e);
+    _mm_clflushopt(e + 64);
+    _mm_clflushopt(e + 128);
     return n;
 }
 
@@ -332,6 +336,8 @@ void aux_tick(const Req& req, Res& res, Option* options, uint64_t seq) {
     res.seq.store(seq, std::memory_order_release);
 }
 ```
+
+主核末尾的三条 `clflushopt` 是第 4 节留下来的：第 5 节的起点 409 ns 是加了逐出以后的数，所以这里照样逐出事件行。演讲给出的两核代码里有没有写这三行，我没有核实到。
 
 两个核用 release 写、acquire 读交接（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）：主核写好 `req` 再发布序号，辅核看到序号再读；结果反过来走一遍。
 
