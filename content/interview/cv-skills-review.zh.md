@@ -30,6 +30,7 @@ math: true
 | ★ CRTP 为什么能替代虚函数（简历上写了） | 子类把自己当模板参数传给基类，基类里 `static_cast<Derived*>(this)` 去调，编译期就知道调的是谁，能内联，对象里也没有 vptr。代价是 `Base<A>` 和 `Base<B>` 是两个不相关的类型，放不进同一个容器 | [CRTP 与静态多态](/zh/posts/crtp-static-polymorphism/) |
 | RVO 和 NRVO | C++17 起，返回一个纯右值（`return T(...)`）保证直接构造在调用方的位置上，不拷贝也不移动。返回具名局部变量（NRVO）编译器通常会做，但不保证。`return std::move(x);` 反而会挡住 NRVO | [返回值优化](/zh/posts/rvo-pure-functions/) |
 | 模板 | 每种模板实参实例化一份代码，代价是编译时间和代码体积；特化和偏特化给特定类型换实现；约束模板参数从 SFINAE 到 C++20 的 concepts | [模板](/zh/ref/templates/) |
+| `std::optional` | 表示“可能没有值”。内部是值加一个 bool，就地存放，不分配堆内存，`optional<int64_t>` 补齐后 16 字节。`if (v)` 或 `has_value()` 判断；`*v` 取值，空时是未定义行为；`value()` 空时抛 `bad_optional_access`；`value_or(d)` 空时给默认值；`std::nullopt` 表示空。适合“没有值”是正常情况的场合，比如因子窗口没满；要带上失败原因用 C++23 的 `std::expected`。浮点值也可以用 NaN 表示没有值，但 NaN 比较一律为 false，会悄悄传下去；整数没有 NaN，0 又常常是合法值，这时用 `optional` | [因子计算 3.4](/zh/ref/factor-computation/#vwap) |
 
 ## 2. CPU 体系结构：缓存、MESI、store buffer、ROB、LFB、分支预测、TLB、NUMA {#cpu}
 
