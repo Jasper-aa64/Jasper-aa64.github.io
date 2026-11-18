@@ -216,7 +216,7 @@ for (int i = 0; i < n; ++i) s += x[i];
 - **四个累加器把一条链拆成四条**：`s0` 加 `x[0]`、`x[4]`、`x[8]`……，`s1` 加 `x[1]`、`x[5]`……，四条链互相不用等。
 - **加法次数没有变**：变的是同一时刻在执行单元里的加法有几条，下图是前 4 个元素的时间线。
 
-<svg viewBox="0 0 480 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一个累加器时 4 次加法一次接一次，16 个周期出 4 个结果；四个累加器时 4 次加法同时在执行单元里，约 5 个周期出 4 个结果" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+<svg viewBox="0 0 480 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一个累加器时 4 次加法一次接一次，16 个周期出 4 个结果；四个累加器时 4 次加法同时在执行单元里，约 5 个周期出 4 个结果" style="display:block;width:100%;max-width:480px;height:auto;margin:0 auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
     .dc-title { fill: #1c1b18; font-size: 13px; font-weight: 700; }
     .dc-lab   { fill: #6b6558; font-size: 12px; }
