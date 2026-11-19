@@ -22,9 +22,29 @@ How far the compiler can optimize depends on what it dares to assume and what it
 
 ### 1.1 Type Punning: When Bytes Have to Be Read as Another Type {#punning-need}
 
-- **An exchange's binary market data lands in a receive buffer first**: a price is 8 bytes at some offset in the buffer and has to be read as a `double`; the sequence number and length in the header are integers that also come out of the bytes.
-- **Sometimes the bits themselves are what you want**: hashing a `double`, comparing as integers, or serializing means viewing a `double` as a `uint64_t`.
-- **The handiest way is a pointer cast**: `*(double*)(buf + 8)`, `*(uint64_t*)&x`, or `reinterpret_cast`ing the whole header to a struct pointer. **All of these break strict aliasing, and with optimization on, the result can differ from the unoptimized build**.
+The handiest way is a pointer cast, and all three places below use one:
+
+```cpp
+struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8-byte header
+
+void on_packet(const unsigned char* buf) {
+    // 1. header: treat the first 8 bytes of the buffer as a Header
+    const Header* h = reinterpret_cast<const Header*>(buf);
+    // 2. price: treat the 8 bytes at offset 8 as a double
+    double px = *reinterpret_cast<const double*>(buf + 8);
+    handle(h->seq, h->type, px);
+}
+
+uint64_t hash_bits(double x) {
+    // 3. treat the 64 bits of a double as an integer to hash it
+    return *reinterpret_cast<const uint64_t*>(&x) * 0x9E3779B97F4A7C15ull;
+}
+```
+
+- **An exchange's binary market data lands in a receive buffer first**: the buffer is a run of `unsigned char`; it starts with integers for the sequence number, length and type, and at offset 8 there's an 8-byte price. Comments 1 and 2 read those bytes directly as a `Header` and a `double`.
+- **Sometimes the bits themselves are what you want**: comment 3 views a `double`'s bits as a `uint64_t` to hash them; comparing as integers or serializing needs the same view.
+- **All three read memory of one type through another**: the buffer holds `unsigned char` and `x` is a `double`, yet they're read as `Header`, `double` and `uint64_t`. **That breaks strict aliasing, and with optimization on, the result can differ from the unoptimized build**. The rule is in 1.2, an example of it going wrong in 1.3, and the correct ways in 1.4.
+- **The compiler won't necessarily warn you**: with `-Wall`, GCC 16.2 measurably warns only on comment 3, `dereferencing type-punned pointer will break strict-aliasing rules`, and says nothing about 1 and 2. The buffer comes in as a parameter, so the compiler doesn't know what type that memory originally held.
 
 ### 1.2 Strict Aliasing: An Object May Only Be Accessed Through Its Own Type {#alias-rule}
 

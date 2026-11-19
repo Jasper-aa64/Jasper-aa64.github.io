@@ -22,9 +22,29 @@ light: true
 
 ### 1.1 类型双关（type punning）：什么时候要把字节当成另一种类型读 {#punning-need}
 
-- **交易所的二进制行情先落在收包缓冲区里**：价格是缓冲区某个偏移处的 8 个字节，要当成 `double` 读出来；包头的序号、长度是几个整数，也要从字节里取。
-- **有时要的就是位本身**：拿 `double` 的位算哈希、按整数比较大小、做序列化，要把 `double` 当成 `uint64_t` 看。
-- **最顺手的写法是指针强转**：`*(double*)(buf + 8)`、`*(uint64_t*)&x`，或者把整个包头 `reinterpret_cast` 成结构体指针。**这些写法都违反严格别名，开了优化，结果可能和不开优化时不一样**。
+最顺手的写法是指针强转，下面三处都是：
+
+```cpp
+struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8 字节的包头
+
+void on_packet(const unsigned char* buf) {
+    // 1. 包头：把缓冲区开头的 8 个字节当成 Header
+    const Header* h = reinterpret_cast<const Header*>(buf);
+    // 2. 价格：把偏移 8 处的 8 个字节当成 double
+    double px = *reinterpret_cast<const double*>(buf + 8);
+    handle(h->seq, h->type, px);
+}
+
+uint64_t hash_bits(double x) {
+    // 3. 把 double 的 64 位当成整数，拿去算哈希
+    return *reinterpret_cast<const uint64_t*>(&x) * 0x9E3779B97F4A7C15ull;
+}
+```
+
+- **交易所的二进制行情先落在收包缓冲区里**：缓冲区是一串 `unsigned char`，开头是序号、长度、类型这几个整数，偏移 8 处是 8 个字节的价格。注释 1、2 直接把这些字节当成 `Header` 和 `double` 读。
+- **有时要的就是位本身**：注释 3 把 `double` 的位当成 `uint64_t` 去算哈希；按整数比较大小、做序列化也要这样看。
+- **三处都是用一种类型去读另一种类型的内存**：缓冲区里放的是 `unsigned char`，`x` 是 `double`，读的时候却当成 `Header`、`double`、`uint64_t`。**这违反严格别名，开了优化，结果可能和不开优化时不一样**。规则见 1.2，出错的例子见 1.3，正确写法见 1.4。
+- **编译器不一定提醒你**：GCC 16.2 开 `-Wall` 实测只对注释 3 报 `dereferencing type-punned pointer will break strict-aliasing rules`，对 1、2 一声不吭。缓冲区是从参数传进来的，编译器不知道那块内存原本放的是什么类型。
 
 ### 1.2 严格别名（strict aliasing）：一个对象只能用它自己的类型读写 {#alias-rule}
 
