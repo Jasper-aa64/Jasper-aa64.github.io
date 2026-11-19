@@ -1,5 +1,5 @@
 ---
-title: "IV：QD CV 技能行"
+title: "IV. QD CV 技能行"
 date: 2026-11-04T00:00:00+08:00
 slug: "cv-skills-review"
 description: "简历“专业技能”里写了“熟悉”的每一行，面试官最可能顺着问的几题：C++ 语言、CPU 体系结构、低延迟优化、Linux 调优、并发、系统编程、性能剖析与测量。每题写答到哪一层，链到本站讲过的页面。"
@@ -110,5 +110,5 @@ math: true
 | ★ perf 怎么用 | 先 `perf stat` 看整体：IPC、缓存缺失、分支预测失败；再 `perf record -g` 加 `perf report` 找热点函数；最后 `perf annotate` 看热点落在哪几条指令上。火焰图横向宽度是采样占比，不是时间先后。实习里用它找到日志后台线程空转，调整轮询间隔后 CPU 占用降了 31% | [perf 专题](/zh/posts/low-latency-perf-profiling/) |
 | ★ 怎么测一段代码的延迟 | 用 `rdtsc` / `rdtscp` 读 TSC，现代 x86 的 TSC 恒定频率、各核同步；前后要加栅栏，防止被测的指令被乱序挪到计时外面；换算成 ns 要用校准过的频率；空测一次计时本身的开销再减掉 | [#20 用 TSC 测延迟](/zh/posts/tsc-latency-measurement/) |
 | ★ 为什么报分位数不报平均 | 延迟分布是长尾的，平均值会被少数尖刺拉高，也可能把它们藏起来；报 P50、P99、P99.9，尖刺在哪个分位上一目了然。实习里单包处理延迟就是按中位数和 P99 报的 | [#21 交易系统性能衡量](/zh/posts/trading-system-latency-metrics/) |
-| ASan 和 UBSan | ASan 查越界、释放后使用、重复释放，程序会慢约 2 倍；UBSan 查有符号溢出、空指针、未对齐访问这类未定义行为。只在测试构建里开 | [IV：量化 C++ 题目](/zh/interview/quant-infra-cpp/) |
+| ASan 和 UBSan | ASan 查越界、释放后使用、重复释放，程序会慢约 2 倍；UBSan 查有符号溢出、空指针、未对齐访问这类未定义行为。只在测试构建里开 | [IV. 量化 C++ 题目](/zh/interview/quant-infra-cpp/) |
 | 编译选项会不会改结果 | `-O2` 换 `-O3` 一般不改浮点结果；`-march=native` 打开 FMA 会改末位；`-ffast-math` 会删掉 NaN 判断、重排求和，因子代码里不能开 | [因子生产](/zh/ref/factor-production/#flags) 4.7 |

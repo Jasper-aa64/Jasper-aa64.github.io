@@ -1,5 +1,5 @@
 ---
-title: "IV：本周计划：sec，11-17 到 11-20"
+title: "IV. 本周计划：sec，11-17 到 11-20"
 date: 2026-11-16
 lastmod: 2026-11-19
 slug: "plan"

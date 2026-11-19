@@ -1,5 +1,5 @@
 ---
-title: "IV：C++ 系统题目：UB、内存序、futex 锁、DAG 调度"
+title: "IV. C++ 系统题目：UB、内存序、futex 锁、DAG 调度"
 date: 2026-11-11
 slug: "cpp-systems"
 aliases: ["/interview/cpp-systems-five/"]

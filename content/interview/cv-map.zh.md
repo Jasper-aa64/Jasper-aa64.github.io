@@ -1,5 +1,5 @@
 ---
-title: "IV：CV map"
+title: "IV. CV map"
 date: 2026-11-18T00:00:00+08:00
 slug: "cv-map"
 description: "简历的专业技能、实习经历、项目 1 三块原文，每一句都能点：点进去是这一句的讲法、背后的知识点，或者能跑的完整代码。"

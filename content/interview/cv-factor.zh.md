@@ -1,5 +1,5 @@
 ---
-title: "IV：因子开发和因子计算优化"
+title: "IV. 因子开发和因子计算优化"
 date: 2026-11-19T00:00:00+08:00
 slug: "cv-factor"
 aliases: ["/interview/cv-internship/"]

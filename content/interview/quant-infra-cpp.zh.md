@@ -1,5 +1,5 @@
 ---
-title: "IV：量化 C++ 开发、infra 题目和知识点"
+title: "IV. 量化 C++ 开发、infra 题目和知识点"
 date: 2026-11-02
 slug: "quant-infra-cpp"
 description: "一组量化方向 C++ 开发、交易系统开发、infra 岗的面试题：问答题按 C++、工具链、并发与体系结构、操作系统、性能测量五块整理，手撕题写思路和追问，每条标出本站哪里讲过。"
