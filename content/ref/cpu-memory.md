@@ -94,11 +94,11 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | Virtual function call | ~1–2 ns when predicted, about the same as a direct call; add a branch mispredict when it guesses wrong, and a data fetch when the vtable isn't cached (see [virtual functions](/ref/virtual-functions/)) |
 | **System** | `malloc` plus `free` (small block) | ~10–50 ns from the thread's own cache; when the cache is empty and it asks the OS for memory, it enters the kernel and reaches µs |
 | | Simplest system call | ~0.1–0.5 µs |
-| | First write to a page (page fault) | ~1–2 µs |
+| | First write to a page (page fault) | ~1–2 µs: the kernel allocates a physical page, zeroes it and fills in the page table; if the page has to come from disk (say, an `mmap`ed file not in the page cache), add the disk-read row below |
 | | Throwing and catching an exception | ~1–2 µs, more with a deeper stack |
 | | Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
 | | Sleep on a taken lock, then get woken (futex: from the unlock until the waiter runs) | ~2–10 µs: two system calls plus two thread switches; longer if the waiter's core was in a deep power-saving state (see [#16](/posts/spinlock-implementation/)) |
-| | NVMe SSD 4 KiB read | 10–100 µs |
+| | NVMe SSD 4 KiB read | 10–100 µs: reading one page from an SSD, about 1000× slower than reading memory; hitting this once on the hot path costs all of it, so the hot path never reads disk synchronously: touch every page it needs at startup and `mlock` them so they are not swapped out (see [#3 4.1, 4.2](/posts/hot-path-memory-allocators/#prefault)) |
 
 The two memory rows differ in the first step, the address translation in [1.1](#load)'s figure: when the TLB has no entry for the page, the hardware walks the page tables level by level (a page walk) to find the physical address before it can issue the real read. The page-table entries are usually in cache, so this adds only ~15–30 ns. Random reads over a large region pay it almost every time. With 2 MiB huge pages one TLB entry covers 512 times as much memory, and this part mostly disappears.
 
