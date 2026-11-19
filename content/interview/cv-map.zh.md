@@ -34,43 +34,43 @@ toc: true
 
 ## 2. 实习经历 {#internship}
 
-在 Linux 上开发和优化量化交易的低延迟 C++ 系统，负责[行情接入](/zh/interview/md-feed-spmc/#md-feed)与[因子开发](/zh/interview/cv-internship/#factor-dev)，并优化[行情链路](/zh/interview/md-feed-spmc/#md-opt)、[因子计算](/zh/interview/cv-internship/#factor-opt)与[因子回测](/zh/interview/backtest-framework/)的性能。
+在 Linux 上开发和优化量化交易的低延迟 C++ 系统，负责[行情接入](/zh/interview/md-feed-spmc/#md-feed)与[因子开发](/zh/interview/cv-factor/#factor-dev)，并优化[行情链路](/zh/interview/md-feed-spmc/#md-opt)、[因子计算](/zh/interview/cv-factor/#factor-opt)与[因子回测](/zh/interview/backtest-framework/)的性能。
 
 ### 2.1 行情接入 {#md-feed}
 
-[接入两家行情源并转换为统一结构落盘](/zh/interview/md-feed-spmc/#usage)，[回调线程经 SPMC 广播队列向落盘进程交付数据](/zh/interview/md-feed-spmc/#ring)；[基于真实行情校验价格、委托类型、成交金额等字段](/zh/interview/cv-internship/#md-verify)，[经整日 4.5 亿条行情回放验证](/zh/interview/cv-internship/#md-replay)，[支持断线自动续传](/zh/interview/cv-internship/#md-reconnect)。
+[接入两家行情源并转换为统一结构落盘](/zh/interview/md-feed-spmc/#usage)，[回调线程经 SPMC 广播队列向落盘进程交付数据](/zh/interview/md-feed-spmc/#ring)；[基于真实行情校验价格、委托类型、成交金额等字段](/zh/interview/md-feed-spmc/#md-verify)，[经整日 4.5 亿条行情回放验证](/zh/interview/md-feed-spmc/#md-replay)，[支持断线自动续传](/zh/interview/md-feed-spmc/#md-reconnect)。
 
-→ 代码：[环](/zh/interview/md-feed-spmc/#ring)、[放进共享内存](/zh/interview/md-feed-spmc/#shm)、[回调和落盘线程](/zh/interview/md-feed-spmc/#usage)；完整程序 [7.1](/zh/interview/cv-internship/#hw-md-feed)
+→ 代码：[环](/zh/interview/md-feed-spmc/#ring)、[放进共享内存](/zh/interview/md-feed-spmc/#shm)、[回调和落盘线程](/zh/interview/md-feed-spmc/#usage)；完整程序 [SPMC 专页 3.1](/zh/interview/md-feed-spmc/#hw-md-feed)
 
 ### 2.2 行情优化 {#md-opt}
 
 [SPMC 广播队列的读写计数按缓存行隔离、消除伪共享，高频读取场景下写入延迟中位数降低约 40%](/zh/interview/md-feed-spmc/#false-sharing)；[启动时预触内存页消除首轮缺页](/zh/interview/md-feed-spmc/#prefault)，[去掉回调中对共享时间字段的跨核读取](/zh/interview/md-feed-spmc/#clock)，[单包处理延迟中位数降低约 17%、P99 降低约 57%](/zh/interview/md-feed-spmc/#opt-measure)。
 
-→ 代码：[伪共享改之前 / 改之后](/zh/interview/md-feed-spmc/#false-sharing)、[预触](/zh/interview/md-feed-spmc/#prefault)、[读时钟](/zh/interview/md-feed-spmc/#clock)；完整程序 [7.2](/zh/interview/cv-internship/#hw-md-opt)
+→ 代码：[伪共享改之前 / 改之后](/zh/interview/md-feed-spmc/#false-sharing)、[预触](/zh/interview/md-feed-spmc/#prefault)、[读时钟](/zh/interview/md-feed-spmc/#clock)；完整程序 [SPMC 专页 3.2](/zh/interview/md-feed-spmc/#hw-md-opt)
 
 ### 2.3 因子开发 {#factor-dev}
 
-[将研究侧的因子落地为 C++ 生产实现，按逐 tick 增量计算（on_tick）编写](/zh/interview/cv-internship/#factor-ontick)；[以研究原型或旧系统结果逐值对拍保证研究与生产一致](/zh/interview/cv-internship/#factor-diff)，[无参考结果时以单元测试覆盖边界情况](/zh/interview/cv-internship/#factor-unit)；[上线前完成计时、优化与回归验证](/zh/interview/cv-internship/#factor-release)。
+[将研究侧的因子落地为 C++ 生产实现，按逐 tick 增量计算（on_tick）编写](/zh/interview/cv-factor/#factor-ontick)；[以研究原型或旧系统结果逐值对拍保证研究与生产一致](/zh/interview/cv-factor/#factor-diff)，[无参考结果时以单元测试覆盖边界情况](/zh/interview/cv-factor/#factor-unit)；[上线前完成计时、优化与回归验证](/zh/interview/cv-factor/#factor-release)。
 
-→ 代码：[增量滚动标准差](/zh/interview/cv-internship/#factor-ontick)；完整程序 [7.3](/zh/interview/cv-internship/#hw-factor-dev)（增量算法、按 key 对拍、边界单元测试）
+→ 代码：[增量滚动标准差](/zh/interview/cv-factor/#factor-ontick)；完整程序 [因子专页 4.1](/zh/interview/cv-factor/#hw-factor-dev)（增量算法、按 key 对拍、边界单元测试）
 
 ### 2.4 因子计算优化 {#factor-opt}
 
-针对逐 tick 调用的 CPU 密集计算路径做日常调优：[多个因子共用的中间量每条行情只算一次](/zh/interview/cv-internship/#opt-shared)；[滚动窗口统计由每次重算改为增量更新](/zh/interview/cv-internship/#opt-rolling)；[用下标计算或哈希替代线性查找](/zh/interview/cv-internship/#opt-index)；[将依赖数据的分支改为无分支写法](/zh/interview/cv-internship/#opt-branchless)；[精简行情数据布局](/zh/interview/cv-internship/#opt-layout)；[拆分串行累加的依赖链](/zh/interview/cv-internship/#opt-dep-chain)；用 [CRTP](/zh/posts/crtp-static-polymorphism/) [替代虚函数调用，消除间接跳转并让编译器能够内联](/zh/interview/cv-internship/#opt-crtp)；[消除热循环里的内存分配与拷贝](/zh/interview/cv-internship/#opt-alloc)。
+针对逐 tick 调用的 CPU 密集计算路径做日常调优：[多个因子共用的中间量每条行情只算一次](/zh/interview/cv-factor/#opt-shared)；[滚动窗口统计由每次重算改为增量更新](/zh/interview/cv-factor/#opt-rolling)；[用下标计算或哈希替代线性查找](/zh/interview/cv-factor/#opt-index)；[将依赖数据的分支改为无分支写法](/zh/interview/cv-factor/#opt-branchless)；[精简行情数据布局](/zh/interview/cv-factor/#opt-layout)；[拆分串行累加的依赖链](/zh/interview/cv-factor/#opt-dep-chain)；用 [CRTP](/zh/posts/crtp-static-polymorphism/) [替代虚函数调用，消除间接跳转并让编译器能够内联](/zh/interview/cv-factor/#opt-crtp)；[消除热循环里的内存分配与拷贝](/zh/interview/cv-factor/#opt-alloc)。
 
-→ 代码：每一类的改之前 / 改之后都在点进去的那一节；完整程序 [7.4](/zh/interview/cv-internship/#hw-factor-opt)（每一类都比对输出）
+→ 代码：每一类的改之前 / 改之后都在点进去的那一节；完整程序 [因子专页 4.2](/zh/interview/cv-factor/#hw-factor-opt)（每一类都比对输出）
 
 ### 2.5 因子回测框架 {#backtest-flow}
 
-[回测框架按交易日回放历史行情](/zh/interview/backtest-framework/#steps)（[每个交易日约 650 万条、2,000 余只股票](/zh/interview/backtest-framework/#data)）。[为其搭建性能验证流程](/zh/interview/cv-internship/#backtest-flow)：[每次改动先比对输出、确认结果不变](/zh/interview/cv-internship/#flow-output)，[再与原版配对计时](/zh/interview/cv-internship/#flow-paired)。
+[回测框架按交易日回放历史行情](/zh/interview/backtest-framework/#steps)（[每个交易日约 650 万条、2,000 余只股票](/zh/interview/backtest-framework/#data)）。[为其搭建性能验证流程](/zh/interview/backtest-framework/#backtest-flow)：[每次改动先比对输出、确认结果不变](/zh/interview/backtest-framework/#flow-output)，[再与原版配对计时](/zh/interview/backtest-framework/#flow-paired)。
 
-→ 代码：[框架一天 4 步](/zh/interview/backtest-framework/#steps)、[装载](/zh/interview/backtest-framework/#load)、[回放和写结果](/zh/interview/backtest-framework/#replay)、[框架完整程序](/zh/interview/backtest-framework/#full)；验证流程的完整程序 [7.5](/zh/interview/cv-internship/#hw-backtest-flow)
+→ 代码：[框架一天 4 步](/zh/interview/backtest-framework/#steps)、[装载](/zh/interview/backtest-framework/#load)、[回放和写结果](/zh/interview/backtest-framework/#replay)、[框架完整程序](/zh/interview/backtest-framework/#full)；验证流程的完整程序 [回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-flow)
 
 ### 2.6 因子回测优化 {#backtest-opt}
 
-[去掉每个交易日重复执行的初始化，运行耗时降低约 22%](/zh/interview/cv-internship/#bt-init)；[再用 perf 剖析定位到行情装载的开销](/zh/interview/cv-internship/#bt-perf)：[每个交易日为每只股票按固定 6000 条预分配行情数组，一天约 17.5 GB，时间大量耗在缺页与内存分配上](/zh/interview/cv-internship/#bt-account)；[改为按实际条数分配、行情结构体精简一半以上、bar 时间轴与字符串改为共享，行情记录用 arena 统一分配、跨交易日复用](/zh/interview/cv-internship/#bt-five)，[耗时在此基础上再降约 44%](/zh/interview/cv-internship/#bt-result)。
+[去掉每个交易日重复执行的初始化，运行耗时降低约 22%](/zh/interview/backtest-framework/#opt-init)；[再用 perf 剖析定位到行情装载的开销](/zh/interview/backtest-framework/#opt-load)：[每个交易日为每只股票按固定 6000 条预分配行情数组，一天约 17.5 GB，时间大量耗在缺页与内存分配上](/zh/interview/backtest-framework/#opt-load)；[改为按实际条数分配、行情结构体精简一半以上、bar 时间轴与字符串改为共享，行情记录用 arena 统一分配、跨交易日复用](/zh/interview/backtest-framework/#opt-load)，[耗时在此基础上再降约 44%](/zh/interview/backtest-framework/#opt-load)。
 
-→ 代码：[改之前的定长数组](/zh/interview/backtest-framework/#load)、[改之后的 `Tick`、`StockDay`、`Arena`](/zh/interview/backtest-framework/#data)；完整程序 [7.6](/zh/interview/cv-internship/#hw-backtest-opt)
+→ 代码：[改之前的定长数组](/zh/interview/backtest-framework/#load)、[改之后的 `Tick`、`StockDay`、`Arena`](/zh/interview/backtest-framework/#data)；完整程序 [回测专页 7.2](/zh/interview/backtest-framework/#hw-backtest-opt)
 
 ## 3. 项目 1：C++ 性能自动优化 Agent Skill {#project}
 
@@ -92,7 +92,7 @@ toc: true
 
 [每个改动单独验证](/zh/interview/cv-projects/#verify-one-change)：[先比对输出，与原版不一致即否决](/zh/interview/cv-projects/#verify-correctness)；[再测速度，每轮让新旧版本紧挨着各跑一次、先后顺序随机，逐轮对比，避免机器频率、温度等随时间漂移偏向某一方](/zh/interview/cv-projects/#verify-paired)，[多轮结果稳定更快才采纳](/zh/interview/cv-projects/#verify-confirm)。
 
-→ 代码：配对计时的完整程序在实习那边，[7.5](/zh/interview/cv-internship/#hw-backtest-flow)
+→ 代码：配对计时的完整程序在回测框架专页，[回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-flow)
 
 ### 3.4 缓存性能瓶颈案例 {#case}
 

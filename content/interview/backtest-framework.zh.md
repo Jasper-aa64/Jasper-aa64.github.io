@@ -7,7 +7,7 @@ weight: 3
 toc: true
 ---
 
-这一页补 fir 里没答上的那题：**回测系统怎么搭的**。框架原本就有，我做的是简历上第 5 条的验证流程和第 6 条的两轮优化。为了讲清楚，这里把框架重写成一个能跑的简化版，名字不是原工程的；这一页分两部分：[第 2 节](#code)是代码，框架一天怎么跑；[第 3 节](#opt)是优化，每一处都对到第 2 节的代码。验证流程（比输出、配对计时）在[实习拆解页第 5 节](/zh/interview/cv-internship/#backtest-flow)。
+这一页补 fir 里没答上的那题：**回测系统怎么搭的**。框架原本就有，我做的是简历上第 5 条的验证流程和第 6 条的两轮优化。为了讲清楚，这里把框架重写成一个能跑的简化版，名字不是原工程的；这一页分两部分：[第 2 节](#code)是代码，框架一天怎么跑；[第 3 节](#opt)是优化，每一处都对到第 2 节的代码。验证流程（比输出、配对计时）在[第 4 节](#backtest-flow)。
 
 > **回放、回算、回测，三个词**（[因子生产 2 节](/zh/ref/factor-production/#replay)）
 >
@@ -176,7 +176,7 @@ size_t replay_and_write(const char* date, const std::vector<StockDay>& stocks,
 }
 ```
 
-- **bar 怎么切**：时间不晚于收盘点的行情都归这个 bar，所以 9:30:00 整那一条归第一个 bar。这类约定和研究侧对不上，结果就对不上（[实习拆解页 3.1](/zh/interview/cv-internship/#factor-ontick)）。
+- **bar 怎么切**：时间不晚于收盘点的行情都归这个 bar，所以 9:30:00 整那一条归第一个 bar。这类约定和研究侧对不上，结果就对不上（[因子专页 1.1](/zh/interview/cv-factor/#factor-ontick)）。
 - **空 bar 怎么补**：这个 bar 里没有新行情，就拿上一条行情收盘；开盘以后还没来过行情的 bar 不输出。
 - **结果写多少**：2000 多只 × 4801 个 bar，一天约 1000 万行。装载优化完以后，写结果成了新的大头（[3.2](#opt-load)）。
 - **时间字符串只格式化一次**：4801 个时间点，每只股票写出来的字符串都一样，原来每一行都格式化一次；第一轮优化改成一张表，按 bar 下标取（[3.1](#opt-init)）。
@@ -191,7 +191,7 @@ struct Spread {                                // 盘口价差占最新价的比
     double value() const { return v; }
 };
 template <int N>
-struct RollingVol {                            // 过去 N 个 bar 收益率的标准差（实习拆解页 3.1）
+struct RollingVol {                            // 过去 N 个 bar 收益率的标准差（因子专页 1.1）
     std::array<double, N> buf{};
     int    n = 0, pos = 0;
     double mean = 0, s = 0, prev_mid = NaN;
@@ -225,8 +225,8 @@ struct Factors {                               // 一只股票的全部因子状
 
 - **和实盘同一份代码，靠的是接口**：因子只认 `on_tick`、`on_bar`、`value`，不知道行情从哪来。实盘是行情来一条调一次，回测是上面那个循环调。
 - **状态跨天保留**：`state` 在所有交易日之外建一次，第二天开盘时 20 个 bar 的窗口里还是前一天的收益率，和实盘连续跑的结果一样。
-- **`std::max(s, 0.0)` 不是多余的**：行情停下以后收益率一直是 0，窗口方差应该正好是 0，舍入会让 `s` 落到 −1e−17 这样的数，直接开方得到 NaN。自测第三天只给了半天行情，就是这样测出来的；[实习拆解页 7.3](/zh/interview/cv-internship/#hw-factor-dev) 的写法也带这一句。
-- **`Factors` 这里是手写的组合**：上线的因子在编译期拼好，用 CRTP 的 `FactorSet`（[实习拆解页 4.7](/zh/interview/cv-internship/#opt-crtp)）。
+- **`std::max(s, 0.0)` 不是多余的**：行情停下以后收益率一直是 0，窗口方差应该正好是 0，舍入会让 `s` 落到 −1e−17 这样的数，直接开方得到 NaN。自测第三天只给了半天行情，就是这样测出来的；[因子专页 4.1](/zh/interview/cv-factor/#hw-factor-dev) 的写法也带这一句。
+- **`Factors` 这里是手写的组合**：上线的因子在编译期拼好，用 CRTP 的 `FactorSet`（[因子专页 2.7](/zh/interview/cv-factor/#opt-crtp)）。
 
 ### 2.6 完整程序和自测 {#full}
 
@@ -313,7 +313,7 @@ struct Spread {                                // 盘口价差占最新价的比
     double value() const { return v; }
 };
 template <int N>
-struct RollingVol {                            // 过去 N 个 bar 收益率的标准差（实习拆解页 3.1）
+struct RollingVol {                            // 过去 N 个 bar 收益率的标准差（因子专页 1.1）
     std::array<double, N> buf{};
     int    n = 0, pos = 0;
     double mean = 0, s = 0, prev_mid = NaN;
@@ -461,7 +461,7 @@ int main() {
 
 - **简历第 6 条分两轮**：隔了几个月，各有各的基线。第一轮去掉每天重复的初始化（约 22%），第二轮改行情的装载（约 44%）。
 - **第 4 条因子计算优化改的是因子代码**：放在 3.3、3.4。
-- **每个改动都先比输出、再配对计时**：流程见[实习拆解页 5 节](/zh/interview/cv-internship/#backtest-flow)。
+- **每个改动都先比输出、再配对计时**：流程见[第 4 节](#backtest-flow)。
 
 ### 3.1 第一轮：每天重复做的 3 件事，改成只做一次或不做，约 22% {#opt-init}
 
@@ -488,7 +488,25 @@ int main() {
 **怎么找到的**：
 
 - **阶段计时只能说“装数据慢”**：说不出这一段里面是什么慢。
-- **`perf record -g` 带调用栈采样**：内核的缺页处理占了一块，调用栈落在每天给每只股票新建对象的地方（[实习拆解页 6.2](/zh/interview/cv-internship/#bt-perf)）。
+- **`perf record -g` 带调用栈采样**：内核的缺页处理占了一块，调用栈落在每天给每只股票新建对象的地方。
+- **测试机是虚拟机，拿不到硬件计数器**：采样用的是软件时钟事件，能看时间花在哪个函数，看不了缓存缺失；缺页次数是软件事件，`perf stat -e page-faults` 能数。
+
+```bash
+# 1. 用带符号的优化构建（-O2 -g），采样才能对回函数名
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .. && make
+
+# 2. 每秒采 99 次，同时记调用栈
+perf record -F 99 -g -- ./backtest --config day.yaml
+
+# 3. 看时间花在哪些函数上、是谁调过来的
+perf report --stdio
+```
+
+- **`-g` 记调用栈**：只看到“内核的缺页处理占了一块”没有用，要知道是哪段用户代码触发的。调用栈显示它们落在每天给每只股票新建对象的地方。
+- **测试机是虚拟机，拿不到硬件计数器**：采样用的是软件时钟事件，能看时间花在哪个函数，看不了缓存缺失这类硬件指标。缺页次数是软件事件，`perf stat -e page-faults` 能数。
+
+
+perf 的四个命令见 [perf 专题](/zh/posts/low-latency-perf-profiling/)。
 
 **改之前**：
 
@@ -510,7 +528,9 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 
 - **每天构造约 17.5 GB**：一个 `StockDayOld` 约 7.6 MB，2300 多只，每天 `new` 一遍。
 - **用到的不到一半**：平均每只一天只有 2700 多条。
-- **每碰到一个新页就缺页一次**：构造时 6000 个槽都被初始化，4 KB 的页全被碰一遍（[实习拆解页 6.3](/zh/interview/cv-internship/#bt-account)）。
+- **每碰到一个新页就缺页一次**：构造时 6000 个槽都被初始化，4 KB 的页全被碰一遍。
+- **为什么这会慢**：`new` 这么大的块，分配器直接向内核要一段地址，这时还没有物理内存；每碰到一个新的 4 KB 页就缺页一次，陷入内核、找一个物理页、清零、建映射，一次 1 µs 到几微秒，一天几百万次。这一天结束 `delete`，第二天从头再来一遍。
+- **所以问题不是算得慢，是碰的内存太多**：开销有 3 种，缺页和清零、分配和释放、每条行情太大搬的字节多。下面 5 处改动各砍掉其中一种或几种。
 
 **5 处改动**：
 
@@ -555,10 +575,11 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 - **缺页从 970 多万次降到 310 多万次**。
 - **省在装数据和两天交界**：写结果那一段没动，成了新的大头。
 
-**试过没用的：预取**（[实习拆解页 6.6](/zh/interview/cv-internship/#bt-prefetch)）：
+**试过没用的：预取**：
 
 - **装载大多是写**：写先进 store buffer，不用等。
-- **大头是缺页**：预取碰到没映射的页直接丢掉，布局改好以后收益是 0。
+- **大头是缺页**：预取碰到没映射的页直接丢掉，不会替你缺页。
+- **唯一要等的读，布局改好以后也不用等了**：原来每只股票的计数器之间隔着几 MB 的定长数组，改完以后挨得很近，所以收益是 0。
 
 **22% 和 44% 不能连起来算**：
 
@@ -567,24 +588,24 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 ### 3.3 因子侧的优化：改的是第 ③ 步每条都调的 `on_tick` {#factor-opt}
 
 - **8 类改法改的都是第 ③ 步的回调**：每条行情调一次的 `on_tick`、每个 bar 调一次的 `on_bar`，在回测里也拿这个循环量。
-- **改前改后的代码在实习拆解页**：见[实习拆解页 4 节](/zh/interview/cv-internship/#factor-opt)，这里只对到这一页的代码。
+- **改前改后的代码在因子专页**：见[因子专页第 2 节](/zh/interview/cv-factor/#factor-opt)，这里只对到这一页的代码。
 
 > **本质：动手之前先算上限**。
 
 - **算因子只占一次运行的一成左右**：装数据（第 ② 步，3.2 改的地方）才是大头。
 - **单个改法的收益常常落在测量波动里**：一个改法就算把这一段全省掉，整次运行也快不到一成。
-- **所以每个改法都单独验证**：先比输出，再配对计时（[实习拆解页 4.9](/zh/interview/cv-internship/#opt-measure)）。
+- **所以每个改法都单独验证**：先比输出，再配对计时（[因子专页 2.9](/zh/interview/cv-factor/#opt-measure)）。
 
 | 改法 | 对到这一页的哪里 |
 |---|---|
-| 共用的中间量每条只算一次（[4.1](/zh/interview/cv-internship/#opt-shared)） | 这一页只有两个因子，各自读盘口；因子多了以后，中间价、价差这类每个因子都要的量，由 `Factors::on_tick` 每条算一次再传下去。同一个因子有几档参数（前 1、3、5、10 档）时，一个循环算完，路过时记下各档的值。 |
-| 滚动窗口改成增量（[4.2](/zh/interview/cv-internship/#opt-rolling)） | `RollingVol::on_bar` 已经是增量写法：进一个、出一个，每次 $O(1)$，不重算整个窗口。 |
-| 直接算下标，不查找（[4.3](/zh/interview/cv-internship/#opt-index)） | 这一页的回放用 `k`、`b` 两个下标同步往前走，没有查找；4.3 改的是因子内部按时间找 bar 下标的地方。 |
-| 无分支（[4.4](/zh/interview/cv-internship/#opt-branchless)） | `on_tick` 里由数据决定走向的判断，比如这一档有没有挂单。 |
-| 精简布局（[4.5](/zh/interview/cv-internship/#opt-layout)） | 和第二轮装载优化是同一处改动：`Tick` 从约 850 字节减到约 370 字节（[3.2 ②](#opt-load)）。装载时要写的字节少了，回放时每条要读的缓存行也少了。 |
-| 拆依赖链（[4.6](/zh/interview/cv-internship/#opt-dep-chain)） | 跨档累加这类串行求和。求和顺序变了，末位会变，对拍按容差。 |
-| CRTP（[4.7](/zh/interview/cv-internship/#opt-crtp)） | 这一页的 `Factors` 是手写组合；上线的因子用 `FactorSet` 在编译期拼好，`on_tick` 能一路内联。 |
-| 消掉热循环里的分配和拷贝（[4.8](/zh/interview/cv-internship/#opt-alloc)） | `on_tick` 里的临时容器提到外面，`reserve` 一次，每条只 `clear`。 |
+| 共用的中间量每条只算一次（[2.1](/zh/interview/cv-factor/#opt-shared)） | 这一页只有两个因子，各自读盘口；因子多了以后，中间价、价差这类每个因子都要的量，由 `Factors::on_tick` 每条算一次再传下去。同一个因子有几档参数（前 1、3、5、10 档）时，一个循环算完，路过时记下各档的值。 |
+| 滚动窗口改成增量（[2.2](/zh/interview/cv-factor/#opt-rolling)） | `RollingVol::on_bar` 已经是增量写法：进一个、出一个，每次 $O(1)$，不重算整个窗口。 |
+| 直接算下标，不查找（[2.3](/zh/interview/cv-factor/#opt-index)） | 这一页的回放用 `k`、`b` 两个下标同步往前走，没有查找；4.3 改的是因子内部按时间找 bar 下标的地方。 |
+| 无分支（[2.4](/zh/interview/cv-factor/#opt-branchless)） | `on_tick` 里由数据决定走向的判断，比如这一档有没有挂单。 |
+| 精简布局（[2.5](/zh/interview/cv-factor/#opt-layout)） | 和第二轮装载优化是同一处改动：`Tick` 从约 850 字节减到约 370 字节（[3.2 ②](#opt-load)）。装载时要写的字节少了，回放时每条要读的缓存行也少了。 |
+| 拆依赖链（[2.6](/zh/interview/cv-factor/#opt-dep-chain)） | 跨档累加这类串行求和。求和顺序变了，末位会变，对拍按容差。 |
+| CRTP（[2.7](/zh/interview/cv-factor/#opt-crtp)） | 这一页的 `Factors` 是手写组合；上线的因子用 `FactorSet` 在编译期拼好，`on_tick` 能一路内联。 |
+| 消掉热循环里的分配和拷贝（[2.8](/zh/interview/cv-factor/#opt-alloc)） | `on_tick` 里的临时容器提到外面，`reserve` 一次，每条只 `clear`。 |
 
 ### 3.4 因子侧实际量过的三个 {#factor-measured}
 
@@ -594,10 +615,83 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 | 找 bar 改成哈希表 | 输出一致，配对计时更慢 | 拒了。行情按时间来，从上次的位置往后找，多半一两步就到；哈希多了一次哈希计算和一次不连续的访存。bar 是等距的，应该直接算下标 |
 | 补空 bar 改成一遍线性 | 单看快了一点，多轮配对后差值的区间跨过 0 | 判为噪声，没有收 |
 
-- **改哪一段就量哪一段**：程序日志里有分阶段计时，改动有没有起作用看“算因子”那一段，值不值得收再看整次运行（[实习拆解页 5.5](/zh/interview/cv-internship/#flow-phase)）。
+- **改哪一段就量哪一段**：程序日志里有分阶段计时，改动有没有起作用看“算因子”那一段，值不值得收再看整次运行（[4.4](#flow-phase)）。
 - **被问“简历上这 8 类各快了多少”**：这 8 类是逐条调用路径上日常做的改法，在回测框架里单独量过的是上面三个；哈希那次量出来更慢，没有收，正好说明每个改法都是先量再收。
 
-## 4. 常问的问题 {#classic}
+## 4. 验证流程：先比输出，再配对计时 {#backtest-flow}
+
+> **验证流程的本质：先证明结果没变，再用配对计时抵消机器的漂移**。
+
+- **简历第 5 条做的就是这个**：框架原本就有，我给它搭的是验证流程，第 3 节的优化都按这个流程收。
+- **完整代码**：比输出的门和配对计时写成一个 C++ 程序，在 [7.1 节](#hw-backtest-flow)。
+
+### 4.1 同一个程序跑几次就差好几秒：性能结论只认配对计时 {#flow-noise}
+
+一开始在本地机器上试改法。同一个基线连跑 3 次，耗时是 103.2、103.2、107.3 秒，自己和自己就差 4 秒；几个改法的中位数从快 1.9 秒到慢 2.8 秒不等，和噪声分不开。
+
+所以定了两条规矩：
+
+- **本地只改代码，性能结论只认 Linux 测试机上跑出来的**。
+- **每个改动过两关**：先比输出，再配对计时。
+
+### 4.2 第一关：比输出 {#flow-output}
+
+每次运行以后，把新版本的输出文件和原版的逐个比 md5。不一致就直接否决，不看它快了多少。
+
+```bash
+for f in out_old/*.parquet; do
+    a=$(md5sum < "$f")
+    b=$(md5sum < "out_new/$(basename "$f")")
+    [ "$a" = "$b" ] || { echo "MISMATCH $f"; exit 1; }
+done
+```
+
+**这道门自己也要验**：故意做一个错的版本（比如跳过某只股票的前 100 行），确认它会被抓到。抓不到错的门等于没有门。
+
+### 4.3 第二关：新旧紧挨着各跑一次，顺序随机 {#flow-paired}
+
+机器的状态一直在变：CPU 频率、温度、虚拟机上别的租户。先把旧版跑 8 次、再把新版跑 8 次，中间机器的状态变了，这个变化就全算到了新版头上。
+
+配对的做法是每一轮让新旧版本紧挨着各跑一次，哪个先跑随机定，只看同一轮里两个的差。慢慢发生的变化对同一轮的两次影响差不多，一减就抵消了。
+
+```python
+import random, statistics, subprocess, time
+
+def run(binary):
+    t0 = time.perf_counter()
+    subprocess.run([binary, "--config", "day.yaml"], check=True)
+    return time.perf_counter() - t0
+
+run(OLD); run(NEW)                       # 各预热一次，丢掉
+
+diffs = []
+for _ in range(8):
+    order = [OLD, NEW]
+    random.shuffle(order)                # 谁先跑随机定
+    t = {b: run(b) for b in order}
+    check_md5()                          # 每次运行都过第一关
+    diffs.append(t[NEW] - t[OLD])        # 只看同一轮里的差
+
+print("配对差的中位数", statistics.median(diffs))
+print("新版更快的轮数", sum(d < 0 for d in diffs), "/", len(diffs))
+```
+
+- **先跑 A/A**：拿同一个程序当新旧两边跑一遍。两边一模一样，配对差的波动就是噪声的大小。它回答“多大的差才算数”。
+- **看方向是否一致**：8 轮全部是新版更快，如果新旧其实没差别，出现这种结果的概率是 $2 / 2^8 \approx 0.8\%$（两边都算）。3 轮全对的概率是 25%，说明不了什么，所以轮数要够。
+- **判据事先写死**：比如“配对差的中位数为负，而且区间不跨过 0”。事先写死，就不会看到结果以后再找理由收下。
+
+### 4.4 改哪一段就量哪一段 {#flow-phase}
+
+程序日志里有分阶段的计时：读文件、装数据、算因子、写结果。“这个改动有没有起作用”在被改的那一段看，“值不值得收”再看整次运行。只看整次运行，改动落在占比很小的那一段时，零点几秒的变化分辨不出来。
+
+> **讲的时候按这个顺序**
+>
+> 1. **为什么要先搭流程**：同一个程序跑几次就差几秒，比改进还大，分不出谁快。
+> 2. **两关**：先比输出，不一致直接否决；再配对计时。
+> 3. **配对计时**：新旧紧挨着各跑一次、顺序随机，只看每一对的差，机器的漂移就抵消了；先跑 A/A 看噪声多大；判据事先写死。
+> 4. **框架不是我写的**：我做的是验证流程，以及按这个流程做的优化。
+
+## 5. 常问的问题 {#classic}
 
 每题先说结论，一到三句。
 
@@ -614,9 +708,9 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 | 跨天的状态怎么办 | 因子状态在所有交易日之外建一次，第二天接着用，滚动窗口能接上前一天。 |
 | 一年的数据怎么跑快 | 按交易日分片给多个核、多台机器；每片要先把开盘前的因子状态算好（预热），这是分片唯一要接上的东西。 |
 | 因子计算优化在回测里快了多少 | 算因子只占一次运行的一成左右，单个改法的收益常常落在测量波动里。单独量过三个：几档共用一遍行情，收了；找 bar 改成哈希，输出一致但更慢，拒了；补空 bar 改成一遍线性，区间跨过 0，判为噪声（[3.4](#factor-measured)）。 |
-| 你在里面做了什么 | 先搭验证流程：每个改动先比输出，再配对计时（[实习拆解页 5 节](/zh/interview/cv-internship/#backtest-flow)）。再按这个流程优化：第一轮去掉每天重复的初始化，约 22%（[3.1](#opt-init)）；第二轮按实际条数分配、结构体减半、字符串共享、arena、跨天复用，约 44%（[3.2](#opt-load)）。 |
+| 你在里面做了什么 | 先搭验证流程：每个改动先比输出，再配对计时（[第 4 节](#backtest-flow)）。再按这个流程优化：第一轮去掉每天重复的初始化，约 22%（[3.1](#opt-init)）；第二轮按实际条数分配、结构体减半、字符串共享、arena、跨天复用，约 44%（[3.2](#opt-load)）。 |
 
-## 5. 对着代码问的细节 {#details}
+## 6. 对着代码问的细节 {#details}
 
 | 问 | 答 |
 |---|---|
@@ -628,3 +722,258 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 | 空 bar 为什么沿用上一条 | 这个 bar 没有新行情，价格还是上一条的；`on_bar` 照样调，收益率按 0 算，窗口照样往前走。 |
 | `state` 为什么放在交易日循环外面 | 因子状态要跨天保留；放进循环里，每天开盘的前 20 个 bar 都是 NaN。 |
 | `fprintf` 一天调 1000 万次，慢吗 | 慢，装载优化完以后它就是大头。可以把整行先拼进一块缓冲、攒够一批再写，或者直接写二进制。 |
+
+## 7. 手写练习：另外两份完整代码 {#handwrite}
+
+[2.6 节](#full)是框架一天怎么跑的完整程序；这一节再补两份：7.1 对第 4 节的验证流程，7.2 对第 3.2 节的 arena。先按“开写前说”出声说 30 秒，再从空白写，打印“全部测试通过！”才算写对。
+
+### 7.1 回测框架：比输出 + 配对计时 {#hw-backtest-flow}
+
+- **开写前说**：第一关比输出，不一致直接否决，这道门先用一个故意做错的版本验；第二关每轮新旧紧挨着各跑一次、顺序随机，只看轮内的差；先跑 A/A 看噪声多大；判据事先写死：区间整个在 0 的负侧才采纳。
+- **写的时候注意**：[4.3 节](#flow-paired)是 Python 驱动两个可执行文件，这里把同样的流程写成一个 C++ 程序，流程一步不少。
+- **我机器上的一次输出**：A/A 中位差 +1.1%、区间 [−4.7%, +10.4%]，不采纳；新版中位差 −86%、30 轮全快，采纳。
+
+<details>
+<summary><strong>参考代码</strong>（86 行，先自己写，写完或卡住再展开）</summary>
+
+```cpp
+// 实习 5：回测框架的验证流程。第一关比输出（不一致直接否决）；第二关配对计时（每轮新旧紧挨着、顺序随机，只看轮内的差）
+// 页面里是 Python 驱动两个可执行文件；这里把同样的流程写在一个 C++ 程序里，方便手写
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra i5_backtest_flow.cpp -o bt_flow && ./bt_flow
+#include <algorithm>
+#include <cassert>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <random>
+#include <string>
+#include <vector>
+
+struct Tick { int32_t time; double last; };
+using Day = std::vector<std::vector<Tick>>;               // 每只股票一天的行情，文件里已按时间排好
+
+// ---- 被测的“一个交易日”：装数据 → 算因子 → 输出。返回输出（这里用每只股票一行结果代替文件）----
+std::vector<std::string> run_old(const Day& day) {          // 原版：每只股票装完再排一次序
+    std::vector<std::string> out;
+    for (auto ticks : day) {
+        std::sort(ticks.begin(), ticks.end(), [](const Tick& a, const Tick& b) { return a.time < b.time; });
+        double s = 0; for (auto& t : ticks) s += t.last;
+        out.push_back(std::to_string(s));
+    }
+    return out;
+}
+std::vector<std::string> run_new(const Day& day) {          // 候选：数据本来有序，去掉排序
+    std::vector<std::string> out;
+    for (auto& ticks : day) { double s = 0; for (auto& t : ticks) s += t.last; out.push_back(std::to_string(s)); }
+    return out;
+}
+std::vector<std::string> run_wrong(const Day& day) {        // 故意做错：跳过每只股票前 100 条
+    std::vector<std::string> out;
+    for (auto& ticks : day) { double s = 0; for (size_t i = 100; i < ticks.size(); ++i) s += ticks[i].last; out.push_back(std::to_string(s)); }
+    return out;
+}
+
+// ---- 第一关：逐行比输出（页面里是逐个文件比 md5）----
+bool same_output(const std::vector<std::string>& a, const std::vector<std::string>& b) { return a == b; }
+
+// ---- 第二关：配对计时 ----
+using Runner = std::function<std::vector<std::string>(const Day&)>;
+double time_once(const Runner& f, const Day& d, std::vector<std::string>* out) {
+    auto t0 = std::chrono::steady_clock::now();
+    auto r = f(d);
+    double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    if (out) *out = std::move(r);
+    return s;
+}
+struct Verdict { double median, lo, hi; int faster, rounds; };
+Verdict paired(const Runner& old_f, const Runner& new_f, const Day& d, int rounds, std::mt19937& rng) {
+    std::vector<std::string> ref, got;
+    time_once(old_f, d, &ref); time_once(new_f, d, nullptr);       // 各预热一次，丢掉
+    std::vector<double> diffs;
+    for (int r = 0; r < rounds; ++r) {
+        bool old_first = rng() & 1;                                 // 谁先跑随机定
+        double t_old, t_new;
+        if (old_first) { t_old = time_once(old_f, d, nullptr); t_new = time_once(new_f, d, &got); }
+        else           { t_new = time_once(new_f, d, &got); t_old = time_once(old_f, d, nullptr); }
+        assert(same_output(ref, got));                              // 每次运行都过第一关
+        diffs.push_back((t_new - t_old) / t_old);                   // 只看同一轮里的差，用比例
+    }
+    std::sort(diffs.begin(), diffs.end());
+    int faster = int(std::count_if(diffs.begin(), diffs.end(), [](double x) { return x < 0; }));
+    return {diffs[rounds / 2], diffs[size_t(0.05 * rounds)], diffs[size_t(0.95 * rounds) - 1], faster, rounds};
+}
+void print(const char* name, const Verdict& v) {
+    bool accept = v.hi < 0;                                         // 判据事先写死：区间整个在 0 的负侧
+    std::printf("%-6s 中位差 %+6.1f%%  90%% 区间 [%+6.1f%%, %+6.1f%%]  更快 %d/%d 轮  → %s\n",
+                name, v.median * 100, v.lo * 100, v.hi * 100, v.faster, v.rounds, accept ? "采纳" : "不采纳");
+}
+
+int main() {
+    std::mt19937 rng(1);
+    Day day(300);
+    for (auto& s : day) { int n = 2000 + rng() % 2000; for (int i = 0; i < n; ++i) s.push_back({i * 3, 10.0 + (rng() % 100) * 0.01}); }
+
+    // 第一关的门自己要验：错的版本必须被抓到
+    assert(!same_output(run_old(day), run_wrong(day)));
+    assert(same_output(run_old(day), run_new(day)));
+
+    // 先跑 A/A：同一个程序当两边，它告诉你噪声有多大
+    print("A/A", paired(run_old, run_old, day, 30, rng));
+    print("新/旧", paired(run_old, run_new, day, 30, rng));
+    std::printf("全部测试通过！\n");
+}
+```
+
+</details>
+
+### 7.2 回测优化：按实际条数从 arena 切，跨交易日复用 {#hw-backtest-opt}
+
+- **开写前说**：一天的行情同生同死，用一块 arena；每天开头 `reset(今天总条数)`，够用就偏移归零、原地覆盖，不够才换块，换的时候多要一半；每只股票 `take(实际条数)`；`Tick` 必须平凡可析构。
+- **写的时候注意**：Linux 上用 `mmap`，其他平台用 `malloc` 代替；测试钉住了[3.2 节](#opt-load)“⑤ 第一版没复用上”那个坑：扩容规则是“刚好够”时，第二天多 2.6% 就要换块，复用没有发生。
+
+<details>
+<summary><strong>参考代码</strong>（138 行，先自己写，写完或卡住再展开）</summary>
+
+```cpp
+// 实习 6：回测装数据。改之前：每天每只股票 new 一个定长 6000 条的对象；改之后：按实际条数从 arena 切、跨交易日复用
+// 规模缩小了（300 只股票），结构和页面一致；重点是 TickArena 和“不够时多要一半”的扩容规则
+// 编译：g++ -std=c++17 -O2 -Wall -Wextra i6_backtest_opt.cpp -o bt_opt && ./bt_opt
+#include <cassert>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <vector>
+#ifdef __linux__
+#include <sys/mman.h>
+#endif
+
+// ---- 改之前：照着行情源定义的大结构，每只股票一个定长对象 ----
+struct TickOld {
+    std::string code, exchange;            // 每条两个 string：装一行就向分配器要两次
+    int64_t time; double pre_close, last, open, high, low, upper, lower;
+    double others[40];                     // 装载时没人写、因子也不读的几十个字段
+    double bid_px[10], ask_px[10]; int64_t bid_vol[10], ask_vol[10];
+};
+struct Bar { int32_t time; };
+struct StockDayOld {
+    TickOld ticks[6000];                   // 不管今天几条，都是 6000 个槽，构造时全碰一遍
+    Bar     bars[4801];                    // 每只股票一份自己的 bar 时间轴
+    int     tick_count = 0;
+};
+
+// ---- 改之后：只留被写、被读的字段；没有需要析构的成员 ----
+struct Tick {
+    int64_t time; double pre_close, last; int64_t volume; double amount;
+    double bid_px[10], ask_px[10]; int64_t bid_vol[10], ask_vol[10];
+};
+static_assert(std::is_trivially_destructible_v<Tick>, "没有析构要跑，才能整块丢");
+
+class TickArena {
+    Tick*  base_ = nullptr;
+    size_t cap_ = 0, used_ = 0;            // 单位是条
+    double grow_;
+public:
+    int    remaps = 0;                     // 换了几次块（测试用）
+    explicit TickArena(double grow = 1.5) : grow_(grow) {}
+    ~TickArena() { release(); }
+    void reset(size_t need) {              // 每个交易日开头调一次，need 是今天的总条数
+        if (need > cap_) {                 // 不够才换块，换的时候多要一些
+            release();
+            cap_ = size_t(double(need) * grow_);
+#ifdef __linux__
+            void* p = mmap(nullptr, cap_ * sizeof(Tick), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            assert(p != MAP_FAILED);
+            base_ = static_cast<Tick*>(p);
+#else
+            base_ = static_cast<Tick*>(std::malloc(cap_ * sizeof(Tick)));
+#endif
+            ++remaps;
+        }
+        used_ = 0;                         // 够用：偏移归零，原地覆盖着写（上一天的页已经映射好，不再缺页）
+    }
+    Tick* take(size_t n) { assert(used_ + n <= cap_); Tick* p = base_ + used_; used_ += n; return p; }
+private:
+    void release() {
+        if (!base_) return;
+#ifdef __linux__
+        munmap(base_, cap_ * sizeof(Tick));
+#else
+        std::free(base_);
+#endif
+        base_ = nullptr;
+    }
+};
+
+struct StockDay {
+    std::string code, exchange;            // 是股票的属性，存一份，行情记录里不放
+    Tick* ticks = nullptr;
+    int   tick_count = 0;
+};
+
+// 装一条：每个字段都无条件写，所以复用 arena 不用清零
+void load_tick(Tick& t, int i) {
+    t.time = i * 3; t.pre_close = 10; t.last = 10 + i % 7 * 0.01; t.volume = i; t.amount = i * 10.0;
+    for (int k = 0; k < 10; ++k) { t.bid_px[k] = t.last - k * 0.01; t.ask_px[k] = t.last + k * 0.01; t.bid_vol[k] = t.ask_vol[k] = 100; }
+}
+
+int main() {
+    std::printf("一条行情：改之前 %zu 字节，改之后 %zu 字节；一只股票的旧对象 %.1f MB\n",
+                sizeof(TickOld), sizeof(Tick), sizeof(StockDayOld) / 1048576.0);
+
+    // 两天的行数：第二天比第一天多 2.6%
+    const int kStocks = 300;
+    std::vector<std::vector<int>> rows(2, std::vector<int>(kStocks));
+    for (int s = 0; s < kStocks; ++s) { rows[0][s] = 2000 + s * 5; rows[1][s] = int(rows[0][s] * 1.026); }
+
+    // 改之前：每天每只 new 一个，当天结束 delete
+    auto t0 = std::chrono::steady_clock::now();
+    double check_old = 0;
+    for (int d = 0; d < 2; ++d) {
+        std::vector<std::unique_ptr<StockDayOld>> stocks;
+        for (int s = 0; s < kStocks; ++s) {
+            stocks.emplace_back(new StockDayOld());
+            for (int i = 0; i < rows[d][s]; ++i) { stocks[s]->ticks[i].code = "600000"; stocks[s]->ticks[i].last = 10 + i % 7 * 0.01; }
+            stocks[s]->tick_count = rows[d][s];
+            check_old += stocks[s]->ticks[rows[d][s] - 1].last;
+        }
+    }
+    double ms_old = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+
+    // 改之后：先数出今天总条数，arena 一次 reset，每只股票顺着切一段
+    auto run_new = [&](TickArena& arena, double& check) {
+        std::vector<StockDay> stocks(kStocks);
+        for (auto& s : stocks) { s.code = "600000"; s.exchange = "SH"; }
+        for (int d = 0; d < 2; ++d) {
+            size_t total = 0; for (int s = 0; s < kStocks; ++s) total += rows[d][s];
+            arena.reset(total);
+            for (int s = 0; s < kStocks; ++s) {
+                stocks[s].ticks = arena.take(rows[d][s]);
+                stocks[s].tick_count = rows[d][s];
+                for (int i = 0; i < rows[d][s]; ++i) load_tick(stocks[s].ticks[i], i);
+                check += stocks[s].ticks[rows[d][s] - 1].last;   // 只读到 tick_count 为止
+            }
+        }
+    };
+    t0 = std::chrono::steady_clock::now();
+    TickArena arena(1.5); double check_new = 0;
+    run_new(arena, check_new);
+    double ms_new = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    assert(std::abs(check_old - check_new) < 1e-6);                 // 两版装出来的数据一样
+
+    // 第一版的扩容规则“刚好够”：第二天多 2.6% 就得换块，复用没发生
+    TickArena exact(1.0); double dummy = 0;
+    run_new(exact, dummy);
+    std::printf("改之前 %.0f ms，改之后 %.0f ms\n", ms_old, ms_new);
+    std::printf("两天里换块次数：刚好够 %d 次，多要一半 %d 次\n", exact.remaps, arena.remaps);
+    assert(exact.remaps == 2 && arena.remaps == 1);
+    std::printf("全部测试通过！\n");
+}
+```
+
+</details>
