@@ -51,14 +51,17 @@ uint64_t hash_bits(double x) {
 
 - **Fields in a receive buffer**: the buffer is a run of `unsigned char` holding the header's integers and, at offset 8, the price. Comments 1 and 2 read those bytes directly as a `Header` and a `double`.
 - **When the bits themselves are what you want**: comment 3 treats a `double`'s 64 bits as an integer to hash them; comparing as integers or serializing is the same.
-- **All three are wrong, because they pun through a pointer cast (1.2), and the compiler won't necessarily tell you**: with `-Wall`, GCC 16.2 measurably warns only on comment 3, `dereferencing type-punned pointer will break strict-aliasing rules`, and says nothing about 1 and 2. The buffer comes in as a parameter, so the compiler doesn't know what type that memory originally held.
+- **All three are wrong, because no `Header`, `double` or `uint64_t` object lives at those addresses (1.2), and the compiler won't necessarily tell you**: with `-Wall`, GCC 16.2 measurably warns only on comment 3, `dereferencing type-punned pointer will break strict-aliasing rules`, and says nothing about 1 and 2. The buffer comes in as a parameter, so the compiler doesn't know what type that memory originally held.
 
 ### 1.2 Strict Aliasing: Different Types Are Treated as Non-Overlapping, So Punning Through a Pointer Cast Is UB {#alias-rule}
 
-> **Essence: The compiler assumes pointers of different types never point to the same memory, and punning through a pointer cast breaks exactly that assumption, so it is undefined behaviour**.
+> **Essence: Reads and writes in C++ are typed, so `*(uint64_t*)&x` reads "the `uint64_t` object there", but all that lives there is a `double` object, and reading an object that doesn't exist is undefined behaviour**.
 >
-> - **The assumption lets values stay in registers**: once the compiler knows no store of another type changed a value, it doesn't reload it from memory.
-> - **When it's broken, the compiler still optimizes by it**: the cast doesn't change its view, so it doesn't reload memory and uses the stale value in a register.
+> - **To you it's "reading the same bytes as another type"**: in hardware it really is a load of those 8 bytes, which is why it looks harmless.
+> - **In the language, memory holds typed objects**: each object may only be read or written through its own type (plus a few exceptions such as the byte types), and that rule is called strict aliasing.
+> - **The compiler optimizes by this rule**: it concludes that pointers of different types never point to the same memory, so values can stay in registers without being reloaded.
+> - **Break it and the compiler still optimizes by the rule**: the cast doesn't change its view, so it may skip the reload and use a stale value in a register, or move the read ahead of the write.
+> - **Why `memcpy` is legal**: it reads `x` through a byte type, which may read any object, then writes the bytes into a real `uint64_t` variable `u`; what you read afterwards is `u`, where a `uint64_t` really does live (1.3).
 
 1. **The rule: an object may only be accessed through its own type**
    - **Only a few types may access an object of type `T`**: `T` itself (with or without `const` and `volatile`), its signed or unsigned counterpart, and `char`, `unsigned char` and `std::byte`. Access through any other type is undefined behavior: the compiler doesn't have to warn, and the result can change with the optimization level.
