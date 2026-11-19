@@ -220,7 +220,16 @@ An object pool hands out one type `T`, allocated and returned one at a time. The
    - **The one thing to watch is that `deallocate()` is a no-op**: an arena can't return one block anyway; reclaiming only happens through `reset()`.
    - **Objects are still destroyed normally**: `destroy` still calls the destructor; only the "give the memory back" half is disabled.
 
-### 2.3 Reference Implementation: An Arena You Can Use As Is {#ref-arena}
+### 2.3 Where the Big Block Comes From: Ask the Kernel Once at Startup, and mmap Only Gives Addresses {#arena-mmap}
+
+> **Essence: `mmap` is the one system call in which the arena gets a big range of addresses from the kernel “wholesale”; every later allocation is carved out of that range by the arena itself, without entering the kernel**.
+>
+> - **You get addresses, not memory**: when `mmap` returns, the kernel has only recorded a range of virtual addresses, and each physical page is allocated only when that page is first written, so write the whole block once at startup, or pass `MAP_POPULATE` (4.1).
+> - **glibc has something called an arena too**: the arenas `malloc` gives to threads also take one big block first and then carve it up.
+> - **Why not `brk`**: `brk` can only push up the end of the main heap, a process has only one main heap, and it belongs to glibc's main arena. Every other arena needs a block of its own, so each `mmap`s its own range; that's what the `M_ARENA_MAX` row in 4.3 means by “each new arena `mmap`s its own block”.
+> - **The reference implementation below uses `aligned_alloc`**: for requests over 128 KB, glibc also does one `mmap` underneath by default.
+
+### 2.4 Reference Implementation: An Arena You Can Use As Is {#ref-arena}
 
 The startup treatment is the same as the pool in 1.4 (Part 4); the allocation logic is simpler, with no free list to maintain, just an offset `used_` that moves forward.
 
@@ -343,7 +352,7 @@ The allocators of the first three parts all take one big block of memory at star
 
 **Pain point**: when `aligned_alloc`, `posix_memalign` or `mmap` returns, the kernel has only recorded a range of virtual addresses, with no physical memory behind it yet. Linux maps pages lazily: each 4 KiB page traps into the kernel with a page fault on its first access, which allocates a physical page, about 0.5–2 µs each time. The first slot the pool hands out and the first page the arena advances into will both fault on the hot path.
 
-**Fix**: add one line, `memset(raw_memory, 0, total_size)`, to the constructor, writing every page once at startup so all the faults are paid then; if the memory comes from `mmap`, you can also pass `MAP_POPULATE` and have the kernel fault the pages in at mapping time. **By the time the hot path runs, every page in the pool and the arena is already mapped, and nothing has to happen for the first time**. The pool in 1.4 and the arena in 2.3 both do this.
+**Fix**: add one line, `memset(raw_memory, 0, total_size)`, to the constructor, writing every page once at startup so all the faults are paid then; if the memory comes from `mmap`, you can also pass `MAP_POPULATE` and have the kernel fault the pages in at mapping time. **By the time the hot path runs, every page in the pool and the arena is already mapped, and nothing has to happen for the first time**. The pool in 1.4 and the arena in 2.4 both do this.
 
 ### 4.2 Faulted-In Pages Can Be Swapped Out: mlock Locks One Block, mlockall Locks the Whole Process {#mlockall}
 
