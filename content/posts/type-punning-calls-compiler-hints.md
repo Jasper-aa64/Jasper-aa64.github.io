@@ -28,9 +28,11 @@ This section follows one line: type punning is what we want to do, and doing it 
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
-> **Essence: Type punning is a need, not a mistake: reading the same bytes as another type**.
+> **Essence: Type punning means reading bytes that already exist as another type; the handy pointer cast is undefined behavior, and the legal way is to copy the bytes into a variable of the target type**.
 >
-> - **The handiest way to write it is a pointer cast**: all three spots below do it that way, and that is exactly where they go wrong (1.2).
+> - **When you need it**: taking the header and price out of a receive buffer, or wanting a `double`'s 64 bits themselves to hash, compare as integers or serialize.
+> - **What's wrong with a pointer cast**: no object of the target type lives at that address, and reading it as another type is undefined behavior (1.2).
+> - **The legal way**: copy the bytes into a variable of the target type with `memcpy` or `std::bit_cast`; it still compiles to a single load (1.3).
 
 ```cpp
 struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8-byte header
