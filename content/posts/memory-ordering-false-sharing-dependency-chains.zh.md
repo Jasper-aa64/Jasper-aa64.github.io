@@ -1,6 +1,7 @@
 ---
 title: "交易系统笔记 #2：内存序与缓存行"
 date: 2026-09-15
+lastmod: 2026-11-19
 slug: "memory-ordering-false-sharing-dependency-chains"
 description: "为什么一个写不会马上被别的核看见（store buffer、invalidate queue），x86 为什么只允许 StoreLoad 乱序，release/acquire 怎么只在需要的地方补上顺序、在 x86 和 ARM 上各花多少钱；伪共享为什么和读到旧值是两回事。"
 summary: "同一套缓存硬件带出两个不相干的问题。正确性：写先进 store buffer，别的核要过一段时间才看得见，靠 release/acquire 配对补上顺序。性能：就算每个值都读对了，两个核抢同一条缓存行（伪共享）照样慢，靠缓存行布局解决。"
@@ -285,7 +286,7 @@ if (!ready) { while (true) {} }   // 死循环，再也不读内存
 | `release`（写） | 这次写前面的读写，不许挪到它后面 |
 | `acquire`（读） | 这次读后面的读写，不许挪到它前面 |
 | `acq_rel`（读改写） | 两样都有，用在 `fetch_add`、CAS 上 |
-| `seq_cst` | 在 acquire/release 之上再加一条：同一线程里 `seq_cst` 操作的先后，对所有线程都成立，“先写后读”也不许乱；不写参数时的默认值 |
+| `seq_cst` | 在 acquire/release 之上再加一条：所有 `seq_cst` 操作排成一条所有线程都认同的时间线，每个线程的代码顺序原样保留，“先写后读”也不许乱；不写参数时的默认值 |
 | `consume` | 已不推荐，编译器按 `acquire` 处理 |
 
 **release 只管它前面的，acquire 只管它后面的。** 一个线程里“release 写在前、acquire 读在后”这一对，两条都不管，1.5.4 就卡在这里。
@@ -385,7 +386,9 @@ public:
 
 谁最后减到 0，事先不知道。不是最后一个时，release 把自己用过的交出去；是最后一个时，acquire 接住别人用过的。所以每次减都要两半。
 
-#### 1.5.4 release / acquire 管不住的：先写后读 {#mo-seq-cst}
+#### 1.5.4 seq_cst：所有线程认同同一条时间线，先写后读也不乱 {#mo-seq-cst}
+
+**seq_cst 是唯一替全体线程排顺序的内存序：所有 seq_cst 操作排成一条所有线程都认同的时间线，每个线程自己的代码顺序在这条线上原样保留；release/acquire 只给在同一个变量上配成对的两个线程排先后**。
 
 两个线程各自先写自己的变量、再读对方的变量，要的是**至少一边读到 1**：
 

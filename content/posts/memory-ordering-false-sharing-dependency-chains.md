@@ -1,6 +1,7 @@
 ---
 title: "Trading System Notes #2: Memory Ordering and Cache Lines"
 date: 2026-09-15
+lastmod: 2026-11-19
 slug: "memory-ordering-false-sharing-dependency-chains"
 description: "Why the store buffer makes your own writes invisible to other cores, why x86 forbids three reorderings and allows one, how release/acquire buys back just enough order, why false sharing is a completely different problem from a stale read, and why loop unrolling has an optimal accumulator count."
 summary: "The store buffer and the cache-coherence protocol are one piece of hardware, but they create two unrelated engineering problems. One is correctness: does a thread see the right value, in the right order — solved by memory_order and release/acquire pairing. The other is performance: how many cycles does touching shared or dependent data cost, even when every value read is already correct — solved by cache-line layout and instruction scheduling. Conflating the two is the single most common confusion in this part of systems programming."
@@ -325,7 +326,9 @@ Back to the example from the animation in 1.2, now with a release store to `read
 
 Go back to the "forbid three, allow one" table in 1.3. Acquire and release only need to forbid reorderings that x86-TSO *already* forbids on every plain `mov` — LoadLoad, LoadStore, StoreStore. So on x86, a `memory_order_acquire` load and a `memory_order_release` store compile down to an ordinary load and an ordinary store; the hardware was already going to honor that ordering. **Acquire/release is nearly free on x86** — that's not a coincidence, it's the whole reason the C++ model has separate `acquire`/`release` orderings instead of just relaxed-or-nothing.
 
-`seq_cst`, on the other hand, additionally forbids the *one* reordering x86 does allow — StoreLoad — and that requires a real fence: `MFENCE`. That's the one atomic operation on x86 that's genuinely expensive relative to a plain load/store, and it's the reason `std::atomic`'s *default* memory order (`seq_cst`, if you don't specify one) is more costly than it needs to be for code that only needs publish/subscribe semantics.
+**`seq_cst` is the strictest because it is the only ordering that orders things for every thread at once: all `seq_cst` operations fall into a single timeline that every thread agrees on, with each thread's own program order kept intact on it; release/acquire only order a pair of threads that meet on the same variable**.
+
+In hardware terms, `seq_cst` additionally forbids the *one* reordering x86 does allow — StoreLoad — and that requires a real fence: `MFENCE`. That's the one atomic operation on x86 that's genuinely expensive relative to a plain load/store, and it's the reason `std::atomic`'s *default* memory order (`seq_cst`, if you don't specify one) is more costly than it needs to be for code that only needs publish/subscribe semantics.
 
 On a weak-memory architecture like ARM, none of the "forbid three" comes for free — the hardware is allowed to reorder all four combinations unless told otherwise, so acquire/release need real instructions (`LDAR`/`STLR` on ARMv8, explicit `DMB` barriers on ARMv7). This is *why* the C++ memory model is specified abstractly instead of just "do what x86 does": the semantics are portable, but the price tag is architecture-dependent, and code that "happens to work" on x86 because acquire/release are nearly free there can be measurably slower — or, if someone reached for `volatile` instead of `atomic` out of habit, outright broken — on ARM.
 
