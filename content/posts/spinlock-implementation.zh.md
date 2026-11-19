@@ -17,6 +17,39 @@ math: true
 - **自旋锁（spinlock）不睡**：抢不到就留在原地反复看，锁一放开立刻接手。
 - **自旋锁快不快，看“反复看”怎么看**：看的方式不对，等锁的核会把锁所在的那条缓存行抢来抢去，连正拿着锁的核都被拖慢；锁放开时，它们又一窝蜂同时去抢。把这些问题一个个去掉，就是一把能用的自旋锁。
 
+## 先看语法：`std::atomic` 的几种操作 {#atomic-syntax}
+
+**`std::atomic<T>` 上的每个操作都是一次不可分割的读、写或读改写，最后一个参数是内存序；这篇的代码只用到下面 8 种**。
+
+| 写法 | 做什么 | 返回 | 这篇用在哪 |
+|---|---|---|---|
+| `x.load(序)` | 读出当前值 | 当前值 | TTAS 只读不抢（1.5）、票据锁看叫到几号（2.1） |
+| `x.store(v, 序)` | 把 `v` 写进去 | 无 | 放锁 `store(0, release)`（1.3） |
+| `x.exchange(v, 序)` | 不管当前是几，写进 `v`，同时拿回写之前的旧值 | 旧值 | 抢锁 `exchange(1)`（1.3、1.5）、MCS 排到队尾（2.2） |
+| `x.compare_exchange_weak(expected, desired, 成功序, 失败序)` | 当前值等于 `expected` 就改成 `desired`；不等就不改，把当前值读进 `expected` | `bool`，改成了是 true | CAS 循环（1.3）、读写锁（2.4） |
+| `x.compare_exchange_strong(…)` | 同上，但不会“明明相等也报失败” | 同上 | futex 快路径（1.1）、MCS 放锁（2.2） |
+| `x.fetch_add(n, 序)` / `x.fetch_sub(n, 序)` | 加上 / 减去 `n` | 改之前的旧值 | 票据锁取号（2.1）、读写锁的读者计数（2.4） |
+| `x.wait(old, 序)` | C++20：值还等于 `old` 就睡，被叫醒、并且值变了才返回 | 无 | futex 互斥锁（1.1） |
+| `x.notify_one()` / `x.notify_all()` | 叫醒一个 / 所有在 `x` 上 `wait` 的线程 | 无 | 同上 |
+
+- **`exchange` 和 CAS 的区别：一个直接写，一个先比较**
+  - **`exchange` 总是写**：抢锁时写 1，拿回的旧值是 0，锁就是自己抢到的；旧值是 1，说明别人拿着，自己写进去的 1 也没改变什么。
+  - **CAS 相等才写**：写进去的新值要从旧值算出来时用它，比如 `old * 2`、`n + 1`；不相等说明别人刚改过，拿最新值重算。
+  - **两个都是读改写**：等锁时反复做，每次都要把缓存行独占过来（1.4）。
+- **`compare_exchange` 的参数**
+  - **`expected` 传引用**：进去是“我以为它现在是几”，失败时出来是“它实际是几”。所以它必须是一个变量，写字面量 `0` 编译不过。
+  - **`desired` 传值**：相等时要写进去的新值。
+  - **两个内存序**：第一个用在成功时，这时读和写都做了；第二个用在失败时，这时只做了一次读，所以标准规定它不能是 release 或 acq_rel。
+  - **只传一个内存序**：成功、失败共用它，失败那边自动降一级，acq_rel 降成 acquire，release 降成 relaxed。
+  - **例子**：[#18](/zh/posts/thread-safe-queue/) 2.1 rte_ring 的 `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)`。`prod_head_` 还是 `head`，就改成 `head + 1`，这个槽归自己；被别的生产者抢先了，`head` 被换成最新值，外面的 `do while` 拿新的 `head` 重新查满再抢。
+  - **`weak` 和 `strong` 参数完全一样**：区别和怎么选见 1.3。
+- **内存序参数**
+  - **可以不写**：不写就是 `seq_cst`，最严也最贵（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1）。
+  - **读、写、读改写能用的不一样**：`load` 不能用 release、acq_rel；`store` 不能用 acquire、acq_rel；`exchange`、CAS、`fetch_add` 这些读改写都能用。
+  - **运算符写法等于不写内存序**：`x = v` 是 `store`，直接读 `x` 是 `load`，`++x`、`x += n` 是 `fetch_add`，都按 `seq_cst`。
+- **`wait` 和自己写 `while` 循环等不一样**：`wait` 在 Linux 上落到 futex 系统调用，线程挂起、不占 CPU，被 `notify` 叫醒要几 µs；自旋锁就是不想付这一笔（1.1）。
+- **`_mm_pause`、`_umonitor`、`_umwait` 不是 `std::atomic` 的操作**：它们是直接对应一条 CPU 指令的内建函数，分别在 1.6 和 2.5 讲。
+
 动手之前要先弄清楚，睡到底贵在哪里，什么时候转比睡划算。
 
 ## 1. 自旋锁怎么写：从 CAS 循环到 TTAS 和 PAUSE
@@ -125,14 +158,7 @@ private:
 };
 ```
 
-**`compare_exchange_weak` 的语法：`bool compare_exchange_weak(T& expected, T desired, 成功时的内存序, 失败时的内存序)`，一步原子地做完“等于 `expected` 就改成 `desired`，不等就把当前值读进 `expected`”**。
-
-- **`expected` 传引用**：进去是“我以为它现在是几”，失败时出来是“它实际是几”。所以它必须是一个变量，不能直接写字面量 `0`。
-- **`desired` 传值**：相等时要写进去的新值。
-- **返回 `bool`**：true 是改成了；false 是没改，`expected` 已经换成当前值。
-- **两个内存序**：第一个用在成功时，这时读和写都做了；第二个用在失败时，这时只做了一次读，所以标准规定它不能是 release 或 acq_rel。
-- **只传一个内存序**：成功、失败共用它，失败那边自动降一级，acq_rel 降成 acquire，release 降成 relaxed；一个都不传就都是 seq_cst。
-- **例子**：[#18](/zh/posts/thread-safe-queue/) 2.1 rte_ring 的第 ① 步 `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)`。`prod_head_` 还是 `head`，就改成 `head + 1`，这个槽归自己；被别的生产者抢先了，`head` 被换成最新值，外面的 `do while` 拿新的 `head` 重新查满再抢。只传了一个 relaxed，成功失败都是 relaxed，因为这一步只分号，数据靠后面的 ③④ 传。
+`compare_exchange_weak` 各个参数的意思见开头的[语法](#atomic-syntax)。
 
 1. **CAS 失败以后，要把 `expected` 改回 0**
    - **失败以后 `expected` 变成了 1**：下一轮之前要改回 0。

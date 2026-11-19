@@ -13,7 +13,42 @@ math: true
 
 Code such as updating one level of an order book or copying a market data snapshot has to be guarded by a lock; it is called a critical section (the stretch between `lock()` and `unlock()`), and the lock is held for only tens to a couple of hundred nanoseconds. Guard the critical section with `std::mutex`, and a thread that finds the lock taken gets suspended and woken again once the lock is free. That sleep and wake-up costs microseconds, 10 to a hundred or more times the time the lock is held. A spinlock simply doesn't sleep: a thread that can't get the lock stays where it is and keeps looking, and takes over the moment the lock is released.
 
-How it keeps looking decides whether the lock is fast. Look the wrong way and the waiting cores drag the lock's cache line back and forth, slowing down even the core that holds the lock; when the lock is freed, they all rush at it together. Remove these problems one by one and you have a usable spinlock. Before writing any of it, though, it helps to see where the cost of sleeping comes from, and when spinning beats sleeping.
+How it keeps looking decides whether the lock is fast. Look the wrong way and the waiting cores drag the lock's cache line back and forth, slowing down even the core that holds the lock; when the lock is freed, they all rush at it together. Remove these problems one by one and you have a usable spinlock.
+
+## First, the Syntax: Operations on `std::atomic` {#atomic-syntax}
+
+**Every operation on a `std::atomic<T>` is one indivisible load, store or read-modify-write, and its last argument is a memory order; the code in this post uses only the 8 below**.
+
+| Call | What it does | Returns | Used here in |
+|---|---|---|---|
+| `x.load(order)` | reads the current value | the current value | TTAS reading without grabbing (1.5), the ticket lock checking whose turn it is (2.1) |
+| `x.store(v, order)` | writes `v` | nothing | releasing the lock with `store(0, release)` (1.3) |
+| `x.exchange(v, order)` | writes `v` whatever the current value is, and hands back the value before the write | the old value | grabbing the lock with `exchange(1)` (1.3, 1.5), joining the MCS queue (2.2) |
+| `x.compare_exchange_weak(expected, desired, success order, failure order)` | if the current value equals `expected`, sets it to `desired`; otherwise leaves it and loads the current value into `expected` | `bool`, true if it changed the value | the CAS loop (1.3), the reader-writer lock (2.4) |
+| `x.compare_exchange_strong(…)` | the same, but never reports failure when the values are equal | the same | the futex fast path (1.1), MCS release (2.2) |
+| `x.fetch_add(n, order)` / `x.fetch_sub(n, order)` | adds / subtracts `n` | the value before the change | taking a ticket (2.1), the reader count (2.4) |
+| `x.wait(old, order)` | C++20: sleeps while the value still equals `old`, returns once woken and the value has changed | nothing | the futex mutex (1.1) |
+| `x.notify_one()` / `x.notify_all()` | wakes one / all threads waiting on `x` | nothing | the same |
+
+- **`exchange` versus CAS: one just writes, the other compares first**
+  - **`exchange` always writes**: when grabbing the lock it writes 1; an old value of 0 means you took the lock, an old value of 1 means someone else holds it, and writing 1 over it changed nothing.
+  - **CAS writes only on a match**: use it when the new value is computed from the old one, like `old * 2` or `n + 1`; a mismatch means someone just changed it, so recompute from the latest value.
+  - **Both are read-modify-writes**: repeated while waiting, each one takes the cache line exclusive (1.4).
+- **`compare_exchange`'s parameters**
+  - **`expected` is passed by reference**: it goes in as "what I think the value is" and, on failure, comes out as "what it actually is". So it has to be a variable; a literal `0` won't compile.
+  - **`desired` is passed by value**: the new value to write when they are equal.
+  - **Two memory orders**: the first applies on success, when both the read and the write happened; the second on failure, when only a read happened, so the standard forbids release and acq_rel there.
+  - **Passing only one order**: success and failure share it, and the failure side is weakened automatically, acq_rel to acquire and release to relaxed.
+  - **Example**: rte_ring's `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)` in [#18](/posts/thread-safe-queue/) 2.1. If `prod_head_` is still `head`, it becomes `head + 1` and that slot is ours; if another producer got there first, `head` is replaced with the latest value and the surrounding `do while` checks for full with the new `head` and tries again.
+  - **`weak` and `strong` take exactly the same parameters**: how they differ and which to pick is in 1.3.
+- **The memory order argument**
+  - **It can be left out**: then it's `seq_cst`, the strictest and most expensive ([#2](/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1).
+  - **Loads, stores and RMWs accept different orders**: `load` can't take release or acq_rel; `store` can't take acquire or acq_rel; RMWs such as `exchange`, CAS and `fetch_add` take any.
+  - **Operators are the same as leaving the order out**: `x = v` is a `store`, reading `x` is a `load`, `++x` and `x += n` are `fetch_add`, all `seq_cst`.
+- **`wait` isn't a hand-written `while` loop**: on Linux it ends in the futex system call, the thread is suspended and uses no CPU, and being woken by `notify` takes microseconds; that's exactly the cost a spinlock avoids (1.1).
+- **`_mm_pause`, `_umonitor` and `_umwait` aren't `std::atomic` operations**: they are built-ins that map directly to one CPU instruction, covered in 1.6 and 2.5.
+
+Before writing any of it, though, it helps to see where the cost of sleeping comes from, and when spinning beats sleeping.
 
 ## 1. Writing a Spinlock: From a CAS Loop to TTAS and PAUSE
 
@@ -95,16 +130,7 @@ private:
 };
 ```
 
-**The syntax of `compare_exchange_weak`: `bool compare_exchange_weak(T& expected, T desired, order on success, order on failure)` atomically does "if it equals `expected`, set it to `desired`; otherwise load the current value into `expected`"**.
-
-- **`expected` is passed by reference**: it goes in as "what I think the value is" and, on failure, comes out as "what it actually is". So it has to be a variable; a literal `0` won't compile.
-- **`desired` is passed by value**: the new value to write when they are equal.
-- **It returns `bool`**: true means the value was changed; false means it wasn't, and `expected` now holds the current value.
-- **Two memory orders**: the first applies on success, when both the read and the write happened; the second on failure, when only a read happened, so the standard forbids release and acq_rel there.
-- **Passing only one order**: success and failure share it, and the failure side is weakened automatically, acq_rel to acquire and release to relaxed; passing none means seq_cst for both.
-- **Example**: step ① of rte_ring in [#18](/posts/thread-safe-queue/) 2.1, `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)`. If `prod_head_` is still `head`, it becomes `head + 1` and that slot is ours; if another producer got there first, `head` is replaced with the latest value and the surrounding `do while` checks for full with the new `head` and tries again. Only one relaxed is passed, so both sides are relaxed: this step only hands out slots, and the data travels through ③ and ④.
-
-So after a failure `expected` holds 1 and has to be reset to 0 before the next round. Without the reset, the next round would ask "if it equals 1, set it to 1": the CAS would succeed while someone else holds the lock, and two threads would be in the critical section at once. CAS works this way because its most common use is read the old value, compute a new one, write it back: a failure means someone else just changed it, and the computation has to be redone from the latest value. Handing that value back on failure saves a separate load, and the hardware has read it anyway (x86's `lock cmpxchg` leaves the current value in EAX on failure; ARM's exclusive load has already read it). To double an atomic, for example: `int old = x.load(); while (!x.compare_exchange_weak(old, old * 2)) {}`; after a failure `old` already holds the latest value, so the loop just recomputes: if `x` is 5, `old = 5` is read, and another thread then changes `x` to 7, this CAS fails, `old` becomes 7, and the next round turns 7 into 14. A lock is the opposite case: the expected value is always 0, so it has to be reset every round. `weak` may occasionally report failure even when the values are equal, which happens on ARM when it is built from a pair of exclusive load and store instructions: if an interrupt arrives between the two, or another core touches the line, the exclusive store fails even though the value hasn't changed. x86's `lock cmpxchg` is a single instruction and never does this, so `weak` and `strong` compile to the same code there. On ARM, `strong` wraps the pair in a loop of its own to hide such failures. There is a loop around it anyway, so `weak` is enough; `strong` is for a single check that gives up on failure.
+What each argument of `compare_exchange_weak` means is in [the syntax section](#atomic-syntax) at the top. So after a failure `expected` holds 1 and has to be reset to 0 before the next round. Without the reset, the next round would ask "if it equals 1, set it to 1": the CAS would succeed while someone else holds the lock, and two threads would be in the critical section at once. CAS works this way because its most common use is read the old value, compute a new one, write it back: a failure means someone else just changed it, and the computation has to be redone from the latest value. Handing that value back on failure saves a separate load, and the hardware has read it anyway (x86's `lock cmpxchg` leaves the current value in EAX on failure; ARM's exclusive load has already read it). To double an atomic, for example: `int old = x.load(); while (!x.compare_exchange_weak(old, old * 2)) {}`; after a failure `old` already holds the latest value, so the loop just recomputes: if `x` is 5, `old = 5` is read, and another thread then changes `x` to 7, this CAS fails, `old` becomes 7, and the next round turns 7 into 14. A lock is the opposite case: the expected value is always 0, so it has to be reset every round. `weak` may occasionally report failure even when the values are equal, which happens on ARM when it is built from a pair of exclusive load and store instructions: if an interrupt arrives between the two, or another core touches the line, the exclusive store fails even though the value hasn't changed. x86's `lock cmpxchg` is a single instruction and never does this, so `weak` and `strong` compile to the same code there. On ARM, `strong` wraps the pair in a loop of its own to hide such failures. There is a loop around it anyway, so `weak` is enough; `strong` is for a single check that gives up on failure.
 
 The memory orders keep the critical section's reads and writes from leaking out of the lock ([#2](/posts/memory-ordering-false-sharing-dependency-chains/), Part 2). The successful CAS in `lock()` uses acquire: reads and writes in the critical section can't move before taking the lock, so they see what the previous holder wrote. The store in `unlock()` uses release: reads and writes in the critical section can't move after the release. Paired up, they guarantee that whatever the previous holder wrote inside the critical section is visible to the next holder. The failed CASes acquire nothing, so relaxed is enough for them. Taking the lock needs no release, since release orders what comes before the lock, which has nothing to do with the critical section.
 

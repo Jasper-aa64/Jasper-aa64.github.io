@@ -197,7 +197,7 @@ private:
 };
 ```
 
-`try_push` 四步（CAS 的语法见 [#16 1.3](/zh/posts/spinlock-implementation/#13-最简单的自旋锁一个原子变量循环-cas)）：① CAS 把 `prod_head_` 从 `head` 改成 `head + 1`，失败说明被抢先了，重新查满再抢；② 写抢到的槽；③ 等 `prod_tail_` 走到 `head`；④ release 写 `prod_tail_ = head + 1`，消费者从这一刻起能读这一格。
+`try_push` 四步（CAS 的语法见 [#16 开头](/zh/posts/spinlock-implementation/#atomic-syntax)）：① CAS 把 `prod_head_` 从 `head` 改成 `head + 1`，失败说明被抢先了，重新查满再抢；② 写抢到的槽；③ 等 `prod_tail_` 走到 `head`；④ release 写 `prod_tail_ = head + 1`，消费者从这一刻起能读这一格。
 
 - **为什么要等（③）**：A 抢到 5、B 抢到 6，B 先写完。B 要是直接把 `prod_tail_` 改成 7，消费者就会去读 A 还没写完的槽 5。所以 B 要等 A 把它改成 6，自己再改成 7。
 - **代价：一个生产者停住，所有生产者都停住**：A 在 ① 和 ④ 之间被换下 CPU，后面的生产者全卡在 ③，直到 A 回来，和 [#16](/zh/posts/spinlock-implementation/) 2.1 票据锁是同一个问题，所以严格说它不是 lock-free。DPDK 的线程绑核独占，不会被换下；普通线程最坏要停几 ms。

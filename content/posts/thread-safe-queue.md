@@ -187,7 +187,7 @@ private:
 };
 ```
 
-`try_push` in four steps (CAS syntax is in [#16 1.3](/posts/spinlock-implementation/#13-the-simplest-spinlock-one-atomic-and-a-cas-loop)): ① CAS `prod_head_` from `head` to `head + 1`; a failure means someone got there first, so check for full and try again; ② write the claimed slot; ③ wait until `prod_tail_` reaches `head`; ④ release-store `prod_tail_ = head + 1`, and from then on consumers can read the slot.
+`try_push` in four steps (CAS syntax is at [the top of #16](/posts/spinlock-implementation/#atomic-syntax)): ① CAS `prod_head_` from `head` to `head + 1`; a failure means someone got there first, so check for full and try again; ② write the claimed slot; ③ wait until `prod_tail_` reaches `head`; ④ release-store `prod_tail_ = head + 1`, and from then on consumers can read the slot.
 
 - **Why wait (③)**: A claims 5 and B claims 6, and B finishes first. If B set `prod_tail_` to 7 right away, a consumer would read slot 5, which A hasn't finished. So B waits for A to set it to 6, then sets it to 7.
 - **The price: one stalled producer stalls them all**: if A is descheduled between ① and ④, every later producer is stuck at ③ until A returns, the same problem as the ticket lock in [#16](/posts/spinlock-implementation/) 2.1, so strictly this isn't lock-free. DPDK's threads are pinned to dedicated cores and never descheduled; with ordinary threads the worst case is a stall of several milliseconds.
