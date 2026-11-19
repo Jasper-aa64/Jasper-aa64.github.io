@@ -307,6 +307,17 @@ Part 1 showed where reordering comes from: a write sits in the store buffer befo
 - **Release only constrains what comes before it, acquire only what comes after it**: a release store followed by an acquire load in the same thread is constrained by neither, and that's exactly the case 2.5 is about.
 - **x86 allows only store-then-load reordering (1.3)**: the other three orderings release/acquire need come with every plain `mov`.
 
+> **The one most easily forgotten: leaving out the memory order means `seq_cst`, not `relaxed`**
+>
+> - **The default is the strongest order**: `x.store(v)`, `x.load()` and `x.fetch_add(1)` without a memory-order argument are all `seq_cst`.
+> - **Operators are the same, and they have nowhere to put an order**: `x = v` is a `store`, reading `x` is a `load`, `++x` and `x += n` are `fetch_add`, all `seq_cst`.
+> - **On x86 the extra cost is on stores**: a `store` without an argument compiles to `xchg` and waits for the store buffer to drain, about 20–30 cycles; with `relaxed` it's a plain `mov`.
+> - **On x86 loads and read-modify-writes compile the same either way**: loads are a plain `mov`, read-modify-writes are a `lock`-prefixed instruction (checked against GCC 14.2 `-O2` output).
+> - **On ARM both loads and stores cost more**: without an argument a load is `ldar` and a store is `stlr`; with `relaxed` they're plain `ldr` and `str`.
+> - **Forgetting it only makes code slower, never wrong**: `seq_cst` is stricter than every other order, so correctness is unaffected; writing `relaxed` where `acquire` or `release` is needed is what breaks code.
+> - **A plain variable is not "an even looser relaxed"**: several threads reading and writing the same plain variable is a data race and undefined behaviour, and the compiler may hoist the read out of a loop (1.4); `volatile` doesn't replace `std::atomic` either.
+> - **So on the hot path, write the memory order explicitly on every atomic operation**: replace operators with `store`, `load` and `fetch_add`, and don't let the default choose `seq_cst` when you don't need it.
+
 ### 2.2 relaxed: Only the Variable Itself {#mo-relaxed}
 
 **`relaxed` only guarantees things about this one variable: no tearing, every thread sees its modifications in the same order, and read-modify-writes don't lose updates; it says nothing about other variables, so it can't publish other data**.

@@ -44,7 +44,7 @@ math: true
   - **例子**：[#18](/zh/posts/thread-safe-queue/) 2.1 rte_ring 的 `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)`。`prod_head_` 还是 `head`，就改成 `head + 1`，这个槽归自己；被别的生产者抢先了，`head` 被换成最新值，外面的 `do while` 拿新的 `head` 重新查满再抢。
   - **`weak` 和 `strong` 参数完全一样**：区别和怎么选见 1.3。
 - **内存序参数**
-  - **可以不写**：不写就是 `seq_cst`，最严也最贵（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1）。
+  - **可以不写，但不写不是 `relaxed`，是 `seq_cst`**：最严也最贵，x86 上 `store` 会编成 `xchg`；热路径上每个原子操作都显式写（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1）。
   - **读、写、读改写能用的不一样**：`load` 不能用 release、acq_rel；`store` 不能用 acquire、acq_rel；`exchange`、CAS、`fetch_add` 这些读改写都能用。
   - **运算符写法等于不写内存序**：`x = v` 是 `store`，直接读 `x` 是 `load`，`++x`、`x += n` 是 `fetch_add`，都按 `seq_cst`。
 - **`wait` 和自己写 `while` 循环等不一样**：`wait` 在 Linux 上落到 futex 系统调用，线程挂起、不占 CPU，被 `notify` 叫醒要几 µs；自旋锁就是不想付这一笔（1.1）。

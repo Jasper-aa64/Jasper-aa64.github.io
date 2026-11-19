@@ -42,7 +42,7 @@ How it keeps looking decides whether the lock is fast. Look the wrong way and th
   - **Example**: rte_ring's `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)` in [#18](/posts/thread-safe-queue/) 2.1. If `prod_head_` is still `head`, it becomes `head + 1` and that slot is ours; if another producer got there first, `head` is replaced with the latest value and the surrounding `do while` checks for full with the new `head` and tries again.
   - **`weak` and `strong` take exactly the same parameters**: how they differ and which to pick is in 1.3.
 - **The memory order argument**
-  - **It can be left out**: then it's `seq_cst`, the strictest and most expensive ([#2](/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1).
+  - **It can be left out, but then it's `seq_cst`, not `relaxed`**: the strictest and most expensive, and on x86 a `store` compiles to `xchg`; on the hot path write it explicitly on every atomic operation ([#2](/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1).
   - **Loads, stores and RMWs accept different orders**: `load` can't take release or acq_rel; `store` can't take acquire or acq_rel; RMWs such as `exchange`, CAS and `fetch_add` take any.
   - **Operators are the same as leaving the order out**: `x = v` is a `store`, reading `x` is a `load`, `++x` and `x += n` are `fetch_add`, all `seq_cst`.
 - **`wait` isn't a hand-written `while` loop**: on Linux it ends in the futex system call, the thread is suspended and uses no CPU, and being woken by `notify` takes microseconds; that's exactly the cost a spinlock avoids (1.1).
