@@ -84,24 +84,6 @@ math: true
    - **不读回、不进缓存**：在写合并缓冲里凑满 64 B，直接写到内存，只走一趟。
    - **适合写一大片、短期内没人读的数据**：比如填一大块缓冲区。流式写之间不保证顺序，要别的核按顺序看到，后面加一条 `sfence`。
 
-### 1.3 文章索引：每个框在哪篇讲过 {#posts}
-
-| 框 | 文章 |
-|---|---|
-| 核、SMT、NUMA、AMD 的核分组、核上的中断 | [#1 CPU 隔离与 NUMA](/zh/posts/cpu-affinity-core-isolation-numa/) |
-| store buffer、invalidate queue、缓存行与伪共享 | [#2 内存序与缓存行](/zh/posts/memory-ordering-false-sharing-dependency-chains/) |
-| 流水线与依赖链、累加器个数、寄存器溢出 | [#9 循环优化](/zh/posts/loop-optimization/#dependency-chains) |
-| 缓存一致性 | [MESI 专题](/zh/posts/low-latency-mesi-cache-coherence/) |
-| 锁住内存、TLB shootdown | [#3 内存池与分配器](/zh/posts/hot-path-memory-allocators/) |
-| 多个核读写同一条行 | [#4 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) · [#16 自旋锁](/zh/posts/spinlock-implementation/) |
-| 缺页 | [#5 SPMC 广播环](/zh/posts/spmc-shared-memory-broadcast-ring/) |
-| 对齐、布局、组相联、内存条内部、刷新、多通道 | [#6 对齐、布局与几何](/zh/posts/alignment-layout-cache-dram-geometry/) |
-| 分支预测器、取指与推测执行 | [#7 分支预测](/zh/posts/branch-prediction-branch-optimization/) |
-| 执行单元：ALU、乘法器、除法器、SIMD 向量单元 | [#12 强度削弱与算术优化](/zh/posts/strength-reduction-arithmetic/) · [#15 SIMD 向量化](/zh/posts/simd-vectorization-intrinsics/) |
-| 硬件预取、软件预取、缓存预热 | [#14 预取、预热与双缓冲](/zh/posts/prefetch-warmup-double-buffer/) |
-| 性能计数器（PMU）和采样：时间花在哪个函数、哪条指令 | [perf 专题](/zh/posts/low-latency-perf-profiling/) |
-| 框与框之间的路：延迟、带宽、ROB、LFB | 本页第 2、3 部分 |
-
 ## 2. 性能参数：每个框多大、多快 {#numbers}
 
 这里的数都是帮助理解的量级，不对应哪台机器。周期和纳秒按约 4 GHz 换算：1 ns ≈ 4 个周期。

@@ -84,23 +84,6 @@ Following the hardware map above, down from the "memory" column of core 0:
    - **No read, no cache**: they fill a write-combining buffer up to 64 B and go straight to memory in one trip.
    - **Good for bulk data nobody reads soon**: such as filling a large buffer. Non-temporal stores aren't ordered with each other; for other cores to see them in order, follow them with an `sfence`.
 
-### 1.3 Post Index: Which Post Covers Which Box {#posts}
-
-| Box | Post |
-|---|---|
-| Cores, SMT, NUMA, interrupts on a core | [#1 CPU Isolation and NUMA](/posts/cpu-affinity-core-isolation-numa/) |
-| Pipeline and dependency chains, registers, store buffer, invalidate queue, cache lines and false sharing | [#2 Memory Ordering and Cache Lines](/posts/memory-ordering-false-sharing-dependency-chains/) |
-| Cache coherence | [MESI](/posts/low-latency-mesi-cache-coherence/) |
-| Locking memory, TLB shootdowns | [#3 Memory Pools and Allocators](/posts/hot-path-memory-allocators/) |
-| Several cores reading and writing one line | [#4 Lock-Free Queues](/posts/lock-free-queue-logger-micro-batching/) · [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) · [#16 Spinlocks](/posts/spinlock-implementation/) |
-| Page faults | [#5 SPMC Broadcast Ring](/posts/spmc-shared-memory-broadcast-ring/) |
-| Alignment, layout, set associativity, inside a DIMM, refresh, channels | [#6 Alignment, Layout, and Geometry](/posts/alignment-layout-cache-dram-geometry/) |
-| Branch predictor, fetch and speculative execution | [#7 Branch Prediction](/posts/branch-prediction-branch-optimization/) |
-| Execution units: ALU, multiplier, divider, SIMD units | [#12 Strength Reduction and Arithmetic Optimization](/posts/strength-reduction-arithmetic/) · [#15 SIMD Vectorization](/posts/simd-vectorization-intrinsics/) |
-| Hardware prefetch, software prefetch, cache warming | [#14 Prefetching, Warming, Double Buffering](/posts/prefetch-warmup-double-buffer/) |
-| Performance counters (PMU) and sampling: which function and instruction the time goes to | [perf](/posts/low-latency-perf-profiling/) |
-| The roads between the boxes: latency, bandwidth, ROB, LFB | Parts 2 and 3 of this page |
-
 ## 2. Performance Parameters: How Big and How Fast Each Box Is {#numbers}
 
 These are rough magnitudes to build intuition, not the numbers of any particular machine. Cycles and nanoseconds are converted at about 4 GHz: 1 ns ≈ 4 cycles.
