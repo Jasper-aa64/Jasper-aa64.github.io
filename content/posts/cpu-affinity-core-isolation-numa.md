@@ -9,6 +9,7 @@ categories: [Systems]
 tags: [linux, low-latency, cpu-affinity, numa, isolcpus, nohz-full, hft, jitter, c-states]
 toc: true
 homepage: false
+math: true
 ---
 
 Picture the 100 µs when the market is moving hard. Your strategy thread gets preempted once, or another task wipes its L1/L2 once, and that single event costs 30 µs. Your order now enters the exchange's matching queue behind everyone else's, and the fill comes back one tick worse — adverse selection eating your edge. In a latency-sensitive trading system the enemy is **not the average latency but the tail and the jitter**: a 2 µs average that occasionally spikes to 50 µs is worse than a steady 5 µs.
@@ -340,3 +341,77 @@ Everything above is remediation after the fact — data is already shared, alrea
 - When you need multiple worker threads, go **share-nothing**: each thread has its own copy of state, pinned to a core on its own node, using its own node's memory, exchanging only what's necessary between threads via message passing (lock-free queues).
 - Then every thread is doing local accesses, and that `21` in the NUMA distance matrix is something you never touch.
 
+---
+
+## 4. Choosing a CPU: Which Metrics, AMD or Intel, and How High Clocks Go Now {#choose-cpu}
+
+These three questions tend to come together, and the answers land on the same point: a trading system's hot path is one thread on one core, so what matters is single-core latency and whether every run takes the same time, not core count or total throughput.
+
+### 4.1 Metrics: Single-Core Speed Is IPC × Clock, and Trading Also Cares About Memory Latency and Jitter {#cpu-metrics}
+
+> **Essence: The instructions a core executes per second equal the instructions per cycle (IPC) times the cycles per second (the clock), and a trading hot path uses one core, so these two come first**.
+>
+> - **Clocks don't compare across generations**: at the same 5 GHz a newer core does more per cycle, so GHz alone misleads.
+> - **Fast on average isn't enough**: the hot path needs to be fast every time, so whether the clock changes and whether the core gets interrupted matter as much as raw speed.
+
+$$\text{instructions per second on one core} = \text{IPC} \times \text{clock}$$
+
+1. **Single core: how fast one pass of the hot path runs**
+   - **IPC comes from the microarchitecture**: how many instructions it fetches per cycle, how big the out-of-order window is, how well it predicts branches, how many execution units of each kind it has ([#9 Part 3](/posts/loop-optimization/#execution-units)).
+   - **The clock comes from the process and the power budget**: see 4.2.
+   - **Compare across generations and vendors with single-thread scores, or better, your own code**: scores like SPECint fold IPC and clock together.
+
+2. **Memory: how long a miss in L1 waits**
+   - **Latency at each level**: L1 about 1 ns, L2 about 3–5 ns, L3 about 10–20 ns, DRAM about 80–120 ns ([Reference 2.1](/ref/cpu-memory/#latency)). Which level the hot data lives in matters far more than a few hundred MHz of clock.
+   - **How big L3 is and how many cores share it**: if the hot data fits in L3, a DRAM round trip is saved; on AMD count only the L3 one core group shares.
+   - **How long a cache-line handoff between cores takes**: about 15–30 ns inside a group, more across groups and across sockets (3.1).
+
+3. **Stability: whether the same code runs equally fast every time**
+   - **Whether the clock changes**: turbo, the frequency governor and heavy-AVX downclocking all make the same code run fast one time and slow the next (2.3).
+   - **Whether the core gets interrupted**: waking from a deep C-state takes time, and an SMT sibling competes for execution units (2.1, 2.2).
+   - **Trading looks at P99 and P99.9**: a nice average doesn't help if the tail misses market moves.
+
+4. **Throughput: core count, memory bandwidth, PCIe lanes**
+   - **Only the side paths need these**: backtesting, risk, logging and monitoring want cores and bandwidth; the hot path can't use dozens of cores.
+   - **Which CPU's PCIe the NIC hangs off**: that decides which NUMA node the hot cores go on (3.1).
+
+### 4.2 How High Clocks Go: 5–6 GHz Top Boost Out of the Box, Not Doubled in Over a Decade {#clock}
+
+> **Essence: Clocks sit around 5–6 GHz because power grows much faster than frequency, and cooling gives out first**.
+>
+> - **The power wall**: dynamic power is roughly $C V^2 f$; a higher frequency needs a higher voltage, so power grows roughly with the cube of the frequency.
+> - **So single-core gains over the past decade-plus came mainly from IPC**: clocks haven't doubled since the mid-2000s, and the extra transistors went into wider cores, bigger caches and more cores.
+
+- **Desktop flagships: top boost out of the box about 5.7–6.2 GHz** (as of November 2026): Intel's Core i9-14900KS is rated 6.2 GHz; the Core Ultra 9 285K and AMD's Ryzen 9 9950X are rated 5.7 GHz.
+- **Servers: about 3.5–4 GHz boost on many-core parts, about 5 GHz on frequency-optimized ones**: for example AMD's EPYC 9175F and the high-frequency parts of the new EPYC 9006 line.
+- **The rated boost is a ceiling for one or two cores for a short while**: with every core busy for a long time it runs lower.
+- **Trading servers fix the frequency**:
+  - **One way is to turn turbo off and pin one frequency**: give up the peak for the same run time every time (2.3).
+  - **The other is overclocked, liquid-cooled trading servers**: they take the highest-clocked desktop CPUs and lock every core at a fixed frequency above stock.
+  - **What both share is that the frequency stops changing**: predictable run time is worth more than a few hundred MHz of peak.
+
+### 4.3 AMD or Intel: No Fixed Answer; It Depends on Whether the Hot Path and Its Data Fit in One Core Group {#amd-vs-intel}
+
+> **Essence: Pick whichever runs the hot path faster and steadier on one core, with the hot data fitting in its caches, and decide by measuring your own program's tick-to-trade tail latency**.
+>
+> - **The memory model is the same**: both are x86 with TSO, so the same synchronization code works unchanged.
+> - **The differences are single-core clock, cache structure and price**: covered below.
+
+1. **Intel: high single-core clocks, and long use in trading**
+   - **Its desktop parts have the highest stock clocks**: the 6.2 GHz part is Intel's, and overclocked trading servers often use desktop CPUs of this kind.
+   - **Plenty of tuning experience**: trading systems have run on Intel for a long time, so BIOS settings, tools like VTune and low-latency tuning write-ups are abundant.
+
+2. **AMD: big L3, more cores, lower price**
+   - **X3D parts have much more L3**: an extra layer of cache is stacked on the core group's L3, so hot data more easily fits whole in L3 and goes to DRAM less.
+   - **Dedicated high-frequency server parts**: by its public specs the EPYC 9175F has 16 cores, 512 MB of L3 and a 5 GHz boost, 32 MB of L3 per core on average.
+   - **More cores and PCIe lanes for the money**: better value for side-path machines such as backtesting, risk and market-data capture.
+
+3. **On AMD, watch the core groups**
+   - **L3 is shared only within one group**: handing a cache line across groups goes through the IO die and is several times slower, so threads that hand off to each other must sit in the same group.
+   - **Size the working set by one group's L3**: however large the advertised total, one thread can only use its own group's share.
+
+> **How to choose: measure your own program on the candidate machines**
+>
+> 1. **First count the hot-path cores and whether they hand off to each other**: threads that hand off must share a core group, so check how many cores a group has on this CPU and whether they fit.
+> 2. **Then size the hot data**: which cache level it fits in, and on which vendor's caches it fits whole.
+> 3. **Finally measure tick-to-trade P99 and P99.9 under the same setup**: compare only after pinning, isolation, SMT off and a fixed frequency; averages don't count.
