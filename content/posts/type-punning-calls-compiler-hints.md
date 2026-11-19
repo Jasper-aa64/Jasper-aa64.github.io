@@ -28,10 +28,12 @@ This section follows one line: type punning is what we want to do, and doing it 
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
-> **Essence: Type punning means reading bytes that already exist as another type; the handy pointer cast is undefined behavior, and the legal way is to copy the bytes into a variable of the target type**.
+> **Whether type punning is undefined behavior comes down to one thing: is there an object of the type you read at that address? If there isn't and you read it as that type, it is UB**.
 >
-> - **When you need it**: taking the header and price out of a receive buffer, or wanting a `double`'s 64 bits themselves to hash, compare as integers or serialize.
-> - **What's wrong with a pointer cast**: no object of the target type lives at that address, and reading it as another type is undefined behavior (1.2).
+> - **Comment 1, the start of the buffer read as a `Header`**: there is only a run of `unsigned char` there, no `Header` object. `buf` isn't guaranteed to be 4-byte aligned either, and `Header` requires 4-byte alignment, so misalignment is a second layer of UB.
+> - **Comment 2, `buf + 8` read as a `double`**: there is no `double` object there either. `double` requires 8-byte alignment, and `buf + 8` isn't necessarily a multiple of 8.
+> - **Comment 3, a `double` read as a `uint64_t`**: `&x` holds a `double`, and reading it as a `uint64_t` breaks strict aliasing (1.2).
+> - **Byte types are the exception**: reading any object through `unsigned char`, `char` or `std::byte` is legal, so a `double` can be read as a run of bytes.
 > - **The legal way**: copy the bytes into a variable of the target type with `memcpy` or `std::bit_cast`; it still compiles to a single load (1.3).
 
 ```cpp
