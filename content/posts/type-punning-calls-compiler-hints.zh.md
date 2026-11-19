@@ -28,11 +28,12 @@ light: true
 
 ### 1.1 类型双关（type punning）：同一块字节，换一种类型去读 {#punning-need}
 
-> **类型双关什么时候是未定义行为，本质上只看一件事：那个地址上有没有你要读的那种类型的对象。没有，却用这个类型去读，就是 UB**。
+> **这三处的地址上原本只有 `unsigned char` 数组或 `double` 对象，从来没有创建过 `Header`、`double` 或 `uint64_t` 对象，用 `reinterpret_cast` 强转指针再解引用去读，就是未定义行为**。
 >
-> - **注释 1，把缓冲区开头当成 `Header`**：那里只有一串 `unsigned char`，没有 `Header` 对象。`buf` 也不保证 4 字节对齐，`Header` 要求 4 字节对齐，不对齐又是一层 UB。
-> - **注释 2，把 `buf + 8` 当成 `double`**：那里同样没有 `double` 对象。`double` 要求 8 字节对齐，`buf + 8` 不一定是 8 的倍数。
-> - **注释 3，把 `double` 当成 `uint64_t`**：`&x` 那里是一个 `double`，用 `uint64_t` 去读它，违反严格别名（1.2）。
+> - **注释 1**：`buf` 开头只有 `unsigned char` 数组，没有 `Header` 对象，却当成 `Header` 读。
+> - **注释 2**：`buf + 8` 也只有 `unsigned char` 数组，没有 `double` 对象，却当成 `double` 读。
+> - **注释 3**：`&x` 那里是一个 `double` 对象，没有 `uint64_t` 对象，却当成 `uint64_t` 读。
+> - **注释 1、2 还多一层**：`buf` 不保证对齐，`Header` 要求 4 字节对齐，`double` 要求 8 字节对齐，不对齐的地址去读也是未定义行为。
 > - **例外是字节类型**：用 `unsigned char`、`char`、`std::byte` 读任何对象都合法，所以能把一个 `double` 当一串字节读。
 > - **合法写法**：用 `memcpy` 或 `std::bit_cast` 把字节拷进目标类型的变量，编出来也只是一条读（1.3）。
 

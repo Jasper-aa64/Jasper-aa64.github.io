@@ -28,11 +28,12 @@ This section follows one line: type punning is what we want to do, and doing it 
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
-> **Whether type punning is undefined behavior comes down to one thing: is there an object of the type you read at that address? If there isn't and you read it as that type, it is UB**.
+> **At these three addresses there is only an `unsigned char` array or a `double` object; no `Header`, `double` or `uint64_t` object was ever created there, so casting the pointer with `reinterpret_cast` and dereferencing it to read is undefined behavior**.
 >
-> - **Comment 1, the start of the buffer read as a `Header`**: there is only a run of `unsigned char` there, no `Header` object. `buf` isn't guaranteed to be 4-byte aligned either, and `Header` requires 4-byte alignment, so misalignment is a second layer of UB.
-> - **Comment 2, `buf + 8` read as a `double`**: there is no `double` object there either. `double` requires 8-byte alignment, and `buf + 8` isn't necessarily a multiple of 8.
-> - **Comment 3, a `double` read as a `uint64_t`**: `&x` holds a `double`, and reading it as a `uint64_t` breaks strict aliasing (1.2).
+> - **Comment 1**: the start of `buf` holds only an `unsigned char` array, no `Header` object, yet it is read as a `Header`.
+> - **Comment 2**: `buf + 8` also holds only an `unsigned char` array, no `double` object, yet it is read as a `double`.
+> - **Comment 3**: `&x` holds a `double` object, no `uint64_t` object, yet it is read as a `uint64_t`.
+> - **Comments 1 and 2 add a second layer**: `buf` isn't guaranteed to be aligned, `Header` requires 4-byte alignment and `double` 8-byte alignment, and reading through a misaligned address is undefined behavior too.
 > - **Byte types are the exception**: reading any object through `unsigned char`, `char` or `std::byte` is legal, so a `double` can be read as a run of bytes.
 > - **The legal way**: copy the bytes into a variable of the target type with `memcpy` or `std::bit_cast`; it still compiles to a single load (1.3).
 
