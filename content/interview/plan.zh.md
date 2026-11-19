@@ -43,7 +43,7 @@ toc: true
 |---|---|---|---|---|---|
 | 1 | 手写 SPSC、LRU | 要了两道，一道没写、一道换题；sec 最可能再要 | 从空白写，各 3 遍，各限时 10 分钟 | 周二、周三、周五 | 见[第 3 节](#handwrite) |
 | 2 | 简历上的每一条都写不出代码 | 每一条都答得像没写过 | 实习 6 条加缓存案例，每条从空白写到能跑通 | 周二到周四 | 见[第 3 节](#handwrite) |
-| 3 | 两版 SPMC 混着讲 | 统一讲每格带戳那一版：一个生产者、读者各记进度、一次减法三种含义，和 fir 里说的一致 | 照 [行情接入和 SPMC](https://jasper-aa64.github.io/zh/interview/md-feed-spmc/) 1.1 节说一遍，1.5、1.6 节逐题答；行情优化看第 2 部分 | 周二 | ⬜ |
+| 3 | 两版 SPMC 混着讲 | 统一讲每格带戳那一版：一个生产者、读者各记进度、一次减法三种含义，和 fir 里说的一致 | 照 [行情接入和 SPMC](https://jasper-aa64.github.io/zh/interview/md-feed-spmc/) 1.1 节说一遍，1.6、1.7 节逐题答；行情优化看第 2 部分 | 周二 | ⬜ |
 | 4 | SPMC 的追问说不清 | 16–24 分钟问的就是这些，每问都停 | 读 [SPMC 广播环](https://jasper-aa64.github.io/zh/posts/spmc-shared-memory-broadcast-ring/)第 1、2 节，[4.1](#cards-spmc) 每题 20 秒内说完 | 周二 | ⬜ |
 | 5 | 简历上的数字说不出来源 | “650 万条”被当场算成每只每天 3250 条；回测系统怎么搭的答不上 | [实习经历拆解](https://jasper-aa64.github.io/zh/interview/cv-internship/)第 5、6 节：每个数字一句（是什么、怎么量的、改了什么）；[回测框架专页](/zh/interview/backtest-framework/)：一天 4 步各是哪个函数 | 周三 | ⬜ |
 | 6 | 缓存案例讲了 4 分钟 | 被打断，LFB 个数说成 20 | [缓存案例](https://jasper-aa64.github.io/zh/posts/low-latency-cache-case-study/)压成 60 秒：瓶颈一句、几刀各一句、结果一句 | 周三 | ⬜ |

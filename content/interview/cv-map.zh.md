@@ -38,7 +38,7 @@ toc: true
 
 ### 2.1 行情接入 {#md-feed}
 
-[接入两家行情源并转换为统一结构落盘](/zh/interview/md-feed-spmc/#usage)，[回调线程经 SPMC 广播队列向写线程交付数据](/zh/interview/md-feed-spmc/#ring)；[基于真实行情校验价格、委托类型、成交金额等字段](/zh/interview/cv-internship/#md-verify)，[经整日 4.5 亿条行情回放验证](/zh/interview/cv-internship/#md-replay)，[支持断线自动续传](/zh/interview/cv-internship/#md-reconnect)。
+[接入两家行情源并转换为统一结构落盘](/zh/interview/md-feed-spmc/#usage)，[回调线程经 SPMC 广播队列向落盘进程交付数据](/zh/interview/md-feed-spmc/#ring)；[基于真实行情校验价格、委托类型、成交金额等字段](/zh/interview/cv-internship/#md-verify)，[经整日 4.5 亿条行情回放验证](/zh/interview/cv-internship/#md-replay)，[支持断线自动续传](/zh/interview/cv-internship/#md-reconnect)。
 
 → 代码：[环](/zh/interview/md-feed-spmc/#ring)、[放进共享内存](/zh/interview/md-feed-spmc/#shm)、[回调和落盘线程](/zh/interview/md-feed-spmc/#usage)；完整程序 [7.1](/zh/interview/cv-internship/#hw-md-feed)
 
