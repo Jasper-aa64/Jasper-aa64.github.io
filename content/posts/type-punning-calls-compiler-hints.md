@@ -20,16 +20,18 @@ How far the compiler can optimize depends on what it dares to assume and what it
 
 ## 1. Type Punning and Strict Aliasing: The Compiler Assumes Different Types Don't Overlap {#type-punning}
 
-**The logic of this section: type punning is what we want to do, and strict aliasing is the compiler's rule; punning through a pointer cast breaks that rule, which is undefined behaviour, and the compiler, optimizing by the rule, computes the wrong result; the legal ways are to copy the bytes out, or to state that an object lives there**.
-
-- **1.1 What we want**: read the same bytes as another type.
-- **1.2 The compiler's rule**: an object may only be read or written through its own type (plus a few exceptions such as the byte types), so pointers of different types are treated as non-overlapping.
-- **1.3 Where they collide**: reading or writing through a cast pointer accesses that memory as another type and breaks 1.2; the compiler doesn't reload memory and reads a stale value.
-- **1.4 How to do it legally**: copy into the target type with `memcpy` or `std::bit_cast`, or state that an object lives there with `std::start_lifetime_as`.
+> **Essence: Type punning is what we want to do, and doing it through a pointer cast breaks the compiler's strict aliasing rule**.
+>
+> - **1.1 What we want**: read the same bytes as another type.
+> - **1.2 The compiler's rule**: an object may only be read or written through its own type (plus a few exceptions such as the byte types), so pointers of different types are treated as non-overlapping.
+> - **1.3 Where they collide**: reading or writing through a cast pointer accesses that memory as another type, which is undefined behaviour. The compiler optimizes by the rule, doesn't reload memory, and reads a stale value.
+> - **1.4 How to do it legally**: copy the bytes into the target type with `memcpy` or `std::bit_cast`, or state that an object lives there with `std::start_lifetime_as`.
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
-**Type punning is a need, not a mistake: read the same bytes as another type. A trading system can't avoid it in two places, and the handiest way to write it is a pointer cast, which is how all three spots below do it**.
+> **Essence: Type punning is a need, not a mistake: reading the same bytes as another type**.
+>
+> - **The handiest way to write it is a pointer cast**: all three spots below do it that way, and that is exactly where they go wrong (1.3).
 
 ```cpp
 struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8-byte header
@@ -54,7 +56,10 @@ uint64_t hash_bits(double x) {
 
 ### 1.2 Strict Aliasing: Different Types, So the Compiler Treats Them as Non-Overlapping {#alias-rule}
 
-**The compiler assumes an object is only read or written through its own type, so two pointers of different types never point to the same memory. That assumption lets values stay in registers, and the price is that punning code gets optimized wrong.**
+> **Essence: The compiler assumes an object is only read or written through its own type, so two pointers of different types never point to the same memory**.
+>
+> - **This assumption lets values stay in registers**: once the compiler knows no store of another type changed a value, it doesn't reload it from memory.
+> - **The price is that punning code gets optimized wrong**: reading or writing the same memory as another type is exactly what the assumption rules out (1.3).
 
 - **Only a few types may access an object of type `T`**: `T` itself (with or without `const` and `volatile`), its signed or unsigned counterpart, and `char`, `unsigned char` and `std::byte`. Access through any other type is undefined behavior: the compiler doesn't have to warn, and the result can change with the optimization level.
 - **The compiler trades it for optimizations**: after a store through a `uint64_t*`, it knows no `double` changed, so a `double` needn't be reloaded from memory; loop bounds and coefficients can be hoisted out of the loop, which is what lets the loop vectorize. It's the same kind of information as `__restrict` in [#10](/posts/pointer-memory-access/), except you don't write it; the compiler infers it from the types.
@@ -62,7 +67,10 @@ uint64_t hash_bits(double x) {
 
 ### 1.3 Punning Through a Pointer Cast: It Breaks Strict Aliasing, the Compiler Still Optimizes on "No Overlap" and Reads a Stale Value {#alias-violation}
 
-**Punning through a pointer cast reads or writes an object through another type, which strict aliasing makes undefined behaviour; the cast doesn't change the compiler's assumption, so it still believes the two pointers refer to different objects, doesn't reload memory, and uses the stale value in a register**.
+> **Essence: Punning through a pointer cast reads or writes an object through another type, which strict aliasing makes undefined behaviour**.
+>
+> - **The cast doesn't change the compiler's assumption**: it still believes the two pointers refer to different objects.
+> - **The result is a stale value**: the compiler doesn't reload memory and uses the value in a register.
 
 ```cpp
 double alias(double* d, uint64_t* u) {
@@ -87,7 +95,11 @@ alias(double*, unsigned long long*):
 
 ### 1.4 The Legal Ways: Copy the Bytes into the Target Type, or Say There's an Object Here {#alias-fix}
 
-**There are only two kinds of legal code: copy the bytes into a variable of the target type (`memcpy`, `std::bit_cast`), or tell the compiler outright that an object begins in these bytes (`std::start_lifetime_as`). Both compile to a single load and cost nothing.**
+> **Essence: There are only two kinds of legal code: copy the bytes into a variable of the target type, or state that an object begins in these bytes**.
+>
+> - **Copy into a variable**: with `memcpy` or `std::bit_cast`.
+> - **State that an object lives there**: with C++23's `std::start_lifetime_as`.
+> - **Neither costs anything**: both compile to a single load.
 
 1. **Copy into a variable: `memcpy` and `std::bit_cast`**
 
@@ -146,7 +158,10 @@ alias(double*, unsigned long long*):
 
 ### 1.5 IEEE 754: Changing the Sign Doesn't Need Punning {#ieee754}
 
-**A double's sign has the top bit to itself, so negating or taking an absolute value is a single bit operation; write the math and the compiler emits that bit operation itself, two instructions fewer than punning by hand.**
+> **Essence: A double's sign has the top bit to itself, so negating or taking an absolute value is a single bit operation**.
+>
+> - **Just write the math**: the compiler turns `-x` and `std::fabs(x)` into that bit operation itself.
+> - **Punning by hand is longer**: two instructions more than writing the math.
 
 - **The 64 bits form three fields**: the top bit is the sign, the next 11 bits are the exponent, and the remaining 52 bits are the mantissa. The value is:
 
@@ -223,7 +238,10 @@ negabs(double):
 
 ### 1.6 `std::variant`: A Union Doesn't Remember What It Holds, a Variant Does {#variant}
 
-**A union lets one piece of memory hold one of several types, but it doesn't remember which one it holds, and reading the wrong member is the punning of 1.3; `std::variant` stores an extra index to remember the type, at the cost of a few bytes and one dispatch on the index.**
+> **Essence: A union doesn't remember which type it holds, and `std::variant` stores an extra index to remember it**.
+>
+> - **Reading the wrong union member is punning**: reading a member other than the last one written is undefined behaviour, just like 1.3.
+> - **What variant costs**: a few extra bytes and one dispatch on the index per access.
 
 - **The typical use is market data messages**: a message might be a new order, a cancel or a trade, each with different fields, kept in the same memory to save space.
 
@@ -247,7 +265,11 @@ std::visit([](auto&& x) { std::cout << x << '\n'; }, v);
 
 ### 2.1 The Calling Convention: Arguments Go in Registers First {#calling-convention}
 
-**When a call can't be inlined, arguments go into fixed registers by the calling convention: on Linux x86-64 the first 6 integer or pointer arguments go in `rdi` through `r9`, the first 8 floating-point ones in `xmm0` through `xmm7`, and only the rest go on the stack; when the function is inlined, this step disappears**.
+> **Essence: When a call can't be inlined, arguments go into fixed registers by the calling convention, and when the function is inlined this step disappears**.
+>
+> - **Integer and pointer arguments**: on Linux x86-64 the first 6 go in `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`.
+> - **Floating-point arguments**: the first 8 go in `xmm0` through `xmm7`.
+> - **Only the rest go on the stack**: from the 7th integer argument and the 9th floating-point argument on.
 
 - **When a function is inlined, it doesn't matter how arguments are passed**: the compiler expands the body right at the call site.
 - **Some calls can't be inlined**: the function is defined in another file or a library, it's called through a function pointer or a virtual function, it's recursive, or it's too big for the compiler to want to expand.
@@ -256,7 +278,10 @@ std::visit([](auto&& x) { std::cout << x << '\n'; }, v);
 
 ### 2.2 Small by Value, Large by `const&` {#pass-by}
 
-**When a call can't be inlined, pass by value whatever fits in registers: passing by reference passes an address, so the callee needs an extra memory read and the caller has to store the value on the stack first to have an address; pass `const&` only for things that are expensive to copy and don't fit in registers**.
+> **Essence: When a call can't be inlined, pass by value whatever fits in registers, and pass `const&` only for things that are expensive to copy and don't fit**.
+>
+> - **Passing by reference passes an address**: the callee needs an extra memory read.
+> - **The caller has to store the value on the stack first**: otherwise there is no address to pass.
 
 1. **Passing an `int` by reference adds a memory operation on each side of the call**
 
@@ -306,7 +331,9 @@ std::visit([](auto&& x) { std::cout << x << '\n'; }, v);
 
 ### 2.3 `const&` Also Blocks Optimization: The Compiler Must Assume It Changes {#const-ref-alias}
 
-**For a value passed by reference, the compiler has to assume other stores may change it, so it doesn't dare keep it in a register; a value passed by value is the function's own copy and can stay in a register throughout**.
+> **Essence: For a value passed by reference, the compiler has to assume other stores may change it, so it doesn't dare keep it in a register**.
+>
+> - **Passing by value avoids this**: the function gets its own copy, which can stay in a register throughout.
 
 - **The referenced value may be changed by other stores**: in the scaling function below, when `f` is passed by reference it might point at an element of `v`, so any write to `v[i]` might change `f`, and it has to be reloaded every iteration.
 
@@ -340,7 +367,9 @@ scale_val(double*, int, double):           # loop body
 
 ### 2.4 Recursion: The Compiler Turns Tail Calls into Loops Itself {#tail-call}
 
-**Recursion can't be inlined, but a tail call, where calling itself is the last thing the function does, is turned into a jump by the compiler itself; rewriting it as a loop by hand mostly repeats the compiler's work**.
+> **Essence: Recursion can't be inlined, but the compiler turns a tail call (calling itself as the last step) into a jump by itself**.
+>
+> - **Rewriting it as a loop by hand mostly repeats work**: the compiler has already done it.
 
 - **Recursion can't be inlined**: the function calls itself, and expanding one level leaves another. Every call leaves a return address on the stack and saves registers, and recursion that goes too deep runs out of stack.
 - **The compiler removes the overhead of tail calls itself**: when calling itself is the last thing a function does (a tail call), nothing is left to do after it returns, so GCC turns the call into a jump. In a preorder traversal, the call for the right subtree is a tail call:
@@ -372,7 +401,10 @@ void preorder(Node* root) {
 
 ### 2.5 `inline`: The Keyword Is About Linking, Not Inlining {#inline}
 
-**The only part of the `inline` keyword that always takes effect is the linking rule: the same definition may appear in several `.cpp` files; whether a call is expanded is the compiler's own cost estimate, and to make it obey you need attributes such as `always_inline`**.
+> **Essence: The only part of the `inline` keyword that always takes effect is the linking rule, and whether a call is expanded is the compiler's own cost estimate**.
+>
+> - **The linking rule**: the same definition may appear in several `.cpp` files.
+> - **To make the compiler obey you**: you need attributes such as `always_inline`.
 
 The sections so far were about calls that can't be inlined; when a call is inlined (expanded), how arguments are laid out doesn't matter. `inline` has two meanings sharing one word: one is a language rule that always applies; the other is a hint the compiler is free to ignore.
 
@@ -412,7 +444,10 @@ The sections so far were about calls that can't be inlined; when a call is inlin
 
 ### 2.6 Inline Assembly: Only for the Few Instructions C++ Can't Express {#inline-asm}
 
-**Inline assembly is only for instructions neither C++ nor intrinsics can express: the compiler can't see into an asm block, so optimization stops at its boundary, and a missing constraint silently gives wrong results**.
+> **Essence: Inline assembly is only for instructions neither C++ nor intrinsics can express**.
+>
+> - **The compiler can't see into an asm block**: optimization stops at its boundary.
+> - **A missing constraint silently gives wrong results**: the compiler assumes those registers didn't change and reports nothing.
 
 1. **Don't write it if you can avoid it**
    - **The compiler can't see into an asm block**: constant propagation and register allocation stop at its boundary.
