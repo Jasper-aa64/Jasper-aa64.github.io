@@ -222,11 +222,14 @@ An object pool hands out one type `T`, allocated and returned one at a time. The
 
 ### 2.3 Where the Big Block Comes From: Ask the Kernel Once at Startup, and mmap Only Gives Addresses {#arena-mmap}
 
-> **Essence: `mmap` is the one system call in which the arena gets a whole block of addresses from the kernel at startup; every later allocation just moves an offset inside that block, without entering the kernel**.
+> **The arena uses `mmap` rather than `malloc` because `mmap` asks the kernel for a whole block directly, and its flags decide how that memory is provided: prefaulted, backed by huge pages, locked. Memory from `malloc` offers none of this**.
 >
+> - **Into the kernel only once**: the whole block is taken at startup; every later allocation just moves an offset inside it, without entering the kernel.
 > - **You get addresses, not memory**: when `mmap` returns, the kernel has only recorded a range of virtual addresses, and each physical page is allocated only when that page is first written, so write the whole block once at startup, or pass `MAP_POPULATE` (4.1).
+> - **No huge-page effect by default**: without flags, `mmap` maps 4 KiB pages and the TLB fares just as it would with `malloc`. Only `MAP_HUGETLB` maps 2 MiB pages, so one TLB entry covers 512 times as many addresses and TLB misses drop accordingly ([memory latency special, 3.2](/posts/low-latency-memory-latency-bandwidth/#32-tlb-and-huge-pages-the-translation-step)).
+> - **`MAP_HUGETLB` needs pages reserved first**: huge pages have to be reserved in advance with `vm.nr_hugepages`, the length must be a multiple of 2 MiB, and if too few are reserved `mmap` simply fails. Transparent huge pages (`madvise(MADV_HUGEPAGE)`) need no reservation, but depend on a system setting, and their background merging also changes page tables (4.4).
 > - **The block belongs to the arena alone**: `malloc` and `free` never touch it; only the arena's own `munmap` tears it down.
-> - **The reference implementation below uses `aligned_alloc`**: the effect is the same, and for requests over 128 KB glibc also does one `mmap` underneath by default.
+> - **The reference implementation below uses `aligned_alloc`**: for requests over 128 KB glibc does one `mmap` underneath too, but none of these flags can be passed, so huge pages mean calling `mmap` yourself.
 
 ### 2.4 Reference Implementation: An Arena You Can Use As Is {#ref-arena}
 

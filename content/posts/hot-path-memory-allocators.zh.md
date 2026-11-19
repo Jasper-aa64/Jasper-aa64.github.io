@@ -222,11 +222,14 @@ class ObjectPool {
 
 ### 2.3 整块内存从哪来：启动时向内核要一次，mmap 只给地址 {#arena-mmap}
 
-> **本质：`mmap` 是 arena 启动时向内核一次要下一整块地址的那个系统调用，之后的分配都在这块里自己挪偏移，不再进内核**。
+> **arena 用 `mmap` 而不用 `malloc`，是因为 `mmap` 直接向内核要一整块，还能用标志决定这块内存怎么给：预先缺页、用大页、锁住，`malloc` 给的内存这些都管不了**。
 >
+> - **只进一次内核**：启动时要下整块，之后的分配都在这块里挪偏移，不再进内核。
 > - **只拿到地址，没拿到内存**：`mmap` 返回时内核只登记了一段虚拟地址，物理页要等每一页第一次被写到才分配，所以启动时要把整块写一遍，或者加 `MAP_POPULATE`（4.1）。
+> - **默认没有大页的效果**：不加标志，`mmap` 按 4 KiB 一页映射，TLB 的情况和 `malloc` 一样。加 `MAP_HUGETLB` 才按 2 MiB 一页映射，一个 TLB 项盖住的地址多 512 倍，TLB 缺失跟着变少（[内存延迟专题 3.2](/zh/posts/low-latency-memory-latency-bandwidth/#32-tlb-与大页地址翻译这一步)）。
+> - **`MAP_HUGETLB` 要先预留**：大页要提前用 `vm.nr_hugepages` 预留，长度要是 2 MiB 的整数倍，预留不够时 `mmap` 直接返回失败。透明大页（`madvise(MADV_HUGEPAGE)`）不用预留，但要看系统开关，后台合并还会改页表（4.4）。
 > - **这块只归 arena 管**：`malloc`、`free` 碰不到它，只有 arena 自己 `munmap` 才会拆掉。
-> - **下面的参考实现用的是 `aligned_alloc`**：效果一样，大于 128 KB 的请求，glibc 默认底下也是一次 `mmap`。
+> - **下面的参考实现用的是 `aligned_alloc`**：大于 128 KB 时 glibc 底下也是一次 `mmap`，但传不了这些标志，要大页就得自己调 `mmap`。
 
 ### 2.4 参考实现：一个能直接用的 arena {#ref-arena}
 
