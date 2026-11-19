@@ -7,7 +7,7 @@ summary: "进程间通信的方式看起来很多，按数据走不走内核只�
 toc: true
 group: cpplinux
 topic: proc
-weight: 115
+weight: 116
 aliases: ["/posts/ipc/"]
 ---
 

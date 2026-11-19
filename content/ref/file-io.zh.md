@@ -7,7 +7,7 @@ summary: "fd → 打开的文件（偏移、O_APPEND、O_NONBLOCK）→ inode（
 toc: true
 group: cpplinux
 topic: proc
-weight: 116
+weight: 117
 ---
 
 ## 1. fd：进程手里的一个下标
