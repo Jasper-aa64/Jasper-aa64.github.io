@@ -333,6 +333,7 @@ std::visit([](auto&& x) { std::cout << x << '\n'; }, v);
 
 > **Essence: For a value passed by reference, the compiler has to assume other stores may change it, so it doesn't dare keep it in a register**.
 >
+> - **`const` only says this reference can't be used to write**: it doesn't promise that other pointers or other threads won't change that memory.
 > - **Passing by value avoids this**: the function gets its own copy, which can stay in a register throughout.
 
 - **The referenced value may be changed by other stores**: in the scaling function below, when `f` is passed by reference it might point at an element of `v`, so any write to `v[i]` might change `f`, and it has to be reloaded every iteration.
@@ -364,6 +365,7 @@ scale_val(double*, int, double):           # loop body
 - **The extra load usually hits L1 and isn't expensive by itself**: but it shows the compiler won't treat `f` as unchanging.
 - **At `-O3`, to vectorize, the loop first gets versioned**: GCC's report says the loop was "versioned for vectorization because of possible aliasing": it inserts a check of whether `f` and `v` overlap and takes the slow copy if they do. `scale_val` has no such step.
 - **This is the problem from 1.2, except the types don't help**: strict aliasing lets the compiler rule out overlap by type, but `f` and `v` are both `double`, so only passing by value (or `__restrict`) lets it be sure they don't overlap.
+- **Large objects still go by `const&`; in a hot loop, copy the value you reuse first**: passing a struct of a few hundred bytes by value costs far more than a few extra loads. Write `const double k = f;` before the loop and use `k` inside: nothing can change a local, and GCC measurably reads `f` once before the loop and keeps it in a register throughout.
 
 ### 2.4 Recursion: The Compiler Turns Tail Calls into Loops Itself {#tail-call}
 
