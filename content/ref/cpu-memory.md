@@ -23,6 +23,18 @@ When a later post covers a new hardware layer, it goes here. One layer up, the t
 
 Blue text says where something is covered: #N is Trading System Notes #N, MESI is the topic post, and "Ref N.N" is a section of this page. Click the image for the interactive version: click a box to see what it is and where it is covered, step through a path (a load, a store, a branch mispredict), and follow the blue labels to the posts.
 
+> **Converting between cycles and time**
+>
+> - **1 cycle = 1 ÷ clock**: at 4 GHz one cycle is 0.25 ns and 1 ns ≈ 4 cycles; at 5 GHz it is 0.2 ns, at 3 GHz about 0.33 ns. This page converts at about 4 GHz throughout.
+> - **Time (ns) = cycles ÷ clock (GHz)**: an L2 hit of 14 cycles is 3.5 ns at 4 GHz.
+> - **Inside the core the cycle count is fixed; outside it the ns are fixed**: L1 and L2 hits and branch mispredicts scale with the clock; memory and cross-socket latency stay about the same in ns, so a higher clock waits more cycles.
+>
+> **Clock speeds today** (November 2026, see [#1 4.2](/posts/cpu-affinity-core-isolation-numa/#clock))
+>
+> - **Desktop flagships**: top boost out of the box about 5.7–6.2 GHz; Intel's Core i9-14900KS is rated 6.2 GHz.
+> - **Servers**: about 3.5–4 GHz boost on many-core parts, about 5 GHz on frequency-optimized ones such as AMD's EPYC 9175F.
+> - **Trading servers**: usually turn turbo off and pin one frequency, or overclock and lock a fixed frequency; estimating at 4–5 GHz is enough.
+
 ### 1.1 Loads: Address Translation, Cache Lookup, Line Fill {#load}
 
 <a href="/images/ref/load-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.en.svg" style="display:block;width:100%;max-width:560px;margin:0 auto" alt="The path of a load. 1: the address splits into page number and set index, and TLB translation and L1D set selection happen at once. 2: L1D compares tags; on a miss it takes an LFB (line fill buffer) entry and asks L2, then L3. 3: on a miss everywhere the memory controller picks channel, bank and row and reads the DIMM. 4: the whole 64-byte line returns the same way and lands in each cache level. Each step is labelled with the latency so far." loading="lazy" decoding="async"></a>

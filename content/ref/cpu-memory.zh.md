@@ -23,6 +23,18 @@ math: true
 
 图里的蓝字是“在哪里讲过”：#N 是交易系统笔记 #N，MESI 是专题，“速查 N.N”是本页的小节。点图打开可交互的版本：点一个框看它是什么、在哪篇讲过，选一条路径（load、store、分支猜错）一步一步看怎么走，蓝字直接链到文章。
 
+> **周期和时间怎么换算**
+>
+> - **1 个周期 = 1 ÷ 主频**：4 GHz 时 1 个周期 0.25 ns，1 ns ≈ 4 个周期；5 GHz 时 0.2 ns，3 GHz 时约 0.33 ns。本页都按约 4 GHz 换算。
+> - **时间（ns）= 周期数 ÷ 主频（GHz）**：比如 L2 命中 14 个周期，4 GHz 时是 3.5 ns。
+> - **核里的事周期数固定，核外的事 ns 固定**：L1、L2 命中和分支猜错跟着主频走；内存、跨插槽的 ns 基本不变，主频越高，等的周期数越多。
+>
+> **现在的主频**（2026 年 11 月，详见 [#1 6.2](/zh/posts/cpu-affinity-core-isolation-numa/#clock)）
+>
+> - **桌面旗舰**：出厂最高睿频约 5.7–6.2 GHz，Intel Core i9-14900KS 标 6.2 GHz。
+> - **服务器**：多核型号睿频约 3.5–4 GHz，高频型号约 5 GHz，比如 AMD EPYC 9175F。
+> - **交易服务器**：常关掉睿频钉在一个频率上，或者超频后锁在一个固定频率，按 4–5 GHz 估就够。
+
 ### 1.1 读（load）：地址翻译、查缓存、行填充 {#load}
 
 <a href="/images/ref/load-path.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.zh.svg" style="display:block;width:100%;max-width:560px;margin:0 auto" alt="读（load）的路径。第 1 步：地址拆成页号和组号，TLB 翻译和 L1D 选组同时进行。第 2 步：L1D 比对标签，没命中先在 LFB（填充缓冲）登记一项，再问 L2、L3。第 3 步：都没有就交给内存控制器，按通道、bank、行去内存条取。第 4 步：整条 64 B 行原路返回，沿路放进各级缓存。图中标了每一步的累计延迟。" loading="lazy" decoding="async"></a>
