@@ -125,8 +125,16 @@ private:
 };
 ```
 
+**`compare_exchange_weak` 的语法：`bool compare_exchange_weak(T& expected, T desired, 成功时的内存序, 失败时的内存序)`，一步原子地做完“等于 `expected` 就改成 `desired`，不等就把当前值读进 `expected`”**。
+
+- **`expected` 传引用**：进去是“我以为它现在是几”，失败时出来是“它实际是几”。所以它必须是一个变量，不能直接写字面量 `0`。
+- **`desired` 传值**：相等时要写进去的新值。
+- **返回 `bool`**：true 是改成了；false 是没改，`expected` 已经换成当前值。
+- **两个内存序**：第一个用在成功时，这时读和写都做了；第二个用在失败时，这时只做了一次读，所以标准规定它不能是 release 或 acq_rel。
+- **只传一个内存序**：成功、失败共用它，失败那边自动降一级，acq_rel 降成 acquire，release 降成 relaxed；一个都不传就都是 seq_cst。
+- **例子**：[#18](/zh/posts/thread-safe-queue/) 2.1 rte_ring 的第 ① 步 `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)`。`prod_head_` 还是 `head`，就改成 `head + 1`，这个槽归自己；被别的生产者抢先了，`head` 被换成最新值，外面的 `do while` 拿新的 `head` 重新查满再抢。只传了一个 relaxed，成功失败都是 relaxed，因为这一步只分号，数据靠后面的 ③④ 传。
+
 1. **CAS 失败以后，要把 `expected` 改回 0**
-   - **`compare_exchange_weak(expected, 1, …)` 做两件事**：`locked_` 等于 `expected`（0）就改成 1，返回 true；不等就把 `locked_` 的当前值写进 `expected`，返回 false。
    - **失败以后 `expected` 变成了 1**：下一轮之前要改回 0。
    - **不改回去，两个线程会同时进临界区**：下一轮问的就成了“等于 1 就改成 1”，锁明明被别人拿着，这次 CAS 却会成功。
 
@@ -142,7 +150,6 @@ private:
    - **怎么选**：外面本来就有循环，用 `weak`；只判断一次、失败就走的地方，才用 `strong`。
 
 4. **内存序：拿锁用 acquire，放锁用 release**
-   - **两个内存序参数分管成功和失败**：`compare_exchange_weak` 后面第一个用在 CAS 成功时，第二个用在失败时。
    - **内存序管的是临界区里的读写不能跑到锁外面去**（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 的 1.5）。
    - **`lock()` 成功的那次 CAS 用 acquire**：临界区里的读写不能提到拿锁之前，这样才看得到上一个持锁者写的东西。
    - **`unlock()` 的写用 release**：临界区里的读写不能拖到放锁之后。
