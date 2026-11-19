@@ -20,12 +20,12 @@ How far the compiler can optimize depends on what it dares to assume and what it
 
 ## 1. Type Punning and Strict Aliasing: The Compiler Assumes Different Types Don't Overlap {#type-punning}
 
-> **Essence: Type punning is what we want to do, and doing it through a pointer cast breaks the compiler's strict aliasing rule**.
->
-> - **1.1 What we want**: read the same bytes as another type.
-> - **1.2 The compiler's rule**: an object may only be read or written through its own type (plus a few exceptions such as the byte types), so pointers of different types are treated as non-overlapping.
-> - **1.3 Where they collide**: reading or writing through a cast pointer accesses that memory as another type, which is undefined behaviour. The compiler optimizes by the rule, doesn't reload memory, and reads a stale value.
-> - **1.4 How to do it legally**: copy the bytes into the target type with `memcpy` or `std::bit_cast`, or state that an object lives there with `std::start_lifetime_as`.
+This section follows one line: type punning is what we want to do, and doing it through a pointer cast breaks the compiler's strict aliasing rule.
+
+- **1.1 What we want**: read the same bytes as another type.
+- **1.2 The compiler's rule**: an object may only be read or written through its own type (plus a few exceptions such as the byte types), so pointers of different types are treated as non-overlapping.
+- **1.3 Where they collide**: reading or writing through a cast pointer accesses that memory as another type, which is undefined behaviour. The compiler optimizes by the rule, doesn't reload memory, and reads a stale value.
+- **1.4 How to do it legally**: copy the bytes into the target type with `memcpy` or `std::bit_cast`, or state that an object lives there with `std::start_lifetime_as`.
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
