@@ -455,6 +455,8 @@ if (refs.fetch_sub(1, std::memory_order_acq_rel) == 1)
 - **Every decrement needs both halves**: nobody knows in advance who will reach 0. A thread that isn't last uses the release half to hand over what it did with the object; the one that is last uses the acquire half to receive what everyone else did.
 - **Cost: on x86 it's as expensive as relaxed, and the money goes to the RMW itself**: x86 can only do an RMW with a `lock` instruction, and `lock` is itself a full barrier, about 20 cycles. The same `fetch_add` written relaxed or acq_rel compiles to the same `lock xadd`; switching to relaxed on x86 saves nothing and only drops the ordering guarantee. To save, do fewer RMWs, for example by giving each thread its own count.
 - **Only on ARM does the order make a difference**: `ldadd` (relaxed), `ldadda` (acquire), `ldaddl` (release), `ldaddal` (acq_rel), or an `ldxr`/`stxr` loop with a/l suffixes.
+- **Pairing doesn't care how long apart**: it only asks whether the acquire read the value that release wrote, so 100 years later still counts. An RMW is atomic and always reads the variable's previous write, so whatever the timing, all the `fetch_sub`s form one chain in modification order. A plain `store` in between breaks it there.
+- **Pairing itself costs nothing extra**: each instruction enforces its order when it executes. A release doesn't drain the store buffer because someone reads later, and an acquire doesn't signal the writer. If the read comes much later, the earlier writes have long been visible to every core and the reader just reads.
 
 ### 2.5 seq_cst: Every Thread Agrees on One Timeline, Even Store-Then-Load {#mo-seq-cst}
 

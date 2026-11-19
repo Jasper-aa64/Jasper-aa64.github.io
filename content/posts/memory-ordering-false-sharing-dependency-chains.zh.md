@@ -444,6 +444,8 @@ public:
 - **每次减都要两半**：谁最后减到 0，事先不知道。不是最后一个时，release 把自己用过的交出去；是最后一个时，acquire 接住别人用过的。
 - **价钱：x86 上和 relaxed 一样贵，钱花在读改写本身**：x86 的读改写只能用带 `lock` 的指令，`lock` 本身就是一道全屏障，约 20 个周期。同一个 `fetch_add`，写 relaxed 和写 acq_rel 编出来是同一条 `lock xadd`；在 x86 上换成 relaxed 省不下钱，只是丢了顺序保证。要省，得少做读改写，比如每个线程各记一份计数（[4.3](#case-counter)）。
 - **ARM 上内存序才真有区别**：`ldadd`（relaxed）、`ldadda`（acquire）、`ldaddl`（release）、`ldaddal`（acq_rel），或者 `ldxr`/`stxr` 循环加 a、l 后缀。
+- **配对不看隔了多久**：配对只看 acquire 读到的值是不是那次 release 写的，隔 100 年也算。读改写是原子的，每次一定读到这个变量上一次写的值，所以不管谁先谁后，所有 `fetch_sub` 都按修改的先后串成一条链，图里的蓝边就是这条链。中间插进一次普通的 `store`，链就断在那里。
+- **配对本身不额外花钱**：顺序在每条指令执行时就各自保证了，release 不会因为有人来读去清空 store buffer，acquire 也不会去通知写的一方。隔很久才来读，之前的写早已对所有核可见，读的一方照常读。
 
 ### 2.5 seq_cst：所有线程认同同一条时间线，先写后读也不乱 {#mo-seq-cst}
 
