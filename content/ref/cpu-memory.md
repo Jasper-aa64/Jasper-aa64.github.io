@@ -90,44 +90,51 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 
 ### 2.1 Latency: How Long One Access Waits {#latency}
 
-| Kind | One… | About |
-|---|---|---|
-| **Getting data** | Register read | 0–1 cycles |
-| | L1D hit | ~1 ns (4–5 cycles) |
-| | L2 hit | ~3–5 ns |
-| | L3 hit | ~10–30 ns |
-| | Line sitting in another core's cache | ~20–100 ns; false sharing pays this too (see [#2](/posts/memory-ordering-false-sharing-dependency-chains/)) |
-| | Memory, translation hits in the TLB | ~70–90 ns |
-| | Memory, translation misses the TLB too | ~85–120 ns |
-| | The other socket's memory (remote NUMA) | ~120–200 ns |
-| | Running into a DRAM refresh | ~300–500 ns, the extra wait in the worst case |
-| **Atomics** | Atomic load (any order), relaxed or release store | ~1 ns (4–5 cycles), same as a plain load or store: a `mov` on x86; on ARM the ordered ones become `ldar` and `stlr`, which aren't slow either |
-| | seq_cst store | ~1–5 ns (4–20 cycles): an `xchg` on x86, as expensive as a read-modify-write; an `stlr` on ARM, same as a release store |
-| | Acquire or release fence | 0–6 ns: no instruction on x86, one `dmb` on ARM |
-| | Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–6 ns (8–25 cycles): a `lock`-prefixed instruction on x86, `ldaddal`, `casal` and the like on ARM |
-| | seq_cst fence | ~2–6 ns (8–25 cycles): GCC emits `lock or` on x86; `dmb ish` on ARM |
-| | x86's `sfence`, `lfence`, `mfence` | 1–6, 4–15, 30–80 cycles; for `lfence`, not counting the wait for earlier instructions |
-| | One `pause` in a spin-wait loop | ~140 cycles (~35 ns), the number to use on today's trading servers; Intel chips before Skylake take only ~10, so spin budgets count time, not iterations; ARM has no equivalent and uses `yield` (a no-op on many cores) or `isb` (see [#16](/posts/spinlock-implementation/)) |
-| | Uncontended mutex lock plus unlock | ~10–25 ns: two atomic read-modify-writes; when contended and it has to sleep, see the futex row in the "System" group |
-| | Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete; falsely shared counters pay this too |
-| **Arithmetic** | Integer add/subtract, bit operation, shift | 1 cycle |
-| | Integer multiply | 3 cycles |
-| | Floating-point add/subtract, multiply | 3–5 cycles |
-| | Floating-point divide, square root | ~3–5 ns (10–20 cycles) |
-| | Integer divide, remainder | ~3–20 ns (10–90 cycles) |
-| **Branches** | Correctly predicted branch | 0–1 cycles |
-| | Conditional move (x86 `cmov`, ARM `csel`) | 1 cycle, but it waits for the condition and both values |
-| | Non-inlined function call (direct) | ~1–2 ns (a few cycles): `call`, `ret` plus saving registers; the real cost is the lost inlining, since the compiler can't optimize across the call |
-| | One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
-| | Virtual function call | ~1–2 ns when predicted, about the same as a direct call; add a branch mispredict when it guesses wrong, and a data fetch when the vtable isn't cached (see [virtual functions](/ref/virtual-functions/)) |
-| **System** | `malloc` plus `free` (small block) | ~10–50 ns from the thread's own cache; when the cache is empty and it asks the OS for memory, it enters the kernel and reaches µs |
-| | Simplest system call | ~0.1–0.5 µs |
-| | Page fault, no disk read (minor fault) | ~0.5–2 µs: the page's contents don't come from disk, so the kernel works only in memory. A first write to anonymous memory allocates a physical page, zeroes it and fills in the page table; a file or shared-memory page already in the page cache only needs the page table filled in |
-| | Page fault with a disk read (major fault) | 10–100 µs and up: the page's contents are still on disk (an `mmap`ed file not in the page cache, or a page swapped out), so it pays the disk-read row below first, then fills in the page table |
-| | Throwing and catching an exception | ~1–2 µs, more with a deeper stack |
-| | Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
-| | Sleep on a taken lock, then get woken (futex: from the unlock until the waiter runs) | ~2–10 µs: two system calls plus two thread switches; longer if the waiter's core was in a deep power-saving state (see [#16](/posts/spinlock-implementation/)) |
-| | NVMe SSD 4 KiB read | 10–100 µs: reading one page from an SSD, about 1000× slower than reading memory; hitting this once on the hot path costs all of it, so the hot path never reads disk synchronously: touch every page it needs at startup and `mlock` them so they are not swapped out (see [#3 4.1, 4.2](/posts/hot-path-memory-allocators/#prefault)) |
+{{< grouped-table >}}
+| One… | About |
+|---|---|
+| ::Getting data | |
+| Register read | 0–1 cycles |
+| L1D hit | ~1 ns (4–5 cycles) |
+| L2 hit | ~3–5 ns |
+| L3 hit | ~10–30 ns |
+| Line sitting in another core's cache | ~20–100 ns; false sharing pays this too (see [#2](/posts/memory-ordering-false-sharing-dependency-chains/)) |
+| Memory, translation hits in the TLB | ~70–90 ns |
+| Memory, translation misses the TLB too | ~85–120 ns |
+| The other socket's memory (remote NUMA) | ~120–200 ns |
+| Running into a DRAM refresh | ~300–500 ns, the extra wait in the worst case |
+| ::Atomics | |
+| Atomic load (any order), relaxed or release store | ~1 ns (4–5 cycles), same as a plain load or store: a `mov` on x86; on ARM the ordered ones become `ldar` and `stlr`, which aren't slow either |
+| seq_cst store | ~1–5 ns (4–20 cycles): an `xchg` on x86, as expensive as a read-modify-write; an `stlr` on ARM, same as a release store |
+| Acquire or release fence | 0–6 ns: no instruction on x86, one `dmb` on ARM |
+| Uncontended atomic read-modify-write: `fetch_add`, CAS, `exchange` (line in your own L1) | ~2–6 ns (8–25 cycles): a `lock`-prefixed instruction on x86, `ldaddal`, `casal` and the like on ARM |
+| seq_cst fence | ~2–6 ns (8–25 cycles): GCC emits `lock or` on x86; `dmb ish` on ARM |
+| x86's `sfence`, `lfence`, `mfence` | 1–6, 4–15, 30–80 cycles; for `lfence`, not counting the wait for earlier instructions |
+| One `pause` in a spin-wait loop | ~140 cycles (~35 ns), the number to use on today's trading servers; Intel chips before Skylake take only ~10, so spin budgets count time, not iterations; ARM has no equivalent and uses `yield` (a no-op on many cores) or `isb` (see [#16](/posts/spinlock-implementation/)) |
+| Uncontended mutex lock plus unlock | ~10–25 ns: two atomic read-modify-writes; when contended and it has to sleep, see the futex row in the "System" group |
+| Contended atomic read-modify-write (another core holds the line, it has to be pulled over first) | ~20–100 ns, slower the more cores compete; falsely shared counters pay this too |
+| ::Arithmetic | |
+| Integer add/subtract, bit operation, shift | 1 cycle |
+| Integer multiply | 3 cycles |
+| Floating-point add/subtract, multiply | 3–5 cycles |
+| Floating-point divide, square root | ~3–5 ns (10–20 cycles) |
+| Integer divide, remainder | ~3–20 ns (10–90 cycles) |
+| ::Branches | |
+| Correctly predicted branch | 0–1 cycles |
+| Conditional move (x86 `cmov`, ARM `csel`) | 1 cycle, but it waits for the condition and both values |
+| Non-inlined function call (direct) | ~1–2 ns (a few cycles): `call`, `ret` plus saving registers; the real cost is the lost inlining, since the compiler can't optimize across the call |
+| One branch mispredict (pipeline flush, see [#7](/posts/branch-prediction-branch-optimization/)) | ~4–5 ns (15–20 cycles) |
+| Virtual function call | ~1–2 ns when predicted, about the same as a direct call; add a branch mispredict when it guesses wrong, and a data fetch when the vtable isn't cached (see [virtual functions](/ref/virtual-functions/)) |
+| ::System | |
+| `malloc` plus `free` (small block) | ~10–50 ns from the thread's own cache; when the cache is empty and it asks the OS for memory, it enters the kernel and reaches µs |
+| Simplest system call | ~0.1–0.5 µs |
+| Page fault, no disk read (minor fault) | ~0.5–2 µs: the page's contents don't come from disk, so the kernel works only in memory. A first write to anonymous memory allocates a physical page, zeroes it and fills in the page table; a file or shared-memory page already in the page cache only needs the page table filled in |
+| Page fault with a disk read (major fault) | 10–100 µs and up: the page's contents are still on disk (an `mmap`ed file not in the page cache, or a page swapped out), so it pays the disk-read row below first, then fills in the page table |
+| Throwing and catching an exception | ~1–2 µs, more with a deeper stack |
+| Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
+| Sleep on a taken lock, then get woken (futex: from the unlock until the waiter runs) | ~2–10 µs: two system calls plus two thread switches; longer if the waiter's core was in a deep power-saving state (see [#16](/posts/spinlock-implementation/)) |
+| NVMe SSD 4 KiB read | 10–100 µs: reading one page from an SSD, about 1000× slower than reading memory; hitting this once on the hot path costs all of it, so the hot path never reads disk synchronously: touch every page it needs at startup and `mlock` them so they are not swapped out (see [#3 4.1, 4.2](/posts/hot-path-memory-allocators/#prefault)) |
+{{< /grouped-table >}}
 
 The two memory rows differ in the first step, the address translation in [1.1](#load)'s figure: when the TLB has no entry for the page, the hardware walks the page tables level by level (a page walk) to find the physical address before it can issue the real read. The page-table entries are usually in cache, so this adds only ~15–30 ns. Random reads over a large region pay it almost every time. With 2 MiB huge pages one TLB entry covers 512 times as much memory, and this part mostly disappears.
 

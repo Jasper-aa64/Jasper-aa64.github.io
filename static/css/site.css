@@ -1790,6 +1790,45 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   .prose th { font-size: 12.8px; }
 }
 
+/* Grouped tables ({{< grouped-table >}}): each group is a <tbody> headed by a full-width band, and its rows carry
+   the same colour as a stripe on the left. Five hues, repeating. */
+/* This table keeps the older card look: a 1px border with rounded corners and soft hairlines, not the 2px ledger frame. */
+.table-wrap:has(> .grp-table) {
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  overflow-x: auto;
+}
+.prose .grp-table :is(th, td) { padding: 12px 16px; border-bottom-color: color-mix(in srgb, var(--rule) 80%, transparent); }
+.prose .grp-table :is(th, td) + :is(th, td) { border-left: 1px solid color-mix(in srgb, var(--rule) 45%, transparent); }
+.prose .grp-table thead th {
+  position: static;
+  font-size: 13px;
+  font-weight: 650;
+  border-bottom: 2px solid color-mix(in srgb, var(--rule-strong) 60%, var(--rule));
+}
+.grp-table { --g: var(--accent); }
+.grp-table tbody.grp:nth-of-type(5n+1) { --g: #0e9fa6; }
+.grp-table tbody.grp:nth-of-type(5n+2) { --g: #c4646b; }
+.grp-table tbody.grp:nth-of-type(5n+3) { --g: #7a6ad8; }
+.grp-table tbody.grp:nth-of-type(5n+4) { --g: #d08a1e; }
+.grp-table tbody.grp:nth-of-type(5n+5) { --g: #3f8f4f; }
+.prose .grp-table tr.grp-head > th {
+  position: static;
+  padding-block: 8px;
+  background: color-mix(in srgb, var(--g) 20%, var(--card));
+  border-top: 2px solid var(--g);
+  border-bottom: 1px solid color-mix(in srgb, var(--g) 45%, var(--card));
+  box-shadow: inset 5px 0 0 var(--g);
+  font-size: 14px;
+  letter-spacing: .04em;
+  vertical-align: middle;
+}
+.prose .grp-table tbody.grp:first-of-type tr.grp-head > th { border-top: 0; }
+.prose .grp-table tbody tr:not(.grp-head) > td:first-child { box-shadow: inset 5px 0 0 color-mix(in srgb, var(--g) 70%, var(--card)); padding-left: 20px; }
+.prose .grp-table tbody tr:not(.grp-head):hover > td:first-child { box-shadow: inset 5px 0 0 var(--g); }
+.prose .grp-table tbody tr:last-child > td { border-bottom: 1px solid var(--table-line); }
+.prose .grp-table tbody:last-of-type tr:last-child > td { border-bottom: 0; }
+
 /* Figures */
 .prose img {
   display: block;

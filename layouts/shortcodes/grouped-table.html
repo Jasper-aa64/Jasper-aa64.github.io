@@ -1,0 +1,8 @@
+{{- /* A Markdown table split into colour-coded groups.
+     A row whose first cell starts with "::" and whose other cells are empty becomes the group's heading row,
+     spanning every column; the rows under it, up to the next heading, form one <tbody>. */ -}}
+{{- $h := .Inner | .Page.RenderString (dict "display" "block") -}}
+{{- $h = replaceRE `<tr>\s*<td>::(.*?)</td>(?:\s*<td></td>)+\s*</tr>` `</tbody><tbody class="grp"><tr class="grp-head"><th colspan="9" scope="rowgroup">$1</th></tr>` $h -}}
+{{- $h = replaceRE `<tbody>\s*</tbody>` `` $h -}}
+{{- $h = replace $h "<table>" `<table class="grp-table">` -}}
+{{- $h | safeHTML -}}
