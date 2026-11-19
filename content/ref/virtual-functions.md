@@ -3,7 +3,7 @@ title: "Virtual Functions: vptr, vtable and Dynamic Polymorphism"
 date: 2026-11-02
 lastmod: 2026-11-19
 slug: "virtual-functions"
-description: "A virtual function lets the same o->handle() call a different function at run time depending on the object's actual type. It compiles to three steps: load the vptr, look up the vtable, jump indirectly. During construction the vptr first points at the base table and is then changed to the derived one, and the reverse during destruction, so a virtual call in a constructor or destructor reaches the level that is running. The cost is an indirect jump to predict, blocked inlining, two memory loads and 8 extra bytes per object; with final or a local object the compiler can remove it. Last, why to think of composition before inheritance."
+description: "A virtual function lets the same o->handle() call a different function at run time depending on the object's actual type. It compiles to three steps: load the vptr, look up the vtable, jump indirectly; a derived class's table keeps the base's slots, an override replaces its slot in place and a new virtual function goes at the end, so the slot the call site fixed from the base reads the derived class's own function. During construction the vptr first points at the base table and is then changed to the derived one, and the reverse during destruction, so a virtual call in a constructor or destructor reaches the level that is running. The cost is an indirect jump to predict, blocked inlining, two memory loads and 8 extra bytes per object; with final or a local object the compiler can remove it. Last, why to think of composition before inheritance."
 summary: "A virtual call = load the vptr at the start of the object → load one slot of the class's vtable → jump to that address. The expensive part is usually not the jump but the lost inlining; when the type is known at compile time, static polymorphism avoids it. To reuse a class's implementation, make it a member, don't inherit from it."
 toc: true
 group: cpplinux
@@ -51,11 +51,31 @@ run(Msg const*):
 Two things make it work:
 
 - **vtable** (virtual function table): one per **class** with virtual functions, in read-only data, listing the address of each virtual function in declaration order. In `TextMsg`'s table the `handle` slot holds `TextMsg::handle`; in `ImageMsg`'s, `ImageMsg::handle`. (The first two slots are destructors, so `handle` sits at offset 16.)
-- **vptr** (vtable pointer): a hidden 8-byte pointer at the start of every **object**, pointing at its class's vtable once construction is done (during construction it points at the base tables first, see [1.3](#virtual-ctor)). That's why `sizeof(TextMsg)` is 16: 8 bytes of vptr, 4 of `qty`, 4 of padding.
+- **vptr** (vtable pointer): a hidden 8-byte pointer at the start of every **object**, pointing at its class's vtable once construction is done (during construction it points at the base tables first, see [1.4](#virtual-ctor)). That's why `sizeof(TextMsg)` is 16: 8 bytes of vptr, 4 of `qty`, 4 of padding.
 
 So one virtual call = load the vptr → load the table slot → jump to the loaded address.
 
-**Why one vptr is enough: a given virtual function sits in the same slot in every derived class's table.** When compiling `run`, the compiler only knows `o` is a `const Msg*`, not which derived class will show up, so the offset 16 comes from `Msg`'s declaration: in `Msg`'s table the first two slots are destructors and `handle` is the 3rd. Every derived table is laid out on the base's slots: inherited virtuals keep their slots in the same order, an override replaces that slot with its own address, and new virtuals go after them. So whether `o` points to a `TextMsg` or an `ImageMsg`, `16(%rax)` reads that class's own `handle`.
+**Why one vptr is enough: a given virtual function sits in the same slot in every derived class's table**. How a derived class's table is laid out is fixed by the Itanium C++ ABI, which GCC and Clang follow on Linux, and it comes down to three rules:
+
+- **Inherited virtual functions keep the base's order**: the start of a derived class's table has exactly the slots of the base's table, in the same order.
+- **An override replaces the slot in place**: whichever virtual function the derived class overrides, that slot gets the derived function's address; no new slot is opened.
+- **A new virtual function goes at the end**: virtual functions the derived class declares itself are appended after the inherited slots, never shifting them.
+
+Here are the three tables as GCC 16.2 dumps them with `-fdump-lang-class`, lined up by offset from the vptr. To show where a new slot lands, `ImageMsg` gets one more virtual function, `pixels()`:
+
+| From vptr | `Msg`'s table | `TextMsg`'s table | `ImageMsg`'s table |
+|---|---|---|---|
+| −16 | offset to object start: 0 | 0 | 0 |
+| −8 | type info (RTTI) | `TextMsg`'s | `ImageMsg`'s |
+| +0 | destructor (complete object) | `TextMsg::~TextMsg` | `ImageMsg::~ImageMsg` |
+| +8 | destructor (also deletes) | `TextMsg::~TextMsg` | `ImageMsg::~ImageMsg` |
+| +16 | `handle`: `__cxa_pure_virtual` | `TextMsg::handle` | `ImageMsg::handle` |
+| +24 | none | none | `ImageMsg::pixels` |
+
+- **The vptr doesn't point at the start of the table**: the dump says `vptr = &vtable + 16`, skipping the offset and type-info slots to point straight at the first virtual function. So `16(%rax)` means 16 bytes past the vptr.
+- **`handle` is at +16 in all three tables**: when compiling `run`, the compiler looks only at `Msg`'s declaration, where the destructor takes two slots and `handle` is third, so it hard-codes 16; derived tables follow the three rules, so that slot holds each class's own `handle`.
+- **`pixels` exists only in `ImageMsg`'s table**: it can't be called through a `Msg*`, so `run` never reads +24.
+- **In `Msg`'s own table the two destructor slots are 0 and the `handle` slot is an error handler**: `Msg` is abstract, so no object ever makes calls through this table (the exception during construction is in 1.4).
 
 <svg viewBox="0 0 760 390" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two objects each hold a vptr pointing at TextMsg's and ImageMsg's vtable. Both tables use the same slot order: +0 and +8 are destructors, +16 is handle; only the addresses in the slots differ. The 16(%rax) baked into the call site reads each class's own handle." style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
   <style>
@@ -134,7 +154,41 @@ So one virtual call = load the vptr → load the table slot → jump to the load
 
 Picking the function is split in two: **which slot is fixed at compile time from the static type; what the slot holds depends on which table the vptr was set to at construction.** That's why the call site doesn't need to know the derived classes: a new subclass written later, in another file or even another shared library, lays out its table on `Msg`'s slots, and `jmp *16(%rax)` needs no recompiling.
 
-### 1.3 The vptr During Construction and Destruction: First the Base Table, Then the Derived One {#virtual-ctor}
+### 1.3 A Base Pointer Reaching the Derived Function: Slot Fixed at Compile Time, Table Set at Construction, Lookup and Jump at Run Time {#virtual-call}
+
+**One `o->handle()` is completed at three different moments: at compile time, the slot is fixed from `Msg`'s declaration and every class's table is built; at construction, the vptr is set to the table of the object's class; at run time, the CPU loads the vptr, loads that slot and jumps, landing in the derived class's function**.
+
+```cpp
+std::unique_ptr<Msg> p = std::make_unique<TextMsg>();   // construction: vptr points at TextMsg's table
+int r = run(p.get());                                   // run time: lookup jumps to TextMsg::handle
+```
+
+1. **Compile time: the call site fixes the slot, and every class's table is built**
+   - **The call site computes the offset from `Msg` alone**: compiling `run`, the compiler only knows `o` is a `const Msg*`, and `handle` is the third slot in `Msg`'s table, so it hard-codes `jmp *16(%rax)`.
+   - **Every class's table is built at compile time**: slots are laid out and addresses filled in by the three rules of 1.2, the table goes in the read-only data section (`.rodata`), and nothing changes it at run time. `TextMsg`'s table holds `TextMsg::handle` at +16.
+
+2. **Construction: which table the vptr is set to**
+   - **`make_unique<TextMsg>()` runs `TextMsg`'s constructor**: it contains one store the compiler inserted, writing `vtable for TextMsg + 16` into the object's first 8 bytes.
+   - **From then on this object's vptr points at `TextMsg`'s table**: whether it's later viewed through a `Msg*` or a `TextMsg*`, that's the table it reads. During construction the vptr points at the base's table first; see 1.4.
+
+3. **Run time: load the vptr, load the slot, jump**
+
+   ```asm
+   run(Msg const*):
+           movq    (%rdi), %rax      # ① load the vptr: %rdi is o, giving vtable for TextMsg + 16
+           jmp     *16(%rax)         # ② load the +16 slot, TextMsg::handle's address; ③ jump there
+   TextMsg::handle() const:
+           movl    8(%rdi), %eax     # this is still o in %rdi: load qty
+           addl    %eax, %eax        # qty * 2
+           ret
+   ```
+
+   - **① Load the vptr**: `o` points at a `TextMsg` object, so it reads `TextMsg`'s table.
+   - **② Load the slot**: `TextMsg`'s table holds `TextMsg::handle`'s address at +16.
+   - **③ Jump, with no change to `this`**: `run` uses `jmp`, not `call` (a tail call), so `o` stays in `%rdi` and becomes the `this` that `TextMsg::handle` receives. With single inheritance, the `Msg` part of the object starts at the same address as the whole object, so no pointer adjustment is needed.
+   - **For an `ImageMsg` object the three steps are identical**: only step ① reads a different table, so step ② finds `ImageMsg::handle`.
+
+### 1.4 The vptr During Construction and Destruction: First the Base Table, Then the Derived One {#virtual-ctor}
 
 1. **A derived object's vptr isn't set once; each level's constructor sets it**
 
@@ -159,7 +213,7 @@ Picking the function is split in two: **which slot is fixed at compile time from
 
    - **The base constructor runs first**: before entering its body, `Base::Base()` sets the vptr to `Base`'s table.
    - **Once the base constructor is done, the same vptr is changed to `Derived`'s table**: only then come `Derived`'s member initializers and body. Above, the compiler moved `x = 42` ahead of the vptr store because nothing in between looks at the vptr, so the order doesn't change the result.
-   - **The address is `vtable + 16` because the table starts with two more slots**: one is the offset to the start of the object, the other is the type information (the RTTI used by `typeid`). The vptr points at the slot after them, which is `+0` in the figure in 1.2.
+   - **The address is `vtable + 16`**: the vptr points at the table's first virtual-function slot, skipping the offset and type-info slots at the start; see the table in 1.2.
    - **With several levels of inheritance, construction changes the vptr once per level**: each constructor sets it to its own level's table, and only after the last one is the object in its "fully constructed" state.
 
 2. **So a virtual call in a constructor reaches the level being constructed**
@@ -214,7 +268,7 @@ Picking the function is split in two: **which slot is fixed at compile time from
    - **`Derived`'s destructor starts by setting the vptr back to `Derived`'s table**: it may have been reached from the destructor of a class one level further down (say `Leaf`), when the vptr still pointed at `Leaf`'s table; `Leaf`'s members are already destroyed, so no call may reach `Leaf`'s functions any more.
    - **After `Derived`'s level, `Base::~Base()` runs**: it changes the vptr to `Base`'s table again, which is why the destructor call on the last line of the example above reaches `Base::name`.
 
-### 1.4 Where the Cost Is {#virtual-cost}
+### 1.5 Where the Cost Is {#virtual-cost}
 
 - **The indirect jump has to be predicted**: the target is loaded from memory, so the front end relies on the **indirect target predictor** ([#7 Section 1.3](/posts/branch-prediction-branch-optimization/)). When the object types at one call site follow a pattern (all the same, or a short repeating cycle), it almost never misses; when they're randomly mixed, it misses often, about 15–20 cycles each time.
 - **It blocks inlining**: the compiler doesn't know which function will run, so it can't inline it or optimize across the call (constant propagation, merging computations, vectorization). The smaller the function, the worse this is: `handle()` itself is a single multiply, much cheaper than the call.
@@ -225,7 +279,7 @@ Picking the function is split in two: **which slot is fixed at compile time from
   - **What's really expensive is a cold start.** After the program has been idle for a while, other code has pushed this code's cache lines out, and on the next call both the object's line and the vtable's line may be missing. Both versions pay for the object; the vtable miss belongs to the virtual version alone and queues behind the vptr read, adding in the worst case one serial miss of about 70–120 ns (estimated from the [latency ranges](/ref/cpu-memory/#latency), not measured). Where that one miss matters, switch to [static polymorphism](/posts/crtp-static-polymorphism/), which has no vtable to read.
 - **8 more bytes per object**: a small object (say a 16-byte message) grows noticeably, so fewer fit in a cache line.
 
-### 1.5 When the Compiler Removes the Virtual Call (Devirtualization) {#virtual-devirt}
+### 1.6 When the Compiler Removes the Virtual Call (Devirtualization) {#virtual-devirt}
 
 When the compiler can prove the actual type, it calls the function directly, or inlines it. Three common cases; the first two are measured:
 
@@ -238,11 +292,11 @@ int run_local() { TextMsg l; return run(&l); }              // the object is rig
 - **Local objects**: in `run_local` the type is written right there; once `run` is inlined, the whole function compiles to `movl $2, %eax`.
 - **A single implementation**: with `-flto` (link-time optimization) the compiler sees the whole program, and a virtual function with only one implementation can be called directly too (not measured here).
 
-### 1.6 Without Virtual Functions: Static Polymorphism {#virtual-alternatives}
+### 1.7 Without Virtual Functions: Static Polymorphism {#virtual-alternatives}
 
 When the type is known at compile time, you don't need a vtable: templates and CRTP fix "which function" at compile time and the call inlines; when the set of types is fixed, `std::variant` dispatches on a type index. Together these are called static polymorphism; what they compile to and what each costs is in [Static Polymorphism](/posts/crtp-static-polymorphism/).
 
-### 1.7 How to Choose {#virtual-choose}
+### 1.8 How to Choose {#virtual-choose}
 
 - **The type is only known at run time and the set is open (plugins, read from config)**: virtual functions.
 - **The set of types is fixed and objects share one container**: `std::variant` + `std::visit`.

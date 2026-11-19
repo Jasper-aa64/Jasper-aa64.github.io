@@ -3,7 +3,7 @@ title: "虚函数：vptr、vtable 和动态多态"
 date: 2026-11-02
 lastmod: 2026-11-19
 slug: "virtual-functions"
-description: "虚函数让同一句 o->handle() 在运行时按对象的实际类型调到不同的函数。编译出来是读 vptr、查 vtable、间接跳转三步；构造时 vptr 先指基类的表、再改成子类的表，析构时反过来，所以构造和析构函数里调虚函数，调到的是正在执行的那一层；代价在要猜的间接跳转、挡住内联、两次读内存和每个对象多 8 字节；编译器在 final、局部对象这些情况下能把它省掉。最后讲继承之前为什么先想组合。"
+description: "虚函数让同一句 o->handle() 在运行时按对象的实际类型调到不同的函数。编译出来是读 vptr、查 vtable、间接跳转三步：子类的表照基类的格子排，重写就原地替换、新增就往后加，所以调用处按父类定好的那一格，读到的就是子类自己的函数；构造时 vptr 先指基类的表、再改成子类的表，析构时反过来，所以构造和析构函数里调虚函数，调到的是正在执行的那一层；代价在要猜的间接跳转、挡住内联、两次读内存和每个对象多 8 字节；编译器在 final、局部对象这些情况下能把它省掉。最后讲继承之前为什么先想组合。"
 summary: "虚调用 = 读对象开头的 vptr → 读这个类 vtable 里那一格 → 按读到的地址跳。最贵的通常不是这一跳，而是编译器没法内联；类型在编译期就能定时，可以改用静态多态。要复用一个类的实现，放成成员，不要继承它。"
 toc: true
 group: cpplinux
@@ -51,11 +51,31 @@ run(Msg const*):
 靠的是两样东西：
 
 - **vtable**（虚函数表）：每个有虚函数的**类**一张，存在只读数据段里，按声明顺序列出这个类每个虚函数的地址。`TextMsg` 的表里 `handle` 那格是 `TextMsg::handle`，`ImageMsg` 的是 `ImageMsg::handle`。（前两格是析构函数，所以 `handle` 在偏移 16。）
-- **vptr**（虚表指针）：每个**对象**开头藏着的一个 8 字节指针，构造完成后指向自己那个类的 vtable（构造过程中先指基类的表，见 [1.3](#virtual-ctor)）。`sizeof(TextMsg)` 因此是 16：vptr 8 字节，`qty` 4 字节，再补 4 字节对齐。
+- **vptr**（虚表指针）：每个**对象**开头藏着的一个 8 字节指针，构造完成后指向自己那个类的 vtable（构造过程中先指基类的表，见 [1.4](#virtual-ctor)）。`sizeof(TextMsg)` 因此是 16：vptr 8 字节，`qty` 4 字节，再补 4 字节对齐。
 
 所以一次虚调用 = 读 vptr → 读表里那一格 → 按读到的地址跳。
 
-**为什么一个 vptr 就够：同一个虚函数，在每个子类的表里都在同一格。** 编译 `run` 时，编译器只知道 `o` 是 `const Msg*`，不知道将来传进来的是哪个子类，偏移 16 是从 `Msg` 的声明算出来的：`Msg` 的表里前两格是析构函数，`handle` 排第 3 格。子类的表都照基类的格子排：继承来的虚函数按原来的顺序占同样的格子，重写了的就把那一格换成自己的函数地址，子类新加的虚函数接在后面。所以不管 `o` 指向 `TextMsg` 还是 `ImageMsg`，`16(%rax)` 读到的都是这个类自己的 `handle`。
+**为什么一个 vptr 就够：同一个虚函数，在每个子类的表里都在同一格**。子类的表怎么排，Linux 上的 GCC、Clang 都按 Itanium C++ ABI 的规定来，规则就三条：
+
+- **继承来的虚函数照基类的顺序排**：子类的表开头，格子顺序和基类那张表一模一样。
+- **重写就原地替换**：子类重写了哪个虚函数，就把那一格换成自己的函数地址，不另开一格。
+- **新增就往后加**：子类自己新声明的虚函数，接在继承来的格子后面，不打乱前面的位置。
+
+下面是 GCC 16.2 用 `-fdump-lang-class` 导出的三张表，按相对 vptr 的偏移对齐。为了看新增的格子落在哪，给 `ImageMsg` 多加了一个虚函数 `pixels()`：
+
+| 相对 vptr | `Msg` 的表 | `TextMsg` 的表 | `ImageMsg` 的表 |
+|---|---|---|---|
+| −16 | 到对象开头的偏移：0 | 0 | 0 |
+| −8 | 类型信息（RTTI） | `TextMsg` 的 | `ImageMsg` 的 |
+| +0 | 析构（完整对象） | `TextMsg::~TextMsg` | `ImageMsg::~ImageMsg` |
+| +8 | 析构（顺带 delete） | `TextMsg::~TextMsg` | `ImageMsg::~ImageMsg` |
+| +16 | `handle`：`__cxa_pure_virtual` | `TextMsg::handle` | `ImageMsg::handle` |
+| +24 | 没有 | 没有 | `ImageMsg::pixels` |
+
+- **vptr 指的不是表的开头**：导出结果里写的是 `vptr = &vtable + 16`，跳过开头的偏移和类型信息两格，直接指向第一个虚函数。所以 `16(%rax)` 是从 vptr 往后数 16 字节。
+- **`handle` 在三张表里都在 +16**：编译 `run` 时，编译器只看 `Msg` 的声明，析构占两格，`handle` 排第 3 格，偏移就写死成 16；子类按上面三条规则排，这一格在每张表里都是本类自己的 `handle`。
+- **`pixels` 只在 `ImageMsg` 的表里有**：通过 `Msg*` 调不到它，`run` 永远不会去读 +24。
+- **`Msg` 自己的表里，析构两格是 0、`handle` 那格是报错函数**：`Msg` 是抽象类，不会有对象真的拿着这张表去调用（构造期间的例外见 1.4）。
 
 <svg viewBox="0 0 760 390" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="两个对象各有一个 vptr，分别指向 TextMsg 和 ImageMsg 的 vtable。两张表的格子顺序相同：+0 和 +8 是析构函数，+16 是 handle，只是格子里的函数地址不同。调用处写死的 16(%rax) 在两张表里读到的都是本类的 handle。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
@@ -134,7 +154,41 @@ run(Msg const*):
 
 “调哪个函数”就这样分成两半：**第几格在编译期按静态类型定好，格子里是谁由对象构造时 vptr 指向哪张表决定。** 调用处因此不用知道有哪些子类：以后在别的文件、甚至别的动态库里再写一个子类，它的表照样按 `Msg` 的格子排，`jmp *16(%rax)` 不用重新编译。
 
-### 1.3 构造和析构时的 vptr：先指基类的表，再指子类的表 {#virtual-ctor}
+### 1.3 父类指针调到子类的函数：编译期定第几格，构造时定哪张表，运行时查表跳转 {#virtual-call}
+
+**一次 `o->handle()` 分在三个时刻完成：编译期按 `Msg` 的声明定好第几格，并把每个类的表造好；构造对象时，vptr 被设成这个对象所属类的表；运行时读 vptr、读那一格、跳过去，跳到的就是子类的函数**。
+
+```cpp
+std::unique_ptr<Msg> p = std::make_unique<TextMsg>();   // 构造时：vptr 指向 TextMsg 的表
+int r = run(p.get());                                   // 运行时：查表跳到 TextMsg::handle
+```
+
+1. **编译期：调用处定好第几格，每个类的表也造好**
+   - **调用处只按 `Msg` 算偏移**：编译 `run` 时只知道 `o` 是 `const Msg*`，`handle` 在 `Msg` 的表里排第 3 格，于是写死成 `jmp *16(%rax)`。
+   - **每个类的表在编译时就造好了**：按 1.2 的三条规则排格子、填地址，放进只读数据段（`.rodata`），运行时不再改。`TextMsg` 的表在 +16 填的就是 `TextMsg::handle`。
+
+2. **构造时：vptr 被设成哪张表**
+   - **`make_unique<TextMsg>()` 会跑 `TextMsg` 的构造函数**：里面有一条编译器插入的写，把 `vtable for TextMsg + 16` 写进对象开头的 8 字节。
+   - **从这一刻起，这个对象的 vptr 一直指着 `TextMsg` 的表**：不管之后通过 `Msg*` 还是 `TextMsg*` 看它，读到的都是这张表。构造过程中 vptr 会先指基类的表，见 1.4。
+
+3. **运行时：读 vptr、读那一格、跳过去**
+
+   ```asm
+   run(Msg const*):
+           movq    (%rdi), %rax      # ① 读 vptr：%rdi 是 o，读出 vtable for TextMsg + 16
+           jmp     *16(%rax)         # ② 读 +16 那一格，得到 TextMsg::handle 的地址；③ 跳过去
+   TextMsg::handle() const:
+           movl    8(%rdi), %eax     # this 还是 %rdi 里的 o：读 qty
+           addl    %eax, %eax        # qty * 2
+           ret
+   ```
+
+   - **① 读 vptr**：`o` 指向 `TextMsg` 对象，读到的是 `TextMsg` 的表。
+   - **② 读那一格**：`TextMsg` 的表在 +16 放的是 `TextMsg::handle` 的地址。
+   - **③ 跳过去，`this` 不用改**：`run` 用的是 `jmp` 不是 `call`（尾调用），`%rdi` 里的 `o` 原样留着，就是 `TextMsg::handle` 拿到的 `this`。单继承时，对象里 `Msg` 那部分和整个对象从同一个地址开始，指针不用调整。
+   - **换成 `ImageMsg` 对象，三步完全一样**：只有第 ① 步读到的表不同，第 ② 步就读到了 `ImageMsg::handle`。
+
+### 1.4 构造和析构期间的 vptr：先指基类的表，再指子类的表 {#virtual-ctor}
 
 1. **子类对象的 vptr 不是一次设好的，每一层构造函数各设一次**
 
@@ -159,7 +213,7 @@ run(Msg const*):
 
    - **先跑基类的构造函数**：`Base::Base()` 进函数体之前，先把 vptr 设成 `Base` 的表。
    - **基类构造跑完，再把同一个 vptr 改成 `Derived` 的表**：然后才是 `Derived` 的成员初始化和函数体。上面编译器把 `x = 42` 挪到了改 vptr 前面，是因为两者之间没有代码会看 vptr，先后不影响结果。
-   - **地址是 `vtable + 16`，因为表的开头还有两格**：一格是到对象开头的偏移，一格是类型信息（`typeid` 用的 RTTI）。vptr 指的是它们后面那格，也就是 1.2 图里的 `+0`。
+   - **地址是 `vtable + 16`**：vptr 指向表里第一个虚函数那一格，跳过开头的偏移和类型信息两格，见 1.2 的表。
    - **继承了几层，构造时 vptr 就改几次**：每一层构造函数都把它改成自己那一层的表，最后一层改完，才是对象“构造好了”的样子。
 
 2. **所以构造函数里调虚函数，调到的是正在构造的那一层**
@@ -214,7 +268,7 @@ run(Msg const*):
    - **`Derived` 的析构函数一开头就把 vptr 设回 `Derived` 的表**：它可能是从更下一层子类（比如 `Leaf`）的析构函数调上来的，那时 vptr 还指着 `Leaf` 的表；`Leaf` 的成员已经销毁了，不能再调到 `Leaf` 的函数。
    - **跑完 `Derived` 这层，再进 `Base::~Base()`**：那里又把 vptr 改成 `Base` 的表，所以上面例子的最后一行，析构函数里调到的是 `Base::name`。
 
-### 1.4 代价在哪 {#virtual-cost}
+### 1.5 代价在哪 {#virtual-cost}
 
 - **间接跳转要猜**：目标地址是读出来的，前端要靠**间接目标预测器**去猜（[#7 第 1.3 节](/zh/posts/branch-prediction-branch-optimization/)）。同一处调用，对象类型有规律（全是同一种，或者短周期重复）几乎不会错；类型随机混在一起就经常错，每次约 15–20 个周期。
 - **挡住内联**：编译器不知道会调到哪个函数，就没法把它内联进来，也没法跨这次调用做优化（常量传播、合并计算、向量化）。函数体越小，这一条越亏：`handle()` 本身只有一条乘法，调用开销比它大得多。
@@ -225,7 +279,7 @@ run(Msg const*):
   - **真正贵的是冷启动。** 程序空闲了一阵，这段代码用的缓存行被别的代码挤掉，下一次调用时，对象那条行和 vtable 那条行都可能不在缓存里。对象那次两种写法都要付；vtable 那次是虚函数独有的，还排在读 vptr 之后，最坏多出一次约 70–120 ns 的串行未命中（按[延迟范围](/zh/ref/cpu-memory/#latency)估算，没有实测）。在乎这一次的地方，可以换成[静态多态](/zh/posts/crtp-static-polymorphism/)，根本没有 vtable 要读。
 - **每个对象多 8 字节**：小对象（比如 16 字节的消息）会因此大一截，一条缓存行装得更少。
 
-### 1.5 编译器什么时候能省掉虚调用（devirtualization） {#virtual-devirt}
+### 1.6 编译器什么时候能省掉虚调用（devirtualization） {#virtual-devirt}
 
 编译器能确定对象的实际类型时，就直接调用、甚至内联。三种常见情况，前两种是实测：
 
@@ -238,11 +292,11 @@ int run_local() { TextMsg l; return run(&l); }              // 对象就在眼�
 - **局部对象**：`run_local` 里对象的类型就写在那，`run` 内联进来以后，整个函数编成了 `movl $2, %eax`。
 - **只有一个实现**：开 `-flto`（链接期优化）后，编译器看到整个程序，某个虚函数只有一个实现时也能直接调用（这一条没有实测）。
 
-### 1.6 不用虚函数：静态多态 {#virtual-alternatives}
+### 1.7 不用虚函数：静态多态 {#virtual-alternatives}
 
 类型在编译期就能定下来时，可以不要 vtable：模板和 CRTP 让“调哪个函数”在编译时就定好，调用直接内联；类型集合固定时，`std::variant` 按类型编号分派。这些写法统称静态多态，编译出来是什么、各自的代价，见[静态多态](/zh/posts/crtp-static-polymorphism/)。
 
-### 1.7 怎么选 {#virtual-choose}
+### 1.8 怎么选 {#virtual-choose}
 
 - **类型在运行时才知道、集合开放（插件、配置里读出来）**：虚函数。
 - **类型集合固定、对象要放在一个容器里**：`std::variant` + `std::visit`。
