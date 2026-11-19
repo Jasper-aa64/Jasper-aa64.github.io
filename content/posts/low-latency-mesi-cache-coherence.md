@@ -27,6 +27,12 @@ MESI is the bookkeeping that enforces it. Each core's cache controller tags ever
 
 Real chips don't broadcast every request to every core; a snoop filter or directory records which cores hold which lines and only asks those. That changes how messages travel, not what the four states mean.
 
+**Which level holds the state tags?** Every line in each core's private L1 and L2 carries its own state bits. When talking about MESI, treat one core's L1 plus L2 as a single unit:
+
+- **An L1 miss checks this core's L2 first**: if L2 has a valid copy (M, E or S), it comes back to L1 without leaving the core, in about 3–5 ns.
+- **A request leaves the core in only two cases**: both L1 and L2 miss, or the line to be written is S in this core. Only then does the request travel the on-chip interconnect (ring or mesh) to the shared L3 and the other cores.
+- **The L3 level decides which cores to ask**: that is the snoop filter from the previous paragraph, which asks only the cores that may hold the line.
+
 ---
 
 ## 2. Four States, Two Questions
@@ -118,10 +124,17 @@ The most expensive *read* is a HITM: the line you want is M in another core, whi
 
 **Cost Is Not the Same as Stalling.** A plain store like `x = 1` goes into the store buffer ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)) and the core keeps executing while ownership is acquired in the background. The core only waits when the store buffer fills up, or for a `lock`-prefixed read-modify-write or a fence. That's why `fetch_add` on a line another core owns is so expensive: it must hold exclusive ownership until the instruction finishes, and it can't be parked in the store buffer.
 
-**Two more costs you can't see in the code: hardware prefetching also reads neighbouring lines and can pull an M line out of another core, and a run of stores that all miss can fill the store buffer, at which point store latency stops hiding in the background**.
+**Case by case, within one socket, the orders of magnitude are these** (typical values, consistent with [the CPU and memory reference, 2.1](/ref/cpu-memory/#latency); different chips can differ by about 2x):
 
-- **The prefetcher hits the neighbouring line**: the L2 spatial prefetcher described in Intel's optimization manual, for every line it brings into L2, also fetches the other line that completes a 128-byte-aligned pair. If that other line is a variable another core is writing, the prefetch is a read, and by the rules in Part 4 the other core's M line has to hand over its data and drop to S, so its next write must upgrade again. So 64 bytes between two hot variables may not be enough and 128 is safer, which is why `write_idx` in [#5](/posts/spmc-shared-memory-broadcast-ring/) is aligned to 128.
-- **The store buffer fills up**: it has only a few dozen entries (56 on Skylake). In a run of stores that all miss, each store has to wait for ownership before it can leave, so entries don't free up; once it's full, later stores can't get an entry and the pipeline stalls. On Intel, `perf`'s `resource_stalls.sb` counts the cycles stalled because the store buffer was full.
+| Case | What happens | About |
+|---|---|---|
+| Local hit: read M, E, S; write M, E | Done in this core's L1 or L2, no messages | L1 ~1 ns, L2 ~3–5 ns |
+| Write to S (S→M upgrade) | The data is already local; send invalidations to the other holders and wait for acknowledgements | ~20–40 ns, more with more cores and longer interconnect distance |
+| Read a line another core holds in E or S | The data is clean and comes from L3 or that core; that core only drops its tag to S | ~15–40 ns: one L3 hit plus one snoop |
+| Read or write a line another core holds in M (HITM) | That core must hand over the 64 B of dirty data across cores and drops to S or I | ~40–100 ns; ~150–300 ns when that core is on the other socket |
+| In no core's cache (read I→E, write I→M) | Fetch from memory | ~70–120 ns |
+
+- **The time is charged to the requesting core**: the snooped core changes its tag and hands over data in its cache controller, and its pipeline keeps executing unless it is reading or writing that same line at that moment.
 
 ---
 
