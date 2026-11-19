@@ -258,14 +258,33 @@ Put the two buffers back on the whole chip and one store travels as below. The i
 
 ### 1.3 Four Reorderings, and the One x86 Keeps
 
-In the general (formal) shared-memory model, there are exactly four ways a load and a store to *different* addresses can appear reordered to another observer:
+> **Essence: Reordering is about how this thread's loads and stores to different addresses look to other cores; a thread always sees its own accesses in program order**.
+>
+> - **Same address: no memory order needed**: the CPU guarantees this thread reads what in-order execution would give.
+> - **Different addresses: x86 lets only StoreLoad through**: the hardware already stops the other three; ARM can do all four, so acquire, release and seq_cst have to stop them.
 
-| Reordering | Meaning | Allowed on x86? |
-|---|---|---|
-| **StoreStore** | two of your stores become visible out of order | No |
-| **LoadLoad** | two of your loads read memory out of order | No |
-| **LoadStore** | a later store becomes visible before an earlier load completes | No |
-| **StoreLoad** | a later load runs before an earlier store becomes visible | **Yes** |
+1. **A thread looking at itself: all four combinations on one address stay in program order**
+
+   | Same address | How the CPU guarantees it |
+   |---|---|
+   | store → load | Store-to-load forwarding: the value is still in the store buffer, and the load takes it from there |
+   | store → store | Stores to one address reach the cache in program order; x86's store buffer is FIFO anyway |
+   | load → store | A store is written to the cache only after everything before it has retired, so the earlier load has long finished |
+   | load → load | Out-of-order execution may run the later load first; the load queue checks it and replays it if the result is wrong |
+
+2. **Other cores looking at you: the four reorderings across different addresses**
+
+   | Reordering | Meaning | Allowed on x86? | What x86 relies on | What ARM needs |
+   |---|---|---|---|---|
+   | **LoadLoad** | two of your loads read memory out of order | No | A later load may read early, but if its line is invalidated by another core before it retires, the CPU flushes the pipeline and re-executes the load | acquire (`ldar`) |
+   | **LoadStore** | a later store becomes visible before an earlier load completes | No | A store reaches the cache only after it retires, and the earlier load has already read | acquire on the load, or release on the store |
+   | **StoreStore** | two of your stores become visible out of order | No | The store buffer is FIFO | release (`stlr`) |
+   | **StoreLoad** | a later load runs before an earlier store becomes visible | **Yes** | Nothing stops it: the store is still in the store buffer while the later load has already read the cache | seq_cst |
+
+3. **Three things that get mixed up**
+   - **MESI alone doesn't give LoadLoad**: MESI only keeps one up-to-date value per line at a time and says nothing about which of two loads goes first; the load queue also has to replay a load whose line was invalidated.
+   - **Forwarding is about store → load on one address**: not store → store.
+   - **LoadStore doesn't need a read-modify-write**: x86 needs nothing, and on ARM one acquire or release is enough. A read-modify-write (`fetch_add` and the like) fuses a load and a store into one atomic operation, which is a different thing.
 
 x86 uses a model called **TSO (Total Store Order)**, and the one-line summary of it is "forbid three, allow one." The forbidden three are guaranteed by hardware for free — a plain `mov` already has that ordering built in, no fence needed. The one that's allowed, StoreLoad, is *exactly* the store-buffer gap from 1.1 given a name: your store sits in the notebook while a subsequent load — to a different address — is free to run immediately, so from another core's point of view your load can appear to have completed before your earlier store did. This is the textbook cause of the classic "I set the flag, then checked another variable, and the other thread saw them in the wrong order" bug — and on x86 it is the *only* reordering you have to explicitly guard against; every other combination the hardware already forbids on its own.
 

@@ -234,14 +234,33 @@ x86 硬件保证读和读不乱序，所以在 x86 上，invalidate queue 造不
 
 ### 1.3 四种乱序：x86 只允许 StoreLoad {#four-reorderings}
 
-对两个不同地址的读写，别的核可能看到四种乱序：
+> **本质：乱序说的是本线程对不同地址的读写，在别的核看来是什么顺序；本线程看自己，永远是程序顺序**。
+>
+> - **同一个地址，什么内存序都不用写**：CPU 保证本线程读到的结果和按顺序执行一样。
+> - **不同地址，x86 只放开 StoreLoad**：另外三种硬件已经管住；ARM 四种都可能出现，要靠 acquire、release、seq_cst 管住。
 
-| 乱序 | 含义 | x86 允许吗？ |
-|---|---|---|
-| StoreStore | 两个写被别人看到的顺序反了 | 不允许 |
-| LoadLoad | 后面的读拿到的值比前面的读还旧 | 不允许 |
-| LoadStore | 后面的写在前面的读完成之前就可见了 | 不允许 |
-| StoreLoad | 后面的读在前面的写可见之前就执行了 | **允许** |
+1. **本线程看自己：同一个地址的四种组合，都按程序顺序**
+
+   | 同一地址 | CPU 怎么保证 |
+   |---|---|
+   | store → load | store-to-load 转发：值还在 store buffer 里，load 直接从 store buffer 拿 |
+   | store → store | 同一地址的写按程序顺序写进缓存，x86 的 store buffer 本来就先进先出 |
+   | load → store | store 要等它前面的指令都退休了才写进缓存，前面那个 load 早就读完了 |
+   | load → load | 乱序执行可能让后面的 load 先读，load 队列会检查，结果不对就重做 |
+
+2. **别的核看你：不同地址的四种乱序**
+
+   | 乱序 | 含义 | x86 允许吗 | x86 靠什么保证 | ARM 上要写什么 |
+   |---|---|---|---|---|
+   | LoadLoad | 后面的读拿到的值比前面的读还旧 | 不允许 | 后面的 load 可以提前读，但读到的行在它退休前被别的核作废，CPU 会清掉流水线，重新执行这个 load | acquire（`ldar`） |
+   | LoadStore | 后面的写在前面的读完成之前就可见了 | 不允许 | store 退休以后才进缓存，前面的 load 已经读完了 | load 用 acquire，或者 store 用 release |
+   | StoreStore | 两个写被别人看到的顺序反了 | 不允许 | store buffer 先进先出 | release（`stlr`） |
+   | StoreLoad | 后面的读在前面的写可见之前就执行了 | **允许** | 管不住：store 还在 store buffer 里，后面的 load 已经从缓存读了 | seq_cst |
+
+3. **容易混的三点**
+   - **LoadLoad 光靠 MESI 不够**：MESI 只保证每一行同一时刻只有一份最新值，不管两个 load 谁先谁后，还要 load 队列在行被作废时重做。
+   - **转发管的是同一地址的 store → load**：不是 store → store。
+   - **LoadStore 不需要读改写**：x86 上什么都不用做，ARM 上一个 acquire 或 release 就够。读改写（`fetch_add` 这类）是把读和写合成一个原子操作，是另一回事。
 
 x86 的内存模型叫 TSO（Total Store Order）：前三种由硬件保证，普通的 `mov` 就带着这个顺序，不用加屏障。**唯一允许的 StoreLoad，就是 1.1 那段时间换了个名字**：写还在 store buffer 里，后面对另一个地址的读已经执行了。
 
