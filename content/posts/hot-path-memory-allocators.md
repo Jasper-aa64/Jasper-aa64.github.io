@@ -222,7 +222,7 @@ An object pool hands out one type `T`, allocated and returned one at a time. The
 
 ### 2.3 Where the Big Block Comes From: Ask the Kernel Once at Startup, and mmap Only Gives Addresses {#arena-mmap}
 
-> **The arena uses `mmap` rather than `malloc` because `mmap` asks the kernel for a whole block directly, and its flags decide how that memory is provided: prefaulted, backed by huge pages, locked. Memory from `malloc` offers none of this**.
+> **The essence of the arena using `mmap`: it asks the kernel for a whole block directly, and its flags decide how that memory is provided, prefaulted, backed by huge pages, locked. Memory from `malloc` offers none of this**.
 >
 > - **Into the kernel only once**: the whole block is taken at startup; every later allocation just moves an offset inside it, without entering the kernel.
 > - **You get addresses, not memory**: when `mmap` returns, the kernel has only recorded a range of virtual addresses, and each physical page is allocated only when that page is first written, so write the whole block once at startup, or pass `MAP_POPULATE` (4.1).

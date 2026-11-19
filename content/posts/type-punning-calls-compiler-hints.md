@@ -28,7 +28,7 @@ This section follows one line: type punning is what we want to do, and doing it 
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
-> **At these three addresses there is only an `unsigned char` array or a `double` object; no `Header`, `double` or `uint64_t` object was ever created there, so casting the pointer with `reinterpret_cast` and dereferencing it to read is undefined behavior**.
+> **The essence of these three UBs: at these addresses there is only an `unsigned char` array or a `double` object; no `Header`, `double` or `uint64_t` object was ever created there, so casting the pointer with `reinterpret_cast` and dereferencing it to read is undefined behavior**.
 >
 > - **Comment 1**: the start of `buf` holds only an `unsigned char` array, no `Header` object, yet it is read as a `Header`.
 > - **Comment 2**: `buf + 8` also holds only an `unsigned char` array, no `double` object, yet it is read as a `double`.

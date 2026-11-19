@@ -28,7 +28,7 @@ light: true
 
 ### 1.1 类型双关（type punning）：同一块字节，换一种类型去读 {#punning-need}
 
-> **这三处的地址上原本只有 `unsigned char` 数组或 `double` 对象，从来没有创建过 `Header`、`double` 或 `uint64_t` 对象，用 `reinterpret_cast` 强转指针再解引用去读，就是未定义行为**。
+> **这三处 UB 的本质：地址上原本只有 `unsigned char` 数组或 `double` 对象，从来没有创建过 `Header`、`double` 或 `uint64_t` 对象，用 `reinterpret_cast` 强转指针再解引用去读，就是未定义行为**。
 >
 > - **注释 1**：`buf` 开头只有 `unsigned char` 数组，没有 `Header` 对象，却当成 `Header` 读。
 > - **注释 2**：`buf + 8` 也只有 `unsigned char` 数组，没有 `double` 对象，却当成 `double` 读。

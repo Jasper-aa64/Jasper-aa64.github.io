@@ -53,7 +53,7 @@ The **LFB** (line fill buffer) in step 2 is L1D's small table of misses still on
 > - **The second step may wait**: if the line isn't in this core, an RFO reads the whole line in and has other cores invalidate their copies. If the line is S here, only the invalidation is sent.
 > - **When the core stops to wait**: the store buffer is full, or a `lock`-prefixed instruction or an `mfence` comes along and every earlier store has to reach L1D first.
 
-> **An RFO (read for ownership) is, at heart, a read issued for a write: it brings in the whole line while other cores invalidate their copies, and it doesn't write anything itself**.
+> **The essence of an RFO (read for ownership): a read issued for a write, bringing in the whole line while other cores invalidate their copies; it doesn't write anything itself**.
 >
 > - **Only a write triggers it**: reading a line that isn't in this core sends an ordinary read request and gets the line in E or S. Writing such a line sends an RFO, and atomic read-modify-writes (`fetch_add`, `compare_exchange`) count as writes.
 > - **Why a write needs a read**: the cache works in whole 64 B lines and a store changes only a few bytes, so the rest of the line has to be fetched to make a complete line.
