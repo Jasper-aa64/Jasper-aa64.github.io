@@ -23,15 +23,14 @@ How far the compiler can optimize depends on what it dares to assume and what it
 This section follows one line: type punning is what we want to do, and doing it through a pointer cast breaks the compiler's strict aliasing rule.
 
 - **1.1 What we want**: read the same bytes as another type.
-- **1.2 The compiler's rule**: an object may only be read or written through its own type (plus a few exceptions such as the byte types), so pointers of different types are treated as non-overlapping.
-- **1.3 Where they collide**: reading or writing through a cast pointer accesses that memory as another type, which is undefined behaviour. The compiler optimizes by the rule, doesn't reload memory, and reads a stale value.
-- **1.4 How to do it legally**: copy the bytes into the target type with `memcpy` or `std::bit_cast`, or state that an object lives there with `std::start_lifetime_as`.
+- **1.2 The compiler's rule, and breaking it is UB**: an object may only be read or written through its own type (plus a few exceptions such as the byte types), so pointers of different types are treated as non-overlapping. Punning through a pointer cast accesses that memory as another type; the compiler optimizes by the rule, doesn't reload memory, and reads a stale value.
+- **1.3 How to do it legally**: copy the bytes into the target type with `memcpy` or `std::bit_cast`, or state that an object lives there with `std::start_lifetime_as`.
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
 > **Essence: Type punning is a need, not a mistake: reading the same bytes as another type**.
 >
-> - **The handiest way to write it is a pointer cast**: all three spots below do it that way, and that is exactly where they go wrong (1.3).
+> - **The handiest way to write it is a pointer cast**: all three spots below do it that way, and that is exactly where they go wrong (1.2).
 
 ```cpp
 struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8-byte header
@@ -52,48 +51,48 @@ uint64_t hash_bits(double x) {
 
 - **Fields in a receive buffer**: the buffer is a run of `unsigned char` holding the header's integers and, at offset 8, the price. Comments 1 and 2 read those bytes directly as a `Header` and a `double`.
 - **When the bits themselves are what you want**: comment 3 treats a `double`'s 64 bits as an integer to hash them; comparing as integers or serializing is the same.
-- **All three are wrong, because they pun through a pointer cast (1.3), and the compiler won't necessarily tell you**: with `-Wall`, GCC 16.2 measurably warns only on comment 3, `dereferencing type-punned pointer will break strict-aliasing rules`, and says nothing about 1 and 2. The buffer comes in as a parameter, so the compiler doesn't know what type that memory originally held.
+- **All three are wrong, because they pun through a pointer cast (1.2), and the compiler won't necessarily tell you**: with `-Wall`, GCC 16.2 measurably warns only on comment 3, `dereferencing type-punned pointer will break strict-aliasing rules`, and says nothing about 1 and 2. The buffer comes in as a parameter, so the compiler doesn't know what type that memory originally held.
 
-### 1.2 Strict Aliasing: Different Types, So the Compiler Treats Them as Non-Overlapping {#alias-rule}
+### 1.2 Strict Aliasing: Different Types Are Treated as Non-Overlapping, So Punning Through a Pointer Cast Is UB {#alias-rule}
 
-> **Essence: The compiler assumes an object is only read or written through its own type, so two pointers of different types never point to the same memory**.
+> **Essence: The compiler assumes pointers of different types never point to the same memory, and punning through a pointer cast breaks exactly that assumption, so it is undefined behaviour**.
 >
-> - **This assumption lets values stay in registers**: once the compiler knows no store of another type changed a value, it doesn't reload it from memory.
-> - **The price is that punning code gets optimized wrong**: reading or writing the same memory as another type is exactly what the assumption rules out (1.3).
+> - **The assumption lets values stay in registers**: once the compiler knows no store of another type changed a value, it doesn't reload it from memory.
+> - **When it's broken, the compiler still optimizes by it**: the cast doesn't change its view, so it doesn't reload memory and uses the stale value in a register.
 
-- **Only a few types may access an object of type `T`**: `T` itself (with or without `const` and `volatile`), its signed or unsigned counterpart, and `char`, `unsigned char` and `std::byte`. Access through any other type is undefined behavior: the compiler doesn't have to warn, and the result can change with the optimization level.
-- **The compiler trades it for optimizations**: after a store through a `uint64_t*`, it knows no `double` changed, so a `double` needn't be reloaded from memory; loop bounds and coefficients can be hoisted out of the loop, which is what lets the loop vectorize. It's the same kind of information as `__restrict` in [#10](/posts/pointer-memory-access/), except you don't write it; the compiler infers it from the types.
-- **Byte types are the exception, and it has a cost**: `char` and `unsigned char` (`uint8_t` is `unsigned char`) may access any object, so after one store through a byte pointer the compiler has to assume any other variable may have changed and reload it. In a loop that doubles `a[k]` up to a bound `*n`, changing `float* a` to `char* a` makes the compiler reload `*n` every iteration and give up on vectorizing.
+1. **The rule: an object may only be accessed through its own type**
+   - **Only a few types may access an object of type `T`**: `T` itself (with or without `const` and `volatile`), its signed or unsigned counterpart, and `char`, `unsigned char` and `std::byte`. Access through any other type is undefined behavior: the compiler doesn't have to warn, and the result can change with the optimization level.
+   - **Byte types are the exception, and it has a cost**: `char` and `unsigned char` (`uint8_t` is `unsigned char`) may access any object, so after one store through a byte pointer the compiler has to assume any other variable may have changed and reload it. In a loop that doubles `a[k]` up to a bound `*n`, changing `float* a` to `char* a` makes the compiler reload `*n` every iteration and give up on vectorizing.
 
-### 1.3 Punning Through a Pointer Cast: It Breaks Strict Aliasing, the Compiler Still Optimizes on "No Overlap" and Reads a Stale Value {#alias-violation}
+2. **The compiler trades it for optimizations: no reloads, and loops can vectorize**
+   - **Types alone rule out overlap**: after a store through a `uint64_t*`, it knows no `double` changed, so a `double` needn't be reloaded from memory; loop bounds and coefficients can be hoisted out of the loop, which is what lets the loop vectorize. It's the same kind of information as `__restrict` in [#10](/posts/pointer-memory-access/), except you don't write it; the compiler infers it from the types.
 
-> **Essence: Punning through a pointer cast reads or writes an object through another type, which strict aliasing makes undefined behaviour**.
->
-> - **The cast doesn't change the compiler's assumption**: it still believes the two pointers refer to different objects.
-> - **The result is a stale value**: the compiler doesn't reload memory and uses the value in a register.
+3. **Punning through a pointer cast breaks it: the compiler still optimizes on "no overlap" and reads a stale value**
 
-```cpp
-double alias(double* d, uint64_t* u) {
-    *d = 1.0;
-    *u = 0;          // the compiler assumes u and d point to different objects
-    return *d;       // so it returns 1.0 without reloading
-}
-```
+   ```cpp
+   double alias(double* d, uint64_t* u) {
+       *d = 1.0;
+       *u = 0;          // the compiler assumes u and d point to different objects
+       return *d;       // so it returns 1.0 without reloading
+   }
+   ```
 
-```text
-alias(double*, unsigned long long*):
-    movsd   .LC0(%rip), %xmm0    # .LC0 = 1.0
-    movsd   %xmm0, (%rdi)        # *d = 1.0
-    movq    $0, (%rsi)           # *u = 0
-    ret                          # the return value is still the 1.0 in %xmm0
-```
+   ```text
+   alias(double*, unsigned long long*):
+       movsd   .LC0(%rip), %xmm0    # .LC0 = 1.0
+       movsd   %xmm0, (%rdi)        # *d = 1.0
+       movq    $0, (%rsi)           # *u = 0
+       ret                          # the return value is still the 1.0 in %xmm0
+   ```
 
-- **After `*u = 0`, `*d` isn't reloaded**: called as `alias(&x, (uint64_t*)&x)`, it measurably returns 1 while memory already holds 0. With `-fno-strict-aliasing` turning the assumption off, it reloads and returns 0; the Linux kernel is built with the rule turned off entirely, at the price of all the optimizations from 1.2.
-- **A cast inside one function sometimes works, by luck**: after `double x = 100;`, `*(uint64_t*)&x |= 0x8000000000000000;` measurably prints −100 at GCC `-O2`, because this time the compiler can see both pointers come from `&x`; it also warns on that line, `'x' is used uninitialized`. Put a function boundary in between and you get `alias` above.
-- **Reading another union member, or a helper like `bit_cast_ref`, is the same thing**: in C++, reading a union member other than the one last written is undefined behavior (GCC supports it as an extension, other compilers don't promise to); the body of `bit_cast_ref<To>(ptr)` is `*reinterpret_cast<const To*>(ptr)`, and bit_cast in the name doesn't make it safe.
-- **`reinterpret_cast` itself isn't wrong**: what's wrong is using the resulting pointer to read or write an object that isn't of that type. Casting a pointer and casting it back to the original type before use is fine.
+   - **After `*u = 0`, `*d` isn't reloaded**: called as `alias(&x, (uint64_t*)&x)`, it measurably returns 1 while memory already holds 0. With `-fno-strict-aliasing` turning the assumption off, it reloads and returns 0; the Linux kernel is built with the rule turned off entirely, at the price of all the optimizations above.
+   - **A cast inside one function sometimes works, by luck**: after `double x = 100;`, `*(uint64_t*)&x |= 0x8000000000000000;` measurably prints −100 at GCC `-O2`, because this time the compiler can see both pointers come from `&x`; it also warns on that line, `'x' is used uninitialized`. Put a function boundary in between and you get `alias` above.
 
-### 1.4 The Legal Ways: Copy the Bytes into the Target Type, or Say There's an Object Here {#alias-fix}
+4. **Other spellings are the same thing**
+   - **Reading another union member, or a helper like `bit_cast_ref`, is the same thing**: in C++, reading a union member other than the one last written is undefined behavior (GCC supports it as an extension, other compilers don't promise to); the body of `bit_cast_ref<To>(ptr)` is `*reinterpret_cast<const To*>(ptr)`, and bit_cast in the name doesn't make it safe.
+   - **`reinterpret_cast` itself isn't wrong**: what's wrong is using the resulting pointer to read or write an object that isn't of that type. Casting a pointer and casting it back to the original type before use is fine.
+
+### 1.3 The Legal Ways: Copy the Bytes into the Target Type, or Say There's an Object Here {#alias-fix}
 
 > **Essence: There are only two kinds of legal code: copy the bytes into a variable of the target type, or state that an object begins in these bytes**.
 >
@@ -118,7 +117,7 @@ alias(double*, unsigned long long*):
    ```
 
    - **The copy costs nothing**: when the length is a small compile-time constant, the compiler emits a single register-to-register move; both versions compile to the same thing.
-   - **`std::bit_cast` adds compile-time checks**: both sides must have the same size and be trivially copyable, or it doesn't compile; it also works in `constexpr`. `bits_cast(100.0)` measures 0x4059000000000000, a number 1.5 takes apart.
+   - **`std::bit_cast` adds compile-time checks**: both sides must have the same size and be trivially copyable, or it doesn't compile; it also works in `constexpr`. `bits_cast(100.0)` measures 0x4059000000000000, a number 1.4 takes apart.
 
 2. **Fields in a receive buffer: `memcpy` again**
 
@@ -156,7 +155,7 @@ alias(double*, unsigned long long*):
    - **It's for large structs and memory someone else filled**: a snapshot of a few hundred bytes is tedious to read field by field with `memcpy`, and copying all of it out is a copy the compiler may not remove; a packet DMA'd in by the NIC or a struct in shared memory is "the bytes are already there, only the object is missing".
    - **There are two preconditions**: `Header` must be an implicit-lifetime type (a struct with only scalar members and no user-provided destructor is one), and the address must be aligned to `alignof(Header)`; an unaligned one still needs `memcpy`. Check the `__cpp_lib_start_lifetime_as` macro before using it; libstdc++ in GCC 16.2 has it.
 
-### 1.5 IEEE 754: Changing the Sign Doesn't Need Punning {#ieee754}
+### 1.4 IEEE 754: Changing the Sign Doesn't Need Punning {#ieee754}
 
 > **Essence: A double's sign has the top bit to itself, so negating or taking an absolute value is a single bit operation**.
 >
@@ -234,13 +233,13 @@ negabs(double):
 ```
 
 - **`-std::fabs(x)` is a single `orpd`**: the value stays in a floating-point register throughout.
-- **Changing the bit by hand with `bit_cast` takes three**: `std::bit_cast<double>(std::bit_cast<uint64_t>(x) | 0x8000000000000000)` measurably compiles to `movq` into an integer register, `btsq` to set the bit, and `movq` back. Keep the techniques of 1.4 for data that really is bytes, or when the bits themselves are what you want.
+- **Changing the bit by hand with `bit_cast` takes three**: `std::bit_cast<double>(std::bit_cast<uint64_t>(x) | 0x8000000000000000)` measurably compiles to `movq` into an integer register, `btsq` to set the bit, and `movq` back. Keep the techniques of 1.3 for data that really is bytes, or when the bits themselves are what you want.
 
-### 1.6 `std::variant`: A Union Doesn't Remember What It Holds, a Variant Does {#variant}
+### 1.5 `std::variant`: A Union Doesn't Remember What It Holds, a Variant Does {#variant}
 
 > **Essence: A union doesn't remember which type it holds, and `std::variant` stores an extra index to remember it**.
 >
-> - **Reading the wrong union member is punning**: reading a member other than the last one written is undefined behaviour, just like 1.3.
+> - **Reading the wrong union member is punning**: reading a member other than the last one written is undefined behaviour, just like 1.2.
 > - **What variant costs**: a few extra bytes and one dispatch on the index per access.
 
 - **The typical use is market data messages**: a message might be a new order, a cancel or a trade, each with different fields, kept in the same memory to save space.
