@@ -135,15 +135,12 @@ So **a blocking queue wins on CPU use and on being easy to get right, not on spe
 
 ## 2. Lock-Free Rings for Multiple Producers: rte_ring and Disruptor
 
-### 2.1 rte_ring: Claim a Slot First, Then Publish in Order
+### 2.1 rte_ring: Claim a Slot First, Then Publish in Claim Order
 
-When several strategy threads send orders to one gateway thread (multi-producer, single-consumer, MPSC), the write index has several writers and has to be claimed with CAS. After claiming a slot the producer still has to write the data, so there is a gap between "claimed" and "written", and the consumer must not read a slot that has been claimed but not yet written. rte_ring (DPDK's lock-free ring) handles this with two indices per side:
+**Producers claim slots with CAS and each writes its own; once written, `prod_tail_` must advance in claim order, because one number can only say "everything below here is written"**.
 
-- `prod_head_`: how far producers have claimed; producers compete for it with CAS;
-- `prod_tail_`: how far producers have finished writing, i.e. how far consumers may read;
-- the consumer side mirrors it: `cons_head_` is how far consumers have claimed, `cons_tail_` how far they have finished reading, i.e. how far producers may overwrite.
-
-rte_ring itself is multi-producer, multi-consumer (MPMC), and the code below is the full MPMC version, with the consumer side written for several consumers. **With a single consumer, `cons_head_` is at most 1 ahead of `cons_tail_`** (the extra one is the slot it is reading right now), and only that consumer cares about the difference; the end of 2.2 shows how that simplifies.
+- **The setting**: several strategy threads send orders to one gateway (MPSC), so the write index has several writers and must be claimed with CAS; there is a gap between claiming and finishing the write, and the consumer must not read a slot that is claimed but not yet written.
+- **Two indices per side**: `prod_head_` is how far producers have claimed, `prod_tail_` how far they have written, i.e. how far consumers may read; the consumer side mirrors it, `cons_head_` for claimed and `cons_tail_` for read, i.e. how far producers may overwrite. The code is the full MPMC version.
 
 ```cpp
 template <class T, uint32_t N>             // N is a power of two
@@ -190,26 +187,12 @@ private:
 };
 ```
 
-`try_push` has four steps:
+`try_push` in four steps: ① CAS `prod_head_` from `head` to `head + 1`; a failure means someone got there first, so check for full and try again; ② write the claimed slot; ③ wait until `prod_tail_` reaches `head`; ④ release-store `prod_tail_ = head + 1`, and from then on consumers can read the slot.
 
-1. Read `prod_head_`, check for full with `head - cons_tail_ == N`, then CAS it from `head` to `head + 1`. A failed CAS means another producer got there first; `head` now holds the latest value, and the loop checks for full again.
-2. Write the data into the claimed slot.
-3. Wait until `prod_tail_` reaches `head`, i.e. until every earlier producer has published.
-4. Set `prod_tail_` to `head + 1` (release); from this moment consumers can read the slot.
-
-The indices are `uint32_t` and only ever increase; they are stored unmasked and masked with `& (N - 1)` only when used. Empty is `head == tail`, full is `head - tail == N`. If the masked value were stored back, the indices could only range over 0 to N − 1, and empty and full would both look like two equal indices, with no way to tell them apart ([#4](/posts/lock-free-queue-logger-micro-batching/#spsc-ring) 1.2).
-
-When an index reaches $2^{32} - 1$ and is incremented, it wraps to 0, and the checks still work. Unsigned subtraction is modulo $2^{32}$, so as long as the real difference is at most N, `head - tail` gives the real difference. N is a power of two and divides $2^{32}$, so the slots also line up across the wrap: $2^{32} - 1$ lands in slot N − 1 and the next index, 0, lands in slot 0. **With indices that only increase and a power-of-two N, wraparound needs no special handling.** The test below starts the indices at $2^{32} - 1001$, so they wrap past 0 during the run, and the results are still correct.
-
-### 2.2 Publishing in Order: One Number Can Only Say "Everything Before Is Done"
-
-The wait in step ③ is the heart of this design. `prod_tail_` is just one number, and consumers read it as "every slot below here has been written". Say A claims 5 and B claims 6, and B finishes writing first. If B set `prod_tail_` to 7 straight away, a consumer would go and read 5, which A hasn't written yet. So B has to wait until `prod_tail_` becomes 6 (A has published) before setting it to 7: **publishing has to happen in the same order as claiming.**
-
-The load in step ③ has to be acquire. A publishes `prod_tail_ = 6` with a release store and B reads 6 with acquire, so A's write into slot 5 happens before B's release store. A consumer that reads 7 with acquire then sees the data in both slot 5 and slot 6.
-
-The price: if A is descheduled between ① and ④, B, C and everyone after them spin at ③ until A comes back. This is the same problem as the ticket lock in [#16](/posts/spinlock-implementation/) 2.1, where the thread whose turn it is gets descheduled and the whole queue stops. So strictly speaking this is not lock-free: **one stalled producer can stall every other producer.** DPDK can get away with it because its threads are pinned to dedicated cores and never descheduled; with ordinary, preemptible threads, the worst case for this ring is a stall of several milliseconds.
-
-The consumer side is fully symmetric: consumers claim from `cons_head_` with CAS, advance `cons_tail_` in order once they have read, and producers check `cons_tail_` to see whether they may overwrite. With a single consumer, as for the order gateway (MPSC), nobody competes with it and nobody ahead of it needs waiting for, so the CAS and a step-③-style wait both go away: after reading it simply stores `cons_tail_` with release, and the two indices collapse into one. rte_ring's single-consumer mode does exactly this.
+- **Why wait (③)**: A claims 5 and B claims 6, and B finishes first. If B set `prod_tail_` to 7 right away, a consumer would read slot 5, which A hasn't finished. So B waits for A to set it to 6, then sets it to 7.
+- **The price: one stalled producer stalls them all**: if A is descheduled between ① and ④, every later producer is stuck at ③ until A returns, the same problem as the ticket lock in [#16](/posts/spinlock-implementation/) 2.1, so strictly this isn't lock-free. DPDK's threads are pinned to dedicated cores and never descheduled; with ordinary threads the worst case is a stall of several milliseconds.
+- **With one consumer, the consumer side drops out**: nobody competes with it and nobody ahead needs waiting for, so there's no CAS and no wait; after reading it release-stores `cons_tail_`, and the two indices become one. That's rte_ring's single-consumer mode.
+- **Indices only increase and N is a power of two, so wraparound needs no special handling**: store the unmasked value; empty is `head == tail`, full is `head - tail == N`; unsigned subtraction is modulo $2^{32}$, so going past $2^{32} - 1$ back to 0 still works. Store the masked value instead and empty and full both look like two equal indices ([#4](/posts/lock-free-queue-logger-micro-batching/#spsc-ring) 1.2).
 
 **The memory ordering, drawn: there's only one `prod_tail_`, so an earlier producer's writes reach the consumer only as a relay through a later producer's acquire in step ③**.
 
@@ -219,12 +202,12 @@ The consumer side is fully symmetric: consumers claim from `cons_head_` with CAS
 - **③ must be acquire**: make it relaxed and the A-to-B edge is gone, so reading 7 no longer guarantees seeing slot 5.
 - **① can be relaxed**: the CAS only hands out slots; no data travels through it.
 
-### 2.3 Disruptor: Every Slot Marks Itself "Written"
+### 2.2 Disruptor: Every Slot Marks Itself "Written"
 
 The Disruptor is the ring buffer LMAX (a foreign-exchange trading venue) built for its matching engine. It is a separate design from rte_ring, and the code below is a separate class too (a trimmed C++ sketch of the idea, with multiple producers and one consumer). It keeps track differently, so that producers never wait for each other:
 
 - **Sequence numbers instead of indices**: 64-bit signed sequence numbers that only increase and in practice never run out; a slot's position is `seq & (N - 1)`.
-- **Claiming with `fetch_add`**: each producer gets its number with one `fetch_add(1)`, which cannot fail and never retries. It still has to wait when the ring is full; see 2.4.
+- **Claiming with `fetch_add`**: each producer gets its number with one `fetch_add(1)`, which cannot fail and never retries. It still has to wait when the ring is full; see 2.3.
 - **An availability flag per slot**: when a producer has written its slot, it writes the lap (`seq / N`) into that slot's flag, regardless of whether earlier numbers are done.
 
 ```cpp
@@ -279,7 +262,7 @@ Compare with rte_ring: A claims 5, B claims 6, B finishes first, calls `publish(
 - **Each slot has its own edge**: slot 5 goes from A's ④ to the consumer's load of `avail_[5]`, slot 6 from B's ④ to the load of `avail_[6]`, never through another producer, so neither waits for the other.
 - **Storing the lap is what pairs the edges correctly**: if the consumer reads last lap's value, this lap's edge doesn't exist yet, so it stops at that slot.
 
-### 2.4 Backpressure and Wait Strategies: When Full, Wait for the Slowest Consumer; When Empty, Choose How to Wait
+### 2.3 Backpressure and Wait Strategies: When Full, Wait for the Slowest Consumer; When Empty, Choose How to Wait
 
 **When full.** A producer holding number `seq` is about to write a slot whose previous occupant was `seq - N`; it may only overwrite once the consumer has read `seq - N`, so `claim()` waits until `consumed_ >= seq - N`. A slow consumer slows the producer down and no data is lost; this is called **backpressure**.
 
