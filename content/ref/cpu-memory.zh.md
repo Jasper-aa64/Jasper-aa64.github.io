@@ -33,12 +33,44 @@ math: true
 
 ### 1.2 写（store）：store buffer 与 RFO {#store}
 
-<iframe src="/maps/store-path.zh.html" title="写的路径：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:0 auto;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
-<p style="text-align:center;font-size:.9em"><a href="/maps/store-path.zh.html" target="_blank" rel="noopener">在新窗口打开</a> · <a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener">静态全图</a></p>
+> **本质：一次写分两段，执行时只写进本核的 store buffer，退休以后才按顺序写进 L1D，而写进 L1D 之前，这个核必须独占这条行**。
+>
+> - **前一段不用等**：后面的指令照常执行，写的延迟藏在 store buffer 里。
+> - **后一段才花时间**：行不在 L1D 要先读回整条行（RFO），别的核有副本还要等它们作废。
+> - **藏不住的时候**：store buffer 满了，或者碰到带 `lock` 的指令、`mfence`、seq_cst 的 `xchg`，核要等前面的写都进了 L1D 才能往下走。
 
-写先进 **store buffer**，后面的指令不用等它写完。真正写进 L1D 之前，这个核要拿到这条行的独占权：别的核手里的副本都要作废（**MESI**），别的核收到作废通知，先排进自己的 **invalidate queue**。要写的行不在缓存里，还得先把整条行读回来再改，这叫 **RFO**（read for ownership）。所以一次写缺失也要从内存搬一整条行。改过的行被踢出时还要写回，普通写一条不在缓存里的行，总线上走两趟。**流式写**（non-temporal store）不读回、不进缓存，凑满 64 B 直接写到内存，只走一趟，适合写一大片、短期内没人读的数据。
+对着上面的硬件地图，从核心 0 的“访存”那一栏往下走一遍：
 
-图里是一次写在两个核之间走一遍：invalidate 请求经片上互连，只发给缓存里有这条行的核，谁有由 L3 旁的 snoop filter 记着；新值不会推过去，别的核要用时自己来取。对方把失效排进 invalidate queue 就回 ACK，所以它可能先看到后写的 ready、再读到旧的 data。这种读和读的乱序 x86 不允许，ARM 允许，ARM 上的 acquire 因此要用真正的指令（[2.1](#latency)，[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）。
+1. **后端 → store buffer**
+   - **执行时只写进 store buffer**：AGU 算出地址，dTLB 翻译成物理地址，地址和数据一起占 store buffer 的一项，这时还没碰 L1D。
+   - **每个核几十项**：近几代 Intel 约 50–120 项，AMD Zen 4 约 64 项。
+   - **后面的 load 读同一个地址，直接从这里拿值**：叫 store-to-load 转发，不用等写进缓存（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）。
+
+2. **退休以后才能写出去**
+   - **没退休的 store 可能在猜错的路径上**：猜错就整条作废，所以不能提前写进缓存。
+   - **退休后在 store buffer 里按程序顺序排队**：x86 要求别的核按程序顺序看到这些写（TSO），所以一项一项交给 L1D。
+
+3. **store buffer → L1D：先看这条行在 L1D 里是什么状态**（MESI 状态记在每条行的标签旁边）
+   - **M 或 E**：本核已经独占，直接改那几个字节，状态变成 M，不发任何消息。
+   - **S**：别的核也有副本。数据是对的，只缺独占权，发作废请求就行，一般不用再搬数据。
+   - **不在**：发 RFO，读回整条 64 B 行，同时拿到独占权。路线和 load 缺失一样，L2 → L3 → 内存控制器 → 内存条，也占一个 LFB 项（[2.3](#in-flight)）。
+
+4. **L3 那一层决定通知谁**（地图里核和核之间的灰色虚线）
+   - **snoop filter 记着谁有副本**：它在 L3 旁边，记着每条行在哪些核的 L1、L2 里，作废请求只发给这些核。
+   - **对方作废副本，回 ACK**：对方手里是 M，要先把最新的数据交出来。收齐 ACK，行在本核变成 M，store buffer 这一项写进 L1D 后释放。
+   - **对方在另一个插槽**：请求要过插槽间互连，一次换手在 150–300 ns 那一档（[2.1](#latency)、[2.6](#cross-core)）。
+
+5. **对方那边：invalidate queue**
+   - **对方把作废请求排进自己的 invalidate queue 就回 ACK**，不等真正作废。
+   - **所以对方可能先读到后写的 ready、再读到旧的 data**：这是读和读之间的乱序，x86 不允许，ARM 允许，ARM 上的 acquire 因此要用真正的指令（[2.1](#latency)、[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/)）。
+
+6. **改过的行被挤出时要写回**
+   - **M 状态的行被挤出 L1D**：写回 L2、L3，最后才回到内存。
+   - **所以写一条不在缓存里的行，总线上走两趟**：RFO 读一次，写回写一次。
+
+7. **流式写（non-temporal store）跳过第 3 步和第 6 步**
+   - **不读回、不进缓存**：在写合并缓冲里凑满 64 B，直接写到内存，只走一趟。
+   - **适合写一大片、短期内没人读的数据**：比如填一大块缓冲区。流式写之间不保证顺序，要别的核按顺序看到，后面加一条 `sfence`。
 
 ### 1.3 文章索引：每个框在哪篇讲过 {#posts}
 

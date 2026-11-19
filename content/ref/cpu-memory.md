@@ -33,11 +33,44 @@ The **LFB** (line fill buffer) in step 2 is L1D's small table of misses still on
 
 ### 1.2 Stores: Store Buffer and RFO {#store}
 
-<a href="/images/ref/store-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/store-path.en.svg" alt="The store path across two cores. Core 0 runs data = 42 and the store enters its store buffer; the invalidation crosses the on-chip interconnect, and the snoop filter sends it only to core 1, which holds a copy; core 1 queues it in its invalidate queue and ACKs at once; with all ACKs in, core 0 writes 42 into L1D, then writes ready. Core 1 fetches ready = 1 from core 0, then reads data while the invalidation is still queued and gets the old 0. A note below: this is a load-load reordering, forbidden on x86 and allowed on ARM; the fix is an atomic ready with a release store and an acquire load." loading="lazy" decoding="async"></a>
+> **Essence: A store happens in two stages: at execution it only goes into this core's store buffer, after retirement it is written into L1D in order, and before it can go into L1D the core must own the line exclusively**.
+>
+> - **The first stage doesn't wait**: later instructions keep executing, and the store's latency hides in the store buffer.
+> - **The second stage is where time goes**: a line not in L1D has to be read in whole first (RFO), and copies in other cores have to be invalidated.
+> - **When it can't be hidden**: the store buffer is full, or a `lock`-prefixed instruction, an `mfence` or a seq_cst `xchg` comes along, and the core waits until every earlier store is in L1D.
 
-A store first goes into the **store buffer**, so later instructions don't wait for it. Before it can be written into L1D, the core needs exclusive ownership of the line: every copy in another core has to be invalidated (**MESI**), and each of those cores queues the invalidation in its **invalidate queue** first. If the line isn't in the cache, the whole line has to be read in before it can be modified, which is called an **RFO** (read for ownership). So a store miss also moves a whole line from memory. The modified line is written back when evicted, so an ordinary store to a line not in cache crosses the bus twice. A **non-temporal store** skips the read and the cache, writing each completed 64 B line straight to memory in one trip; it suits bulk data nobody reads soon.
+Following the hardware map above, down from the "memory" column of core 0:
 
-The figure follows one store across two cores. The invalidation crosses the on-chip interconnect and goes only to cores that hold the line, which the snoop filter next to L3 keeps track of; the new value is never pushed over, and another core fetches it when it needs it. The other core ACKs as soon as the invalidation is in its invalidate queue, so it can see the later ready and still read the old data. x86 forbids this load-load reordering and ARM allows it, which is why an acquire on ARM takes a real instruction ([2.1](#latency), [#2](/posts/memory-ordering-false-sharing-dependency-chains/)).
+1. **Back end → store buffer**
+   - **At execution it only goes into the store buffer**: the AGU computes the address, the dTLB translates it to a physical address, and address and data take one store-buffer entry; L1D isn't touched yet.
+   - **A few dozen entries per core**: about 50–120 on recent Intel cores, about 64 on AMD Zen 4.
+   - **A later load from the same address takes the value straight from here**: this is store-to-load forwarding, and it doesn't wait for the cache ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)).
+
+2. **Only after retirement can it be written out**
+   - **A store that hasn't retired may be on a mispredicted path**: if so it is thrown away, so it can't be written into the cache early.
+   - **After retirement it waits in the store buffer in program order**: x86 requires other cores to see the stores in program order (TSO), so they go to L1D one entry at a time.
+
+3. **Store buffer → L1D: first check the line's state in L1D** (the MESI state sits next to each line's tag)
+   - **M or E**: this core already owns it, so it changes those bytes, the state becomes M, and no message is sent.
+   - **S**: other cores hold copies. The data is right and only ownership is missing, so it sends invalidations and usually moves no data.
+   - **Not present**: it sends an RFO, reading the whole 64 B line and getting ownership at the same time. The route is the same as a load miss, L2 → L3 → memory controller → DRAM, and it also takes an LFB entry ([2.3](#in-flight)).
+
+4. **The L3 level decides whom to notify** (the grey dashed lines between cores on the map)
+   - **The snoop filter tracks who holds copies**: it sits next to L3 and records which cores' L1 and L2 hold each line, so invalidations go only to those cores.
+   - **The other core invalidates its copy and ACKs**: if it holds the line in M, it hands over the latest data first. Once all ACKs are in, the line is M in this core, and the store-buffer entry is written into L1D and freed.
+   - **When the other core is on another socket**: the request crosses the socket interconnect, and one handoff lands in the 150–300 ns range ([2.1](#latency), [2.6](#cross-core)).
+
+5. **On the other side: the invalidate queue**
+   - **The other core ACKs once the invalidation is in its invalidate queue**, without waiting for it to take effect.
+   - **So it can read the later ready and still read the old data**: this is a load-load reordering, forbidden on x86 and allowed on ARM, which is why an acquire on ARM takes a real instruction ([2.1](#latency), [#2](/posts/memory-ordering-false-sharing-dependency-chains/)).
+
+6. **A modified line is written back when evicted**
+   - **A line in M evicted from L1D**: goes back to L2 and L3, and only then to memory.
+   - **So a store to a line not in cache crosses the bus twice**: once to read it for the RFO, once to write it back.
+
+7. **Non-temporal stores skip steps 3 and 6**
+   - **No read, no cache**: they fill a write-combining buffer up to 64 B and go straight to memory in one trip.
+   - **Good for bulk data nobody reads soon**: such as filling a large buffer. Non-temporal stores aren't ordered with each other; for other cores to see them in order, follow them with an `sfence`.
 
 ### 1.3 Post Index: Which Post Covers Which Box {#posts}
 
