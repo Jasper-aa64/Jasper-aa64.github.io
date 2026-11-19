@@ -309,14 +309,9 @@ Part 1 showed where reordering comes from: a write sits in the store buffer befo
 
 > **The one most easily forgotten: leaving out the memory order means `seq_cst`, not `relaxed`**
 >
-> - **The default is the strongest order**: `x.store(v)`, `x.load()` and `x.fetch_add(1)` without a memory-order argument are all `seq_cst`.
-> - **Operators are the same, and they have nowhere to put an order**: `x = v` is a `store`, reading `x` is a `load`, `++x` and `x += n` are `fetch_add`, all `seq_cst`.
-> - **On x86 the extra cost is on stores**: a `store` without an argument compiles to `xchg` and waits for the store buffer to drain, about 20–30 cycles; with `relaxed` it's a plain `mov`.
-> - **On x86 loads and read-modify-writes compile the same either way**: loads are a plain `mov`, read-modify-writes are a `lock`-prefixed instruction (checked against GCC 14.2 `-O2` output).
-> - **On ARM both loads and stores cost more**: without an argument a load is `ldar` and a store is `stlr`; with `relaxed` they're plain `ldr` and `str`.
-> - **Forgetting it only makes code slower, never wrong**: `seq_cst` is stricter than every other order, so correctness is unaffected; writing `relaxed` where `acquire` or `release` is needed is what breaks code.
-> - **A plain variable is not "an even looser relaxed"**: several threads reading and writing the same plain variable is a data race and undefined behaviour, and the compiler may hoist the read out of a loop (1.4); `volatile` doesn't replace `std::atomic` either.
-> - **So on the hot path, write the memory order explicitly on every atomic operation**: replace operators with `store`, `load` and `fetch_add`, and don't let the default choose `seq_cst` when you don't need it.
+> - **Operators count as leaving it out**: `x = v` and `++x` are both `seq_cst`.
+> - **On x86 the cost is on stores**: a `store` compiles to `xchg`, about 20–30 cycles, while `relaxed` is a single `mov`.
+> - **On the hot path, write the order on every atomic operation**: forgetting it only makes code slower, writing `relaxed` by mistake is what breaks it.
 
 ### 2.2 relaxed: Only the Variable Itself {#mo-relaxed}
 
