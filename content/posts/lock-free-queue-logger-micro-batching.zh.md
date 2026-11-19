@@ -311,6 +311,44 @@ struct LogElement {
 - **槽的大小由最大的成员决定**：`char s[256]` 让每个槽占 264 字节，只装一个 `char` 也是这么大。
 - **队列故意开得很大**：800 万个槽约 2 GiB，后台线程慢，突发时一定会落后。
 
+**热线程怎么放进队列：每个值占一个槽，用 1.2 的两步接口，先要一个空槽，填好标签和值，再发布**。
+
+```cpp
+SpscQueue<LogElement> queue_{1 << 23};      // 1.2 的队列，约 800 万个槽
+
+LogElement* claim() {                       // 第 1 步：要一个空槽；队列满了怎么办，在这里决定
+  LogElement* s;
+  while ((s = queue_.try_claim()) == nullptr) { /* 空转等待，或者记一次丢弃、放弃这条记录 */ }
+  return s;
+}
+
+// 第 2、3 步：填标签和值，再发布；每种类型一个重载
+void push(char c)   { LogElement* s = claim(); s->tag = Tag::Char;   s->u.c = c; queue_.publish(); }
+void push(int i)    { LogElement* s = claim(); s->tag = Tag::Int;    s->u.i = i; queue_.publish(); }
+void push(long l)   { LogElement* s = claim(); s->tag = Tag::Long;   s->u.l = l; queue_.publish(); }
+void push(double d) { LogElement* s = claim(); s->tag = Tag::Double; s->u.d = d; queue_.publish(); }
+
+// log("Order Executed, id=%, price=%\n", id, price)
+void log(const char* fmt) {                 // 参数用完了：剩下的字符逐个推
+  for (; *fmt; ++fmt) push(*fmt);
+}
+template <typename T, typename... Rest>
+void log(const char* fmt, const T& value, const Rest&... rest) {
+  for (; *fmt; ++fmt) {
+    if (*fmt == '%') {
+      push(value);                          // 占位符：推下一个参数
+      log(fmt + 1, rest...);                // 剩下的格式串交给剩下的参数
+      return;
+    }
+    push(*fmt);                             // 普通字符：一个字符一个槽
+  }
+}
+```
+
+- **`tag` 记的是 union 里哪个成员有效**：后台线程先看 `tag`，再读对应的成员；读别的成员是未定义行为。
+- **`log` 一层吃掉一个参数**：从头扫格式串，普通字符一个个推，遇到 `%` 推当前参数，剩下的格式串和参数交给下一层；参数用完，最后一层把剩下的字符推完。
+- **这一版每个字符一个槽**：`"Order Executed, id="` 19 个字符就是 19 个槽，加上两个值和另外 9 个字符，一行 30 个槽，每个都占 264 字节，`char s[256]` 根本没用上。3.2 把一段文本放进一个 `Text` 槽。
+
 ```cpp
 while (running_) {
   while (LogElement* e = queue_.try_peek()) {
@@ -415,12 +453,6 @@ while (running_) {
 - **能缓冲的行数差 6 倍**：后台线程慢一阵，按文本段推的队列也不容易写满。
 
 ```cpp
-LogElement* claim() {                       // 队列满了怎么办，在这里决定
-  LogElement* s;
-  while ((s = queue_.try_claim()) == nullptr) { /* 空转等待，或者记一次丢弃、放弃这条记录 */ }
-  return s;
-}
-
 void push_text(const char* p, size_t n) {
   while (n > 0) {
     const size_t k = std::min<size_t>(n, 255);         // 给结尾的 '\0' 留位置
@@ -448,9 +480,8 @@ void log(const char* fmt, const T& value, const Rest&... rest) {
 void log(const char* fmt) { push_text(fmt, std::strlen(fmt)); }
 ```
 
-- **只改生产者的 `log()`**：后台线程本来就会写 `Text` 槽。
+- **只改生产者的 `log()`**：`claim()` 和 `push(value)` 沿用 3.1；和 3.1 的 `log` 只差一处，普通字符不再一个个推，而是用 `run` 记下文本段的起点，遇到 `%` 一次推完。后台线程本来就会写 `Text` 槽。
 - **一段文本超过 255 个字符就拆成几个槽**：`push_text` 按 255 一段循环，给结尾的 `'\0'` 留一个字节。
-- **队列满了怎么办，在 `claim()` 里决定**：空转等，或者记一次丢弃、放弃这条记录。
 - **这是草图**：没有处理 `%%` 转义和参数个数不对的情况。
 
 ### 3.3 再减槽数：只推格式串的指针，或者在编译期解析 {#log-formats}

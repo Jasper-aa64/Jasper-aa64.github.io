@@ -375,6 +375,44 @@ struct LogElement {
 - **The largest member sets the slot size**: `char s[256]` makes every slot 264 bytes, even one holding a single `char`.
 - **The queue is deliberately large**: 8 million slots is about 2 GiB, because the background thread is slow and will fall behind during bursts.
 
+**How the hot thread puts values into the queue: one slot per value, through the two-step interface from 1.2: claim an empty slot, fill in the tag and the value, then publish**.
+
+```cpp
+SpscQueue<LogElement> queue_{1 << 23};      // the queue from 1.2, about 8 million slots
+
+LogElement* claim() {                       // step 1: get an empty slot; what to do when full is decided here
+  LogElement* s;
+  while ((s = queue_.try_claim()) == nullptr) { /* spin, or count a drop and abandon the record */ }
+  return s;
+}
+
+// steps 2 and 3: fill in the tag and the value, then publish; one overload per type
+void push(char c)   { LogElement* s = claim(); s->tag = Tag::Char;   s->u.c = c; queue_.publish(); }
+void push(int i)    { LogElement* s = claim(); s->tag = Tag::Int;    s->u.i = i; queue_.publish(); }
+void push(long l)   { LogElement* s = claim(); s->tag = Tag::Long;   s->u.l = l; queue_.publish(); }
+void push(double d) { LogElement* s = claim(); s->tag = Tag::Double; s->u.d = d; queue_.publish(); }
+
+// log("Order Executed, id=%, price=%\n", id, price)
+void log(const char* fmt) {                 // no arguments left: push the remaining characters one by one
+  for (; *fmt; ++fmt) push(*fmt);
+}
+template <typename T, typename... Rest>
+void log(const char* fmt, const T& value, const Rest&... rest) {
+  for (; *fmt; ++fmt) {
+    if (*fmt == '%') {
+      push(value);                          // placeholder: push the next argument
+      log(fmt + 1, rest...);                // the rest of the format string goes with the remaining arguments
+      return;
+    }
+    push(*fmt);                             // ordinary character: one slot per character
+  }
+}
+```
+
+- **`tag` records which union member is valid**: the background thread checks `tag` first and reads the matching member; reading any other member is undefined behaviour.
+- **Each level of `log` consumes one argument**: it scans the format string, pushes ordinary characters one at a time, pushes the current argument at `%`, and hands the rest of the format string and arguments to the next level; once the arguments run out, the last level pushes the remaining characters.
+- **This version spends one slot per character**: `"Order Executed, id="` is 19 characters and so 19 slots; with the two values and 9 more characters a line takes 30 slots, each 264 bytes, and `char s[256]` is never used. 3.2 puts a whole run of text into one `Text` slot.
+
 ```cpp
 while (running_) {
   while (LogElement* e = queue_.try_peek()) {
@@ -479,12 +517,6 @@ while (running_) {
 - **The buffer holds 6 times as many lines**: when the background thread lags for a while, a queue pushed in text runs is much less likely to fill.
 
 ```cpp
-LogElement* claim() {                       // the policy point: what happens when the queue is full?
-  LogElement* s;
-  while ((s = queue_.try_claim()) == nullptr) { /* spin here — or count a drop and abandon the record */ }
-  return s;
-}
-
 void push_text(const char* p, size_t n) {
   while (n > 0) {
     const size_t k = std::min<size_t>(n, 255);         // leave room for the terminating NUL
@@ -512,9 +544,8 @@ void log(const char* fmt, const T& value, const Rest&... rest) {
 void log(const char* fmt) { push_text(fmt, std::strlen(fmt)); }
 ```
 
-- **Only the producer's `log()` changes**: the background thread already knows how to write a `Text` slot.
+- **Only the producer's `log()` changes**: `claim()` and `push(value)` are the ones from 3.1; the only difference from 3.1's `log` is that ordinary characters are no longer pushed one by one: `run` marks where the text run starts, and the whole run goes out at the `%`. The background thread already knows how to write a `Text` slot.
 - **A run longer than 255 characters is split across slots**: `push_text` loops in chunks of 255, leaving one byte for the terminating `'\0'`.
-- **What to do when the queue is full is decided in `claim()`**: spin, or count a drop and abandon the record.
 - **This is a sketch**: `%%` escapes and argument-count errors are left out.
 
 ### 3.3 Fewer Slots Still: Push Only a Pointer to the Format String, or Parse It at Compile Time {#log-formats}
