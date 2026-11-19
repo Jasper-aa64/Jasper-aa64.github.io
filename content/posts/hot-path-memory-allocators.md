@@ -332,6 +332,15 @@ The allocators of the first three parts all take one big block of memory at star
 
 ### 4.1 All You Get Is Addresses: The First Write to Every Page Faults, So Write the Whole Block Once at Startup {#prefault}
 
+> **Essence: The kernel manages memory in 4 KiB pages: physical memory is handed to a process one page at a time and moves to and from disk one page at a time, so the first time the hot path touches a page it enters the kernel**.
+>
+> - **The two layers move data in different units**: between the CPU and memory the unit is a 64 B cache line; between memory and disk it is a 4 KiB page.
+> - **When the data is already in memory, scattered reads waste cache lines**: reading 8 bytes brings in a whole 64 B line; at this layer the page size only decides how many address translations the TLB has to cache.
+> - **When the data has to come from disk, every scattered read brings in a whole page**: reading a file through the page cache, or through an `mmap`ed file, the kernel reads at least one whole page, so using only 8 bytes still costs 4 KiB. This is read amplification.
+> - **One disk read takes 10–100 µs**: an NVMe read of one page is hundreds to a thousand times slower than one memory read (about 100 ns).
+> - **Even without disk, the first write to a page enters the kernel**: the kernel allocates a physical page, zeroes it and fills in the page table, about 0.5–2 µs. This is the pain point below.
+> - **So every page the hot path uses must already be in memory and mapped**: write it once at startup (this section), then lock it so it can't be swapped out (4.2).
+
 **Pain point**: when `aligned_alloc`, `posix_memalign` or `mmap` returns, the kernel has only recorded a range of virtual addresses, with no physical memory behind it yet. Linux maps pages lazily: each 4 KiB page traps into the kernel with a page fault on its first access, which allocates a physical page, about 0.5–2 µs each time. The first slot the pool hands out and the first page the arena advances into will both fault on the hot path.
 
 **Fix**: add one line, `memset(raw_memory, 0, total_size)`, to the constructor, writing every page once at startup so all the faults are paid then; if the memory comes from `mmap`, you can also pass `MAP_POPULATE` and have the kernel fault the pages in at mapping time. **By the time the hot path runs, every page in the pool and the arena is already mapped, and nothing has to happen for the first time**. The pool in 1.4 and the arena in 2.3 both do this.
