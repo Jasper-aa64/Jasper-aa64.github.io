@@ -245,12 +245,16 @@ std::visit([](auto&& x) { std::cout << x << '\n'; }, v);
 
 ### 2.1 The Calling Convention: Arguments Go in Registers First {#calling-convention}
 
+**When a call can't be inlined, arguments go into fixed registers by the calling convention: on Linux x86-64 the first 6 integer or pointer arguments go in `rdi` through `r9`, the first 8 floating-point ones in `xmm0` through `xmm7`, and only the rest go on the stack; when the function is inlined, this step disappears**.
+
 - **When a function is inlined, it doesn't matter how arguments are passed**: the compiler expands the body right at the call site.
 - **Some calls can't be inlined**: the function is defined in another file or a library, it's called through a function pointer or a virtual function, it's recursive, or it's too big for the compiler to want to expand.
 - **Then the arguments are laid out by the calling convention**: Linux x86-64 uses the System V convention, where the first 6 integer or pointer arguments go into `rdi`, `rsi`, `rdx`, `rcx`, `r8` and `r9`, the first 8 floating-point arguments into `xmm0`–`xmm7`, and only the rest go on the stack.
 - **The return value goes in `rax` or `xmm0`**: a large return value uses the hidden address covered in [#11](/posts/rvo-pure-functions/).
 
 ### 2.2 Small by Value, Large by `const&` {#pass-by}
+
+**When a call can't be inlined, pass by value whatever fits in registers: passing by reference passes an address, so the callee needs an extra memory read and the caller has to store the value on the stack first to have an address; pass `const&` only for things that are expensive to copy and don't fit in registers**.
 
 1. **Passing an `int` by reference adds a memory operation on each side of the call**
 
@@ -300,6 +304,8 @@ std::visit([](auto&& x) { std::cout << x << '\n'; }, v);
 
 ### 2.3 `const&` Also Blocks Optimization: The Compiler Must Assume It Changes {#const-ref-alias}
 
+**For a value passed by reference, the compiler has to assume other stores may change it, so it doesn't dare keep it in a register; a value passed by value is the function's own copy and can stay in a register throughout**.
+
 - **The referenced value may be changed by other stores**: in the scaling function below, when `f` is passed by reference it might point at an element of `v`, so any write to `v[i]` might change `f`, and it has to be reloaded every iteration.
 
 ```cpp
@@ -332,6 +338,8 @@ scale_val(double*, int, double):           # loop body
 
 ### 2.4 Recursion: The Compiler Turns Tail Calls into Loops Itself {#tail-call}
 
+**Recursion can't be inlined, but a tail call, where calling itself is the last thing the function does, is turned into a jump by the compiler itself; rewriting it as a loop by hand mostly repeats the compiler's work**.
+
 - **Recursion can't be inlined**: the function calls itself, and expanding one level leaves another. Every call leaves a return address on the stack and saves registers, and recursion that goes too deep runs out of stack.
 - **The compiler removes the overhead of tail calls itself**: when calling itself is the last thing a function does (a tail call), nothing is left to do after it returns, so GCC turns the call into a jump. In a preorder traversal, the call for the right subtree is a tail call:
 
@@ -362,7 +370,9 @@ void preorder(Node* root) {
 
 ### 2.5 `inline`: The Keyword Is About Linking, Not Inlining {#inline}
 
-The sections so far were about calls that can't be inlined. The other way round, when a call can be inlined (expanded), it doesn't matter how arguments are laid out. But what decides whether it gets expanded isn't the `inline` keyword. **`inline` has two meanings sharing one word: one is a language rule that always applies; the other is a hint the compiler is free to ignore**.
+**The only part of the `inline` keyword that always takes effect is the linking rule: the same definition may appear in several `.cpp` files; whether a call is expanded is the compiler's own cost estimate, and to make it obey you need attributes such as `always_inline`**.
+
+The sections so far were about calls that can't be inlined; when a call is inlined (expanded), how arguments are laid out doesn't matter. `inline` has two meanings sharing one word: one is a language rule that always applies; the other is a hint the compiler is free to ignore.
 
 1. **The first meaning: the same definition may appear once in each of several `.cpp` files**
    - **A function defined in a header and included by two `.cpp` files gives the linker two definitions of the same name**: the linker reports `multiple definition`, because it doesn't know which one to keep.
@@ -399,6 +409,8 @@ The sections so far were about calls that can't be inlined. The other way round,
    - **So verify forced expansion with perf**: look at total time, then at whether L1i misses (`L1-icache-load-misses`) went up.
 
 ### 2.6 Inline Assembly: Only for the Few Instructions C++ Can't Express {#inline-asm}
+
+**Inline assembly is only for instructions neither C++ nor intrinsics can express: the compiler can't see into an asm block, so optimization stops at its boundary, and a missing constraint silently gives wrong results**.
 
 1. **Don't write it if you can avoid it**
    - **The compiler can't see into an asm block**: constant propagation and register allocation stop at its boundary.
