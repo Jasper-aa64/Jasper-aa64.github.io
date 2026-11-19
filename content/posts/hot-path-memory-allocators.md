@@ -222,12 +222,11 @@ An object pool hands out one type `T`, allocated and returned one at a time. The
 
 ### 2.3 Where the Big Block Comes From: Ask the Kernel Once at Startup, and mmap Only Gives Addresses {#arena-mmap}
 
-> **Essence: `mmap` is the one system call in which the arena gets a big range of addresses from the kernel “wholesale”; every later allocation is carved out of that range by the arena itself, without entering the kernel**.
+> **Essence: `mmap` is the one system call in which the arena gets a whole block of addresses from the kernel at startup; every later allocation just moves an offset inside that block, without entering the kernel**.
 >
 > - **You get addresses, not memory**: when `mmap` returns, the kernel has only recorded a range of virtual addresses, and each physical page is allocated only when that page is first written, so write the whole block once at startup, or pass `MAP_POPULATE` (4.1).
-> - **glibc has something called an arena too**: the arenas `malloc` gives to threads also take one big block first and then carve it up.
-> - **Why not `brk`**: `brk` can only push up the end of the main heap, a process has only one main heap, and it belongs to glibc's main arena. Every other arena needs a block of its own, so each `mmap`s its own range; that's what the `M_ARENA_MAX` row in 4.3 means by “each new arena `mmap`s its own block”.
-> - **The reference implementation below uses `aligned_alloc`**: for requests over 128 KB, glibc also does one `mmap` underneath by default.
+> - **The block belongs to the arena alone**: `malloc` and `free` never touch it; only the arena's own `munmap` tears it down.
+> - **The reference implementation below uses `aligned_alloc`**: the effect is the same, and for requests over 128 KB glibc also does one `mmap` underneath by default.
 
 ### 2.4 Reference Implementation: An Arena You Can Use As Is {#ref-arena}
 
