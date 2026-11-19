@@ -53,10 +53,14 @@ The **LFB** (line fill buffer) in step 2 is L1D's small table of misses still on
 > - **The second step may wait**: if the line isn't in this core, an RFO reads the whole line in and has other cores invalidate their copies. If the line is S here, only the invalidation is sent.
 > - **When the core stops to wait**: the store buffer is full, or a `lock`-prefixed instruction or an `mfence` comes along and every earlier store has to reach L1D first.
 
-An **RFO** (read for ownership) is the request a core sends when it writes a line that isn't in its cache. It does two things at once:
-
-- **Reads the whole 64 B line in**: the cache works in whole lines and a store changes only a few bytes, so the rest of the line has to be fetched to make a complete line.
-- **Has other cores invalidate their copies**: MESI allows only one core to write a line at a time (see [the MESI special, Part 4](/posts/low-latency-mesi-cache-coherence/#4-the-rules-read-write-snoop)).
+> **Essence: An RFO (read for ownership) is the request sent when writing a line that isn't in this core; it reads and doesn't write, bringing in the whole line while other cores invalidate their copies**.
+>
+> - **Only a write triggers it**: reading a line that isn't in this core sends an ordinary read request and gets the line in E or S. Writing such a line sends an RFO, and atomic read-modify-writes (`fetch_add`, `compare_exchange`) count as writes.
+> - **Why a write needs a read**: the cache works in whole 64 B lines and a store changes only a few bytes, so the rest of the line has to be fetched to make a complete line.
+> - **Why the name has no "write"**: the request itself is only a read; the write happens in this core's L1D after the line arrives, without leaving the core or sending any message. It differs from an ordinary read only in whether others keep their copies, hence "read for ownership".
+> - **Why it goes straight from I to M**: when the RFO returns, the line is owned and clean; the store then modifies it, so it is M. The E in between doesn't last a single cycle, so it is drawn as I→M.
+> - **Once it is M**: another core that wants the line can only get it from this core over the on-chip interconnect (HITM, about 40–100 ns). L1 and L2 are write-back: however many times the line is changed, it stays in the core until someone else asks for it or it is evicted.
+> - **Two related instructions**: `prefetchw` doesn't write but fetches the line for ownership ahead of time, an early RFO. Non-temporal stores send no RFO and go to memory in full 64 B chunks (end of this section).
 
 On the hardware map above, a store from core 0 passes through these places in order:
 
