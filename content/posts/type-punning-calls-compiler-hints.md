@@ -22,7 +22,12 @@ How far the compiler can optimize depends on what it dares to assume and what it
 
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
-**Memory holds only bytes; "what type these bytes are" is an assumption the compiler makes, and type punning means going around that assumption to read the same bytes as another type.** A trading system can't avoid it in two places:
+**At its core, type punning is a change of interpretation: not one byte moves, only what type the compiler takes them to be; the legal ways are to copy the bytes into an object of the target type, or to state that an object of the target type lives there (1.4), and reading them through a pointer of another type is undefined behaviour**.
+
+- **Memory holds only bytes; the type is the compiler's assumption**: the same 8 bytes read as a `double` or as a `uint64_t` give exactly the same bits; the only difference is how the compiler understands them and what it may optimize.
+- **Reading through another pointer type is wrong because no object of that type lives at that address**: under the strict aliasing rule in 1.2, the compiler takes pointers of different types to never point at the same memory, so it may move or delete the reads and writes (1.3).
+
+A trading system can't avoid punning in two places:
 
 ```cpp
 struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8-byte header
