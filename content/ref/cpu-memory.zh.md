@@ -25,7 +25,7 @@ math: true
 
 ### 1.1 读（load）：地址翻译、查缓存、行填充 {#load}
 
-<a href="/images/ref/load-path.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.zh.svg" alt="读（load）的路径。第 1 步：地址拆成页号和组号，TLB 翻译和 L1D 选组同时进行。第 2 步：L1D 比对标签，没命中先在 LFB（填充缓冲）登记一项，再问 L2、L3。第 3 步：都没有就交给内存控制器，按通道、bank、行去内存条取。第 4 步：整条 64 B 行原路返回，沿路放进各级缓存。图中标了每一步的累计延迟。" loading="lazy" decoding="async"></a>
+<a href="/images/ref/load-path.zh.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.zh.svg" style="display:block;width:100%;max-width:560px;margin:0 auto" alt="读（load）的路径。第 1 步：地址拆成页号和组号，TLB 翻译和 L1D 选组同时进行。第 2 步：L1D 比对标签，没命中先在 LFB（填充缓冲）登记一项，再问 L2、L3。第 3 步：都没有就交给内存控制器，按通道、bank、行去内存条取。第 4 步：整条 64 B 行原路返回，沿路放进各级缓存。图中标了每一步的累计延迟。" loading="lazy" decoding="async"></a>
 
 图里的延迟是量级，见 [2.1](#latency)。
 

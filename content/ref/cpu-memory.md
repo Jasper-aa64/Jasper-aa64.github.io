@@ -25,7 +25,7 @@ Blue text says where something is covered: #N is Trading System Notes #N, MESI i
 
 ### 1.1 Loads: Address Translation, Cache Lookup, Line Fill {#load}
 
-<a href="/images/ref/load-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.en.svg" alt="The path of a load. 1: the address splits into page number and set index, and TLB translation and L1D set selection happen at once. 2: L1D compares tags; on a miss it takes an LFB (line fill buffer) entry and asks L2, then L3. 3: on a miss everywhere the memory controller picks channel, bank and row and reads the DIMM. 4: the whole 64-byte line returns the same way and lands in each cache level. Each step is labelled with the latency so far." loading="lazy" decoding="async"></a>
+<a href="/images/ref/load-path.en.svg" target="_blank" rel="noopener"><img src="/images/ref/load-path.en.svg" style="display:block;width:100%;max-width:560px;margin:0 auto" alt="The path of a load. 1: the address splits into page number and set index, and TLB translation and L1D set selection happen at once. 2: L1D compares tags; on a miss it takes an LFB (line fill buffer) entry and asks L2, then L3. 3: on a miss everywhere the memory controller picks channel, bank and row and reads the DIMM. 4: the whole 64-byte line returns the same way and lands in each cache level. Each step is labelled with the latency so far." loading="lazy" decoding="async"></a>
 
 The latencies are magnitudes; see [2.1](#latency).
 
