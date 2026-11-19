@@ -1,6 +1,7 @@
 ---
 title: "交易系统笔记 #18：线程安全队列"
 date: 2026-10-27
+lastmod: 2026-11-19
 list_after: "cpu-affinity-core-isolation-numa"
 slug: "thread-safe-queue"
 description: "无锁 SPSC 环靠的是每个下标只有一个写者。这个前提一被打破，就要换写法：消费者空了要睡，用一把锁加两个条件变量写阻塞队列，醒来要再查条件，条件不在锁里改就会丢失唤醒；几个生产者往一个环里写，rte_ring 先用 CAS 抢位置、再按顺序发布，一个生产者停住后面全停；Disruptor 用 fetch_add 抢号、每一格标圈数，生产者不互相等，消费者停在空洞前。最后是队列满了的三种做法：阻塞、丢弃、覆盖。"
@@ -214,7 +215,7 @@ private:
 
 第 ③ 步的等待是这个设计的关键。`prod_tail_` 只是一个数，消费者把它理解成“它以下的槽都写好了”。A 抢到 5、B 抢到 6，B 先写完，如果 B 直接把 `prod_tail_` 改成 7，消费者就会去读 5，可 A 还没写。所以 B 必须等 `prod_tail_` 先变成 6（A 发布完），自己再改成 7：**发布的顺序必须和抢位置的顺序一样。**
 
-第 ③ 步的读要用 acquire。A 发布时用 release 写 `prod_tail_ = 6`，B 用 acquire 读到 6，A 往槽 5 写的数据就先于 B 的 release 写。消费者用 acquire 读到 7，槽 5 和槽 6 的数据就都看得到。
+第 ③ 步的读要用 acquire。A 发布时用 release 写 `prod_tail_ = 6`，B 用 acquire 读到 6，A 往槽 5 写的数据就先于 B 的 release 写。消费者用 acquire 读到 7，槽 5 和槽 6 的数据就都看得到。画成图见 [2.5](#ring-ordering)。
 
 代价是：A 如果在 ① 和 ④ 之间被换下 CPU，B、C……全都卡在 ③ 转圈，一直转到 A 回来。这和 [#16](/zh/posts/spinlock-implementation/) 2.1 票据锁里“轮到号的线程被换下、整条队跟着停”是同一个问题。所以严格说它不是 lock-free：**一个停住的生产者能让其他所有生产者都停住。**DPDK 敢这么用，是因为它的线程都绑核独占，不会被换下；普通线程会被抢占，用这种环最坏要停几 ms。
 
@@ -298,6 +299,30 @@ private:
 - Blocking：锁加条件变量。
 
 Blocking 正是 1.3 的场景：序号是原子变量，不在锁里改，生产者通知之前要拿一下锁。拿一个生产者一直灌数据测吞吐，四种策略几乎一样（500 万条都是约 30 ms），因为消费者几乎不用等；**等待策略的差别在空闲以后第一条数据的延迟，吞吐测试测不出来。**
+
+### 2.5 内存序：画成图看，rte_ring 靠接力，Disruptor 每格一条边 {#ring-ordering}
+
+**两种环传数据的形状一样：生产者写完槽，再 release 一个标志；消费者 acquire 读到标志，才读槽。区别在标志有几个：rte_ring 只有一个 `prod_tail_`，前面生产者的写要靠后面生产者第 ③ 步的 acquire 接力带给消费者；Disruptor 每格一个标记，每条数据一条横边直达消费者，生产者之间没有边**。
+
+画法和 [#2 1.5.3](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-edges) 一样：同一线程里的先后画成灰色竖边，release 被 acquire 读到画成蓝色横边。从写数据的那一步出发，沿边走得到读数据的那一步，读的一方就一定看得见。
+
+1. **rte_ring：只有一个 `prod_tail_`，第 ③ 步的 acquire 在中间接力**
+
+   <a href="/images/thread-safe-queue/rte-ring-order.zh.svg" target="_blank" rel="noopener"><img src="/images/thread-safe-queue/rte-ring-order.zh.svg" alt="三栏：生产者 A 抢到槽 5，生产者 B 抢到槽 6，消费者。A 依次是 ① CAS 抢位置（relaxed）、② 写 buf_[5]、③ acquire 读到 prod_tail_ 为 5、④ release 写 prod_tail_ = 6。B 是 ① CAS、② 写 buf_[6]（先写完，但不能先发布）、③ 转着等，直到 acquire 读到 A 写的 6、④ release 写 7。消费者 acquire 读到 B 写的 7，再读 buf_[5]、buf_[6]。蓝色横边一条从 A 的 ④ 到 B 的 ③，一条从 B 的 ④ 到消费者读 7。槽 5 的数据沿 A 的 ② → ④ → B 的 ③ → ④ → 消费者读 7 → 读 buf_[5] 走到消费者。③ 写成 relaxed，A 到 B 的横边就断了。" loading="lazy" decoding="async"></a>
+
+   - **槽 5 的数据要绕道 B**：消费者读到的 7 是 B 写的，只和 B 的 ④ 配成一条横边。A 写的槽 5 要先沿横边到 B 的 ③，再顺着 B 的竖边到 ④，才跟着过去。
+   - **所以 ③ 必须是 acquire**：写成 relaxed，A 的 ④ 和 B 的 ③ 之间就没有横边，B 的 release 只交出 B 自己之前的写（槽 6）。消费者读到 7，也不保证看得到槽 5 已经写完。
+   - **① 可以是 relaxed**：CAS 只用来分配槽号，读到旧值的后果是 CAS 失败、重来一次；没有数据靠它传，不需要边。
+   - **反方向，覆盖之前也要一条边**：消费者读完槽，用 release 写 `cons_tail_`；生产者查满时用 acquire 读它，读到了才去写同一个槽，不会在消费者读完之前就覆盖。
+
+2. **Disruptor：每格一个标记，一条数据一条横边**
+
+   <a href="/images/thread-safe-queue/disruptor-order.zh.svg" target="_blank" rel="noopener"><img src="/images/thread-safe-queue/disruptor-order.zh.svg" alt="三栏：左边生产者 A 拿到 5，中间是唯一的消费者，右边生产者 B 拿到 6。两个生产者都是 ① fetch_add 拿号（relaxed）、② acquire 读 consumed_ 确认环没满、③ 写自己的槽、④ release 写这一格的 avail_ 为本圈的圈数；B 先写完，标记后直接返回，不等 A。消费者先 acquire 读到 avail_[5] 是本圈，读 buf_[5]，再 acquire 读到 avail_[6] 是本圈，读 buf_[6]。蓝色横边一条从 A 的 ④ 到消费者读 avail_[5]，一条从 B 的 ④ 到消费者读 avail_[6]。A 和 B 之间没有边；avail_[5] 没到本圈时，消费者停在这一格。" loading="lazy" decoding="async"></a>
+
+   - **每一格的数据各走各的边**：槽 5 从 A 的 ④（release 写 `avail_[5]`）直接到消费者 acquire 读 `avail_[5]`，槽 6 从 B 的 ④ 到读 `avail_[6]` 的那次，不经过别的生产者。
+   - **生产者之间不需要边**：谁先写完都不用等对方，B 发布完就返回。
+   - **标记写圈数，横边才配得对**：消费者要读到“这一圈”的值才算配上。读到的是上一圈留下的旧值，这一圈的横边还不存在，它就停在这一格，不去读数据。
+   - **① 和 ② 各管一件事**：`fetch_add` 只发号，relaxed 就够；`claim()` 里用 acquire 读 `consumed_`，接住消费者读完以后 release 写的值，上一圈的数据读完了才覆盖。
 
 ## 3. 队列满了怎么办：阻塞、丢弃、覆盖
 

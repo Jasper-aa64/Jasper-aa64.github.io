@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 670" width="1100" height="670" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker><marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker><style>.h{font-size:18px;font-weight:700;fill:#1f2328}.s{font-size:12.5px;fill:#57606a}.p{font-size:14px;font-weight:700;fill:#1f2328}.c{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;fill:#1f2328}.l{font-size:12.5px;fill:#1f2328}.lb{font-size:12.5px;font-weight:700;fill:#1f2328}.b{font-size:12.5px;font-weight:700;fill:#2a78d6}.v{font-size:12px;fill:#57606a}.vb{font-size:12px;font-weight:700;fill:#2a78d6}.r{font-size:12.5px;font-weight:700;fill:#cf222e}</style></defs>
+<rect x="0" y="0" width="1100" height="670" fill="#ffffff"/>
+<text class="h" x="20" y="32">rte_ring: one prod_tail_, so earlier producers' writes are relayed by the acquire in ③</text>
+<text class="s" x="20" y="54">A claims slot 5, B slot 6; B finishes writing first. Grey = order within a thread, blue = a release read by an acquire. Blue boxes: slot 5's path.</text>
+<rect x="20" y="70" width="330" height="490" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="36" y="96">Producer A: claims 5</text>
+<rect x="385" y="70" width="330" height="490" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="401" y="96">Producer B: claims 6</text>
+<rect x="750" y="70" width="330" height="490" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text class="p" x="766" y="96">Consumer</text>
+<rect x="36" y="112" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="46" y="130">prod_head_ CAS 5→6 (relaxed) // ①</text>
+<rect x="36" y="170" width="298" height="26" rx="5" fill="#ddf4ff" stroke="#2a78d6" stroke-width="2"/>
+<text class="c" x="46" y="188">buf_[5] = v;                 // ②</text>
+<rect x="36" y="228" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="46" y="246">prod_tail_.load(acquire)==5  // ③</text>
+<text class="v" x="46" y="271">nobody ahead, reads 5 at once</text>
+<rect x="36" y="286" width="298" height="26" rx="5" fill="#ddf4ff" stroke="#2a78d6" stroke-width="2"/>
+<text class="c" x="46" y="304">prod_tail_.store(6, release) // ④</text>
+<line x1="298" y1="138" x2="298" y2="167" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="298" y1="196" x2="298" y2="225" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="298" y1="254" x2="298" y2="283" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<rect x="401" y="112" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="411" y="130">prod_head_ CAS 6→7 (relaxed) // ①</text>
+<rect x="401" y="170" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="411" y="188">buf_[6] = v;                 // ②</text>
+<text class="v" x="411" y="213">written first, but can't publish first</text>
+<rect x="401" y="286" width="298" height="26" rx="5" fill="#ddf4ff" stroke="#2a78d6" stroke-width="2"/>
+<text class="c" x="411" y="304">prod_tail_.load(acquire)==6  // ③</text>
+<text class="vb" x="411" y="329">spins until it reads the 6 A wrote</text>
+<rect x="401" y="344" width="298" height="26" rx="5" fill="#ddf4ff" stroke="#2a78d6" stroke-width="2"/>
+<text class="c" x="411" y="362">prod_tail_.store(7, release) // ④</text>
+<line x1="663" y1="138" x2="663" y2="167" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="663" y1="196" x2="663" y2="283" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="663" y1="312" x2="663" y2="341" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<text class="v" x="776" y="130">until now it read 5: looks empty</text>
+<rect x="766" y="344" width="298" height="26" rx="5" fill="#ddf4ff" stroke="#2a78d6" stroke-width="2"/>
+<text class="c" x="776" y="362">prod_tail_.load(acquire) == 7</text>
+<text class="vb" x="776" y="387">reads the 7 B wrote</text>
+<rect x="766" y="402" width="298" height="26" rx="5" fill="#ddf4ff" stroke="#2a78d6" stroke-width="2"/>
+<text class="c" x="776" y="420">out = buf_[5];   // A wrote it</text>
+<rect x="766" y="460" width="298" height="26" rx="5" fill="#ffffff" stroke="#d0d7de"/>
+<text class="c" x="776" y="478">out = buf_[6];   // B wrote it</text>
+<line x1="1028" y1="370" x2="1028" y2="399" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="1028" y1="428" x2="1028" y2="457" stroke="#57606a" stroke-width="2" marker-end="url(#ag)"/>
+<line x1="334" y1="299" x2="398" y2="299" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
+<line x1="699" y1="357" x2="763" y2="357" stroke="#2a78d6" stroke-width="2.5" marker-end="url(#ab)"/>
+<text class="lb" x="20" y="596">Slot 5's data reaches the consumer via A's ② → ④ → (edge) → B's ③ → ④ → (edge) → consumer reads 7 → reads buf_[5]. B relays it.</text>
+<text class="r" x="20" y="622">Make ③ relaxed and the A → B edge is gone: B's release only hands over B's own earlier writes, so reading 7 no longer guarantees seeing slot 5.</text>
+<text class="l" x="20" y="648">① only hands out slots: a stale value just makes the CAS fail and retry, no data travels through it, so relaxed is enough.</text>
+</svg>
