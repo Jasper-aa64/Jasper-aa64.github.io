@@ -411,7 +411,7 @@ void log(const char* fmt, const T& value, const Rest&... rest) {
 
 - **`tag` records which union member is valid**: the background thread checks `tag` first and reads the matching member; reading any other member is undefined behaviour.
 - **Each level of `log` consumes one argument**: it scans the format string, pushes ordinary characters one at a time, pushes the current argument at `%`, and hands the rest of the format string and arguments to the next level; once the arguments run out, the last level pushes the remaining characters.
-- **This version spends one slot per character**: `"Order Executed, id="` is 19 characters and so 19 slots; with the two values and 9 more characters a line takes 30 slots, each 264 bytes, and `char s[256]` is never used. 3.2 puts a whole run of text into one `Text` slot.
+- **This version spends one slot per character**: `"Order Executed, id="` is 19 characters and so 19 slots; with the two values and 9 more characters this line takes 30 slots, each 264 bytes, and `char s[256]` is never used. 3.2 puts a whole run of text into one `Text` slot.
 
 ```cpp
 while (running_) {
@@ -428,11 +428,12 @@ while (running_) {
 - **One logger serves exactly one producing thread**: a second producer breaks SPSC's "one writer per index", so give each thread its own logger or its own queue.
 - **Shutdown order: drain the queue, then stop the background thread, then close the file**: stop the background thread first and whatever is still queued is silently lost.
 
-### 3.2 Push Text Runs: Five Slots per Log Line, Not Thirty {#text-runs}
+### 3.2 Push Text Runs: One Slot per Run of Text, Not per Character {#text-runs}
 
-**Every slot costs 264 bytes however little it holds, so a `log` call costs the number of slots it pushes times the cost per slot; collecting the text between two placeholders into one run takes the same log line from 30 slots to 5**.
+**Every slot costs 264 bytes however little it holds, so a `log` call costs the number of slots it pushes times the cost per slot; collecting the text between two placeholders into one run brings the slot count down from "characters + arguments" to "text runs + arguments"**.
 
-- **`log("Order Executed, id=%, price=%\n", id, price)` makes 5 pushes**: three text runs and two values; pushing per character takes 30.
+- **The slot count depends on the line**: one slot per argument; there's at most one more text run than arguments, empty runs push nothing, and a run longer than 255 characters is split across several slots.
+- **For example, `log("Order Executed, id=%, price=%\n", id, price)` makes 5 pushes**: three text runs and two values; pushing per character takes 30. The figure and table below are for this line.
 
 <svg viewBox="0 0 760 274" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The same log line pushed two ways: per character it occupies thirty 264-byte queue slots, about 7.7 KiB; as three text runs plus two values it occupies five slots, about 1.3 KiB" style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
   <style>
@@ -507,7 +508,7 @@ while (running_) {
   <text class="cap" x="360" y="264">one text run (up to 255 characters)</text>
 </svg>
 
-| Unit pushed | Slots per line | Written per call | Lines that fit in 8 million slots |
+| Unit pushed | Slots for this line | Written per call | Lines like this that fit in 8 million slots |
 |---|---|---|---|
 | One slot per character | 30 | about 7.7 KiB, 124 cache lines | about 270,000 |
 | One slot per text run | 5 | about 1.3 KiB | about 1.6 million |
