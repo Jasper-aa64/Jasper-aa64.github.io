@@ -411,7 +411,12 @@ void log(const char* fmt, const T& value, const Rest&... rest) {
 
 - **`tag` records which union member is valid**: the background thread checks `tag` first and reads the matching member; reading any other member is undefined behaviour.
 - **Each level of `log` consumes one argument**: it scans the format string, pushes ordinary characters one at a time, pushes the current argument at `%`, and hands the rest of the format string and arguments to the next level; once the arguments run out, the last level pushes the remaining characters.
-- **This version spends one slot per character**: `"Order Executed, id="` is 19 characters and so 19 slots; with the two values and 9 more characters this line takes 30 slots, each 264 bytes, and `char s[256]` is never used. 3.2 puts a whole run of text into one `Text` slot.
+
+**This version has two flaws: the format string is pushed `char` by `char`, one slot per character; and `char s[256]` is never used, yet it makes every slot 264 bytes**.
+
+- **Pushing by `char`, the slot count is the number of characters plus the number of arguments**: `"Order Executed, id="` is 19 characters and so 19 slots; with the two values and 9 more characters this line takes 30 slots, each one a copy and a release store.
+- **`char s[256]` is pure waste**: this version never writes a `Text` slot, so not one byte of `s` is used. Without it the largest member is the 8-byte `long` or `double` and a slot needs only 16 bytes; with it every slot is 264 bytes, and a slot holding a `char` uses just 2 of them, `tag` and `c`.
+- **3.2 fixes both**: it puts a whole run of text into one `Text` slot, which is what `s` is for.
 
 ```cpp
 while (running_) {
