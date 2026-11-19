@@ -150,7 +150,7 @@ private:
    - **怎么选**：外面本来就有循环，用 `weak`；只判断一次、失败就走的地方，才用 `strong`。
 
 4. **内存序：拿锁用 acquire，放锁用 release**
-   - **内存序管的是临界区里的读写不能跑到锁外面去**（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 的 1.5）。
+   - **内存序管的是临界区里的读写不能跑到锁外面去**（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 第 2 节）。
    - **`lock()` 成功的那次 CAS 用 acquire**：临界区里的读写不能提到拿锁之前，这样才看得到上一个持锁者写的东西。
    - **`unlock()` 的写用 release**：临界区里的读写不能拖到放锁之后。
    - **两者配成一对，上一个持锁者在临界区里写的，下一个持锁者一定看得到。**

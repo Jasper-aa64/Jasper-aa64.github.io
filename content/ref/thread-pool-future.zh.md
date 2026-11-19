@@ -445,7 +445,7 @@ private:
 - **每个节点正好提交一次**：一个节点的几个前驱同时跑完，各自做一次 `fetch_sub`，只有一个线程拿到旧值 1，由它提交。
 - **前驱的输出，后继一定看得到**：
   - **前驱先在 `fn_` 里写输出，再做 `fetch_sub`**：`acq_rel` 里的 release 把之前的写发布出去。
-  - **提交后继的是做最后一次 `fetch_sub` 的线程**：`acq_rel` 里的 acquire 让它看得到前面每个前驱发布的写，再经线程池的锁传给真正执行后继的线程（连边的办法见[内存序 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)）。
+  - **提交后继的是做最后一次 `fetch_sub` 的线程**：`acq_rel` 里的 acquire 让它看得到前面每个前驱发布的写，再经线程池的锁传给真正执行后继的线程（连边的办法见[内存序 2.3.2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-edges)）。
 - **`done_` 在锁里改，通知才不会丢**：只通知、不置标志，`run()` 要是还没睡下，这次通知就丢了，它会一直等下去（[3.4](#pool-stop) 是同一个道理）。
 - **`exec` 的最后一步之后不能再碰 `this`**：`run()` 一被叫醒就可能返回，`DagRun` 对象随之销毁。上面的代码里，置 `done_` 和通知都在锁里做完，之后没有再访问成员。
 

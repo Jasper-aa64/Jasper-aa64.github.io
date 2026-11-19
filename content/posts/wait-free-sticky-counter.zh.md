@@ -81,7 +81,7 @@ struct LockFreeStickyCounter {
 
 实际里争得不凶时，一次 CAS 就成功，这个版本很轻。要防的是尾部：很多核一起加减同一个计数时，个别线程会重试很多次，对 P99.9 敏感的地方，这就是风险。
 
-`decrement()` 里的两个内存序只护一件事：**放手的线程对对象做过的写，要排在最后一个线程销毁对象之前**。计数器里没有一行代码碰对象，可每个线程放手前都可能写过它；最后一个线程减到 0 以后要 `delete`，析构必须看到这些写已经完成。所以每次减 1 都用 release，把自己之前的写发布出去；减到 0 的线程（`fetch_sub` 返回 1）再加一道 acquire 栅栏，接上前面的 release。两个线程各放手一次，画出来是这样（画法见 [#2 的 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)）：
+`decrement()` 里的两个内存序只护一件事：**放手的线程对对象做过的写，要排在最后一个线程销毁对象之前**。计数器里没有一行代码碰对象，可每个线程放手前都可能写过它；最后一个线程减到 0 以后要 `delete`，析构必须看到这些写已经完成。所以每次减 1 都用 release，把自己之前的写发布出去；减到 0 的线程（`fetch_sub` 返回 1）再加一道 acquire 栅栏，接上前面的 release。两个线程各放手一次，画出来是这样（画法见 [#2 的 2.3.2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-edges)）：
 
 <img src="/images/wait-free-sticky-counter/release-acquire.zh.svg" alt="计数从 2 开始，两个线程各调一次 decrement()。左边线程 A：调用方先写对象 obj->x = 42，再调 decrement()，里面 fetch_sub 用 release 把 2 减成 1，返回 false。右边线程 B：decrement() 里 fetch_sub 用 release 把 1 减成 0，接着 acquire 栅栏，返回 true，调用方 delete obj。蓝色横边从 A 的 release 减 1 连到 B 的 fetch_sub；B 的 fetch_sub 和栅栏合起来是一次 acquire。灰色竖边：A 这边从写对象到 release，B 这边从 fetch_sub 到栅栏再到 delete。" loading="lazy" decoding="async">
 
@@ -144,7 +144,7 @@ struct WaitFreeStickyCounter {
 
 有两处细节。**acquire 要跟在决定认领的那次读后面，不能紧跟 `fetch_sub`。**`fetch_sub` 把值减成 0 以后、CAS 钉零之前有一段空当（1.5 的窗口），这段里计数可能被别人加回去、用一下对象、再减回 0。1.7 的例子就是这样：T1 在第 5 步认领，它要看到 T2 用对象时写的东西，把它和 T2 第 4 步那次 release 减 1 连起来的是 CAS 读到的值，不是 `fetch_sub` 读到的 1。钉零的 CAS 和 `exchange` 用 `relaxed`，也不会断开这条线：一次 release 写之后，同一个变量上的 RMW 不论用什么内存序，都接在它的 release sequence（释放序列）上。这个计数的所有修改都是 RMW，所以认领者读到最后的值，就和之前每一次 release 减 1 都同步了。
 
-把 1.7 那个例子里 T2 和 T1 各自走过的代码并排放，连上 release 到 acquire 的边（画法见 [#2 的 1.5](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)），第一处细节就看得见了：横边的终点是 T1 钉零的 CAS，T1 的 `fetch_sub` 太早，接不上。图里黄底的几句是调用方的代码，不在计数器里：`obj` 是这个计数管着的对象，`obj->x = 42` 代表 T2 放手之前对它的任意一次写，`delete obj` 是拿到 `true` 的线程销毁它。
+把 1.7 那个例子里 T2 和 T1 各自走过的代码并排放，连上 release 到 acquire 的边（画法见 [#2 的 2.3.2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-edges)），第一处细节就看得见了：横边的终点是 T1 钉零的 CAS，T1 的 `fetch_sub` 太早，接不上。图里黄底的几句是调用方的代码，不在计数器里：`obj` 是这个计数管着的对象，`obj->x = 42` 代表 T2 放手之前对它的任意一次写，`delete obj` 是拿到 `true` 的线程销毁它。
 
 <img src="/images/wait-free-sticky-counter/edges.zh.svg" alt="两个线程各调一次 decrement()。左边是线程 T2：调用方先 increment_if_not_zero() 把 0 加回 1，写对象 obj->x = 42，再调 decrement()；decrement() 里 fetch_sub 用 release 把 1 减回 0，之后 CAS 失败，返回 false。右边是线程 T1：decrement() 里最早用 fetch_sub 把 1 减到 0，后来 CAS 读到 0、钉零成功，接着是 acquire 栅栏，返回 true，调用方 delete obj。蓝色横边从 T2 的 release 减 1 连到 T1 的 CAS；CAS 和后面的栅栏合起来是一次 acquire。灰色竖边：T2 这边从写对象到 release，T1 这边从 CAS 到栅栏再到 delete。虚线表示 T2 的 release 连不到 T1 的 fetch_sub，因为那次读更早。" loading="lazy" decoding="async">
 

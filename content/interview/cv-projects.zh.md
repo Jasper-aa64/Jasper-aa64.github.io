@@ -121,7 +121,7 @@ perf annotate --stdio -s hot_function
 - **再展开这条行，看行内是哪几个偏移、各被哪几个 CPU 访问**：
   - 不同偏移、各被一个 CPU 访问：伪共享，把变量隔到不同的行；
   - 同一个偏移、多个 CPU 访问：真共享，要改设计。
-- **完整的用法和输出怎么读，在[内存序与伪共享的 3.6](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-c2c)**。
+- **完整的用法和输出怎么读，在[内存序与伪共享的 4.6](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-c2c)**。
 
 > **讲的时候按这个顺序**
 >

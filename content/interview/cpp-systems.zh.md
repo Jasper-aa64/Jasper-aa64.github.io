@@ -37,14 +37,14 @@ math: true
 > - **x86 是 TSO**：写先进 store buffer，后面读另一个地址的指令可以先完成，所以只有“先写后读”会乱。`acquire`、`release` 在 x86 上都是普通的 `mov`；`seq_cst` 的写编成 `xchg`，等 store buffer 排空，才管得住它。
 > - **写一条缓存行之前要先独占它**：两个核轮流写，这条行就在两个核的缓存之间来回搬，每次 20–100 ns。伪共享改布局隔开，真共享只能让每个核大多数时候只写自己的行。
 
-**展开见：[#2 第 3 节案例：x86 上的内存序和 ping-pong](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case)**
+**展开见：[#2 第 4 节案例：x86 上的内存序和 ping-pong](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case)**
 
-- [3.1 x86 上的内存序：只有“先写后读”会乱](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-x86)
-- [3.2 ping-pong：来回搬的代价和两种](/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong)
-- [3.3 全局计数器：每个线程各记一份](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-counter)
-- [3.4 SPSC 队列的下标：缓存一份对方的](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-spsc)
-- [3.5 自旋锁：先读后抢](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-spinlock)
-- [3.6 用 `perf c2c` 分辨伪共享和真共享](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-c2c)
+- [4.1 x86 上的内存序：只有“先写后读”会乱](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-x86)
+- [4.2 ping-pong：来回搬的代价和两种](/zh/posts/memory-ordering-false-sharing-dependency-chains/#ping-pong)
+- [4.3 全局计数器：每个线程各记一份](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-counter)
+- [4.4 SPSC 队列的下标：缓存一份对方的](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-spsc)
+- [4.5 自旋锁：先读后抢](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-spinlock)
+- [4.6 用 `perf c2c` 分辨伪共享和真共享](/zh/posts/memory-ordering-false-sharing-dependency-chains/#case-c2c)
 
 ## 3. futex 互斥锁和 TLS 里的线程 id：没人抢时不进内核，抢不到才睡 {#futex}
 

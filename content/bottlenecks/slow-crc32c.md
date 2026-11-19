@@ -15,4 +15,4 @@ source: "skills/performance-patterns/patterns/fast-crc32c.md"
 > - **Single-core comparison** (the table in the documentation): on Sapphire Rapids, a naive scalar version does about 23 GB/s, Chromium's AVX-512 version 65 GB/s, fusion 97 GB/s.
 > - **New code**: if you need CRC32C, use a ready-made one; don't write your own.
 > - **Verify**: an empty buffer with seed 0 gives 0; `crc32c(0, "123456789", 9) == 0xE3069283`.
-> - **Mechanism**: a single accumulator's ceiling is set by the instruction's latency, and only several independent chains keep the execution units busy, see [#2 3.5 Turning "Break the Dependency Chain" Into a Formula](/posts/memory-ordering-false-sharing-dependency-chains/#35-turning-break-the-dependency-chain-into-a-formula).
+> - **Mechanism**: a single accumulator's ceiling is set by the instruction's latency, and only several independent chains keep the execution units busy, see [#2 4.5 Turning "Break the Dependency Chain" Into a Formula](/posts/memory-ordering-false-sharing-dependency-chains/#45-turning-break-the-dependency-chain-into-a-formula).

@@ -65,7 +65,7 @@ Both questions are answered by the same hardware — cores, 64-byte cache lines,
 
 ![One cache line, two questions — a correctness stamp and a stopwatch pointed at the same 64-byte cache line](/images/memory-model-cache-line/two-axes.jpg)
 
-This post keeps the two on separate tracks. Part 1 is the correctness axis: where reordering physically comes from and how release/acquire buys back just enough order. Part 2 crosses to the performance axis with false sharing — the point where the two usually get confused, so the difference is spelled out there. Part 3 stays on performance but changes resource, from cache lines to the pipeline's dependency chains.
+This post keeps the two on separate tracks. Part 1 is the correctness axis: where reordering physically comes from; Part 2 goes through the memory orders one by one, each buying back just enough order. Part 3 crosses to the performance axis with false sharing — the point where the two usually get confused, so the difference is spelled out there. Part 4 stays on performance but changes resource, from cache lines to the pipeline's dependency chains.
 
 ---
 
@@ -163,9 +163,9 @@ Why does the hardware do this? Because actually committing a write to a cache li
 
 This creates exactly one gap, and everything about memory ordering in this post is a consequence of it: **for some window of time — typically tens of nanoseconds, an eternity at 4+ GHz — a write has already "happened" from thread A's point of view, but no other core can see it yet, because it's still sitting in A's private notebook.**
 
-Note the asymmetry carefully: thread A itself never notices this gap. If A writes `x` and then reads `x` again three instructions later, the CPU forwards the value straight out of the store buffer (called **store-to-load forwarding**, which section 3.4 comes back to) — A always sees its own writes in program order. The gap is only visible from *outside* — from any other core's perspective, there is a real, physical delay between "A's store instruction retired" and "the write is visible anywhere else." That delay is not a bug and not a compiler artifact; it is a direct, unavoidable consequence of buffering writes to survive at 4 GHz.
+Note the asymmetry carefully: thread A itself never notices this gap. If A writes `x` and then reads `x` again three instructions later, the CPU forwards the value straight out of the store buffer (called **store-to-load forwarding**, which section 4.4 comes back to) — A always sees its own writes in program order. The gap is only visible from *outside* — from any other core's perspective, there is a real, physical delay between "A's store instruction retired" and "the write is visible anywhere else." That delay is not a bug and not a compiler artifact; it is a direct, unavoidable consequence of buffering writes to survive at 4 GHz.
 
-Everything from here is about that one gap: how it turns into a specific class of bugs (1.2–1.4), and how C++ gives you a vocabulary to close it exactly where you need to, and nowhere else (1.5).
+Everything from here is about that one gap: how it turns into a specific class of bugs (1.2–1.4), and how C++ gives you a vocabulary to close it exactly where you need to, and nowhere else (Part 2).
 
 ### 1.2 The Invalidate Queue: the Inbox on the Receiving Side
 
@@ -246,12 +246,12 @@ So there are now two independent buffering structures, one on each side of every
   <text class="cap" x="236" y="364" font-size="11">x86-TSO forbids reordering it with other loads/stores to</text>
   <text class="cap" x="236" y="380" font-size="11">different addresses (StoreStore/LoadLoad/LoadStore) —</text>
   <text class="cap" x="236" y="396" font-size="11">but StoreLoad reordering, born from exactly this gap,</text>
-  <text class="cap" x="236" y="412" font-size="11" font-weight="700">is the one x86 allows. Section 1.5 shows how to close it.</text>
+  <text class="cap" x="236" y="412" font-size="11" font-weight="700">is the one x86 allows. Part 2 shows how to close it.</text>
 </svg>
 
 > Figure: A's store retires into its own store buffer instantly, but the RFO that actually claims the cache line is asynchronous. B's invalidate queue absorbs that RFO without stalling B's pipeline, which means a load that races ahead of B's own inbox can still observe the pre-write value. Both buffers exist for the same reason — don't stall the pipeline for a cross-core round trip — and together they are the entire physical cause of the four reorderings in 1.3.
 
-Put the two buffers back on the whole chip and one store travels as below. The invalidation crosses the on-chip interconnect and goes only to cores whose caches hold the line, which the snoop filter next to L3 keeps track of; the new value is never pushed over, and the reader fetches it when it needs it. The step that goes wrong in the figure is the reader ACKing before it processes the invalidation, so it sees the new ready and still reads the old data: the later load returns something older than the earlier one, a load-load reordering. x86 forbids it (1.3) and ARM allows it, which is why an acquire on ARM takes a real instruction (1.6).
+Put the two buffers back on the whole chip and one store travels as below. The invalidation crosses the on-chip interconnect and goes only to cores whose caches hold the line, which the snoop filter next to L3 keeps track of; the new value is never pushed over, and the reader fetches it when it needs it. The step that goes wrong in the figure is the reader ACKing before it processes the invalidation, so it sees the new ready and still reads the old data: the later load returns something older than the earlier one, a load-load reordering. x86 forbids it (1.3) and ARM allows it, which is why an acquire on ARM takes a real instruction (2.3.3).
 
 <iframe src="/maps/store-path.en.html" title="The store path, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/store-path.en.html" target="_blank" rel="noopener">Open in a new window</a> · <a href="/images/ref/store-path.en.svg" target="_blank" rel="noopener">Static full figure</a></p>
@@ -285,25 +285,63 @@ if (!ready) { while (true) {} }   // infinite loop — the load never happens ag
 
 This has *nothing to do with the CPU's memory model.* It's a pure compiler-level optimization, legal precisely because ordinary (non-atomic, non-volatile) memory carries no promise that another thread might be watching it. `volatile` stops the compiler from doing this — it forces a real load every iteration — but that's *all* it does. **`volatile` ≠ synchronization.** It says nothing about ordering relative to other memory operations, and nothing about the store-buffer/invalidate-queue gap from the last two sections. A `volatile bool` still lets a reader see a stale value for the full duration of that gap; it only guarantees the compiler won't hide the memory access from you while you wait. Fixing this loop for real needs `std::atomic<bool>`, which is next.
 
-### 1.5 Release/Acquire: Buying Back Just Enough Order
+---
 
-`std::atomic` with the right `memory_order` closes the gap from 1.1–1.3 *exactly where you name it*, and nowhere else — that specificity is the whole design intent. C++ exposes six orderings: `relaxed`, `consume` (deprecated in practice — compilers treat it as `acquire`), `acquire`, `release`, `acq_rel`, and `seq_cst`. The two that matter most in practice are **release** and **acquire**, and the cleanest mental model for them is **publish/subscribe**:
+## 2. Memory Orders: No Reordering Where It Matters {#release-acquire}
 
-- A **release** store says: *"everything I wrote before this point is now final — go ahead and publish it."*
-- An **acquire** load says: *"give me the latest value, and don't let anything I do after this point get reordered ahead of it."*
+Part 1 showed where reordering comes from: a write sits in the store buffer before other cores see it, invalidations queue up so a load can return a stale value, and the compiler moves code too. A `memory_order` tells the compiler and the CPU **which of these orderings must hold**. The sections below take the orders one at a time: what each guarantees, then what it costs on x86 and ARM.
 
-When an acquire load *observes* a value written by a release store **on that same atomic variable**, the two form a pair, and C++ guarantees a **happens-before** edge across threads: everything the writer did before the release is guaranteed visible to everything the reader does after the matching acquire. Nothing else needs to be atomic. A minimal example:
+### 2.1 The Six Orders at a Glance: What They Guarantee, What They Compile To {#mo-kinds}
+
+**The stronger the order, the more reorderings it rules out; whether it costs anything depends on which reorderings the hardware already allows: x86 allows only store-then-load, so only `seq_cst` stores and read-modify-writes cost extra, while ARM allows all four, so acquire and release need dedicated instructions too**.
+
+| Order | What it guarantees | x86-64 | ARMv8 |
+|---|---|---|---|
+| `relaxed` (2.2) | Only this variable itself: no tearing, and every thread sees its modifications in the same order; nothing about other variables | plain `mov` | plain `ldr` / `str` |
+| `release` (store, 2.3) | Reads and writes before this store can't move after it | plain `mov` | `stlr` |
+| `acquire` (load, 2.3) | Reads and writes after this load can't move before it | plain `mov` | `ldar` |
+| `acq_rel` (RMW, 2.4) | Both, for `fetch_add`, CAS and the like | a `lock`-prefixed instruction, the same one relaxed RMWs use | `ldaddal` and other instructions with a/l suffixes |
+| `seq_cst` (2.5) | On top of acquire/release, all `seq_cst` operations fall into one timeline every thread agrees on, so store-then-load can't reorder either; the default when no order is given | loads are plain `mov`, stores are `xchg` (or `mov` plus `mfence`) | `ldar` / `stlr` |
+| `consume` | Discouraged; compilers treat it as `acquire` | as acquire | as acquire |
+
+- **Release only constrains what comes before it, acquire only what comes after it**: a release store followed by an acquire load in the same thread is constrained by neither, and that's exactly the case 2.5 is about.
+- **x86 allows only store-then-load reordering (1.3)**: the other three orderings release/acquire need come with every plain `mov`.
+
+### 2.2 relaxed: Only the Variable Itself {#mo-relaxed}
+
+**`relaxed` only guarantees things about this one variable: no tearing, every thread sees its modifications in the same order, and read-modify-writes don't lose updates; it says nothing about other variables, so it can't publish other data**.
+
+- **Where it's enough: data for which a stale value isn't wrong**
+  - **Statistics counters**: several threads `fetch_add(1, relaxed)`, and only the final total matters.
+  - **Reading your own index**: in an SPSC queue the producer reads `write_idx_`, which only it writes, so it always reads the latest value (2.3.2).
+  - **A CAS that only hands out slots**: the step in [#18](/posts/thread-safe-queue/) 2.1 where rte_ring claims `prod_head_`; the data travels through the release/acquire that follows.
+- **Where it isn't: as a "the data is ready" flag**: if the producer writes the data and then stores the flag relaxed, a consumer that reads the flag relaxed can still read half-written data. That needs release/acquire from 2.3.
+- **Cost**: loads and stores are plain instructions on both x86 and ARM; an RMW on x86 is still a `lock` instruction, exactly as expensive as acq_rel (2.4).
+
+### 2.3 release / acquire: Paired Up, Another Thread Sees Your Writes {#mo-ra}
+
+**A release store and an acquire load pair up on the same variable when the acquire reads exactly the value that release wrote: then everything the writer did before the release is visible to everything the reader does after the acquire; without that pairing, nothing is guaranteed**.
+
+#### 2.3.1 Three Rules: Do You See Another Thread's Writes? {#mo-pubsub}
+
+> 1. **Within one thread, what's written first happens first.** This only counts for that thread; it says nothing about when another thread sees it.
+> 2. **If B's acquire load reads exactly the value A's release store wrote, everything A did before that store is visible to everything B does after that load.** This is the only way another thread gets to use the order inside A.
+> 3. **Beyond that, nobody promises when you'll see another thread's writes.**
+
+**Rule 2 needs a pairing, and both conditions must hold**: the same atomic variable, and the acquire reads the very value that release wrote. Reading an older value means no pairing. Being atomic isn't enough either: atomic only means no tearing, and the variable still falls under rule 3.
+
+The standard use is publish/subscribe, and the other variables don't need to be atomic:
 
 ```cpp
 struct SPSCFlag {
   std::atomic<bool> ready{false};
-  int payload = 0;   // ordinary int — not atomic, and doesn't need to be
+  int payload = 0;   // ordinary int, doesn't need to be atomic
 };
 
 // producer thread
 void publish(SPSCFlag &f, int value) noexcept {
-  f.payload = value;                                // 1. plain write
-  f.ready.store(true, std::memory_order_release);    // 2. release: "1 is now final"
+  f.payload = value;                                 // 1. plain write
+  f.ready.store(true, std::memory_order_release);    // 2. release: 1 is done
 }
 
 // consumer thread
@@ -315,34 +353,114 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 }
 ```
 
-`payload` is an ordinary, non-atomic `int`. It's safe *only* because it's carried across by the release/acquire pair on `ready` — this is the standard shape of every SPSC (single-producer single-consumer) ring buffer you'll find in a trading system: one atomic index for synchronization, everything else plain.
+`payload` gets across safely because of the shape of the code: **read the flag first, use the data only if the flag was read, and don't touch it otherwise.** If the flag was read, rule 2 applies; if not, the data isn't touched.
 
 Back to the example from the animation in 1.2, now with a release store to `ready` and an acquire load of it. The hardware has the same two buffers; **the only additions are the two ordering constraints in steps 2 and 6**, one for the writer and one for the reader.
 
 <iframe src="/maps/release-acquire.en.html" title="release / acquire, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
 
-### 1.6 Why x86 Barely Charges for This, and ARM Does
+#### 2.3.2 Drawing It to Analyze Code {#mo-edges}
 
-Go back to the "forbid three, allow one" table in 1.3. Acquire and release only need to forbid reorderings that x86-TSO *already* forbids on every plain `mov` — LoadLoad, LoadStore, StoreStore. So on x86, a `memory_order_acquire` load and a `memory_order_release` store compile down to an ordinary load and an ordinary store; the hardware was already going to honor that ordering. **Acquire/release is nearly free on x86** — that's not a coincidence, it's the whole reason the C++ model has separate `acquire`/`release` orderings instead of just relaxed-or-nothing.
+Put both threads' code side by side and draw rule 1 as vertical edges and rule 2 as horizontal edges (only where a pairing happens). If you can walk from the other thread's write along vertical, horizontal and vertical edges, you see it; if you can't, rule 3 applies.
+
+> **The procedure: ask one question, would a stale value be wrong?**
+>
+> 1. **List the data used across threads**, and ask for each: would reading a stale value be wrong?
+> 2. **If not**: leave it alone; `relaxed` is enough.
+> 3. **If so**: the code must be "use the data only after reading the flag", so the horizontal edge is always there when the data is used.
+> - **Two kinds of mistakes show at a glance**: a horizontal edge with only one end means a missing release or a missing acquire; a write to be published drawn below the release, or a read to be used drawn above the acquire, is in the wrong place.
+> - **The order in which an atomic itself was modified is not an edge**: another thread having changed the same atomic earlier only says the variable's value changed in that order, not that you can see the other memory it wrote.
+> - **A CAS or `fetch_add` right after a release doesn't break the edge**: it writes on top of the previous value and counts as a continuation of that release; a plain `store` is a blind write and does break it.
+
+**An SPSC ring**:
+
+```cpp
+template <class T, std::size_t N>   // N is a power of two
+class SpscQueue {
+    std::array<T, N> buf_;
+    alignas(64) std::atomic<std::size_t> read_idx_{0};    // written only by the consumer
+    alignas(64) std::atomic<std::size_t> write_idx_{0};   // written only by the producer
+public:
+    bool push(const T& x) {                                          // producer
+        std::size_t w = write_idx_.load(std::memory_order_relaxed);  // own index
+        if (w - read_idx_.load(std::memory_order_acquire) == N)      // continue only if a slot is free
+            return false;
+        buf_[w & (N - 1)] = x;                                       // write the slot
+        write_idx_.store(w + 1, std::memory_order_release);          // publish
+        return true;
+    }
+    bool pop(T& out) {                                               // consumer
+        std::size_t r = read_idx_.load(std::memory_order_relaxed);   // own index
+        if (r == write_idx_.load(std::memory_order_acquire))         // continue only if there's data
+            return false;
+        out = buf_[r & (N - 1)];                                     // read the slot
+        read_idx_.store(r + 1, std::memory_order_release);           // hand the slot back
+        return true;
+    }
+};
+```
+
+- **A stale index isn't wrong**: the queue just looks empty or full, and the caller tries again.
+- **A stale slot is wrong**, and both places use the data only after reading the flag:
+  - The consumer reads the slot only after seeing `write_idx_` beyond its own position: write slot →vertical→ release store of `write_idx_` →horizontal→ acquire load of it →vertical→ read slot.
+  - The producer overwrites a slot only after `read_idx_` says it's free: read slot →vertical→ release store of `read_idx_` →horizontal→ acquire load of it →vertical→ overwrite slot.
+- **Break one, lose one edge**: make the `write_idx_` release relaxed and the consumer may read a half-written slot; make the `read_idx_` pair relaxed and the producer may overwrite a slot that's still being read.
+
+#### 2.3.3 Cost: Plain `mov` on x86, `ldar` / `stlr` on ARM {#cost}
+
+**On x86, acquire and release compile to plain `mov`s because x86 already provides the orderings they need; ARM may do all four reorderings, so it needs the dedicated `ldar` and `stlr`**.
+
+- **Why x86 charges nothing**: the store buffer is first in, first out, so writes become visible late but never out of order; loads that turn out to have read a line that was since invalidated are squashed and redone, so loads don't reorder either. Those are exactly the two orderings release/acquire need; a write becoming visible late doesn't matter, because the reader only uses the data after reading the flag.
+- **Why ARM charges**: its store buffer isn't guaranteed to be first in, first out, and later loads may execute first, so it needs `ldar` and `stlr` (`dmb` barriers on ARMv7).
+- **Code that happens to work on x86 reads stale values on ARM**: for instance, using `volatile` instead of `atomic` to pass data. The C++ memory model is specified by meaning, not by copying x86's behaviour, precisely so the same code is correct on both.
+
+### 2.4 acq_rel: One Edge In, One Edge Out per Read-Modify-Write {#mo-acq-rel}
+
+**`acq_rel` is only for read-modify-writes, and makes one operation both an acquire and a release: the read half receives the edge from threads that changed the variable before, and the write half hands what this thread did on to the threads that come after**.
+
+A reference count: each thread decrements when it's done with the object, and whoever brings it to 0 deletes it.
+
+```cpp
+use(obj);
+if (refs.fetch_sub(1, std::memory_order_acq_rel) == 1)
+    delete obj;
+```
+
+- **Every decrement needs both halves**: nobody knows in advance who will reach 0. A thread that isn't last uses the release half to hand over what it did with the object; the one that is last uses the acquire half to receive what everyone else did.
+- **Cost: on x86 it's as expensive as relaxed, and the money goes to the RMW itself**: x86 can only do an RMW with a `lock` instruction, and `lock` is itself a full barrier, about 20 cycles. The same `fetch_add` written relaxed or acq_rel compiles to the same `lock xadd`; switching to relaxed on x86 saves nothing and only drops the ordering guarantee. To save, do fewer RMWs, for example by giving each thread its own count.
+- **Only on ARM does the order make a difference**: `ldadd` (relaxed), `ldadda` (acquire), `ldaddl` (release), `ldaddal` (acq_rel), or an `ldxr`/`stxr` loop with a/l suffixes.
+
+### 2.5 seq_cst: Every Thread Agrees on One Timeline, Even Store-Then-Load {#mo-seq-cst}
 
 **`seq_cst` is the strictest because it is the only ordering that orders things for every thread at once: all `seq_cst` operations fall into a single timeline that every thread agrees on, with each thread's own program order kept intact on it; release/acquire only order a pair of threads that meet on the same variable**.
 
-In hardware terms, `seq_cst` additionally forbids the *one* reordering x86 does allow — StoreLoad — and that requires a real fence: `MFENCE`. That's the one atomic operation on x86 that's genuinely expensive relative to a plain load/store, and it's the reason `std::atomic`'s *default* memory order (`seq_cst`, if you don't specify one) is more costly than it needs to be for code that only needs publish/subscribe semantics.
+Two threads each write their own variable and then read the other's, and what they need is **at least one of them reads 1**:
 
-On a weak-memory architecture like ARM, none of the "forbid three" comes for free — the hardware is allowed to reorder all four combinations unless told otherwise, so acquire/release need real instructions (`LDAR`/`STLR` on ARMv8, explicit `DMB` barriers on ARMv7). This is *why* the C++ memory model is specified abstractly instead of just "do what x86 does": the semantics are portable, but the price tag is architecture-dependent, and code that "happens to work" on x86 because acquire/release are nearly free there can be measurably slower — or, if someone reached for `volatile` instead of `atomic` out of habit, outright broken — on ARM.
+```cpp
+// x = y = 0 at the start
+// thread 1               // thread 2
+x.store(1);   // ①        y.store(1);   // ③
+r1 = y.load(); // ②       r2 = x.load(); // ④
+```
+
+- **Why the vertical edge doesn't help with release/acquire**: ① → ② only counts for thread 1 (rule 1). For thread 2 to see ①, there would have to be a path from ① to ④, and it stops at ②: ② is a load, and a load can't start a horizontal edge. In hardware terms, ① and ③ are still in their store buffers while ② and ④ have already read 0.
+- **`seq_cst` makes each thread's order hold for every thread**: ① takes effect before ②, and ③ before ④. The four operations interleave in only 6 ways; whichever comes first is a store, the other thread's load comes after it and reads 1, so no interleaving gives two 0s.
+- **Cost: on x86 only the store pays**: a `seq_cst` store compiles to `xchg`, which waits until the store buffer drains and the store is visible to every core, about 20–30 cycles; a `seq_cst` load is still a plain `mov`. `std::atomic` defaults to `seq_cst` when no order is given, so publish/subscribe code written without orders pays this for nothing.
+- **ARMv8 charges nothing extra**: it forbids an `ldar` from passing an earlier `stlr`, which already rules out store-then-load, so `seq_cst` uses the same pair.
+- **Publish/subscribe doesn't need it**: that pattern already uses the data only after reading the flag, and release/acquire is enough.
 
 ---
 
-## 2. False Sharing: When Correctness Was Never the Question
+## 3. False Sharing: When Correctness Was Never the Question
 
-This is where the two axes from the introduction split apart for good, so it's worth being explicit: **everything below can happen with code that is already 100% correct** — every read sees the right value, every `memory_order` is exactly right, there is no bug in the sense of Part 1 at all. This is a pure performance problem, and no amount of atomics or fences fixes it.
+This is where the two axes from the introduction split apart for good, so it's worth being explicit: **everything below can happen with code that is already 100% correct** — every read sees the right value, every `memory_order` is exactly right, there is no bug in the sense of Parts 1 and 2 at all. This is a pure performance problem, and no amount of atomics or fences fixes it.
 
-### 2.1 The Unit of Coherence Is 64 Bytes, Not One Variable
+### 3.1 The Unit of Coherence Is 64 Bytes, Not One Variable
 
 The MESI protocol doesn't invalidate individual variables — it invalidates **cache lines**, and a line is a fixed 64 bytes on essentially every current x86 core. If two threads each own a completely unrelated `int`, and those two `int`s happen to land in the same 64-byte line — say, adjacent fields in a struct — then every write by thread A to *its* variable invalidates the *entire line*, including thread B's variable, forcing B to reload data it never asked to share. This is **false sharing**: the sharing is an accident of memory layout, not a real logical relationship between the two variables.
 
-### 2.2 A Different Mechanism From a Stale Read — and Exactly Why
+### 3.2 A Different Mechanism From a Stale Read — and Exactly Why
 
 It's tempting to file this under "the invalidate-queue thing from 1.2" — same MESI messages, same cache lines, same vocabulary. That's the confusion this whole post is structured to head off. Line them up directly:
 
@@ -356,7 +474,7 @@ It's tempting to file this under "the invalidate-queue thing from 1.2" — same 
 
 That last row is the sharpest test: take two completely unrelated, unsynchronized `int` counters, each written only by its own thread, no atomics anywhere, no data race by any reasonable definition of the term — and they will still ping-pong if they share a cache line, because the *protocol* doesn't know or care that the two variables are logically unrelated; it only knows two different cores keep asking for exclusive ownership of the same 64 bytes. The stale-read mechanism requires an actual cross-thread dependency on a value. False sharing requires nothing but unlucky struct layout — it is entirely a statement about the physical cost of *ownership churn*, independent of whether any value was ever read incorrectly.
 
-### 2.3 The Fix, and What It Doesn't Fix
+### 3.3 The Fix, and What It Doesn't Fix
 
 ```cpp
 struct alignas(64) PaddedCounter {
@@ -371,17 +489,17 @@ PaddedCounter counters[num_threads];   // each counter now owns a whole cache li
 
 For true sharing that's still too hot, the standard mitigation (the pattern behind LMAX Disruptor-style designs) is to stop touching the shared line on every single operation: keep a **locally-cached copy** of the last-seen cursor/value, batch several operations against the local copy, and only re-synchronize against the real shared line periodically. You trade a bounded amount of staleness for a large reduction in cross-core traffic — conceptually the same "notebook" idea as the store buffer in 1.1, just applied deliberately at the application level instead of automatically by hardware.
 
-### 2.4 A Third, Unrelated Problem Hiding in the Same Word: L3 and Intel CAT
+### 3.4 A Third, Unrelated Problem Hiding in the Same Word: L3 and Intel CAT
 
-One more distinction worth having on hand, because it uses the word "shared cache" and gets folded into "false sharing" conversations by accident: **L1 and L2 are private per core; L3 is architecturally shared across the whole socket, and that's normal and fine.** A hot L3 isn't a false-sharing problem — there's no coherence protocol churn from *sharing* L3, because sharing L3 was the design. The actual risk is **capacity contention**: an unrelated process on another core, with no logical connection to your program at all, can run through enough data to evict your working set out of the shared L3 purely by using up space — a "noisy neighbor," not a coherence problem. That's what **Intel CAT (Cache Allocation Technology)**, configured via `pqos`, is for: it partitions L3 into ways and reserves a guaranteed slice for your process, so a noisy neighbor can fill the rest of L3 as much as it wants without evicting your data. Three different problems, three different fixes: a stale read is an ordering problem (Part 1); ping-pong between two cooperating threads is a layout problem (Part 2); a hot shared L3 getting evicted by an unrelated process is a capacity problem CAT solves — none of the three fixes solve either of the other two.
+One more distinction worth having on hand, because it uses the word "shared cache" and gets folded into "false sharing" conversations by accident: **L1 and L2 are private per core; L3 is architecturally shared across the whole socket, and that's normal and fine.** A hot L3 isn't a false-sharing problem — there's no coherence protocol churn from *sharing* L3, because sharing L3 was the design. The actual risk is **capacity contention**: an unrelated process on another core, with no logical connection to your program at all, can run through enough data to evict your working set out of the shared L3 purely by using up space — a "noisy neighbor," not a coherence problem. That's what **Intel CAT (Cache Allocation Technology)**, configured via `pqos`, is for: it partitions L3 into ways and reserves a guaranteed slice for your process, so a noisy neighbor can fill the rest of L3 as much as it wants without evicting your data. Three different problems, three different fixes: a stale read is an ordering problem (Part 1); ping-pong between two cooperating threads is a layout problem (Part 3); a hot shared L3 getting evicted by an unrelated process is a capacity problem CAT solves — none of the three fixes solve either of the other two.
 
 ---
 
-## 3. Dependency Chains: You're Racing the Longest Chain, Not the Instruction Count
+## 4. Dependency Chains: You're Racing the Longest Chain, Not the Instruction Count
 
-Same performance axis as Part 2, different resource: instead of "which cache line does this address belong to," this section is about "which instruction is the CPU's pipeline actually waiting on." The two-line summary: a modern core is superscalar and pipelined — it can have several instructions in flight simultaneously — but it can only start an instruction once every one of its inputs is ready. **The number of arithmetic operations in your code barely matters. The length of the longest dependency chain is what determines wall-clock time.**
+Same performance axis as Part 3, different resource: instead of "which cache line does this address belong to," this section is about "which instruction is the CPU's pipeline actually waiting on." The two-line summary: a modern core is superscalar and pipelined — it can have several instructions in flight simultaneously — but it can only start an instruction once every one of its inputs is ready. **The number of arithmetic operations in your code barely matters. The length of the longest dependency chain is what determines wall-clock time.**
 
-### 3.1 Two Arrangements, Same Op Count, Different Cost
+### 4.1 Two Arrangements, Same Op Count, Different Cost
 
 ```cpp
 // chained: every multiply/add depends on the one before it
@@ -400,7 +518,7 @@ Same three operations, same result. `chained` forces the CPU to execute mul → 
 
 The two things a pipeline actually stalls on are **data hazards** (the next instruction needs a value the previous one hasn't produced yet — everything in this section) and **control hazards** (a branch whose direction isn't known yet, which is what speculative and out-of-order execution are there to hide). Fixing data hazards comes down to three priorities: break unnecessary dependency chains, get data into registers instead of re-reading memory, and balance which execution ports different instruction types compete for.
 
-### 3.2 A Trap in Priority One: Dependencies That Aren't Real
+### 4.2 A Trap in Priority One: Dependencies That Aren't Real
 
 Some instructions — `popcnt`, `lzcnt`, `tzcnt` are the well-documented examples, on several Intel and AMD generations — treat their **destination register as an implicit input**, even though the result they compute never actually depends on the register's previous contents. The hardware doesn't know that; it just sees "this instruction reads register X," and a loop that reuses the same destination register every iteration ends up chained across iterations for no logical reason at all:
 
@@ -423,15 +541,15 @@ loop_fixed:
 
 This is a narrow, specific erratum — not something you'll spot by reading source, because the false dependency lives in the microarchitecture, not in your code's logic. It's realistically a job for a profiler (`perf stat` counting stalled cycles against expectation) or a compiler that already knows the erratum list, not for eyeballing — the practical takeaway is knowing the *pattern* exists, so an unexplained stall on a chain that "shouldn't" be a chain has somewhere to point.
 
-### 3.3 Priority One, Overused: Register Spills
+### 4.3 Priority One, Overused: Register Spills
 
-Breaking dependency chains by hand — the fix in the very first code sample above, and the technique 3.5 pushes further — means creating more *independent* values in flight at once. Independent values need their own registers. x86-64 has 16 general-purpose architectural registers. Unroll too aggressively, chase independence too far, and you run out: the compiler starts **spilling** the extra live values to the stack, which means the "fix" for a dependency stall quietly reintroduces memory traffic — the exact kind of cost priority one was trying to eliminate in the first place. It is a genuinely ironic failure mode: the technique for fixing stalls, used past the point the register file can hold, causes its own kind of stall.
+Breaking dependency chains by hand — the fix in the very first code sample above, and the technique 4.5 pushes further — means creating more *independent* values in flight at once. Independent values need their own registers. x86-64 has 16 general-purpose architectural registers. Unroll too aggressively, chase independence too far, and you run out: the compiler starts **spilling** the extra live values to the stack, which means the "fix" for a dependency stall quietly reintroduces memory traffic — the exact kind of cost priority one was trying to eliminate in the first place. It is a genuinely ironic failure mode: the technique for fixing stalls, used past the point the register file can hold, causes its own kind of stall.
 
-### 3.4 Store-to-Load Forwarding: Back to the Store Buffer
+### 4.4 Store-to-Load Forwarding: Back to the Store Buffer
 
 Store-to-load forwarding — mentioned in passing back in 1.1 — is why a store followed immediately by a load to the same address doesn't have to round-trip through the cache: the CPU forwards the value straight out of the store buffer. It's a genuine latency win, but it has a strict physical requirement: **the load's address, width, and alignment have to line up exactly with a single buffered store entry.** Forwarding matches one specific record — it does not stitch together partial overlaps. A concrete failure case: write 4 bytes, then immediately read 8 bytes starting at the same address. The read isn't fully satisfied by any single buffered store, forwarding fails, and the load falls back to the slow path — waiting for the write to actually land in cache before it can be read back. The store buffer that made 1.1's writes cheap is the same structure that makes this shortcut possible, and the same structure whose width/alignment rules make the shortcut fail silently if you're not careful about it.
 
-### 3.5 Turning "Break the Dependency Chain" Into a Formula
+### 4.5 Turning "Break the Dependency Chain" Into a Formula
 
 The `chained` vs. `parallel` example generalizes directly to loops: instead of one running accumulator (a single, fully serial dependency chain — one operation every `latency` cycles), split the accumulation across `K` independent accumulators and combine them once at the end.
 
@@ -471,7 +589,7 @@ How large should `K` be? Exactly large enough to keep the execution ports fed wh
 
 ## In Practice {#in-practice}
 
-False sharing from Part 2 and the dependency chains of Part 3 each match one card below ({{% bottleneck-ref "false-sharing" "num" %}}, {{% bottleneck-ref "serial-accumulator" "num" %}}): what perf shows, how to fix it, how to verify the fix.
+False sharing from Part 3 and the dependency chains of Part 4 each match one card below ({{% bottleneck-ref "false-sharing" "num" %}}, {{% bottleneck-ref "serial-accumulator" "num" %}}): what perf shows, how to fix it, how to verify the fix.
 
 {{% bottleneck "false-sharing" %}}
 
