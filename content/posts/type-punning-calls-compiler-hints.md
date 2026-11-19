@@ -20,14 +20,16 @@ How far the compiler can optimize depends on what it dares to assume and what it
 
 ## 1. Type Punning and Strict Aliasing: The Compiler Assumes Different Types Don't Overlap {#type-punning}
 
+**The logic of this section: type punning is what we want to do, and strict aliasing is the compiler's rule; punning through a pointer cast breaks that rule, which is undefined behaviour, and the compiler, optimizing by the rule, computes the wrong result; the legal ways are to copy the bytes out, or to state that an object lives there**.
+
+- **1.1 What we want**: read the same bytes as another type.
+- **1.2 The compiler's rule**: an object may only be read or written through its own type (plus a few exceptions such as the byte types), so pointers of different types are treated as non-overlapping.
+- **1.3 Where they collide**: reading or writing through a cast pointer accesses that memory as another type and breaks 1.2; the compiler doesn't reload memory and reads a stale value.
+- **1.4 How to do it legally**: copy into the target type with `memcpy` or `std::bit_cast`, or state that an object lives there with `std::start_lifetime_as`.
+
 ### 1.1 Type Punning: The Same Bytes, Read as Another Type {#punning-need}
 
-**At its core, type punning is a change of interpretation: not one byte moves, only what type the compiler takes them to be; the legal ways are to copy the bytes into an object of the target type, or to state that an object of the target type lives there (1.4), and reading them through a pointer of another type is undefined behaviour**.
-
-- **Memory holds only bytes; the type is the compiler's assumption**: the same 8 bytes read as a `double` or as a `uint64_t` give exactly the same bits; the only difference is how the compiler understands them and what it may optimize.
-- **Reading through another pointer type is wrong because no object of that type lives at that address**: under the strict aliasing rule in 1.2, the compiler takes pointers of different types to never point at the same memory, so it may move or delete the reads and writes (1.3).
-
-A trading system can't avoid punning in two places:
+**Type punning is a need, not a mistake: read the same bytes as another type. A trading system can't avoid it in two places, and the handiest way to write it is a pointer cast, which is how all three spots below do it**.
 
 ```cpp
 struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8-byte header
@@ -48,7 +50,7 @@ uint64_t hash_bits(double x) {
 
 - **Fields in a receive buffer**: the buffer is a run of `unsigned char` holding the header's integers and, at offset 8, the price. Comments 1 and 2 read those bytes directly as a `Header` and a `double`.
 - **When the bits themselves are what you want**: comment 3 treats a `double`'s 64 bits as an integer to hash them; comparing as integers or serializing is the same.
-- **All three are wrong, and the compiler won't necessarily tell you**: with `-Wall`, GCC 16.2 measurably warns only on comment 3, `dereferencing type-punned pointer will break strict-aliasing rules`, and says nothing about 1 and 2. The buffer comes in as a parameter, so the compiler doesn't know what type that memory originally held.
+- **All three are wrong, because they pun through a pointer cast (1.3), and the compiler won't necessarily tell you**: with `-Wall`, GCC 16.2 measurably warns only on comment 3, `dereferencing type-punned pointer will break strict-aliasing rules`, and says nothing about 1 and 2. The buffer comes in as a parameter, so the compiler doesn't know what type that memory originally held.
 
 ### 1.2 Strict Aliasing: Different Types, So the Compiler Treats Them as Non-Overlapping {#alias-rule}
 
@@ -58,9 +60,9 @@ uint64_t hash_bits(double x) {
 - **The compiler trades it for optimizations**: after a store through a `uint64_t*`, it knows no `double` changed, so a `double` needn't be reloaded from memory; loop bounds and coefficients can be hoisted out of the loop, which is what lets the loop vectorize. It's the same kind of information as `__restrict` in [#10](/posts/pointer-memory-access/), except you don't write it; the compiler infers it from the types.
 - **Byte types are the exception, and it has a cost**: `char` and `unsigned char` (`uint8_t` is `unsigned char`) may access any object, so after one store through a byte pointer the compiler has to assume any other variable may have changed and reload it. In a loop that doubles `a[k]` up to a bound `*n`, changing `float* a` to `char* a` makes the compiler reload `*n` every iteration and give up on vectorizing.
 
-### 1.3 Breaking Strict Aliasing: The Compiler Still Optimizes on "No Overlap" and Reads a Stale Value {#alias-violation}
+### 1.3 Punning Through a Pointer Cast: It Breaks Strict Aliasing, the Compiler Still Optimizes on "No Overlap" and Reads a Stale Value {#alias-violation}
 
-**A pointer cast doesn't change the compiler's assumption: it still believes the two pointers refer to different objects, so it doesn't reload memory and uses the stale value in a register.**
+**Punning through a pointer cast reads or writes an object through another type, which strict aliasing makes undefined behaviour; the cast doesn't change the compiler's assumption, so it still believes the two pointers refer to different objects, doesn't reload memory, and uses the stale value in a register**.
 
 ```cpp
 double alias(double* d, uint64_t* u) {
