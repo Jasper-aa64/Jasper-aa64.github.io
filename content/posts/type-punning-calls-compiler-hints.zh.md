@@ -20,9 +20,9 @@ light: true
 
 ## 1. 类型双关与严格别名：编译器按类型假设两块内存不重叠 {#type-punning}
 
-### 1.1 类型双关（type punning）：什么时候要把字节当成另一种类型读 {#punning-need}
+### 1.1 类型双关（type punning）：同一块字节，换一种类型去读 {#punning-need}
 
-最顺手的写法是指针强转，下面三处都是：
+**内存里只有字节，“这块字节是什么类型”是编译器的假设；类型双关就是绕开这个假设，用另一种类型去读同一块字节**。交易系统里有两处躲不开它：
 
 ```cpp
 struct Header { uint32_t seq; uint16_t len; uint16_t type; };   // 8 字节的包头
@@ -41,58 +41,48 @@ uint64_t hash_bits(double x) {
 }
 ```
 
-- **交易所的二进制行情先落在收包缓冲区里**：缓冲区是一串 `unsigned char`，开头是序号、长度、类型这几个整数，偏移 8 处是 8 个字节的价格。注释 1、2 直接把这些字节当成 `Header` 和 `double` 读。
-- **有时要的就是位本身**：注释 3 把 `double` 的位当成 `uint64_t` 去算哈希；按整数比较大小、做序列化也要这样看。
-- **三处都是用一种类型去读另一种类型的内存**：缓冲区里放的是 `unsigned char`，`x` 是 `double`，读的时候却当成 `Header`、`double`、`uint64_t`。**这违反严格别名，开了优化，结果可能和不开优化时不一样**。规则见 1.2，出错的例子见 1.3，正确写法见 1.4。
-- **编译器不一定提醒你**：GCC 16.2 开 `-Wall` 实测只对注释 3 报 `dereferencing type-punned pointer will break strict-aliasing rules`，对 1、2 一声不吭。缓冲区是从参数传进来的，编译器不知道那块内存原本放的是什么类型。
+- **收包缓冲区里的字段**：缓冲区是一串 `unsigned char`，包头的几个整数、偏移 8 处的价格都在里面。注释 1、2 直接把这些字节当成 `Header` 和 `double` 读。
+- **要的就是位本身**：注释 3 把 `double` 的 64 位当成整数算哈希；按整数比较大小、做序列化也一样。
+- **三处都是错的，而且编译器不一定提醒你**：GCC 16.2 开 `-Wall` 实测只对注释 3 报 `dereferencing type-punned pointer will break strict-aliasing rules`，对 1、2 一声不吭。缓冲区是从参数传进来的，编译器不知道那块内存原本是什么类型。
 
-### 1.2 严格别名（strict aliasing）：一个对象只能用它自己的类型读写 {#alias-rule}
+### 1.2 严格别名（strict aliasing）：类型不同，编译器就当它们不重叠 {#alias-rule}
 
-1. **规则：能读写一个 `T` 对象的类型只有几种**
-   - **`T` 本身，以及它对应的有符号、无符号版本**：`int` 和 `unsigned int` 可以互相访问，加了 `const`、`volatile` 也算。
-   - **`char`、`unsigned char`、`std::byte` 能访问任何对象**：这是留给“按字节看内存”的口子。`uint8_t` 就是 `unsigned char`。
-   - **用别的类型读写就是未定义行为**：更多违规的例子和查法见[未定义行为第 3 节](/zh/ref/undefined-behavior/#strict-aliasing)。
+**编译器假设一个对象只会通过它自己的类型被读写，所以两个类型不同的指针不会指向同一块内存。这个假设让值能一直留在寄存器里，代价是双关的代码会被它优化错**。
 
-2. **编译器从这条规则推出：类型不同的两个指针不指向同一个对象**
-   - **这和 [#10](/zh/posts/pointer-memory-access/) 的 `__restrict` 是同一类信息**：区别是不用你写，编译器按类型自己推出来。
-   - **有了它，值可以一直留在寄存器里**：往 `uint64_t*` 写了一个值之后，编译器不用担心哪个 `double` 被改了，不必重新从内存读；循环的边界、系数也能提到循环外，循环才能向量化。
-   - **通过 `char*`、`uint8_t*` 写内存是反过来的情况**：字节类型可以访问任何对象，写一次，编译器就得假设别的变量都可能被改了，要重新读。热循环里通过字节指针写内存，会让编译器对其他指针都变保守（实测见[未定义行为 3.2](/zh/ref/undefined-behavior/#alias-benefit)）。
+- **能读写一个 `T` 对象的类型只有几种**：`T` 本身（加不加 `const`、`volatile` 都算）、`T` 对应的有符号或无符号版本，以及 `char`、`unsigned char`、`std::byte`。用别的类型读写就是未定义行为，更多例子见[未定义行为第 3 节](/zh/ref/undefined-behavior/#strict-aliasing)。
+- **编译器拿它换优化**：往 `uint64_t*` 写了一个值，编译器确定没有哪个 `double` 被改，`double` 不用重新从内存读；循环的边界、系数也能提到循环外，循环才能向量化。这和 [#10](/zh/posts/pointer-memory-access/) 的 `__restrict` 是同一类信息，只是不用你写，编译器按类型自己推出来。
+- **字节类型是例外，也有代价**：`char`、`unsigned char`（`uint8_t` 就是它）能访问任何对象，所以通过字节指针写一次，编译器就得假设别的变量都可能变了，要重新读。热循环里通过 `uint8_t*` 写内存，会让编译器对其他指针都变保守（实测见[未定义行为 3.2](/zh/ref/undefined-behavior/#alias-benefit)）。
 
-### 1.3 违反严格别名：指针强转读到旧值 {#alias-violation}
+### 1.3 违反严格别名：编译器照样按“不重叠”优化，读到旧值 {#alias-violation}
 
-1. **拿 `uint64_t*` 指一个 `double`，编译器照样按“不重叠”优化**
+**指针强转改变不了编译器的假设：它仍然认为两个指针指的不是同一个对象，于是不重新读内存，直接用寄存器里的旧值**。
 
-   ```cpp
-   double alias(double* d, uint64_t* u) {
-       *d = 1.0;
-       *u = 0;          // 编译器认为 u 和 d 指的不是同一个对象
-       return *d;       // 所以直接返回 1.0，不重新读
-   }
-   ```
+```cpp
+double alias(double* d, uint64_t* u) {
+    *d = 1.0;
+    *u = 0;          // 编译器认为 u 和 d 指的不是同一个对象
+    return *d;       // 所以直接返回 1.0，不重新读
+}
+```
 
-   ```text
-   alias(double*, unsigned long long*):
-       movsd   .LC0(%rip), %xmm0    # .LC0 = 1.0
-       movsd   %xmm0, (%rdi)        # *d = 1.0
-       movq    $0, (%rsi)           # *u = 0
-       ret                          # 返回的还是 %xmm0 里的 1.0
-   ```
+```text
+alias(double*, unsigned long long*):
+    movsd   .LC0(%rip), %xmm0    # .LC0 = 1.0
+    movsd   %xmm0, (%rdi)        # *d = 1.0
+    movq    $0, (%rsi)           # *u = 0
+    ret                          # 返回的还是 %xmm0 里的 1.0
+```
 
-   - **`*u = 0` 之后没有重新读 `*d`**：编译器认为 `u` 改不到 `d`，直接返回寄存器里的 1.0。
-   - **用 `alias(&x, (uint64_t*)&x)` 调它，实测返回 1，内存里却已经是 0**：加 `-fno-strict-aliasing` 关掉这条假设，`return` 前会重新读一次，返回 0。Linux 内核就是整体关掉这条规则编译的，代价是 1.2 的那些优化都没有了。
+- **`*u = 0` 之后，`*d` 没有重新读**：用 `alias(&x, (uint64_t*)&x)` 调它，实测返回 1，内存里却已经是 0。加 `-fno-strict-aliasing` 关掉这条假设，就会重新读、返回 0；Linux 内核就是整体关掉它编译的，代价是 1.2 的那些优化全没了。
+- **同一个函数里强转有时能跑对，那是碰巧**：`double x = 100;` 之后写 `*(uint64_t*)&x |= 0x8000000000000000;`，GCC `-O2` 实测打印 −100，因为编译器这次看得出两个指针都从 `&x` 来；它同时在这一行报了 `'x' is used uninitialized`。中间隔一个函数，就成了上面的 `alias`。
+- **union 读另一个成员、`bit_cast_ref` 这类 helper，都是同一件事**：C++ 里读的不是最后写入的那个 union 成员，就是未定义行为（GCC 作为扩展支持，别的编译器不保证）；`bit_cast_ref<To>(ptr)` 的函数体就是 `*reinterpret_cast<const To*>(ptr)`，名字里有 bit_cast 也不会让它变安全。
+- **`reinterpret_cast` 本身没错**：错的是拿转出来的指针去读写不是那个类型的对象。只转指针、用之前再转回原来的类型，没有问题。
 
-2. **在同一个函数里强转，有时碰巧能跑对**
-   - **`double x = 100;` 之后写 `*(uint64_t*)&x |= 0x8000000000000000;`**：GCC `-O2` 实测打印出 −100，因为两个指针都从 `&x` 来，编译器这次看得出来。
-   - **编译器同时在这一行报警告 `'x' is used uninitialized`**：按 `uint64_t` 读的那块内存，在它看来从没被写过。能跑对靠的是编译器碰巧看得见，中间隔一个函数，就成了上面的 `alias`。
+### 1.4 合法写法：把字节拷进目标类型，或者明说这里有一个对象 {#alias-fix}
 
-3. **union 读另一个成员、名字叫 bit_cast 的 helper，都是同一个问题**
-   - **union 写一个成员、读另一个**：C 语言允许；C++ 里读的不是最后写入的那个成员，就是未定义行为。GCC 在文档里明确支持这种读法，所以在 GCC 上能用，换个编译器就不保证了。
-   - **有的项目把强转包成 helper**：比如 `bit_cast_ref<To>(ptr)`，函数体就是 `*reinterpret_cast<const To*>(ptr)`。名字里有 bit_cast，做的仍是拿 `To` 去读一块别的类型的内存。
-   - **`reinterpret_cast` 本身是合法的**：错的是用转出来的指针去读写不是那个类型的对象。只是转一下、再转回原来的类型用，没有问题。
+**合法的写法只有两类：把字节拷进一个目标类型的变量（`memcpy`、`std::bit_cast`），或者明确告诉编译器这块字节上开始了一个对象（`std::start_lifetime_as`）。两类编出来都是一条读，不花钱**。
 
-### 1.4 合法写法：`memcpy`、`std::bit_cast`、`std::start_lifetime_as`，编出来都是一条读 {#alias-fix}
-
-1. **把字节拷进一个目标类型的变量：`memcpy` 和 `std::bit_cast`**
+1. **拷进变量：`memcpy` 和 `std::bit_cast`**
 
    ```cpp
    uint64_t bits_memcpy(double x) { uint64_t u; std::memcpy(&u, &x, sizeof u); return u; }
@@ -108,10 +98,10 @@ uint64_t hash_bits(double x) {
        ret
    ```
 
-   - **拷贝不花钱**：长度是编译期常量、又小时，编译器认得这种拷贝，直接编成一条寄存器之间的搬运，两种写法编出来一样。
+   - **拷贝不花钱**：长度是编译期常量、又小时，编译器直接编成一条寄存器之间的搬运，两种写法编出来一样。
    - **`std::bit_cast` 多了编译期检查**：两边要一样大、都能按字节拷贝，否则编译不过；它也能用在 `constexpr` 里。`bits_cast(100.0)` 实测是 0x4059000000000000，1.5 会把这个数拆开看。
 
-2. **从收包缓冲区读字段：也用 `memcpy`**
+2. **收包缓冲区的字段：同样用 `memcpy`**
 
    ```cpp
    double read_px(const unsigned char* p) { double d; std::memcpy(&d, p, sizeof d); return d; }
@@ -132,29 +122,26 @@ uint64_t hash_bits(double x) {
        ret
    ```
 
-   - **`read_px` 就是一次 8 字节读**：地址不对齐也没关系，x86 允许不对齐的读，实测从缓冲区第 3 个字节开始读也对。
-   - **写成 `*(double*)p` 有两层问题**：用 `double` 读一块 `char` 内存，违反严格别名；地址不对齐时又多一层未定义行为，编译器如果据此生成了要求对齐的向量指令，程序会直接崩。
-   - **大端字段读出来要翻转字节序**：x86 是小端，低位字节放在低地址；有的交易所协议按大端（网络字节序）发整数，比如 Nasdaq 的 ITCH。C++23 的 `std::byteswap` 编出来就是一条 `bswap`。
+   - **一次读就够，地址不对齐也行**：x86 允许不对齐的读，实测从缓冲区第 3 个字节开始读也对。写成 `*(double*)p`，除了违反严格别名，地址不对齐时还多一层未定义行为。
+   - **大端字段要翻转字节序**：有的交易所协议按大端（网络字节序）发整数，比如 Nasdaq 的 ITCH；x86 是小端，C++23 的 `std::byteswap` 编出来就是一条 `bswap`。
 
-3. **整个结构体就地使用、不拷贝：C++23 的 `std::start_lifetime_as`**
+3. **整个结构体就地用：C++23 的 `std::start_lifetime_as`**
 
    ```cpp
-   struct Header { uint32_t seq; uint16_t len; uint16_t type; };
-
    uint32_t seq_of(unsigned char* p) {
        return std::start_lifetime_as<Header>(p)->seq;   // p 处从现在起有一个 Header
    }
    ```
 
-   - **它不拷贝字节、不调构造函数**：只是告诉编译器，这块内存上从现在起有一个 `Header` 对象，原来的字节就是它的值。之后通过返回的指针读写是合法的。
-   - **编出来和 `memcpy` 一样**：GCC 16.2 实测，`seq_of` 和“用 `memcpy` 拷出整个 `Header` 再取 `seq`”都只有一条 4 字节读。
-   - **用处在大结构体和别人写好的内存**：几百字节的行情快照逐字段 `memcpy` 太啰嗦，整个拷一份，编译器不一定能把拷贝省掉；网卡 DMA 写进来的包、共享内存里的结构体，也都是“字节已经在那里，只差一个对象”。
-   - **有两个前提**：`Header` 要是隐式生存期类型（implicit-lifetime type，像 `Header` 这样只有标量成员、没有自定义析构函数的结构体就是）；`p` 要按 `alignof(Header)` 对齐，不对齐的地址还是只能用 `memcpy`。
-   - **用之前查标准库支不支持**：看 `__cpp_lib_start_lifetime_as` 这个宏，GCC 16.2 的 libstdc++ 已经定义了。
+   - **不拷贝、不调构造函数**：只告诉编译器，这块内存上从现在起有一个 `Header`，原来的字节就是它的值；之后通过返回的指针读写是合法的。GCC 16.2 实测和 `memcpy` 一样，只有一条 4 字节读。
+   - **用在大结构体和别人写好的内存上**：几百字节的行情快照逐字段 `memcpy` 太啰嗦，整个拷出来编译器不一定省得掉；网卡 DMA 进来的包、共享内存里的结构体，都是“字节已经在那里，只差一个对象”。
+   - **有两个前提**：`Header` 要是隐式生存期类型（implicit-lifetime type，只有标量成员、没有自定义析构函数的结构体就是）；地址要按 `alignof(Header)` 对齐，不对齐还是只能 `memcpy`。用之前查 `__cpp_lib_start_lifetime_as` 这个宏，GCC 16.2 的 libstdc++ 已经有了。
 
-### 1.5 IEEE 754：符号、指数、尾数，改符号不用自己动位 {#ieee754}
+### 1.5 IEEE 754：改符号用不着双关 {#ieee754}
 
-- **double 占 8 字节、64 位，按 IEEE 754 分成三段**：最高 1 位是符号，接着 11 位是指数，剩下 52 位是尾数。它表示的值是：
+**double 的符号单独占最高位，所以取反、取绝对值都只是一次位运算；直接写数学式子，编译器自己就编成位运算，比手写双关还少两条指令**。
+
+- **64 位分三段**：最高 1 位是符号，接着 11 位是指数，剩下 52 位是尾数。它表示的值是：
 
 $$x = (-1)^{s} \times 1.f \times 2^{\,e - 1023}$$
 
@@ -203,9 +190,8 @@ $$x = (-1)^{s} \times 1.f \times 2^{\,e - 1023}$$
   <text class="muted" x="368" y="170">1.5625 × 2⁶ = 100</text>
 </svg>
 
-- **符号单独占最高位，只改这一位就是取反**：第 63 位置 1、别的位不动，得到 −100，十六进制 0xC059000000000000。
-- **float 的结构一样**：1 + 8 + 23 位、偏置 127。2.0f 是 0x40000000，把第 31 位置 1 得到 0xC0000000，就是 −2.0f。
-- **改符号、取绝对值，直接写数学式子就行**：编译器自己会编成位运算。
+- **只改最高位就是取反**：第 63 位置 1、别的位不动，得到 −100，也就是 0xC059000000000000。float 的结构一样，只是 1 + 8 + 23 位、偏置 127：2.0f 是 0x40000000，−2.0f 是 0xC0000000。
+- **改符号、取绝对值，直接写数学式子**：
 
 ```cpp
 double neg(double x)    { return -x; }
@@ -225,22 +211,21 @@ negabs(double):
     ret
 ```
 
-- **`-std::fabs(x)` 就是“把最高位置 1”**：一条 `orpd`，值一直待在浮点寄存器里。
-- **自己用 `bit_cast` 改位反而多两条**：`std::bit_cast<double>(std::bit_cast<uint64_t>(x) | 0x8000000000000000)` 实测编成三条，`movq` 搬进整数寄存器、`btsq` 置位、再 `movq` 搬回来。
-- **有现成数学写法的，就写数学式子**：1.4 的写法留给数据本来就是字节、或者要的就是位本身的时候。
+- **`-std::fabs(x)` 就是一条 `orpd`**：值一直待在浮点寄存器里。
+- **手写 `bit_cast` 改位反而是三条**：`std::bit_cast<double>(std::bit_cast<uint64_t>(x) | 0x8000000000000000)` 实测编成 `movq` 搬进整数寄存器、`btsq` 置位、再 `movq` 搬回来。1.4 的写法留给数据本来就是字节、或者要的就是位本身的时候。
 
-### 1.6 union 的另一种用法：`std::variant` 记住当前放的是哪种类型 {#variant}
+### 1.6 `std::variant`：union 不记得自己放的是什么，variant 记得 {#variant}
 
-- **union 还能让一块地方放几种类型里的一种，省内存**：比如一条行情消息可能是新增订单、撤单或成交，字段各不相同，用 union 放进同一块内存。
-- **问题是 union 不记得现在放的是哪一种**：读错了成员，就又回到了 1.3 的双关。
-- **C++17 的 `std::variant` 多存一个下标，记住当前是哪种类型**：
+**union 让一块内存放几种类型里的一种，但它不记得现在放的是哪种，读错成员就是 1.3 的双关；`std::variant` 多存一个下标记住类型，代价是几个字节和一次按下标的分派**。
+
+- **典型用途是行情消息**：一条消息可能是新增订单、撤单或成交，字段各不相同，放进同一块内存省地方。
 
 ```cpp
 union U3 { int i; float f; std::array<char, 16> a; };    // 16 字节
 using V3 = std::variant<int, float, std::array<char, 16>>; // 20 字节
 ```
 
-- **variant 多了几个字节**：实测 `sizeof` 分别是 16 和 20，variant 多了 1 字节的下标，再按 4 字节对齐补齐。
+- **variant 多了几个字节**：实测 `sizeof` 分别是 16 和 20，下标占 1 字节，再按 4 字节对齐补齐。
 - **取错类型会抛异常**：`std::get<int>(v)` 在 `v` 里放的不是 `int` 时，抛 `std::bad_variant_access`。
 - **按当前类型分发用 `std::visit`**：
 
@@ -249,7 +234,7 @@ std::variant<int, float> v{42};
 std::visit([](auto&& x) { std::cout << x << '\n'; }, v);
 ```
 
-- **`std::visit` 不走虚函数**：编出来就是读下标、比较、跳到对应的分支，和手写一个 `switch` 一样。`std::variant<int, float, double>` 的 visit 实测是一条 `movzbl` 读下标，加两次 `cmp`。
+- **`std::visit` 不走虚函数**：编出来就是读下标、比较、跳到对应的分支，和手写 `switch` 一样。`std::variant<int, float, double>` 的 visit 实测是一条 `movzbl` 读下标，加两次 `cmp`。
 
 ## 2. 函数调用与内联：看不见函数体时怎么传参，看得见时谁决定展开 {#calls}
 
