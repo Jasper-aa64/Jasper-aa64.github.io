@@ -307,7 +307,7 @@ Part 1 showed where reordering comes from: a write sits in the store buffer befo
 - **Release only constrains what comes before it, acquire only what comes after it**: a release store followed by an acquire load in the same thread is constrained by neither, and that's exactly the case 2.5 is about.
 - **x86 allows only store-then-load reordering (1.3)**: the other three orderings release/acquire need come with every plain `mov`.
 
-> **The one most easily forgotten: leaving out the memory order means `seq_cst`, not `relaxed`**
+> **Easy to forget: leaving out the memory order means `seq_cst`, not `relaxed`**
 >
 > - **Operators count as leaving it out**: `x = v` and `++x` are both `seq_cst`.
 > - **On x86 the cost is on stores**: a `store` compiles to `xchg`, about 20–30 cycles, while `relaxed` is a single `mov`.

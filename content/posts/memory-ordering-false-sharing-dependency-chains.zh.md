@@ -296,7 +296,7 @@ if (!ready) { while (true) {} }   // 死循环，再也不读内存
 - **release 只管它前面的，acquire 只管它后面的**：一个线程里“release 写在前、acquire 读在后”这一对，两条都不管，2.5 就卡在这里。
 - **x86 只放开“先写后读”（1.3）**：release/acquire 要的另外三种顺序，普通 `mov` 本来就带着。
 
-> **最容易忘的一点：不写内存序就是 `seq_cst`，不是 `relaxed`**
+> **容易忘的一点：不写内存序就是 `seq_cst`，不是 `relaxed`**
 >
 > - **运算符写法也算不写**：`x = v`、`++x` 都按 `seq_cst`。
 > - **x86 上贵在写**：`store` 编成 `xchg`，约 20–30 个周期，`relaxed` 只是一条 `mov`。
