@@ -225,6 +225,21 @@ The first fix that comes to mind is a re-check: copy the data out, read the stam
 
 ---
 
+#### 1.5.3 Progress Guarantees: The Producer Is Wait-Free; Readers That Re-Check and Retry Are Only Lock-Free {#progress}
+
+**The producer is wait-free, and not by pushing "full" back to its caller: it never reads anything a reader writes, and the ring is never full; a reader's `read()` takes a fixed number of steps per call, but guaranteeing an untorn copy means re-checking and retrying on failure with no bound on the retries, which is only lock-free**.
+
+The four progress guarantees are defined in [#4 4.1](/posts/lock-free-queue-logger-micro-batching/#progress-guarantees).
+
+- **The producer: `write()` is always the same few steps**: pick the slot, fill the data, stamp it; the three-step write from 1.5.2 only adds invalidating the stamp and one fence. The step count doesn't depend on how many readers there are or how slow they are.
+- **Unlike SPSC, its wait-freedom doesn't come from the interface**: SPSC's `try_` calls return when the queue is full and leave dropping, retrying or blocking to the caller ([#4 4.2](/posts/lock-free-queue-logger-micro-batching/#spsc-progress)); the broadcast ring hard-codes "overwrite the oldest", and the cost lands on slow readers as the overruns in 1.5.1.
+- **Readers: each call to the original `read()` is wait-free**: load the stamp, one subtraction, return a pointer or `nullptr`. If the producer stalls halfway through rewriting a slot, the reader sees a stamp that isn't the one it wants and returns `nullptr`; it never spins inside.
+- **But a fixed step count doesn't make the data right**: it returns a pointer into a shared slot, which can be rewritten halfway through the read (1.5.2).
+- **With "copy, re-check, discard on change", a reader is only lock-free**: if the producer keeps coming back round to the same slot during the few tens of nanoseconds of every copy, the reader keeps failing, with no bound on the retries; but every failure means the producer wrote another message, so the system as a whole always makes progress, which is exactly what lock-free means. With a big ring and fast readers this practically never happens.
+- **A fixed step count isn't a fixed time**: a page fault, a cache miss or preemption can still slow one `write()` down; the first-lap page faults in 2.3.1 are an example.
+
+---
+
 ### 1.6 On Real Hardware, Do Readers Slow the Producer?
 
 1.5 says the producer waits for nobody; that's what the code says. But the readers touch the same memory from other cores, and the hardware keeps its own account.
