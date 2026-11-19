@@ -222,14 +222,14 @@ An object pool hands out one type `T`, allocated and returned one at a time. The
 
 ### 2.3 Where the Big Block Comes From: Ask the Kernel Once at Startup, and mmap Only Gives Addresses {#arena-mmap}
 
-> **The essence of the arena using `mmap`: it asks the kernel for a whole block directly, and its flags decide how that memory is provided, prefaulted, backed by huge pages, locked. Memory from `malloc` offers none of this**.
->
-> - **Into the kernel only once**: the whole block is taken at startup; every later allocation just moves an offset inside it, without entering the kernel.
-> - **You get addresses, not memory**: when `mmap` returns, the kernel has only recorded a range of virtual addresses, and each physical page is allocated only when that page is first written, so write the whole block once at startup, or pass `MAP_POPULATE` (4.1).
-> - **No huge-page effect by default**: without flags, `mmap` maps 4 KiB pages and the TLB fares just as it would with `malloc`. Only `MAP_HUGETLB` maps 2 MiB pages, so one TLB entry covers 512 times as many addresses and TLB misses drop accordingly ([memory latency special, 3.2](/posts/low-latency-memory-latency-bandwidth/#32-tlb-and-huge-pages-the-translation-step)).
-> - **`MAP_HUGETLB` needs pages reserved first**: huge pages have to be reserved in advance with `vm.nr_hugepages`, the length must be a multiple of 2 MiB, and if too few are reserved `mmap` simply fails. Transparent huge pages (`madvise(MADV_HUGEPAGE)`) need no reservation, but depend on a system setting, and their background merging also changes page tables (4.4).
-> - **The block belongs to the arena alone**: `malloc` and `free` never touch it; only the arena's own `munmap` tears it down.
-> - **The reference implementation below uses `aligned_alloc`**: for requests over 128 KB glibc does one `mmap` underneath too, but none of these flags can be passed, so huge pages mean calling `mmap` yourself.
+> **The essence of the arena using `mmap`: it takes the whole block from the kernel once, and its flags control that memory's pages**.
+
+- **Into the kernel only once**: the whole block is taken at startup; every later allocation just moves an offset inside it, without entering the kernel.
+- **You get addresses, not memory**: when `mmap` returns, the kernel has only recorded a range of virtual addresses, and each physical page is allocated only when that page is first written, so write the whole block once at startup, or pass `MAP_POPULATE` (4.1).
+- **No huge-page effect by default**: without flags, `mmap` maps 4 KiB pages and the TLB fares just as it would with `malloc`. Only `MAP_HUGETLB` maps 2 MiB pages, so one TLB entry covers 512 times as many addresses and TLB misses drop accordingly ([memory latency special, 3.2](/posts/low-latency-memory-latency-bandwidth/#32-tlb-and-huge-pages-the-translation-step)).
+- **`MAP_HUGETLB` needs pages reserved first**: huge pages have to be reserved in advance with `vm.nr_hugepages`, the length must be a multiple of 2 MiB, and if too few are reserved `mmap` simply fails. Transparent huge pages (`madvise(MADV_HUGEPAGE)`) need no reservation, but depend on a system setting, and their background merging also changes page tables (4.4).
+- **The block belongs to the arena alone**: `malloc` and `free` never touch it; only the arena's own `munmap` tears it down.
+- **The reference implementation below uses `aligned_alloc`**: for requests over 128 KB glibc does one `mmap` underneath too, but none of these flags can be passed, so huge pages mean calling `mmap` yourself.
 
 ### 2.4 Reference Implementation: An Arena You Can Use As Is {#ref-arena}
 
@@ -344,13 +344,13 @@ The allocators of the first three parts all take one big block of memory at star
 ### 4.1 All You Get Is Addresses: The First Write to Every Page Faults, So Write the Whole Block Once at Startup {#prefault}
 
 > **Essence: The kernel manages memory in 4 KiB pages: physical memory is handed to a process one page at a time and moves to and from disk one page at a time, so the first time the hot path touches a page it enters the kernel**.
->
-> - **The two layers move data in different units**: between the CPU and memory the unit is a 64 B cache line; between memory and disk it is a 4 KiB page.
-> - **When the data is already in memory, scattered reads waste cache lines**: reading 8 bytes brings in a whole 64 B line; at this layer the page size only decides how many address translations the TLB has to cache.
-> - **When the data has to come from disk, every scattered read brings in a whole page**: reading a file through the page cache, or through an `mmap`ed file, the kernel reads at least one whole page, so using only 8 bytes still costs 4 KiB. This is read amplification.
-> - **One disk read takes 10–100 µs**: an NVMe read of one page is hundreds to a thousand times slower than one memory read (about 100 ns).
-> - **Even without disk, the first write to a page enters the kernel**: the kernel allocates a physical page, zeroes it and fills in the page table, about 0.5–2 µs. This is the pain point below.
-> - **So every page the hot path uses must already be in memory and mapped**: write it once at startup (this section), then lock it so it can't be swapped out (4.2).
+
+- **The two layers move data in different units**: between the CPU and memory the unit is a 64 B cache line; between memory and disk it is a 4 KiB page.
+- **When the data is already in memory, scattered reads waste cache lines**: reading 8 bytes brings in a whole 64 B line; at this layer the page size only decides how many address translations the TLB has to cache.
+- **When the data has to come from disk, every scattered read brings in a whole page**: reading a file through the page cache, or through an `mmap`ed file, the kernel reads at least one whole page, so using only 8 bytes still costs 4 KiB. This is read amplification.
+- **One disk read takes 10–100 µs**: an NVMe read of one page is hundreds to a thousand times slower than one memory read (about 100 ns).
+- **Even without disk, the first write to a page enters the kernel**: the kernel allocates a physical page, zeroes it and fills in the page table, about 0.5–2 µs. This is the pain point below.
+- **So every page the hot path uses must already be in memory and mapped**: write it once at startup (this section), then lock it so it can't be swapped out (4.2).
 
 **Pain point**: when `aligned_alloc`, `posix_memalign` or `mmap` returns, the kernel has only recorded a range of virtual addresses, with no physical memory behind it yet. Linux maps pages lazily: each 4 KiB page traps into the kernel with a page fault on its first access, which allocates a physical page, about 0.5–2 µs each time. The first slot the pool hands out and the first page the arena advances into will both fault on the hot path.
 

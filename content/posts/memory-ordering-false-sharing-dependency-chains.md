@@ -259,9 +259,9 @@ Put the two buffers back on the whole chip and one store travels as below. The i
 ### 1.3 Four Reorderings, and the One x86 Keeps
 
 > **Essence: Reordering is about how this thread's loads and stores to different addresses look to other cores; a thread always sees its own accesses in program order**.
->
-> - **Same address: no memory order needed**: the CPU guarantees this thread reads what in-order execution would give.
-> - **Different addresses: x86 lets only StoreLoad through**: the hardware already stops the other three; ARM can do all four, so acquire, release and seq_cst have to stop them.
+
+- **Same address: no memory order needed**: the CPU guarantees this thread reads what in-order execution would give.
+- **Different addresses: x86 lets only StoreLoad through**: the hardware already stops the other three; ARM can do all four, so acquire, release and seq_cst have to stop them.
 
 1. **A thread looking at itself: all four combinations on one address stay in program order**
 

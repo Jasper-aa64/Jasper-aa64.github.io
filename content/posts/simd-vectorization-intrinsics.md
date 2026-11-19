@@ -46,11 +46,11 @@ Second, a report saying "vectorized" doesn't necessarily mean parallel. A float 
 ### 2.2 What Blocks Vectorization
 
 > **Essence: The compiler auto-vectorizes only when it can prove that computing a row of numbers at once gives the same result as computing them one by one**.
->
-> - **It has to know how wide it may go**: without `-march`, 128 bits at most (Part 1).
-> - **It has to be sure there is no overlap and no dependency between iterations**: add `__restrict` to the pointers, and `a[i]` must not depend on `a[i - 1]`.
-> - **Floating-point reductions must be allowed to reorder**: turn on `-ffast-math`, or add `omp simd reduction` to just this loop.
-> - **The data must be contiguous and the loop body simple**: the numbers computed together sit next to each other in memory (2.3), the loop calls nothing that can't be inlined, and branches can become a masked select.
+
+- **It has to know how wide it may go**: without `-march`, 128 bits at most (Part 1).
+- **It has to be sure there is no overlap and no dependency between iterations**: add `__restrict` to the pointers, and `a[i]` must not depend on `a[i - 1]`.
+- **Floating-point reductions must be allowed to reorder**: turn on `-ffast-math`, or add `omp simd reduction` to just this loop.
+- **The data must be contiguous and the loop body simple**: the numbers computed together sit next to each other in memory (2.3), the loop calls nothing that can't be inlined, and branches can become a masked select.
 
 The specific cases that block it:
 
@@ -75,9 +75,9 @@ Compile with `-fopenmp-simd`, which enables only OpenMP's SIMD-related directive
 ### 2.3 Data Layout: Numbers Computed Together Must Sit Together to Fill One Instruction {#layout}
 
 > **Essence: A vector load reads a row of numbers only from one contiguous range of addresses, so the numbers computed together must sit next to each other in memory, and SoA lays out each field as exactly such a contiguous array**.
->
-> - **In AoS the same field is separated by other fields**: the compiler either gives up, or reads several times as much data and shuffles out the lanes it wants.
-> - **In SoA one `vmovups` loads 8 x values**: one instruction each to read, compute and write, and every byte read is useful.
+
+- **In AoS the same field is separated by other fields**: the compiler either gives up, or reads several times as much data and shuffles out the lanes it wants.
+- **In SoA one `vmovups` loads 8 x values**: one instruction each to read, compute and write, and every byte read is useful.
 
 Scaling the x of every point by a constant, in both layouts:
 
@@ -107,10 +107,10 @@ Measured with GCC 15 `-O3 -march=x86-64-v3`: the report says "vectorized using 3
 ### 3.1 When It's Worth It
 
 > **Essence: Let the compiler auto-vectorize first and confirm it did from the report and the assembly; hand-write intrinsics only for hot spots it can't do, or does wrong**.
->
-> - **What auto-vectorization gives you**: the code stays scalar, and recompiling on another machine uses its wider registers.
-> - **What hand-writing costs**: it ties you to one instruction set, you handle alignment, tails and runtime detection yourself, and the last few digits differ from the scalar version.
-> - **Typical cases for hand-writing**: parallelism the compiler can't see, such as several objects each running the same formula, which you place side by side in one instruction; and places that shuffle within a row of numbers or need a special instruction.
+
+- **What auto-vectorization gives you**: the code stays scalar, and recompiling on another machine uses its wider registers.
+- **What hand-writing costs**: it ties you to one instruction set, you handle alignment, tails and runtime detection yourself, and the last few digits differ from the scalar version.
+- **Typical cases for hand-writing**: parallelism the compiler can't see, such as several objects each running the same formula, which you place side by side in one instruction; and places that shuffle within a row of numbers or need a special instruction.
 
 Intrinsics are C functions that each map to one instruction; `_mm256_add_ps`, for instance, is `vaddps`. The type names spell out width and element type: `__m256` is 8 floats, `__m256d` is 4 doubles, `__m256i` is 256 bits of integers, and the header is `<immintrin.h>`; look up what each function does in Intel's Intrinsics Guide. Hand-writing is worth it only when the compiler won't do something or does it badly: you accept the error that comes with reordering, you need to move values around within a row, you need a particular special instruction, or the hot path has to be exactly these instructions.
 
@@ -190,10 +190,10 @@ Measured, with 2 NaNs among 8 numbers it returns 2. Floating-point exceptions ar
 ### 4.1 Never Let Two Threads Write the Same Element: Inputs Are Read-Only, Output Rows Are Divided Among Threads {#parallel-matrix}
 
 > **Essence: A data race is two threads accessing the same location at the same time, at least one writing, with no synchronization between them; if each output element is written by only one thread and the inputs are only read, there is no data race, and no lock or atomic is needed**.
->
-> - **Split by output, not by input**: each thread owns some rows and writes only those; every thread reads the input vectors, and reads alone don't race.
-> - **Read the result after `join`**: `join` makes the thread's writes visible to the thread that called it.
-> - **Don't let a boundary between two threads fall inside one cache line**: that isn't a data race, but two threads writing one line is false sharing.
+
+- **Split by output, not by input**: each thread owns some rows and writes only those; every thread reads the input vectors, and reads alone don't race.
+- **Read the result after `join`**: `join` makes the thread's writes visible to the thread that called it.
+- **Don't let a boundary between two threads fall inside one cache line**: that isn't a data race, but two threads writing one line is false sharing.
 
 Pairwise similarity of N vectors, with output an N×N matrix `S`:
 

@@ -350,9 +350,9 @@ These three questions tend to come together, and the answers land on the same po
 ### 4.1 Metrics: Single-Core Speed Is IPC × Clock, and Trading Also Cares About Memory Latency and Jitter {#cpu-metrics}
 
 > **Essence: The instructions a core executes per second equal the instructions per cycle (IPC) times the cycles per second (the clock), and a trading hot path uses one core, so these two come first**.
->
-> - **Clocks don't compare across generations**: at the same 5 GHz a newer core does more per cycle, so GHz alone misleads.
-> - **Fast on average isn't enough**: the hot path needs to be fast every time, so whether the clock changes and whether the core gets interrupted matter as much as raw speed.
+
+- **Clocks don't compare across generations**: at the same 5 GHz a newer core does more per cycle, so GHz alone misleads.
+- **Fast on average isn't enough**: the hot path needs to be fast every time, so whether the clock changes and whether the core gets interrupted matter as much as raw speed.
 
 $$\text{instructions per second on one core} = \text{IPC} \times \text{clock}$$
 
@@ -378,9 +378,9 @@ $$\text{instructions per second on one core} = \text{IPC} \times \text{clock}$$
 ### 4.2 How High Clocks Go: 5–6 GHz Top Boost Out of the Box, Not Doubled in Over a Decade {#clock}
 
 > **Essence: Clocks sit around 5–6 GHz because power grows much faster than frequency, and cooling gives out first**.
->
-> - **The power wall**: dynamic power is roughly $C V^2 f$; a higher frequency needs a higher voltage, so power grows roughly with the cube of the frequency.
-> - **So single-core gains over the past decade-plus came mainly from IPC**: clocks haven't doubled since the mid-2000s, and the extra transistors went into wider cores, bigger caches and more cores.
+
+- **The power wall**: dynamic power is roughly $C V^2 f$; a higher frequency needs a higher voltage, so power grows roughly with the cube of the frequency.
+- **So single-core gains over the past decade-plus came mainly from IPC**: clocks haven't doubled since the mid-2000s, and the extra transistors went into wider cores, bigger caches and more cores.
 
 - **Desktop flagships: top boost out of the box about 5.7–6.2 GHz** (as of November 2026): Intel's Core i9-14900KS is rated 6.2 GHz; the Core Ultra 9 285K and AMD's Ryzen 9 9950X are rated 5.7 GHz.
 - **Servers: about 3.5–4 GHz boost on many-core parts, about 5 GHz on frequency-optimized ones**: for example AMD's EPYC 9175F and the high-frequency parts of the new EPYC 9006 line.
@@ -393,9 +393,9 @@ $$\text{instructions per second on one core} = \text{IPC} \times \text{clock}$$
 ### 4.3 AMD or Intel: No Fixed Answer; It Depends on Whether the Hot Path and Its Data Fit in One Core Group {#amd-vs-intel}
 
 > **Essence: Pick whichever runs the hot path faster and steadier on one core, with the hot data fitting in its caches, and decide by measuring your own program's tick-to-trade tail latency**.
->
-> - **The memory model is the same**: both are x86 with TSO, so the same synchronization code works unchanged.
-> - **The differences are single-core clock, cache structure and price**: covered below.
+
+- **The memory model is the same**: both are x86 with TSO, so the same synchronization code works unchanged.
+- **The differences are single-core clock, cache structure and price**: covered below.
 
 1. **Intel: high single-core clocks, and long use in trading**
    - **Its desktop parts have the highest stock clocks**: the 6.2 GHz part is Intel's, and overclocked trading servers often use desktop CPUs of this kind.
