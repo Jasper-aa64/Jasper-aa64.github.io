@@ -118,6 +118,11 @@ The most expensive *read* is a HITM: the line you want is M in another core, whi
 
 **Cost Is Not the Same as Stalling.** A plain store like `x = 1` goes into the store buffer ([#2](/posts/memory-ordering-false-sharing-dependency-chains/)) and the core keeps executing while ownership is acquired in the background. The core only waits when the store buffer fills up, or for a `lock`-prefixed read-modify-write or a fence. That's why `fetch_add` on a line another core owns is so expensive: it must hold exclusive ownership until the instruction finishes, and it can't be parked in the store buffer.
 
+**Two more costs you can't see in the code: hardware prefetching also reads neighbouring lines and can pull an M line out of another core, and a run of stores that all miss can fill the store buffer, at which point store latency stops hiding in the background**.
+
+- **The prefetcher hits the neighbouring line**: the L2 spatial prefetcher described in Intel's optimization manual, for every line it brings into L2, also fetches the other line that completes a 128-byte-aligned pair. If that other line is a variable another core is writing, the prefetch is a read, and by the rules in Part 4 the other core's M line has to hand over its data and drop to S, so its next write must upgrade again. So 64 bytes between two hot variables may not be enough and 128 is safer, which is why `write_idx` in [#5](/posts/spmc-shared-memory-broadcast-ring/) is aligned to 128.
+- **The store buffer fills up**: it has only a few dozen entries (56 on Skylake). In a run of stores that all miss, each store has to wait for ownership before it can leave, so entries don't free up; once it's full, later stores can't get an entry and the pipeline stalls. On Intel, `perf`'s `resource_stalls.sb` counts the cycles stalled because the store buffer was full.
+
 ---
 
 ## 6. Three Old Results, One Machine
