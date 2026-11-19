@@ -23,11 +23,13 @@ When a later post covers a new hardware layer, it goes here. One layer up, the t
 
 Blue text says where something is covered: #N is Trading System Notes #N, MESI is the topic post, and "Ref N.N" is a section of this page. Click the image for the interactive version: click a box to see what it is and where it is covered, step through a path (a load, a store, a branch mispredict), and follow the blue labels to the posts.
 
-> **Converting between cycles and time**
+> **Converting between cycles and time** (clock $f$ in GHz)
 >
-> - **1 cycle = 1 ÷ clock**: at 4 GHz one cycle is 0.25 ns and 1 ns ≈ 4 cycles; at 5 GHz it is 0.2 ns, at 3 GHz about 0.33 ns. This page converts at about 4 GHz throughout.
-> - **Time (ns) = cycles ÷ clock (GHz)**: an L2 hit of 14 cycles is 3.5 ns at 4 GHz.
-> - **Inside the core the cycle count is fixed; outside it the ns are fixed**: L1 and L2 hits and branch mispredicts scale with the clock; memory and cross-socket latency stay about the same in ns, so a higher clock waits more cycles.
+> $$\begin{aligned} 1\ \text{cycle} &= \frac{1}{f}\ \text{ns} \\[4pt] \text{time (ns)} &= \frac{\text{cycles}}{f} \\[4pt] \text{cycles} &= \text{time (ns)} \times f \end{aligned}$$
+>
+> - **Common clocks**: one cycle is about 0.33 ns at $f = 3$, 0.25 ns at $f = 4$, 0.2 ns at $f = 5$. This page converts at $f \approx 4$ throughout.
+> - **Example**: an L2 hit of 14 cycles is $14 / 4 = 3.5$ ns at $f = 4$.
+> - **Inside the core the cycle count is fixed; outside it the ns are fixed**: L1 and L2 hits and branch mispredicts scale with the clock. Memory stays at about 80 ns, which is $80 \times 4 = 320$ cycles at $f = 4$ and 400 at $f = 5$.
 >
 > **Clock speeds today** (November 2026, see [#1 4.2](/posts/cpu-affinity-core-isolation-numa/#clock))
 >
