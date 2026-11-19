@@ -94,7 +94,8 @@ These are rough magnitudes to build intuition, not the numbers of any particular
 | | Virtual function call | ~1–2 ns when predicted, about the same as a direct call; add a branch mispredict when it guesses wrong, and a data fetch when the vtable isn't cached (see [virtual functions](/ref/virtual-functions/)) |
 | **System** | `malloc` plus `free` (small block) | ~10–50 ns from the thread's own cache; when the cache is empty and it asks the OS for memory, it enters the kernel and reaches µs |
 | | Simplest system call | ~0.1–0.5 µs |
-| | First write to a page (page fault) | ~1–2 µs: the kernel allocates a physical page, zeroes it and fills in the page table; if the page has to come from disk (say, an `mmap`ed file not in the page cache), add the disk-read row below |
+| | Page fault, no disk read (minor fault) | ~0.5–2 µs: the page's contents don't come from disk, so the kernel works only in memory. A first write to anonymous memory allocates a physical page, zeroes it and fills in the page table; a file or shared-memory page already in the page cache only needs the page table filled in |
+| | Page fault with a disk read (major fault) | 10–100 µs and up: the page's contents are still on disk (an `mmap`ed file not in the page cache, or a page swapped out), so it pays the disk-read row below first, then fills in the page table |
 | | Throwing and catching an exception | ~1–2 µs, more with a deeper stack |
 | | Thread switch | ~1–5 µs, plus the cost of a cold cache afterwards |
 | | Sleep on a taken lock, then get woken (futex: from the unlock until the waiter runs) | ~2–10 µs: two system calls plus two thread switches; longer if the waiter's core was in a deep power-saving state (see [#16](/posts/spinlock-implementation/)) |
@@ -114,7 +115,7 @@ The integer-division row is wide because the quotient can only be found round by
 
 A mispredict costs about as much as an L2 hit, but it can't be hidden: on an L2 miss, out-of-order execution keeps working on later independent instructions; on a mispredict, everything fetched after the branch is thrown away and fetch starts over, so for those dozen-plus cycles the back end has no correct work to do. A conditional move (`cmov`, `csel`) replaces the branch with picking one of two values, so there is nothing to mispredict, but it has to wait for the condition and both values: when the branch is predicted well, the CPU runs ahead without waiting for the condition and the branch can be faster; when the condition is random, the conditional move pays off (see [#7](/posts/branch-prediction-branch-optimization/)).
 
-From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault costs as much as 1,000–2,000 L1 hits.
+From L1 to memory, each level is 3–10× slower than the one above, about 100× in total. The microsecond rows are outside the cache hierarchy altogether, where the operating system is doing work for you: one page fault that reads no disk costs as much as 500–2,000 L1 hits.
 
 ### 2.2 Bandwidth: How Much Arrives per Second {#bandwidth}
 
