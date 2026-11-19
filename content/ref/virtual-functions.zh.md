@@ -1,8 +1,9 @@
 ---
 title: "虚函数：vptr、vtable 和动态多态"
 date: 2026-11-02
+lastmod: 2026-11-19
 slug: "virtual-functions"
-description: "虚函数让同一句 o->handle() 在运行时按对象的实际类型调到不同的函数。编译出来是读 vptr、查 vtable、间接跳转三步；代价在要猜的间接跳转、挡住内联、两次读内存和每个对象多 8 字节；编译器在 final、局部对象这些情况下能把它省掉。最后讲继承之前为什么先想组合。"
+description: "虚函数让同一句 o->handle() 在运行时按对象的实际类型调到不同的函数。编译出来是读 vptr、查 vtable、间接跳转三步；构造时 vptr 先指基类的表、再改成子类的表，析构时反过来，所以构造和析构函数里调虚函数，调到的是正在执行的那一层；代价在要猜的间接跳转、挡住内联、两次读内存和每个对象多 8 字节；编译器在 final、局部对象这些情况下能把它省掉。最后讲继承之前为什么先想组合。"
 summary: "虚调用 = 读对象开头的 vptr → 读这个类 vtable 里那一格 → 按读到的地址跳。最贵的通常不是这一跳，而是编译器没法内联；类型在编译期就能定时，可以改用静态多态。要复用一个类的实现，放成成员，不要继承它。"
 toc: true
 group: cpplinux
@@ -50,7 +51,7 @@ run(Msg const*):
 靠的是两样东西：
 
 - **vtable**（虚函数表）：每个有虚函数的**类**一张，存在只读数据段里，按声明顺序列出这个类每个虚函数的地址。`TextMsg` 的表里 `handle` 那格是 `TextMsg::handle`，`ImageMsg` 的是 `ImageMsg::handle`。（前两格是析构函数，所以 `handle` 在偏移 16。）
-- **vptr**（虚表指针）：每个**对象**开头藏着的一个 8 字节指针，构造时指向自己那个类的 vtable。`sizeof(TextMsg)` 因此是 16：vptr 8 字节，`qty` 4 字节，再补 4 字节对齐。
+- **vptr**（虚表指针）：每个**对象**开头藏着的一个 8 字节指针，构造完成后指向自己那个类的 vtable（构造过程中先指基类的表，见 [1.3](#virtual-ctor)）。`sizeof(TextMsg)` 因此是 16：vptr 8 字节，`qty` 4 字节，再补 4 字节对齐。
 
 所以一次虚调用 = 读 vptr → 读表里那一格 → 按读到的地址跳。
 
@@ -133,7 +134,87 @@ run(Msg const*):
 
 “调哪个函数”就这样分成两半：**第几格在编译期按静态类型定好，格子里是谁由对象构造时 vptr 指向哪张表决定。** 调用处因此不用知道有哪些子类：以后在别的文件、甚至别的动态库里再写一个子类，它的表照样按 `Msg` 的格子排，`jmp *16(%rax)` 不用重新编译。
 
-### 1.3 代价在哪 {#virtual-cost}
+### 1.3 构造和析构时的 vptr：先指基类的表，再指子类的表 {#virtual-ctor}
+
+1. **子类对象的 vptr 不是一次设好的，每一层构造函数各设一次**
+
+   ```cpp
+   struct Base    { Base(); virtual ~Base(); virtual int id() const; };
+   struct Derived : Base { int x; Derived(); int id() const override; };
+
+   Derived::Derived() : x(42) {}
+   ```
+
+   ```asm
+   Derived::Derived():
+           pushq   %rbx
+           movq    %rdi, %rbx
+           call    Base::Base()                         # 1. 先跑基类构造：里面把 vptr 设成 Base 的表
+           leaq    16+vtable for Derived(%rip), %rax
+           movl    $42, 8(%rbx)                         # 3. x = 42
+           movq    %rax, (%rbx)                         # 2. 同一个 vptr 改成 Derived 的表
+           popq    %rbx
+           ret
+   ```
+
+   - **先跑基类的构造函数**：`Base::Base()` 进函数体之前，先把 vptr 设成 `Base` 的表。
+   - **基类构造跑完，再把同一个 vptr 改成 `Derived` 的表**：然后才是 `Derived` 的成员初始化和函数体。上面编译器把 `x = 42` 挪到了改 vptr 前面，是因为两者之间没有代码会看 vptr，先后不影响结果。
+   - **地址是 `vtable + 16`，因为表的开头还有两格**：一格是到对象开头的偏移，一格是类型信息（`typeid` 用的 RTTI）。vptr 指的是它们后面那格，也就是 1.2 图里的 `+0`。
+   - **继承了几层，构造时 vptr 就改几次**：每一层构造函数都把它改成自己那一层的表，最后一层改完，才是对象“构造好了”的样子。
+
+2. **所以构造函数里调虚函数，调到的是正在构造的那一层**
+
+   ```cpp
+   struct Base {
+       Base()          { std::printf("Base 构造：%s\n", name()); }
+       virtual ~Base() { std::printf("Base 析构：%s\n", name()); }
+       virtual const char* name() const { return "Base::name"; }
+   };
+   struct Derived : Base {
+       int x = 42;
+       Derived()           { std::printf("Derived 构造：%s\n", name()); }
+       ~Derived() override { std::printf("Derived 析构：%s\n", name()); }
+       const char* name() const override { return "Derived::name"; }
+   };
+
+   int main() {
+       Derived d;
+       const Base& b = d;
+       std::printf("构造完：%s\n", b.name());
+   }
+   ```
+
+   ```text
+   Base 构造：Base::name
+   Derived 构造：Derived::name
+   构造完：Derived::name
+   Derived 析构：Derived::name
+   Base 析构：Base::name
+   ```
+
+   - **`Base` 构造时，`name()` 调到的是 `Base::name`**：这时 vptr 指着 `Base` 的表。`-O0` 和 `-O2` 实测输出一样。
+   - **这样设计是为了不读到没初始化的成员**：`Base` 的构造函数在跑时，`Derived` 的成员 `x` 还没初始化。如果这时能调到 `Derived::name`，它一读 `x` 就是读未初始化的内存。
+   - **标准的规定是：构造和析构期间，对象的动态类型就是正在执行的那个构造函数或析构函数所属的类**：vptr 一层层改，就是这条规定在机器上的样子。
+   - **想让子类在构造时插一手，就别靠虚函数**：把需要的值作为参数传给基类的构造函数，或者构造完再调一个初始化函数。
+
+3. **纯虚函数在构造期间被调到，程序直接终止**
+   - **基类表里，纯虚函数那一格放的不是函数，是一个报错函数**：GCC 实测 `Base` 的 vtable 里那一格是 `__cxa_pure_virtual`，调到它程序就终止（Linux 上 libstdc++ 会先打印 `pure virtual method called`）。
+   - **直接在构造函数里调，编译器会警告**：GCC 16.2 实测报 `pure virtual 'virtual void Base::work()' called from constructor`。
+   - **隔一层普通成员函数再调，编译器就看不出来**：构造函数调 `init()`，`init()` 再调纯虚的 `work()`，编译时没有警告，运行时才崩。
+
+4. **析构的顺序反过来：每一层析构函数开头，把 vptr 设回自己的表**
+
+   ```asm
+   Derived::~Derived():
+           leaq    16+vtable for Derived(%rip), %rax
+           movq    %rax, (%rdi)                         # 1. 先把 vptr 设回 Derived 的表
+           jmp     Base::~Base()                        # 2. 再跑基类析构：里面把 vptr 改成 Base 的表
+   ```
+
+   - **`Derived` 的析构函数一开头就把 vptr 设回 `Derived` 的表**：它可能是从更下一层子类（比如 `Leaf`）的析构函数调上来的，那时 vptr 还指着 `Leaf` 的表；`Leaf` 的成员已经销毁了，不能再调到 `Leaf` 的函数。
+   - **跑完 `Derived` 这层，再进 `Base::~Base()`**：那里又把 vptr 改成 `Base` 的表，所以上面例子的最后一行，析构函数里调到的是 `Base::name`。
+
+### 1.4 代价在哪 {#virtual-cost}
 
 - **间接跳转要猜**：目标地址是读出来的，前端要靠**间接目标预测器**去猜（[#7 第 1.3 节](/zh/posts/branch-prediction-branch-optimization/)）。同一处调用，对象类型有规律（全是同一种，或者短周期重复）几乎不会错；类型随机混在一起就经常错，每次约 15–20 个周期。
 - **挡住内联**：编译器不知道会调到哪个函数，就没法把它内联进来，也没法跨这次调用做优化（常量传播、合并计算、向量化）。函数体越小，这一条越亏：`handle()` 本身只有一条乘法，调用开销比它大得多。
@@ -144,7 +225,7 @@ run(Msg const*):
   - **真正贵的是冷启动。** 程序空闲了一阵，这段代码用的缓存行被别的代码挤掉，下一次调用时，对象那条行和 vtable 那条行都可能不在缓存里。对象那次两种写法都要付；vtable 那次是虚函数独有的，还排在读 vptr 之后，最坏多出一次约 70–120 ns 的串行未命中（按[延迟范围](/zh/ref/cpu-memory/#latency)估算，没有实测）。在乎这一次的地方，可以换成[静态多态](/zh/posts/crtp-static-polymorphism/)，根本没有 vtable 要读。
 - **每个对象多 8 字节**：小对象（比如 16 字节的消息）会因此大一截，一条缓存行装得更少。
 
-### 1.4 编译器什么时候能省掉虚调用（devirtualization） {#virtual-devirt}
+### 1.5 编译器什么时候能省掉虚调用（devirtualization） {#virtual-devirt}
 
 编译器能确定对象的实际类型时，就直接调用、甚至内联。三种常见情况，前两种是实测：
 
@@ -157,11 +238,11 @@ int run_local() { TextMsg l; return run(&l); }              // 对象就在眼�
 - **局部对象**：`run_local` 里对象的类型就写在那，`run` 内联进来以后，整个函数编成了 `movl $2, %eax`。
 - **只有一个实现**：开 `-flto`（链接期优化）后，编译器看到整个程序，某个虚函数只有一个实现时也能直接调用（这一条没有实测）。
 
-### 1.5 不用虚函数：静态多态 {#virtual-alternatives}
+### 1.6 不用虚函数：静态多态 {#virtual-alternatives}
 
 类型在编译期就能定下来时，可以不要 vtable：模板和 CRTP 让“调哪个函数”在编译时就定好，调用直接内联；类型集合固定时，`std::variant` 按类型编号分派。这些写法统称静态多态，编译出来是什么、各自的代价，见[静态多态](/zh/posts/crtp-static-polymorphism/)。
 
-### 1.6 怎么选 {#virtual-choose}
+### 1.7 怎么选 {#virtual-choose}
 
 - **类型在运行时才知道、集合开放（插件、配置里读出来）**：虚函数。
 - **类型集合固定、对象要放在一个容器里**：`std::variant` + `std::visit`。
