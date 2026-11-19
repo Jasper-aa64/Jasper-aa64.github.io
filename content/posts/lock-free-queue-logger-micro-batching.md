@@ -1,7 +1,7 @@
 ---
 title: "Trading System Notes #4: Lock-Free Queues and Micro-Batching"
 date: 2026-09-20
-lastmod: 2026-11-17
+lastmod: 2026-11-19
 slug: "lock-free-queue-logger-micro-batching"
 description: "How a single-producer single-consumer ring buffer avoids locks — the power-of-two mask, the two-step handoff, the memory order each side needs — and the traps that quietly bring contention back: a shared element counter, a full-check that reads the other core on every call. Then a logger and micro-batching built on top, and what lock-free and wait-free actually promise."
 summary: "A lock-free SPSC queue works because every shared variable has exactly one writer: each side writes only its own index and merely reads the other's. The rest is keeping that property from being quietly undone: compute the element count by subtracting the two indices instead of keeping a shared counter, cache the other side's index and refresh it only when the queue looks full or empty, and push log lines as text runs, not one character per slot. SPSC is wait-free only through a fail-fast interface, and a bounded queue must always choose between dropping and blocking when it fills."
@@ -354,13 +354,11 @@ The read side is the same: read `len` bytes from `buf_ + (t & (N - 1))` in one g
 
 ---
 
-## 3. A Logger Built on the Queue
+## 3. A Logger on the Queue: the Hot Thread Only Fills Slots {#logger-on-queue}
 
-### 3.1 The Hot Thread Only Fills Slots; a Background Thread Writes the File {#logger}
+### 3.1 Structure: the Hot Thread Fills Slots, a Background Thread Formats and Writes the File {#logger}
 
-Logging is the classic customer for this queue. Formatting, file I/O and the `write` system call are all slow and belong where nobody is waiting: the hot thread only fills queue slots with what it wants to record, and one background thread drains the queue and writes the file.
-
-The queue's slots have a fixed size, so a slot holds a tagged union with room for the biggest thing you might log:
+**Formatting, file I/O and the `write` system call are all slow, so all of it moves to one background thread; the hot thread only fills SPSC queue slots with the values it wants to record, and moves on**.
 
 ```cpp
 enum class Tag : uint8_t { Char, Int, Long, Double, Text /* … */ };
@@ -374,9 +372,8 @@ struct LogElement {
 };   // 264 bytes on x86-64: the tag pads out to 8, then the 256-byte member
 ```
 
-**`char s[256]` sets the size of every slot**: an element holding a single `char` still occupies 264 bytes. 8 million slots is about 2 GiB, deliberately large, because the background thread is slow and will fall behind during bursts.
-
-The background thread is a loop that drains, flushes the file, and sleeps:
+- **The largest member sets the slot size**: `char s[256]` makes every slot 264 bytes, even one holding a single `char`.
+- **The queue is deliberately large**: 8 million slots is about 2 GiB, because the background thread is slow and will fall behind during bursts.
 
 ```cpp
 while (running_) {
@@ -389,14 +386,15 @@ while (running_) {
 }
 ```
 
-The 10 ms sleep is a choice: this thread isn't latency-sensitive, so giving its core back beats spinning, at the price of log lines reaching the file up to 10 ms late and a queue that has to hold everything produced in that window. SPSC adds two rules:
+- **The background thread drains, flushes and sleeps 10 ms**: it doesn't care about latency, so it gives its core back; the price is log lines reaching the file up to 10 ms late, and a queue that has to hold everything produced in those 10 ms.
+- **One logger serves exactly one producing thread**: a second producer breaks SPSC's "one writer per index", so give each thread its own logger or its own queue.
+- **Shutdown order: drain the queue, then stop the background thread, then close the file**: stop the background thread first and whatever is still queued is silently lost.
 
-- **One logger serves exactly one producing thread**: a second producer would break "one writer per index", so give each thread its own logger or its own queue.
-- **On shutdown, drain the queue first, then stop the background thread, then close the file**: stop the background thread first and whatever was still queued is silently lost.
+### 3.2 Push Text Runs: Five Slots per Log Line, Not Thirty {#text-runs}
 
-### 3.2 Push Text Runs: Five Slots for One Log Line {#text-runs}
+**Every slot costs 264 bytes however little it holds, so a `log` call costs the number of slots it pushes times the cost per slot; collecting the text between two placeholders into one run takes the same log line from 30 slots to 5**.
 
-The producer's `log()` walks the format string and splits one log line into several elements pushed into the queue. **The unit pushed is a text run, not a character**: the literal text between two `%` placeholders is collected into one `Text` element, and each placeholder pushes one value. `log("Order Executed, id=%, price=%\n", id, price)` makes 5 pushes in total: three text runs and two values.
+- **`log("Order Executed, id=%, price=%\n", id, price)` makes 5 pushes**: three text runs and two values; pushing per character takes 30.
 
 <svg viewBox="0 0 760 274" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The same log line pushed two ways: per character it occupies thirty 264-byte queue slots, about 7.7 KiB; as three text runs plus two values it occupies five slots, about 1.3 KiB" style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,'Segoe UI',sans-serif">
   <style>
@@ -471,20 +469,14 @@ The producer's `log()` walks the format string and splits one log line into seve
   <text class="cap" x="360" y="264">one text run (up to 255 characters)</text>
 </svg>
 
-> Figure: both rows record the same log line. The queue, the memory orders and the background thread are unchanged; only the unit pushed per call changed: thirty publishes became five.
-
-**The unit has to be large because every slot costs 264 bytes however little it holds** (3.1), so the number of slots is the cost. The same log line, pushed both ways:
-
 | Unit pushed | Slots per line | Written per call | Lines that fit in 8 million slots |
 |---|---|---|---|
 | One slot per character | 30 | about 7.7 KiB, 124 cache lines | about 270,000 |
 | One slot per text run | 5 | about 1.3 KiB | about 1.6 million |
 
 - **The hot path pays per slot**: each slot is one copy and one release store, so 30 slots is 30 of each.
-- **The more you write, the dirtier L1 gets**: an L1 data cache is typically 32–48 KB. A call that writes 7.7 KiB dirties a sixth to a quarter of it, and the code that runs right after has to read its own data back in; 1.3 KiB is only 3%–4%.
-- **The buffer holds 6 times as many lines**: with the same 8 million slots, a queue pushed in text runs is much less likely to fill while the background thread lags for a while.
-
-A text run longer than 255 characters is split across several slots. Only the producer-side `log()` changes; the background thread already knows how to write a `Text` slot:
+- **The more you write, the dirtier L1 gets**: an L1 data cache is typically 32–48 KB, so writing 7.7 KiB dirties a sixth to a quarter of it and the code that runs next has to read its own data back in; 1.3 KiB is only 3%–4%.
+- **The buffer holds 6 times as many lines**: when the background thread lags for a while, a queue pushed in text runs is much less likely to fill.
 
 ```cpp
 LogElement* claim() {                       // the policy point: what happens when the queue is full?
@@ -520,16 +512,17 @@ void log(const char* fmt, const T& value, const Rest&... rest) {
 void log(const char* fmt) { push_text(fmt, std::strlen(fmt)); }
 ```
 
-This is a sketch: `%%` escapes and argument-count errors are left out.
+- **Only the producer's `log()` changes**: the background thread already knows how to write a `Text` slot.
+- **A run longer than 255 characters is split across slots**: `push_text` loops in chunks of 255, leaving one byte for the terminating `'\0'`.
+- **What to do when the queue is full is decided in `claim()`**: spin, or count a drop and abandon the record.
+- **This is a sketch**: `%%` escapes and argument-count errors are left out.
 
-### 3.3 Going Further: Push Only a Pointer to the Format String, or Parse It at Compile Time {#log-formats}
+### 3.3 Fewer Slots Still: Push Only a Pointer to the Format String, or Parse It at Compile Time {#log-formats}
 
-Two bigger changes, both cutting the number of slots each call pushes even further:
+**The format string is a literal that lives for the whole run and never changes, so a pointer to it is enough; arguments are different, since they may be destroyed as soon as the producer returns, so they must be copied into the queue in the producer thread**.
 
-- **Push only a pointer to the format string and let the background thread format**: a string literal has static storage duration and can't be modified, so its address is valid for the whole run, and the hot path only needs to push an 8-byte pointer plus the argument values. This changes the protocol: the background thread has to parse the format string and fetch the right number of argument slots, and because the queue publishes one slot at a time, it can see the pointer arrive before the arguments. So you either reserve several slots and publish them together, or move to variable-length records.
-- **Parse the format string at compile time**: everything static about a log statement (the format string, the argument types) is replaced at compile time by a small ID; at run time only the ID and the raw argument values are recorded, and turning them into text is left to an offline step. That is how [NanoLog](https://github.com/PlatformLab/NanoLog) works; its README reports a median of roughly 7 ns per call (its own measurement, not reproduced here). [Quill](https://github.com/odygrd/quill) takes another route: the hot thread encodes the arguments into its own queue, a backend thread does the formatting and the I/O, blocking or dropping when the queue is full is configurable, and it counts how often each happened.
-
-**Passing by pointer only works for things that live for the whole run and never change**, and arguments don't have that property:
+- **Push only a pointer to the format string and let the background thread format**: the hot path pushes an 8-byte pointer plus the argument values. The price is a new protocol: the background thread has to parse the format string and fetch the right number of argument slots, and since the queue publishes one slot at a time, it can see the pointer before the arguments, so you either reserve several slots and publish them together, or move to variable-length records.
+- **Parse the format string at compile time**: [NanoLog](https://github.com/PlatformLab/NanoLog) replaces the format string and argument types with a small ID at compile time, records only the ID and the raw arguments at run time, and leaves turning them into text to an offline step; its README reports a median of roughly 7 ns per call (its own measurement, not reproduced here). [Quill](https://github.com/odygrd/quill) takes another route: the hot thread encodes the arguments into its own queue, a backend thread formats and writes, blocking or dropping when the queue is full is configurable, and it counts how often each happened.
 
 ```cpp
 void on_fill(const Fill& f) {
@@ -538,9 +531,7 @@ void on_fill(const Fill& f) {
 }                                    // …sym is destroyed here; the background thread reads it later
 ```
 
-The background thread can take over ten milliseconds to get there, long after `sym` is destroyed and the memory behind its `c_str()` pointer is invalid. So arguments are copied into the queue in the producer thread, while it still owns them.
-
-**These changes are really one idea**: the cost of a `log` call is the number of slots each call pushes times the cost per slot, and every change that actually works shrinks the first factor instead of polishing the second.
+- **Pushing only `sym`'s character pointer leaves it dangling**: the background thread can take over ten milliseconds to get there, long after `sym` is destroyed and the memory behind its `c_str()` pointer is invalid.
 
 ---
 
