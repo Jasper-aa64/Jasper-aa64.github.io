@@ -205,11 +205,19 @@ When an index reaches $2^{32} - 1$ and is incremented, it wraps to 0, and the ch
 
 The wait in step ③ is the heart of this design. `prod_tail_` is just one number, and consumers read it as "every slot below here has been written". Say A claims 5 and B claims 6, and B finishes writing first. If B set `prod_tail_` to 7 straight away, a consumer would go and read 5, which A hasn't written yet. So B has to wait until `prod_tail_` becomes 6 (A has published) before setting it to 7: **publishing has to happen in the same order as claiming.**
 
-The load in step ③ has to be acquire. A publishes `prod_tail_ = 6` with a release store and B reads 6 with acquire, so A's write into slot 5 happens before B's release store. A consumer that reads 7 with acquire then sees the data in both slot 5 and slot 6. The drawing is in [2.5](#ring-ordering).
+The load in step ③ has to be acquire. A publishes `prod_tail_ = 6` with a release store and B reads 6 with acquire, so A's write into slot 5 happens before B's release store. A consumer that reads 7 with acquire then sees the data in both slot 5 and slot 6.
 
 The price: if A is descheduled between ① and ④, B, C and everyone after them spin at ③ until A comes back. This is the same problem as the ticket lock in [#16](/posts/spinlock-implementation/) 2.1, where the thread whose turn it is gets descheduled and the whole queue stops. So strictly speaking this is not lock-free: **one stalled producer can stall every other producer.** DPDK can get away with it because its threads are pinned to dedicated cores and never descheduled; with ordinary, preemptible threads, the worst case for this ring is a stall of several milliseconds.
 
 The consumer side is fully symmetric: consumers claim from `cons_head_` with CAS, advance `cons_tail_` in order once they have read, and producers check `cons_tail_` to see whether they may overwrite. With a single consumer, as for the order gateway (MPSC), nobody competes with it and nobody ahead of it needs waiting for, so the CAS and a step-③-style wait both go away: after reading it simply stores `cons_tail_` with release, and the two indices collapse into one. rte_ring's single-consumer mode does exactly this.
+
+**The memory ordering, drawn: there's only one `prod_tail_`, so an earlier producer's writes reach the consumer only as a relay through a later producer's acquire in step ③**.
+
+<a href="/images/thread-safe-queue/rte-ring-order.en.svg" target="_blank" rel="noopener"><img src="/images/thread-safe-queue/rte-ring-order.en.svg" alt="Three columns: producer A claims slot 5, producer B claims slot 6, and the consumer. A does ① CAS to claim (relaxed), ② writes buf_[5], ③ reads prod_tail_ as 5 with acquire, ④ release-stores prod_tail_ = 6. B does ① CAS, ② writes buf_[6] (finished first but can't publish first), ③ spins until its acquire load reads the 6 A wrote, ④ release-stores 7. The consumer reads B's 7 with acquire, then reads buf_[5] and buf_[6]. One blue edge runs from A's ④ to B's ③, another from B's ④ to the consumer reading 7. Slot 5's data travels A's ② → ④ → B's ③ → ④ → consumer reads 7 → reads buf_[5]. Make ③ relaxed and the A-to-B edge is gone." loading="lazy" decoding="async"></a>
+
+- **Slot 5's path**: A's ② → ④ → (edge) → B's ③ → ④ → (edge) → consumer reads 7 → reads `buf_[5]`.
+- **③ must be acquire**: make it relaxed and the A-to-B edge is gone, so reading 7 no longer guarantees seeing slot 5.
+- **① can be relaxed**: the CAS only hands out slots; no data travels through it.
 
 ### 2.3 Disruptor: Every Slot Marks Itself "Written"
 
@@ -264,6 +272,13 @@ A producer writes one element in three steps: `claim()` for a number, write into
 
 Compare with rte_ring: A claims 5, B claims 6, B finishes first, calls `publish(6)` and returns. The consumer reaches 5, sees the flag isn't set, and stops. When A finishes and calls `publish(5)`, the consumer goes on to read 5 and 6. **Delivering in order means a gap can't be avoided; the two designs differ only in who waits**: rte_ring makes the later producers spin, Disruptor makes the consumer stop at the gap while the other producers keep writing until the ring is full. If A stays stalled, neither design can deliver anything past 5; Disruptor just stops tying up the other producers' threads as well.
 
+**The memory ordering, drawn: one flag per slot, one edge per item straight to the consumer, and no edge between producers**.
+
+<a href="/images/thread-safe-queue/disruptor-order.en.svg" target="_blank" rel="noopener"><img src="/images/thread-safe-queue/disruptor-order.en.svg" alt="Three columns: producer A with number 5 on the left, the single consumer in the middle, producer B with number 6 on the right. Both producers do ① fetch_add for a number (relaxed), ② read consumed_ with acquire to check the ring isn't full, ③ write their own slot, ④ release-store this lap's number into the slot's avail_; B finishes first, flags its slot and returns without waiting for A. The consumer reads avail_[5] as this lap with acquire and reads buf_[5], then reads avail_[6] as this lap and reads buf_[6]. One blue edge runs from A's ④ to the consumer reading avail_[5], another from B's ④ to the consumer reading avail_[6]. There is no edge between A and B; until avail_[5] shows this lap, the consumer stops at that slot." loading="lazy" decoding="async"></a>
+
+- **Each slot has its own edge**: slot 5 goes from A's ④ to the consumer's load of `avail_[5]`, slot 6 from B's ④ to the load of `avail_[6]`, never through another producer, so neither waits for the other.
+- **Storing the lap is what pairs the edges correctly**: if the consumer reads last lap's value, this lap's edge doesn't exist yet, so it stops at that slot.
+
 ### 2.4 Backpressure and Wait Strategies: When Full, Wait for the Slowest Consumer; When Empty, Choose How to Wait
 
 **When full.** A producer holding number `seq` is about to write a slot whose previous occupant was `seq - N`; it may only overwrite once the consumer has read `seq - N`, so `claim()` waits until `consumed_ >= seq - N`. A slow consumer slows the producer down and no data is lost; this is called **backpressure**.
@@ -278,30 +293,6 @@ With several consumers, the Disruptor has every consumer read every event (a bro
 - Blocking: a mutex and a condition variable.
 
 Blocking is exactly the situation in 1.3: the sequence is an atomic that isn't changed under the mutex, so the producer has to take the mutex once before notifying. A throughput test with one producer pouring data in shows the four strategies almost identical (about 30 ms for 5 million events each), because the consumer hardly ever waits; **wait strategies differ in the latency of the first event after an idle period, which a throughput test can't measure.**
-
-### 2.5 Memory Ordering, Drawn: rte_ring Relays, Disruptor Has One Edge per Slot {#ring-ordering}
-
-**Both rings move data the same way: a producer writes its slot, then releases a flag; the consumer reads the flag with acquire, and only then reads the slot. The difference is how many flags there are. rte_ring has a single `prod_tail_`, so an earlier producer's writes reach the consumer only through a later producer's acquire in step ③, as a relay; Disruptor has one flag per slot, so each item has its own edge straight to the consumer, and there's no edge between producers**.
-
-The drawing follows [#2 1.5.3](/posts/memory-ordering-false-sharing-dependency-chains/): order within a thread is a grey vertical edge, and a release read by an acquire is a blue horizontal edge. If you can walk the edges from the step that writes the data to the step that reads it, the reader is guaranteed to see it.
-
-1. **rte_ring: one `prod_tail_`, with the acquire in step ③ relaying in the middle**
-
-   <a href="/images/thread-safe-queue/rte-ring-order.en.svg" target="_blank" rel="noopener"><img src="/images/thread-safe-queue/rte-ring-order.en.svg" alt="Three columns: producer A claims slot 5, producer B claims slot 6, and the consumer. A does ① CAS to claim (relaxed), ② writes buf_[5], ③ reads prod_tail_ as 5 with acquire, ④ release-stores prod_tail_ = 6. B does ① CAS, ② writes buf_[6] (finished first but can't publish first), ③ spins until its acquire load reads the 6 A wrote, ④ release-stores 7. The consumer reads B's 7 with acquire, then reads buf_[5] and buf_[6]. One blue edge runs from A's ④ to B's ③, another from B's ④ to the consumer reading 7. Slot 5's data travels A's ② → ④ → B's ③ → ④ → consumer reads 7 → reads buf_[5]. Make ③ relaxed and the A-to-B edge is gone." loading="lazy" decoding="async"></a>
-
-   - **Slot 5's data takes a detour through B**: the 7 the consumer reads was written by B, so it pairs only with B's ④. A's write to slot 5 first crosses to B's ③, then follows B's vertical edge to ④, and only then reaches the consumer.
-   - **So ③ must be acquire**: make it relaxed and there's no edge between A's ④ and B's ③; B's release then hands over only B's own earlier writes (slot 6). Reading 7 no longer guarantees the consumer sees slot 5 finished.
-   - **① can be relaxed**: the CAS only hands out slot numbers, and a stale value just makes it fail and retry; no data travels through it, so it needs no edge.
-   - **The other direction needs an edge before overwriting**: after reading a slot, the consumer release-stores `cons_tail_`; a producer checking for full reads it with acquire and only then writes the same slot, so it never overwrites a slot the consumer is still reading.
-
-2. **Disruptor: one flag per slot, one edge per item**
-
-   <a href="/images/thread-safe-queue/disruptor-order.en.svg" target="_blank" rel="noopener"><img src="/images/thread-safe-queue/disruptor-order.en.svg" alt="Three columns: producer A with number 5 on the left, the single consumer in the middle, producer B with number 6 on the right. Both producers do ① fetch_add for a number (relaxed), ② read consumed_ with acquire to check the ring isn't full, ③ write their own slot, ④ release-store this lap's number into the slot's avail_; B finishes first, flags its slot and returns without waiting for A. The consumer reads avail_[5] as this lap with acquire and reads buf_[5], then reads avail_[6] as this lap and reads buf_[6]. One blue edge runs from A's ④ to the consumer reading avail_[5], another from B's ④ to the consumer reading avail_[6]. There is no edge between A and B; until avail_[5] shows this lap, the consumer stops at that slot." loading="lazy" decoding="async"></a>
-
-   - **Each slot's data has its own edge**: slot 5 goes from A's ④ (the release store to `avail_[5]`) straight to the consumer's acquire load of `avail_[5]`, and slot 6 from B's ④ to the load of `avail_[6]`, without passing through another producer.
-   - **Producers need no edge between them**: neither waits for the other to finish; B returns as soon as it has published.
-   - **Storing the lap is what makes the edges pair up correctly**: the consumer has to read this lap's value for the edge to exist. If it reads a value left over from the last lap, this lap's edge isn't there yet, so it stops at that slot and doesn't read the data.
-   - **① and ② each do one job**: `fetch_add` only hands out numbers, so relaxed is enough; in `claim()`, the acquire load of `consumed_` picks up the value the consumer released after reading, so last lap's data has been read before it's overwritten.
 
 ## 3. When the Queue Is Full: Block, Drop, or Overwrite
 

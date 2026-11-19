@@ -256,7 +256,6 @@ objdump -d a.out | grep -A3 '<puts@plt>'  # PLT 跳板
 | **进程和文件** | | |
 | [用户态和内核态](/zh/ref/user-kernel-mode/) | 特权级、三种入口、进出时硬件和内核各做什么、回到哪一条、代价 | 进程地图：内核空间 |
 | [进程和线程](/zh/ref/process-thread-fork/) | `fork`、写时复制、共享与独占、进程状态 | 进程地图、从源码到进程：`execve` |
-| [CPU 调度](/zh/ref/cpu-scheduling/) | 抢占时机、FCFS / SJF / RR / 多级反馈队列、CFS 和 EEVDF、每核运行队列 | 进程地图：内核空间（调度器） |
 | [进程间通信](/zh/ref/ipc/) | 管道、共享内存、信号、Unix socket | 进程地图：mmap 区；IO 地图 |
 | [文件 IO](/zh/ref/file-io/) | fd 三层结构、重定向、stdio 缓冲、inode、fsync | IO 地图：写文件 |
 | [epoll](/zh/ref/epoll-internals/) | 红黑树、就绪链表、回调，LT 和 ET | IO 地图：epoll |

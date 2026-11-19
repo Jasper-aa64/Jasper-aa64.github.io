@@ -1,6 +1,7 @@
 ---
 title: "Trading System Notes #19: Scheduling Policies, Priority Inversion and Kernel Tuning"
 date: 2026-10-29
+lastmod: 2026-11-19
 list_after: "cpu-affinity-core-isolation-numa"
 slug: "scheduling-priority-inversion-kernel-tuning"
 description: "Normal scheduling only guarantees a share, so a hot thread on a shared core can wait out a time slice of several ms; a real-time priority makes it run as soon as it is ready, but brings RT throttling, starved kernel threads and same-core spin deadlocks. When a high-priority and a low-priority thread share a lock, a thread in between can make the wait unbounded: that is priority inversion, fixed by priority inheritance or priority ceilings, and more thoroughly by never sharing locks with low-priority threads. Then kernel preemption modes, PREEMPT_RT, a layer-by-layer checklist from BIOS to sysctl, and tuned."
@@ -17,17 +18,54 @@ The market-data thread is pinned to core 3. A log-compression thread that is not
 
 ## 1. Scheduling Policies: Who Runs First, and for How Long
 
-### 1.1 Scheduling Classes: Compare the Class First, Then Within It
+### 1.1 How the CPU Is Scheduled: Two Decisions, When to Switch and Whom to Run {#how-scheduling}
 
-Each time the Linux scheduler picks the next thread, it asks the scheduling classes in a fixed order: stop (used by the kernel for migration and similar jobs) → deadline (`SCHED_DEADLINE`) → real-time (`SCHED_FIFO`, `SCHED_RR`) → normal (`SCHED_OTHER`, `SCHED_BATCH`, `SCHED_IDLE`) → idle. While an earlier class has a runnable thread, the later classes get nothing. So once a real-time thread is ready, a normal thread has to step aside no matter how "important" it is set to be.
+**The scheduler makes only two decisions: when to take the current thread off the CPU, and which thread to run next. The first is about preemption, the second is the scheduling policy; every policy trades "shortest average wait" against "everyone gets a turn soon"**.
 
-The normal class is the familiar CFS (Completely Fair Scheduler; since 6.6 replaced by EEVDF, same idea). Each thread accumulates a weighted run time (vruntime), and the scheduler always picks the one that has accumulated the least. Nice values run from −20 to 19, and each step changes the weight by about 1.25×. What it guarantees is a share, not an order: two threads that both want the same core take turns, each running one time slice, about 0.75–3 ms (the default grows with the core count). If the hot thread wakes just as the other one starts its slice, it waits a whole slice. Raising its nice value only buys a larger share; the wait is still in milliseconds.
+1. **When to switch: the thread gives up the CPU, or it's preempted**
+   - **The thread gives up the CPU itself**: it blocks (on I/O, a lock, `sleep`) or exits, and the scheduler picks the next one at once. Switching only then is called non-preemptive; one infinite loop can hold a core, so general-purpose systems don't use it.
+   - **It's preempted**: on a timer interrupt the scheduler checks whether the current thread's time slice is used up; when a higher-priority thread wakes, it checks whether to switch.
+   - **Linux doesn't switch on the spot**: it first marks the current thread as "needs rescheduling" and switches when returning to user mode from an interrupt or system call; whether kernel code can be preempted halfway is Part 3.
 
-The real-time class orders threads strictly by priority 1–99: when a higher-priority thread becomes ready, it immediately preempts the lower-priority thread that is running. Wake-to-run takes microseconds, and exactly how long depends on whether the kernel can be preempted at that moment (Part 3). A `SCHED_FIFO` thread that gets the core keeps it until it blocks, yields, or is preempted by a higher priority. `SCHED_RR` is the same, except that threads of equal priority rotate every 100 ms. **The normal class only guarantees a share; the real-time class guarantees running as soon as you are ready.**
+2. **Whom to run: the classic policies, compared on one set of tasks**
+   - **The task set**: three tasks arrive at once; P1 needs 24 time units, P2 and P3 need 3 each, arriving in the order P1, P2, P3.
+   - **FCFS (first come, first served): a long task blocks the way**: P1 runs first, P2 and P3 wait 24 and 27, an average wait of $(0 + 24 + 27) / 3 = 17$.
+   - **SJF (shortest job first): run short ones first, shortest average wait**: the order becomes P2, P3, P1, an average wait of 3. Wherever a longer task sits ahead of a shorter one, swapping them can only lower the total wait, so it's optimal. The price is that lengths must be known in advance (in practice estimated from past run times), and a long task starves while short ones keep arriving; its preemptive version is SRTF.
+   - **RR (round robin): take turns, everyone gets on soon**: with a slice of 4 the tasks first reach the CPU at 0, 4 and 7, an average wait of about 5.67. Too large a slice degenerates into FCFS; too small and switching (saving registers, rewarming caches) eats the working time.
+   - **Priority scheduling: the highest goes first, the lowest may starve**: the fix is aging, raising a task's priority the longer it waits.
+   - **MLFQ (multilevel feedback queue): approximates SJF without knowing lengths**: a new task enters the top level, which has the shortest slice; using up its allotment at a level demotes it, so long tasks sink and interactive ones stay on top; every so often everything is boosted back to the top so nothing starves.
+   - **Real-time scheduling orders by deadline**: EDF runs the earliest deadline first, and on one core everything meets its deadline as long as total utilization is at most 1; RMS gives a fixed priority that is higher for shorter periods.
 
-`SCHED_DEADLINE` orders tasks by "how much run time per period, and when is the deadline", earliest deadline first (EDF), and sits ahead of the real-time class. It suits periodic tasks and is rare in trading systems.
+### 1.2 What Linux Does: Scheduling Classes Give an Absolute Order, Each Class Uses One Policy {#sched-classes}
 
-### 1.2 Setting It: Bake the Policy In When the Thread Is Created
+**Linux first puts threads into scheduling classes, and the classes come in absolute order: while an earlier class has a runnable thread, later classes get nothing. Within a class, the normal class shares the CPU by weight, and the real-time class preempts strictly by priority**.
+
+1. **Class order: stop → deadline → real-time → normal → idle**
+   - **Each time the next thread is picked, the classes are asked in this order**: stop is for the kernel's own jobs such as migration; deadline is `SCHED_DEADLINE`; real-time is `SCHED_FIFO` and `SCHED_RR`; normal is `SCHED_OTHER`, `SCHED_BATCH` and `SCHED_IDLE`.
+   - **So once a real-time thread is ready, normal threads step aside**: however high a normal thread's nice value, it isn't compared with real-time threads at all.
+
+2. **The normal class (CFS / EEVDF): a guaranteed share, not a guaranteed order**
+   - **CFS picks the smallest vruntime**: each thread accumulates a weighted run time (vruntime), and the one that has accumulated the least runs next. It's like round robin with an infinitely small, weighted slice.
+   - **Nice sets the weight**: nice runs from −20 to 19, and each step changes the weight by about 1.25×.
+   - **Since 6.6 it's EEVDF**: among threads that haven't yet received their share (lag ≥ 0), it picks the earliest virtual deadline; the shorter the requested slice, the earlier the deadline and the sooner the thread runs ([kernel documentation](https://docs.kernel.org/scheduler/sched-eevdf.html)).
+   - **What it means for a hot thread: it may wait out a whole slice**: two threads that both want the same core take turns, each slice about 0.75–3 ms (the default grows with the core count). If the hot thread wakes just as the other starts a slice, it waits the whole slice; raising its nice value only buys a larger share, and the wait stays in milliseconds.
+
+3. **The real-time class `SCHED_FIFO`: strict preemption by priority, first come first served within a priority, no time slice**
+   - **Priorities 1–99; a higher one preempts a lower one the moment it's ready**: lower real-time threads and every normal thread are taken off at once, and wake-to-run takes microseconds; exactly how long depends on whether the kernel can be preempted at that moment (Part 3).
+   - **"FIFO" is about threads of the same priority**: ready threads of equal priority wait in a first-in-first-out queue, and the one at the front runs until it blocks, calls `sched_yield()`, or is preempted by a higher priority. There's no time slice, so the equal-priority threads behind it keep waiting.
+   - **`SCHED_RR` only adds a slice among equals**: threads of the same priority rotate every 100 ms, going to the back of their priority's queue; across different priorities it behaves exactly like `SCHED_FIFO`.
+   - **Example**: on core 3, a logging thread under normal scheduling is running and the market data thread is `SCHED_FIFO` 80; the moment the latter wakes, the logging thread is taken off. If the logging thread were also `SCHED_FIFO` 80 and got there first, the market data thread would wait until it blocks: equals don't preempt each other.
+   - **The price is three traps**: RT throttling (1.4), starving the core's kernel threads (1.5), and spinning forever on the same core (1.6).
+
+4. **The deadline class (`SCHED_DEADLINE`): ordered by deadline**
+   - **It's the EDF from 1.1**: each task declares how much run time it needs per period and where its deadline is; the earliest deadline runs first, ahead of the real-time class.
+   - **It suits periodic tasks**: it's rare in trading systems.
+
+5. **One run queue per core: load balancing moves threads around**
+   - **The scheduler only picks from its own core's queue**: load across cores is evened out by periodic load balancing, and a woken thread usually goes back to the core it last ran on or an idle one nearby.
+   - **Moving cores means rewarming caches and the TLB**: that's why hot threads are pinned; see [#1, section 1.1](/posts/cpu-affinity-core-isolation-numa/).
+
+### 1.3 Setting It: Bake the Policy In When the Thread Is Created
 
 The safest way is to put the policy into the attributes when creating the thread:
 
@@ -67,25 +105,25 @@ void set_fifo(std::thread& t, int prio) {
 
 On the command line use `chrt`: `chrt -f 80 ./app` starts a program at `SCHED_FIFO` 80; `chrt -f -p 80 <tid>` changes an existing thread, and given a thread ID after `-p` it changes only that thread; add `-a` to change every thread of the process; `chrt -p <pid>` only shows. `ps -eLo tid,cls,rtprio,comm` lists each thread's class and priority.
 
-### 1.3 RT Throttling: Stopped for 50 ms Every Second
+### 1.4 RT Throttling: Stopped for 50 ms Every Second
 
 By default the kernel sets `kernel.sched_rt_period_us = 1000000` and `kernel.sched_rt_runtime_us = 950000`: in every 1 s, real-time tasks may run at most 950 ms, and the remaining 50 ms is kept for normal tasks, so that a buggy real-time thread cannot lock up the machine. A busy-polling `SCHED_FIFO` thread fills the core completely, so it is forcibly stopped once a second for about 50 ms, and `dmesg` shows `sched: RT throttling activated`. For a market-data thread that is a 50 ms blackout every second.
 
 Newer kernels (6.12 on) use a fair server instead: up to 50 ms per second is reserved for normal tasks, and it is only handed over when a normal task is actually waiting on that core. The other fix is to set `sched_rt_runtime_us` to −1 and turn throttling off entirely. **With throttling off, a buggy real-time thread really can lock up the core**, so pair it with isolation, so that nothing else lives on that core in the first place.
 
-### 1.4 Starving Kernel Threads: ksoftirqd and kworker on the Same Core
+### 1.5 Starving Kernel Threads: ksoftirqd and kworker on the Same Core
 
 Every core has its own kernel threads: `ksoftirqd/N` handles that core's softirqs, `kworker/N` does work queued to that core. Most of them run at normal priority. When a `SCHED_FIFO` thread busy-polls on core N, they never get a turn: network softirqs sent to that core pile up, and threads on other cores that wait for this core to finish some work get stuck too. Priority 99 also ties with kernel threads like `migration/N` and the watchdog, so even those are blocked.
 
 That is why real-time priorities are usually 50–80, not 99, and why the core should have no other work to begin with: NIC interrupts moved away, unbound workqueues moved away (Part 4). That is the isolation of [#1](/posts/cpu-affinity-core-isolation-numa/) 1.2.
 
-### 1.5 Spinning on the Same Core: the Lock Holder Never Gets the CPU
+### 1.6 Spinning on the Same Core: the Lock Holder Never Gets the CPU
 
 [#16](/posts/spinlock-implementation/) 1.2 said that spinning assumes the lock holder keeps running. A real-time priority breaks that assumption completely: thread H, `SCHED_FIFO`, spins on core 3 waiting for a lock; the holder L is also on core 3, at a lower priority. H never yields, so L never gets the core, the lock is never released, and H spins until RT throttling stops it. **On one core, a high-priority thread spinning on a lock held by a low-priority thread waits forever.** The fix is to keep the two sides of a spinlock on separate cores, or to switch to a lock that sleeps (the priority-inheritance lock of 2.2).
 
-### 1.6 Do You Still Need a Real-Time Priority on an Isolated Core?
+### 1.7 Do You Still Need a Real-Time Priority on an Isolated Core?
 
-When the hot thread owns an isolated core, it is alone there and shares nothing; with `nohz_full` even the timer tick stops, and normal scheduling will not be preempted by anyone. What a real-time priority guards against here is whatever occasionally slips in: a thread nobody pinned, a kernel thread woken on that core. With a moderate real-time priority, a normal thread that slips in cannot take the core, at the cost of guarding against all three traps of 1.3–1.5. **A real-time priority decides who runs first on a shared core; on a core you already own, it is insurance.** Two setups are common: an isolated core with normal scheduling, relying on isolation to keep everyone out; or an isolated core with a moderate real-time priority and throttling turned off, for one more layer of insurance.
+When the hot thread owns an isolated core, it is alone there and shares nothing; with `nohz_full` even the timer tick stops, and normal scheduling will not be preempted by anyone. What a real-time priority guards against here is whatever occasionally slips in: a thread nobody pinned, a kernel thread woken on that core. With a moderate real-time priority, a normal thread that slips in cannot take the core, at the cost of guarding against all three traps of 1.4–1.6. **A real-time priority decides who runs first on a shared core; on a core you already own, it is insurance.** Two setups are common: an isolated core with normal scheduling, relying on isolation to keep everyone out; or an isolated core with a moderate real-time priority and throttling turned off, for one more layer of insurance.
 
 ## 2. Priority Inversion: a High-Priority Thread Stuck Behind One in the Middle
 
@@ -302,7 +340,7 @@ This table is the OS-side counterpart of 4.1, and the mechanisms are in #1 Part 
 | Real-time scheduling | `chrt -f 99 taskset -c 8-15 ./app` | No | A real-time priority preempts normal tasks | 99 ties with kernel threads, usually use 50–80; watch for RT throttling |
 | NUMA binding | `numactl --cpunodebind=0 --membind=0 ./app` | No | CPU and memory on the same node | Verify with `numactl --show` |
 
-The loophole in `mlockall` and prefaulting are in #3 Parts 2 and 3; pinning and NUMA binding are in #1. Don't copy the 99 in the real-time row: 99 ties with kernel threads like `migration/N` and the watchdog, and a busy-polling thread also runs into RT throttling and starved kernel threads (1.3, 1.4), so **use 50–80**.
+The loophole in `mlockall` and prefaulting are in #3 Parts 2 and 3; pinning and NUMA binding are in #1. Don't copy the 99 in the real-time row: 99 ties with kernel threads like `migration/N` and the watchdog, and a busy-polling thread also runs into RT throttling and starved kernel threads (1.4, 1.5), so **use 50–80**.
 
 ### 4.8 tuned: Saving the Checklist as a Configuration
 

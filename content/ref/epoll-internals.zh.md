@@ -7,7 +7,7 @@ summary: "epoll 在内核里有三样东西：红黑树记着关注哪些 fd，�
 toc: true
 group: cpplinux
 topic: proc
-weight: 118
+weight: 117
 aliases: ["/posts/epoll-internals/"]
 ---
 
