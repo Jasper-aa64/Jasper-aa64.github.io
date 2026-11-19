@@ -354,7 +354,7 @@ The read side is the same: read `len` bytes from `buf_ + (t & (N - 1))` in one g
 
 ---
 
-## 3. A Logger on the Queue: the Hot Thread Only Fills Slots {#logger-on-queue}
+## 3. Case Study: A Logger on the Queue, the Hot Thread Only Fills Slots {#logger-on-queue}
 
 ### 3.1 Structure: the Hot Thread Fills Slots, a Background Thread Formats and Writes the File {#logger}
 

@@ -290,7 +290,7 @@ bool write(const char* src, size_t len) {
 
 ---
 
-## 3. 在队列上搭一个日志器：热线程只填槽 {#logger-on-queue}
+## 3. 案例：在队列上搭一个日志器，热线程只填槽 {#logger-on-queue}
 
 ### 3.1 结构：热线程填槽，后台线程格式化、写文件 {#logger}
 
