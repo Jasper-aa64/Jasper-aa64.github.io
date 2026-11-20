@@ -129,3 +129,4 @@ toc: true
 | SIMD 追问：手写 intrinsics 还是靠编译器 | 先靠编译器，看报告和汇编确认它做了。它做不到的热点才手写，缓存案例里手写了 AVX2。 | [#15 SIMD 3.1](/zh/posts/simd-vectorization-intrinsics/#31-什么时候值得)、[缓存案例的 SIMD](/zh/posts/low-latency-cache-case-study/#simd-code) |
 | SIMD 追问：编译器什么时候才能自动向量化 | 它能证明“一排同时算”和“一个一个算”结果一样的时候：指针不重叠，没有跨迭代依赖，数据连续，归约允许重排。 | [#15 SIMD 2.2](/zh/posts/simd-vectorization-intrinsics/#22-挡住向量化的几种情况) |
 | RAII | 资源在构造函数里拿、在析构函数里还，不管正常返回还是抛异常，离开作用域都会调析构，所以锁、内存、文件不会漏释放。 | [构造、拷贝、析构和 RAII 第 4 节](/zh/ref/special-members-raii/#4-raii把释放写进析构函数) |
+| 自旋锁的几次迭代 | 每一版解决上一版剩下的问题：futex 睡醒要 2–10 µs → CAS 循环不睡，但等的核每试一次都抢行 → TTAS 等时只读 → 加 PAUSE，锁放开时不冲刷流水线 → 加退避，错开一起冲 → 票据锁排队，不饿死 → MCS 每个核盯自己的行，交接和等的核数无关。 | [自旋锁第 1 节](/zh/posts/spinlock-implementation/#1-自旋锁怎么写从-cas-循环到-ttas-和-pause)、[2.3 三种锁对比](/zh/posts/spinlock-implementation/#23-三种锁放在一起比) |
