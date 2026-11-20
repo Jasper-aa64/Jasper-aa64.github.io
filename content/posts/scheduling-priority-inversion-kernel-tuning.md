@@ -47,8 +47,13 @@ The market-data thread is pinned to core 3. A log-compression thread that is not
 - **The normal class**: guarantees each thread its weighted share, not who runs first, so a hot thread may wait out a whole slice of the other's (milliseconds).
 - **The real-time class**: a higher priority preempts as soon as it is runnable, and wake-up to running takes microseconds.
 
-1. **Class order: stop → deadline → real-time → normal → idle**
-   - **Each time the next thread is picked, the classes are asked in this order**: stop is for the kernel's own jobs such as migration; deadline is `SCHED_DEADLINE`; real-time is `SCHED_FIFO` and `SCHED_RR`; normal is `SCHED_OTHER`, `SCHED_BATCH` and `SCHED_IDLE`.
+1. **When a core needs its next thread, the kernel asks the 5 scheduling classes in a fixed order, and the first class with a runnable thread decides**
+   - **The order is stop → deadline → real-time → normal → idle**: while an earlier class has even one runnable thread, later classes get nothing.
+   - **stop**: the kernel's most urgent jobs, such as `migration/N` moving a thread from one core to another. User threads can't be in this class.
+   - **deadline**: `SCHED_DEADLINE`, threads that declare "how long to run each period and where the deadline is" (item 4).
+   - **real-time**: `SCHED_FIFO` and `SCHED_RR`, ordered by priority 1–99 (item 3).
+   - **normal**: almost every thread lives here, the default `SCHED_OTHER` plus `SCHED_BATCH` and `SCHED_IDLE`, sharing time by weight (item 2). `SCHED_IDLE` is the lowest-weight policy inside the normal class, not the idle class below.
+   - **idle**: one idle task per core, run only when nothing above has work, to put the core into a low-power state.
    - **So once a real-time thread is ready, normal threads step aside**: however high a normal thread's nice value, it isn't compared with real-time threads at all.
 
 2. **The normal class (CFS / EEVDF): a guaranteed share, not a guaranteed order**
