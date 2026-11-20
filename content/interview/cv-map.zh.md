@@ -14,19 +14,19 @@ toc: true
 
 ## 1. 专业技能 {#skills}
 
-**C++**：熟练掌握 C++，熟悉 [STL](/zh/ref/stl-containers/)、[智能指针](/zh/ref/smart-pointers/)、[模板](/zh/ref/templates/)、[RAII](/zh/ref/special-members-raii/) 与[移动语义](/zh/ref/move-semantics/)，熟悉 [CRTP 静态多态](/zh/posts/crtp-static-polymorphism/)。　→ [问答](/zh/interview/cv-skills-review/#cpp)
+**C++**：熟练掌握 C++，熟悉 [STL](/zh/ref/stl-containers/)、[智能指针](/zh/ref/smart-pointers/)、[模板](/zh/ref/templates/)、[RAII](/zh/ref/special-members-raii/#4-raii把释放写进析构函数) 与[移动语义](/zh/ref/move-semantics/)，熟悉 [CRTP 静态多态](/zh/posts/crtp-static-polymorphism/)。　→ [问答](/zh/interview/cv-skills-review/#cpp)
 
-**CPU 架构**：熟悉 CPU 体系结构对延迟的影响：[缓存层次与缓存行](/zh/ref/cpu-memory/)、[MESI 缓存一致性](/zh/posts/low-latency-mesi-cache-coherence/)、[store buffer](/zh/posts/memory-ordering-false-sharing-dependency-chains/#store-buffer)、[乱序执行（ROB）](/zh/ref/cpu-memory/)、[内存延迟与带宽](/zh/posts/low-latency-memory-latency-bandwidth/)、[内存级并行（LFB）](/zh/posts/low-latency-memory-latency-bandwidth/)、[分支预测](/zh/posts/branch-prediction-branch-optimization/)、[TLB 与大页](/zh/posts/low-latency-context-switch-page-table-tlb/)、[NUMA 访存](/zh/posts/cpu-affinity-core-isolation-numa/)。　→ [问答](/zh/interview/cv-skills-review/#cpu)
+**CPU 架构**：熟悉 CPU 体系结构对延迟的影响：[缓存层次与缓存行](/zh/ref/cpu-memory/#map)、[MESI 缓存一致性](/zh/posts/low-latency-mesi-cache-coherence/)、[store buffer](/zh/posts/memory-ordering-false-sharing-dependency-chains/#store-buffer)、[乱序执行（ROB）](/zh/posts/low-latency-memory-latency-bandwidth/#132-rob-与指令窗口乱序执行能往后看多远)、[内存延迟与带宽](/zh/posts/low-latency-memory-latency-bandwidth/#1-两个量延迟与带宽)、[内存级并行（LFB）](/zh/ref/cpu-memory/#in-flight)、[分支预测](/zh/posts/branch-prediction-branch-optimization/#1-分支预测器cpu-为什么要猜猜错多贵)、[TLB 与大页](/zh/posts/low-latency-memory-latency-bandwidth/#32-tlb-与大页地址翻译这一步)、[NUMA 访存](/zh/posts/cpu-affinity-core-isolation-numa/#numa)。　→ [问答](/zh/interview/cv-skills-review/#cpu)
 
-**低延迟优化**：熟悉[缓存友好的数据布局](/zh/posts/alignment-layout-cache-dram-geometry/)、[伪共享规避](/zh/posts/memory-ordering-false-sharing-dependency-chains/#false-sharing)、[内存池与 arena 分配器](/zh/posts/hot-path-memory-allocators/)、[缓存预取与预热](/zh/posts/prefetch-warmup-double-buffer/)、[SIMD 向量化](/zh/posts/simd-vectorization-intrinsics/)、[分支优化](/zh/posts/branch-prediction-branch-optimization/)、[循环优化与指令级并行](/zh/posts/loop-optimization/)、[强度削弱与定点数运算](/zh/posts/strength-reduction-arithmetic/)。　→ [问答](/zh/interview/cv-skills-review/#optimization)
+**低延迟优化**：熟悉[缓存友好的数据布局](/zh/posts/alignment-layout-cache-dram-geometry/#2-布局一次访问碰几条缓存行)、[伪共享规避](/zh/posts/memory-ordering-false-sharing-dependency-chains/#false-sharing)、[内存池与 arena 分配器](/zh/posts/hot-path-memory-allocators/)、[缓存预取与预热](/zh/posts/prefetch-warmup-double-buffer/)、[SIMD 向量化](/zh/posts/simd-vectorization-intrinsics/)、[分支优化](/zh/posts/branch-prediction-branch-optimization/#2-消除分支把猜往哪走换成按条件选)、[循环优化与指令级并行](/zh/posts/loop-optimization/)、[强度削弱与定点数运算](/zh/posts/strength-reduction-arithmetic/)。　→ [问答](/zh/interview/cv-skills-review/#optimization)
 
-**Linux 调优**：熟悉 [CPU 绑核与核心隔离](/zh/posts/cpu-affinity-core-isolation-numa/)、[中断亲和](/zh/posts/cpu-affinity-core-isolation-numa/)、[实时调度策略与优先级](/zh/posts/scheduling-priority-inversion-kernel-tuning/#sched-classes)、[大页内存](/zh/posts/scheduling-priority-inversion-kernel-tuning/)。　→ [问答](/zh/interview/cv-skills-review/#linux-tuning)
+**Linux 调优**：熟悉 [CPU 绑核与核心隔离](/zh/posts/cpu-affinity-core-isolation-numa/#1-绑核与隔离让这个核上只跑你的线程)、[中断亲和](/zh/posts/cpu-affinity-core-isolation-numa/#irq-affinity)、[实时调度策略与优先级](/zh/posts/scheduling-priority-inversion-kernel-tuning/#sched-classes)、[大页内存](/zh/posts/scheduling-priority-inversion-kernel-tuning/#47-应用层内存锁定与绑核)。　→ [问答](/zh/interview/cv-skills-review/#linux-tuning)
 
-**并发编程**：熟悉[多线程与并发编程](/zh/ref/thread-sync/)，掌握 [std::atomic 与内存序](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)、[互斥锁、条件变量](/zh/ref/thread-sync/)、[线程池](/zh/ref/thread-pool-future/)；理解 [lock-free / wait-free 的进度保证](/zh/posts/wait-free-sticky-counter/)，了解 [SPSC 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/#spsc)、[SPMC 广播队列](/zh/interview/md-feed-spmc/)、[自旋锁（TTAS、票据锁、MCS）](/zh/posts/spinlock-implementation/)、[共享内存通信](/zh/ref/ipc/)与 [micro-batching](/zh/posts/lock-free-queue-logger-micro-batching/#micro-batching)。　→ [问答](/zh/interview/cv-skills-review/#concurrency)
+**并发编程**：熟悉[多线程与并发编程](/zh/ref/thread-sync/)，掌握 [std::atomic 与内存序](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)、[互斥锁、条件变量](/zh/ref/thread-sync/#2-互斥锁同一时刻只放一个线程进去)、[线程池](/zh/ref/thread-pool-future/#3-线程池)；理解 [lock-free / wait-free 的进度保证](/zh/posts/wait-free-sticky-counter/#11-进度保证锁lock-freewait-free-差在哪)，了解 [SPSC 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/#spsc)、[SPMC 广播队列](/zh/interview/md-feed-spmc/#ring)、[自旋锁（TTAS、票据锁、MCS）](/zh/posts/spinlock-implementation/#1-自旋锁怎么写从-cas-循环到-ttas-和-pause)、[共享内存通信](/zh/ref/ipc/#3-共用物理页共享内存)与 [micro-batching](/zh/posts/lock-free-queue-logger-micro-batching/#micro-batching)。　→ [问答](/zh/interview/cv-skills-review/#concurrency)
 
-**系统编程**：熟悉 Linux 系统编程（[进程与 IPC](/zh/ref/ipc/)、[epoll](/zh/ref/epoll-internals/)、[mmap](/zh/interview/md-feed-spmc/#shm)、[虚拟内存与缺页](/zh/ref/new-malloc-page-fault/)）；了解 [TCP/IP](/zh/ref/tcp-states/)、[HTTP](/zh/ref/http-basics/)、[WebSocket](/zh/interview/cv-projects/#av-wss)。　→ [问答](/zh/interview/cv-skills-review/#system)
+**系统编程**：熟悉 Linux 系统编程（[进程与 IPC](/zh/ref/ipc/)、[epoll](/zh/ref/epoll-internals/)、[mmap](/zh/interview/md-feed-spmc/#shm)、[虚拟内存与缺页](/zh/ref/new-malloc-page-fault/#4-第一次写缺页才拿到物理页)）；了解 [TCP/IP](/zh/ref/tcp-states/)、[HTTP](/zh/ref/http-basics/)、[WebSocket](/zh/interview/cv-projects/#av-wss)。　→ [问答](/zh/interview/cv-skills-review/#system)
 
-**性能分析**：熟练使用 [perf](/zh/posts/low-latency-perf-profiling/)、火焰图做性能剖析与[汇编级分析](/zh/interview/cv-projects/#triage-perf-three)，掌握[基于 TSC 的延迟测量](/zh/posts/tsc-latency-measurement/)与[分位数统计](/zh/posts/trading-system-latency-metrics/)；使用 [ASan/UBSan](/zh/ref/sanitizers/)、GTest 保障正确性；熟悉 CMake、vcpkg、Git。　→ [问答](/zh/interview/cv-skills-review/#tools)
+**性能分析**：熟练使用 [perf](/zh/posts/low-latency-perf-profiling/)、火焰图做性能剖析与[汇编级分析](/zh/interview/cv-projects/#triage-perf-three)，掌握[基于 TSC 的延迟测量](/zh/posts/tsc-latency-measurement/)与[分位数统计](/zh/posts/trading-system-latency-metrics/#12-统计指标看分布不看平均)；使用 [ASan/UBSan](/zh/ref/sanitizers/)、GTest 保障正确性；熟悉 CMake、vcpkg、Git。　→ [问答](/zh/interview/cv-skills-review/#tools)
 
 **AI Native**：深度使用 Claude Code、Codex 等 AI 编程工具[完成工程开发与性能优化](/zh/interview/cv-projects/#skill-why)，能[编写 Agent skill 约束 Agent 的工作流程](/zh/interview/cv-projects/#skill-what)；具备 MCP Server 框架完整落地经验，了解大模型底层原理、RAG。
 
@@ -34,7 +34,7 @@ toc: true
 
 ## 2. 实习经历 {#internship}
 
-在 Linux 上开发和优化量化交易的低延迟 C++ 系统，负责[行情接入](/zh/interview/md-feed-spmc/#md-feed)与[因子开发](/zh/interview/cv-factor/#factor-dev)，并优化[行情链路](/zh/interview/md-feed-spmc/#md-opt)、[因子计算](/zh/interview/cv-factor/#factor-opt)与[因子回测](/zh/interview/backtest-framework/)的性能。
+在 Linux 上开发和优化量化交易的低延迟 C++ 系统，负责[行情接入](/zh/interview/md-feed-spmc/#md-feed)与[因子开发](/zh/interview/cv-factor/#factor-dev)，并优化[行情链路](/zh/interview/md-feed-spmc/#md-opt)、[因子计算](/zh/interview/cv-factor/#factor-opt)与[因子回测](/zh/interview/backtest-framework/#opt)的性能。
 
 ### 2.1 行情接入 {#md-feed}
 
