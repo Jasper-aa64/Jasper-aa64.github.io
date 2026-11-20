@@ -44,6 +44,10 @@ math: true
   - **例子**：[#18](/zh/posts/thread-safe-queue/) 2.1 rte_ring 的 `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)`。`prod_head_` 还是 `head`，就改成 `head + 1`，这个槽归自己；被别的生产者抢先了，`head` 被换成最新值，外面的 `do while` 拿新的 `head` 重新查满再抢。
   - **`weak` 和 `strong` 参数完全一样**：区别和怎么选见 1.3。
 - **内存序参数**
+  - **序管的不是 `x` 本身，是本线程在这次操作前后对别的变量的读写**：`x` 自己不管传什么序，每次操作都不可分割，所有线程看到 `x` 的修改先后也都一样。序只决定前后那些读写能不能挪过这次操作，别的线程靠 `x` 能不能保证看见它们。
+  - **release 管它前面的，acquire 管它后面的**：release 写 `x`，它前面的读写不能挪到它后面。acquire 读 `x`，它后面的读写不能挪到它前面。另一个线程用 acquire 读到了 release 写进去的值，release 之前的写它就都看得见。relaxed 只保证 `x` 本身，前后的读写随便挪。
+  - **CAS 的成功序和失败序，就是这次 CAS 成功或失败时算哪一种**：成功时读了 `x` 也写了 `x`，可以既是 acquire 又是 release。失败时只读了 `x`、没写，它只能是一次读，所以只能是 acquire 或 relaxed。
+  - **例子**：1.3 抢锁的 CAS 是“成功 acquire、失败 relaxed”。抢到了，临界区里的读写不能提到抢锁之前，还要看见上一个持锁者在放锁前写的东西。没抢到，什么都不进，不需要看见任何东西。[#18](/zh/posts/thread-safe-queue/) 2.1 的 CAS 只用来分号，数据靠 `prod_tail_` 的 release/acquire 传，所以全用 relaxed。
   - **可以不写，但不写不是 `relaxed`，是 `seq_cst`**：最严也最贵，x86 上 `store` 会编成 `xchg`；热路径上每个原子操作都显式写（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1）。
   - **读、写、读改写能用的不一样**：`load` 不能用 release、acq_rel；`store` 不能用 acquire、acq_rel；`exchange`、CAS、`fetch_add` 这些读改写都能用。
   - **运算符写法等于不写内存序**：`x = v` 是 `store`，直接读 `x` 是 `load`，`++x`、`x += n` 是 `fetch_add`，都按 `seq_cst`。
