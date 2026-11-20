@@ -107,3 +107,4 @@ toc: true
 | 知识点 | 一句话 | 看哪里 |
 |---|---|---|
 | MPMC 队列（rte_ring） | 生产者用 CAS 抢 `prod_head_`，各写各的槽，写完按抢到的顺序推进 `prod_tail_`；消费者一边对称，用 `cons_head_`、`cons_tail_`。 | [#18 线程安全队列 2.1](/zh/posts/thread-safe-queue/#21-rte_ring先抢位置再按抢的顺序发布) |
+| Disruptor | 生产者可以一个也可以多个（多个时 `fetch_add` 抢号、每一格标圈数，生产者之间不互相等），特点在消费者一侧：每个消费者都读全部（广播），生产者等最慢的那个，不覆盖。 | [#18 线程安全队列 2.2](/zh/posts/thread-safe-queue/#22-disruptor每一格自己标写好了)、[2.3](/zh/posts/thread-safe-queue/#23-背压和等待策略满了等最慢的消费者空了怎么等) |
