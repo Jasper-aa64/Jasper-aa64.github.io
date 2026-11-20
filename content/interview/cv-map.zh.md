@@ -124,7 +124,7 @@ toc: true
 | MPMC 队列（rte_ring） | 生产者用 CAS 抢 `prod_head_`，各写各的槽，写完按抢到的顺序推进 `prod_tail_`；消费者一边对称，用 `cons_head_`、`cons_tail_`。 | [#18 线程安全队列 2.1](/zh/posts/thread-safe-queue/#21-rte_ring先抢位置再按抢的顺序发布) |
 | Disruptor | 生产者可以一个也可以多个（多个时 `fetch_add` 抢号、每一格标圈数，生产者之间不互相等），特点在消费者一侧：每个消费者都读全部（广播），生产者等最慢的那个，不覆盖。 | [#18 线程安全队列 2.2](/zh/posts/thread-safe-queue/#22-disruptor每一格自己标写好了)、[2.3](/zh/posts/thread-safe-queue/#23-背压和等待策略满了等最慢的消费者空了怎么等) |
 | CPU 调度（通用） | 只做两个决定：什么时候换下当前线程（看抢占），换谁上（调度策略）。策略在“平均等得最短”（SJF）和“谁都很快轮到”（RR）之间取舍，MLFQ 不预知长短也能近似 SJF。 | [#19 调度 1.1](/zh/posts/scheduling-priority-inversion-kernel-tuning/#how-scheduling)，Linux 的做法见 [1.2](/zh/posts/scheduling-priority-inversion-kernel-tuning/#sched-classes) |
-| SIMD 追问：AoS 改成 SoA 为什么可能更快 | 先说 SIMD：同一字段连续存放，一条向量 load 就装满 8 个 float，读、算、写各一条指令；AoS 里同一字段中间隔着别的字段，要多读几倍再洗牌挑出来，实测每 8 个元素二十多条。再说缓存：循环只用一个字段时，SoA 只搬这个字段，缓存和带宽不浪费，连续数组也最容易被硬件预取认出来。 | [#15 SIMD 2.3](/zh/posts/simd-vectorization-intrinsics/#layout) |
+| SIMD 追问：AoS 改成 SoA 为什么可能更快 | 先说 SIMD：一条向量 load 只能读一段连续地址，SoA 把同一字段排成连续数组，一条指令就装满；AoS 里同一字段中间隔着别的字段，要多读再洗牌挑出来。再说缓存：循环只用一个字段时，SoA 只搬这个字段，缓存和带宽不浪费，连续数组也最容易被硬件预取认出来。 | [#15 SIMD 2.3](/zh/posts/simd-vectorization-intrinsics/#layout) |
 | SIMD 追问：数据布局和 SIMD 有什么关系 | 一条向量 load 只能读一段连续地址，要同时算的数挨着放，一条指令才装得满。 | [#15 SIMD 2.3](/zh/posts/simd-vectorization-intrinsics/#layout) |
 | SIMD 追问：手写 intrinsics 还是靠编译器 | 先靠编译器，看报告和汇编确认它做了。它做不到的热点才手写，缓存案例里手写了 AVX2。 | [#15 SIMD 3.1](/zh/posts/simd-vectorization-intrinsics/#31-什么时候值得)、[缓存案例的 SIMD](/zh/posts/low-latency-cache-case-study/#simd-code) |
 | SIMD 追问：编译器什么时候才能自动向量化 | 它能证明“一排同时算”和“一个一个算”结果一样的时候：指针不重叠，没有跨迭代依赖，数据连续，归约允许重排。 | [#15 SIMD 2.2](/zh/posts/simd-vectorization-intrinsics/#22-挡住向量化的几种情况) |
