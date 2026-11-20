@@ -72,6 +72,14 @@ The market-data thread is pinned to core 3. A log-compression thread that is not
    - **The scheduler only picks from its own core's queue**: load across cores is evened out by periodic load balancing, and a woken thread usually goes back to the core it last ran on or an idle one nearby.
    - **Moving cores means rewarming caches and the TLB**: that's why hot threads are pinned; see [#1, section 1.1](/posts/cpu-affinity-core-isolation-numa/).
 
+**What HFT does with pinned hot threads**:
+
+> **The essence of pinning hot threads in HFT: don't rely on the scheduler to win, make sure nothing else is on that core**.
+
+- **One hot thread owns one isolated core**: `isolcpus`, `nohz_full` and `rcu_nocbs` take the core out of load balancing, timer interrupts and RCU callbacks, and NIC interrupts are steered to other cores ([#1](/posts/cpu-affinity-core-isolation-numa/) 1.2, Part 4).
+- **It busy-polls on that core and never sleeps**: a sleep and wake-up costs microseconds. The thread is never migrated either, so its cache and TLB stay warm.
+- **The scheduling policy is secondary**: with nothing else on the core, even the normal class has no one to preempt it. A medium real-time priority on top is only extra insurance, and adding it means guarding against the three traps in 1.4–1.6 (1.7).
+
 ### 1.3 Setting It: Bake the Policy In When the Thread Is Created
 
 The safest way is to put the policy into the attributes when creating the thread:
