@@ -155,19 +155,19 @@ size_t replay_and_write(const char* date, const std::vector<StockDay>& stocks,
                         std::vector<Factors>& state, const std::vector<int64_t>& bars,
                         const std::vector<std::string>& time_str, std::FILE* out) {
     size_t rows = 0;
-    for (size_t i = 0; i < stocks.size(); ++i) {
-        const StockDay& s = stocks[i];
-        Factors& f = state[i];
-        const Tick* last = nullptr;
-        int k = 0;
-        for (size_t b = 0; b < bars.size(); ++b) {
-            while (k < s.tick_count && s.ticks[k].time <= bars[b]) {   // 收盘点之前的都归这个 bar
+    for (size_t i = 0; i < stocks.size(); ++i) {     // ① 一只股票一只股票地走
+        const StockDay& s = stocks[i];                //    它今天的快照
+        Factors& f = state[i];                        //    它跨交易日保留的因子状态
+        const Tick* last = nullptr;                   //    最后一条喂过的快照
+        int k = 0;                                    //    下一条要喂的快照
+        for (size_t b = 0; b < bars.size(); ++b) {    // ② 沿 4801 个收盘点往后走
+            while (k < s.tick_count && s.ticks[k].time <= bars[b]) {   // ③ 收盘点之前的快照逐条喂 on_tick
                 f.on_tick(s.ticks[k]);
                 last = &s.ticks[k++];
             }
-            if (!last) continue;                // 今天还没来过行情：这个 bar 不输出
-            f.on_bar(*last);                    // 这个 bar 里没有新行情：沿用上一条
-            std::fprintf(out, "%s,%s,%s,%.6g,%.6g\n", date, time_str[b].c_str(),
+            if (!last) continue;                // ④ 今天还没来过行情：这个 bar 不输出
+            f.on_bar(*last);                    //    收盘：这个 bar 没有新行情就沿用上一条
+            std::fprintf(out, "%s,%s,%s,%.6g,%.6g\n", date, time_str[b].c_str(),   // ⑤ 写一行
                          s.code.c_str(), f.spread.value(), f.vol.value());
             ++rows;
         }
@@ -378,19 +378,19 @@ size_t replay_and_write(const char* date, const std::vector<StockDay>& stocks,
                         std::vector<Factors>& state, const std::vector<int64_t>& bars,
                         const std::vector<std::string>& time_str, std::FILE* out) {
     size_t rows = 0;
-    for (size_t i = 0; i < stocks.size(); ++i) {
-        const StockDay& s = stocks[i];
-        Factors& f = state[i];
-        const Tick* last = nullptr;
-        int k = 0;
-        for (size_t b = 0; b < bars.size(); ++b) {
-            while (k < s.tick_count && s.ticks[k].time <= bars[b]) {   // 收盘点之前的都归这个 bar
+    for (size_t i = 0; i < stocks.size(); ++i) {     // ① 一只股票一只股票地走
+        const StockDay& s = stocks[i];                //    它今天的快照
+        Factors& f = state[i];                        //    它跨交易日保留的因子状态
+        const Tick* last = nullptr;                   //    最后一条喂过的快照
+        int k = 0;                                    //    下一条要喂的快照
+        for (size_t b = 0; b < bars.size(); ++b) {    // ② 沿 4801 个收盘点往后走
+            while (k < s.tick_count && s.ticks[k].time <= bars[b]) {   // ③ 收盘点之前的快照逐条喂 on_tick
                 f.on_tick(s.ticks[k]);
                 last = &s.ticks[k++];
             }
-            if (!last) continue;                // 今天还没来过行情：这个 bar 不输出
-            f.on_bar(*last);                    // 这个 bar 里没有新行情：沿用上一条
-            std::fprintf(out, "%s,%s,%s,%.6g,%.6g\n", date, time_str[b].c_str(),
+            if (!last) continue;                // ④ 今天还没来过行情：这个 bar 不输出
+            f.on_bar(*last);                    //    收盘：这个 bar 没有新行情就沿用上一条
+            std::fprintf(out, "%s,%s,%s,%.6g,%.6g\n", date, time_str[b].c_str(),   // ⑤ 写一行
                          s.code.c_str(), f.spread.value(), f.vol.value());
             ++rows;
         }
