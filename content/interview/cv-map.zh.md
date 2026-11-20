@@ -102,7 +102,7 @@ toc: true
 
 ### 3.5 项目 1 按 STAR 讲 {#project-star}
 
-> **S（背景）**：让 coding agent 自己优化 C++ 代码，最常见三种坏结果：改快了但结果错了；把测量噪声当成提速；拿到一点收益就停（[1.1](/zh/interview/cv-projects/#skill-three-failures)）。
+> **S（背景）**：让 Agent 自己优化 C++ 代码，首要问题是它不知道瓶颈在哪：没先判断是在算还是在等，就直接改代码；修法有几十类，全放进上下文既放不下，也容易乱套用（[第 2 节](/zh/interview/cv-projects/#skill-triage)、[3.1](/zh/interview/cv-projects/#signals-why)）。另外，它常把测量噪声当成提速，拿到一点收益就停（[1.1](/zh/interview/cv-projects/#skill-three-failures)）。
 >
 > **T（任务）**：设计一套性能优化流程，封装成 Agent skill，让 Agent 按流程自己完成剖析、改写、验证和决策，每一步留痕、结果能复现。再拿一个公开案例把流程走通：期权重定价的热路径，一条行情要重算 64 个期权，碰 140 条散开的缓存行，每个期权只算 25 次浮点运算。**瓶颈是访存延迟**：缓存缺失一个接一个排队等，没有同时在路上，再加上每个期权内部一串前后相依的运算。
 >
