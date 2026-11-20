@@ -133,7 +133,7 @@ Newer kernels (6.12 on) use a fair server instead: up to 50 ms per second is res
 
 ### 1.5 Starving Kernel Threads: ksoftirqd and kworker on the Same Core
 
-Every core has its own kernel threads: `ksoftirqd/N` handles that core's softirqs, `kworker/N` does work queued to that core. Most of them run at normal priority. When a `SCHED_FIFO` thread busy-polls on core N, they never get a turn: network softirqs sent to that core pile up, and threads on other cores that wait for this core to finish some work get stuck too. Priority 99 also ties with kernel threads like `migration/N` and the watchdog, so even those are blocked.
+Every core has its own kernel threads: `ksoftirqd/N` handles that core's softirqs, `kworker/N` does work queued to that core. Most of them run at normal priority. When a `SCHED_FIFO` thread busy-polls on core N, they never get a turn: network softirqs sent to that core pile up, and threads on other cores that wait for this core to finish some work get stuck too. `migration/N` isn't blocked, though: it runs in the stop class, ahead of the whole real-time class (1.2), so even priority 99 can't beat it. The problem with 99 is that it leaves no headroom: it sits ahead of every real-time thread, and no real-time kernel thread on that core can preempt it.
 
 That is why real-time priorities are usually 50–80, not 99, and why the core should have no other work to begin with: NIC interrupts moved away, unbound workqueues moved away (Part 4). That is the isolation of [#1](/posts/cpu-affinity-core-isolation-numa/) 1.2.
 
@@ -360,7 +360,7 @@ This table is the OS-side counterpart of 4.1, and the mechanisms are in #1 Part 
 | Real-time scheduling | `chrt -f 99 taskset -c 8-15 ./app` | No | A real-time priority preempts normal tasks | 99 ties with kernel threads, usually use 50–80; watch for RT throttling |
 | NUMA binding | `numactl --cpunodebind=0 --membind=0 ./app` | No | CPU and memory on the same node | Verify with `numactl --show` |
 
-The loophole in `mlockall` and prefaulting are in #3 Parts 2 and 3; pinning and NUMA binding are in #1. Don't copy the 99 in the real-time row: 99 ties with kernel threads like `migration/N` and the watchdog, and a busy-polling thread also runs into RT throttling and starved kernel threads (1.4, 1.5), so **use 50–80**.
+The loophole in `mlockall` and prefaulting are in #3 Parts 2 and 3; pinning and NUMA binding are in #1. Don't copy the 99 in the real-time row: 99 sits ahead of every real-time thread, so no real-time kernel thread on the core can preempt it, and a busy-polling thread also runs into RT throttling and starved kernel threads (1.4, 1.5), so **use 50–80**.
 
 ### 4.8 tuned: Saving the Checklist as a Configuration
 
