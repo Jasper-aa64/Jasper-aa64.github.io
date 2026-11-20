@@ -137,8 +137,9 @@ So **a blocking queue wins on CPU use and on being easy to get right, not on spe
 
 ### 2.1 rte_ring: Claim a Slot First, Then Publish in Claim Order
 
-**Producers claim slots with CAS and each writes its own; once written, `prod_tail_` must advance in claim order, because one number can only say "everything below here is written"**.
+> **The essence of rte_ring: claim a slot with CAS, then advance `prod_tail_` in claim order once written**.
 
+- **Why it must be in order**: `prod_tail_` is a single number, so it can only say "everything below here is written". It cannot say "5 is not done but 6 is".
 - **The setting**: several strategy threads send orders to one gateway (MPSC), so the write index has several writers and must be claimed with CAS; there is a gap between claiming and finishing the write, and the consumer must not read a slot that is claimed but not yet written.
 - **Two indices per side**: `prod_head_` is how far producers have claimed, `prod_tail_` how far they have written, i.e. how far consumers may read; the consumer side mirrors it, `cons_head_` for claimed and `cons_tail_` for read, i.e. how far producers may overwrite. The code is the full MPMC version.
 
@@ -203,6 +204,8 @@ private:
 - **① can be relaxed**: the CAS only hands out slots; no data travels through it.
 
 ### 2.2 Disruptor: Every Slot Marks Itself "Written"
+
+> **The essence of Disruptor: claim a number with `fetch_add`, each slot records its own lap, and producers never wait for each other**.
 
 The Disruptor is the ring buffer LMAX (a foreign-exchange trading venue) built for its matching engine. It is a separate design from rte_ring, and the code below is a separate class too (a trimmed C++ sketch of the idea, with multiple producers and one consumer). It keeps track differently, so that producers never wait for each other:
 
