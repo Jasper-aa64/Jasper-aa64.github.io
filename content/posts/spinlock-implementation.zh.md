@@ -19,7 +19,7 @@ math: true
 
 ## 先看语法：`std::atomic` 的几种操作 {#atomic-syntax}
 
-**`std::atomic<T>` 上的每个操作都是一次不可分割的读、写或读改写，最后一个参数是内存序；这篇的代码只用到下面 8 种**。
+**`std::atomic<T>` 上的每个操作都是一次不可分割的读、写或读改写，最后一个参数是内存序。这篇的代码只用到下面 8 种**。
 
 | 写法 | 做什么 | 返回 | 这篇用在哪 |
 |---|---|---|---|
@@ -32,27 +32,100 @@ math: true
 | `x.wait(old, 序)` | C++20：值还等于 `old` 就睡，被叫醒、并且值变了才返回 | 无 | futex 互斥锁（1.1） |
 | `x.notify_one()` / `x.notify_all()` | 叫醒一个 / 所有在 `x` 上 `wait` 的线程 | 无 | 同上 |
 
-- **`exchange` 和 CAS 的区别：一个直接写，一个先比较**
-  - **`exchange` 总是写**：抢锁时写 1，拿回的旧值是 0，锁就是自己抢到的；旧值是 1，说明别人拿着，自己写进去的 1 也没改变什么。
-  - **CAS 相等才写**：写进去的新值要从旧值算出来时用它，比如 `old * 2`、`n + 1`；不相等说明别人刚改过，拿最新值重算。
-  - **两个都是读改写**：等锁时反复做，每次都要把缓存行独占过来（1.4）。
-- **`compare_exchange` 的参数**
-  - **`expected` 传引用**：进去是“我以为它现在是几”，失败时出来是“它实际是几”。所以它必须是一个变量，写字面量 `0` 编译不过。
-  - **`desired` 传值**：相等时要写进去的新值。
-  - **两个内存序**：第一个用在成功时，这时读和写都做了；第二个用在失败时，这时只做了一次读，所以标准规定它不能是 release 或 acq_rel。
-  - **只传一个内存序**：成功、失败共用它，失败那边自动降一级，acq_rel 降成 acquire，release 降成 relaxed。
-  - **例子**：[#18](/zh/posts/thread-safe-queue/) 2.1 rte_ring 的 `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)`。`prod_head_` 还是 `head`，就改成 `head + 1`，这个槽归自己；被别的生产者抢先了，`head` 被换成最新值，外面的 `do while` 拿新的 `head` 重新查满再抢。
-  - **`weak` 和 `strong` 参数完全一样**：区别和怎么选见 1.3。
-- **内存序参数**
-  - **序管的不是 `x` 本身，是本线程在这次操作前后对别的变量的读写**：`x` 自己不管传什么序，每次操作都不可分割，所有线程看到 `x` 的修改先后也都一样。序只决定前后那些读写能不能挪过这次操作，别的线程靠 `x` 能不能保证看见它们。
-  - **release 管它前面的，acquire 管它后面的**：release 写 `x`，它前面的读写不能挪到它后面。acquire 读 `x`，它后面的读写不能挪到它前面。另一个线程用 acquire 读到了 release 写进去的值，release 之前的写它就都看得见。relaxed 只保证 `x` 本身，前后的读写随便挪。
-  - **CAS 的成功序和失败序，就是这次 CAS 成功或失败时算哪一种**：成功时读了 `x` 也写了 `x`，可以既是 acquire 又是 release。失败时只读了 `x`、没写，它只能是一次读，所以只能是 acquire 或 relaxed。
-  - **例子**：1.3 抢锁的 CAS 是“成功 acquire、失败 relaxed”。抢到了，临界区里的读写不能提到抢锁之前，还要看见上一个持锁者在放锁前写的东西。没抢到，什么都不进，不需要看见任何东西。[#18](/zh/posts/thread-safe-queue/) 2.1 的 CAS 只用来分号，数据靠 `prod_tail_` 的 release/acquire 传，所以全用 relaxed。
-  - **可以不写，但不写不是 `relaxed`，是 `seq_cst`**：最严也最贵，x86 上 `store` 会编成 `xchg`；热路径上每个原子操作都显式写（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1）。
-  - **读、写、读改写能用的不一样**：`load` 不能用 release、acq_rel；`store` 不能用 acquire、acq_rel；`exchange`、CAS、`fetch_add` 这些读改写都能用。
-  - **运算符写法等于不写内存序**：`x = v` 是 `store`，直接读 `x` 是 `load`，`++x`、`x += n` 是 `fetch_add`，都按 `seq_cst`。
-- **`wait` 和自己写 `while` 循环等不一样**：`wait` 在 Linux 上落到 futex 系统调用，线程挂起、不占 CPU，被 `notify` 叫醒要几 µs；自旋锁就是不想付这一笔（1.1）。
-- **`_mm_pause`、`_umonitor`、`_umwait` 不是 `std::atomic` 的操作**：它们是直接对应一条 CPU 指令的内建函数，分别在 1.6 和 2.5 讲。
+- **`exchange` 总是写，CAS 相等才写**：新值要从旧值算出来（`old * 2`、`n + 1`）时用 CAS。两个都是读改写，每次都要把缓存行独占过来（1.4）。
+- **`expected` 传引用**：进去是“我以为它是几”，失败时出来是“它实际是几”，所以必须是变量，写字面量 `0` 编译不过。
+- **CAS 有两个内存序**：第一个用在成功时，第二个用在失败时。只传一个就两边共用，失败那边自动降一级，acq_rel 降成 acquire，release 降成 relaxed。`weak` 和 `strong` 的区别见 1.3。
+- **内存序不写就是 `seq_cst`，不是 `relaxed`**：运算符写法（`x = v`、`++x`、`x += n`）也是。热路径上每个原子操作都显式写（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1）。
+- **`load` 不能用 release，`store` 不能用 acquire**：读改写什么序都能用。
+- **`wait` 会让线程睡下**：Linux 上落到 futex，被叫醒要几 µs，自旋锁就是不想付这一笔（1.1）。
+- **`_mm_pause`、`_umonitor`、`_umwait` 不是 `std::atomic` 的操作**：它们是直接对应一条 CPU 指令的内建函数（1.6、2.5）。
+
+### 内存序管什么、和谁配对 {#mo-pairing}
+
+> **配对的本质：acquire 读到的值是谁用 release 写进去的，就和谁配对**。
+
+- **序管的不是 `x` 本身**：`x` 不管传什么序，每次操作都不可分割，所有线程看到它的修改先后也一样。序管的是本线程在这次操作前后、对别的变量的读写。
+- **release 写**：它前面的读写不能挪到它后面。
+- **acquire 读**：它后面的读写不能挪到它前面。
+- **配上以后**：release 之前写的东西，acquire 之后都看得见。和隔了多久无关，只看读到的是谁写的值。relaxed 不和任何人配对。
+- **CAS 成功时既读又写**：可以当 acquire 一方，也可以当 release 一方。失败时只读了一次、没写，只能是 acquire 或 relaxed。
+
+下面四个例子都带 CAS，它分别在 acquire 一方、release 一方、一条链的中间，以及不参与配对。
+
+**例 1：自旋锁，CAS 是 acquire 一方**
+
+```cpp
+// lock()
+locked_.compare_exchange_weak(expected /* = 0 */, 1, std::memory_order_acquire,
+                              std::memory_order_relaxed);
+// unlock()
+locked_.store(0, std::memory_order_release);
+```
+
+```text
+T1:  CAS 0→1 成功 ── 临界区写 data = 42 ── store(0, release) ①
+                                                   │
+T2:  CAS 失败（读到 1）… CAS 失败（读到 1）… CAS 成功（读到 0）② ── 临界区读 data
+```
+
+- **和谁配对**：② 读到的 0 是 ① 写的。① 是 release，② 成功序是 acquire，两者配对。
+- **保证什么**：T1 在 ① 之前写的 `data = 42`，T2 在 ② 之后一定读得到。
+- **失败的几次为什么用 relaxed**：它们读到的 1 是 T1 那次 CAS 写的。T2 没进临界区，不需要看见 T1 的任何东西。
+
+**例 2：无锁栈的 push，CAS 是 release 一方**
+
+```cpp
+// push
+Node* n = new Node{42};                                    // 先写数据
+n->next = head.load(std::memory_order_relaxed);
+while (!head.compare_exchange_weak(n->next, n, std::memory_order_release,
+                                   std::memory_order_relaxed)) {}
+// pop 的第一步（完整的 pop 还有 ABA 问题，这里只看配对）
+Node* top = head.load(std::memory_order_acquire);
+int v = top->data;                                         // 要保证读到 42
+```
+
+```text
+P:  写 n->data = 42 ── 写 n->next ── CAS head: old→n 成功（release）①
+                                                   │
+C:                            head.load(acquire) 读到 n ② ── 读 n->data
+```
+
+- **和谁配对**：② 读到的 `n` 是 ① 写进 `head` 的。CAS 成功时写了 `head`，成功序是 release，两者配对。
+- **保证什么**：P 在 CAS 之前写的 `n->data`、`n->next`，C 都看得见。不配对的话，C 可能拿到 `n` 的地址，读出来的却是没初始化的内存。
+- **失败序为什么用 relaxed**：失败时什么都没写进 `head`，没有发布任何东西。它只是拿到最新的 `head` 放进 `n->next`，再试一次。
+
+**例 3：几次 CAS 连成一条链，隔着一次也能配上**
+
+```text
+P1:  写 a->data ── CAS head: null→a 成功（release）①
+P2:  CAS head: a→b 成功 ②（它读到的 a 就是 ① 写的）
+C:   head.load(acquire) 读到 b ③ ── 沿 b->next 走到 a ── 读 a->data
+```
+
+- **C 读到的是 ② 写的，不是 ① 写的**：照样看得见 `a->data`。
+- **原因**：② 是读改写，读的正是 ① 写的值，再在上面改。① 后面的读改写连成一条链，acquire 读到链上任何一个值，都和链头的 release ① 配上。
+- **普通 `store` 会打断这条链**：中间有人用 `head.store(...)` 覆盖了 `head`，C 读到那次写的值，就和 ① 无关了。
+
+**例 4：rte_ring 抢号，CAS 不参与配对**
+
+```cpp
+prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed);
+```
+
+- **没有数据靠它传**：别的线程读 `prod_head_` 只是为了抢下一个号，不会靠它去读 `buf_`。
+- **数据走另一对**：槽里的数据靠 `prod_tail_` 的 release/acquire 交给消费者（[#18](/zh/posts/thread-safe-queue/) 2.1），所以这次 CAS 全用 relaxed。
+
+**四个例子放在一起**：
+
+| CAS 在哪一方 | 成功序 | 对面是谁 | 例子 |
+|---|---|---|---|
+| 抢到以后要看见别人写的 | acquire | 别人的 release 写 | 例 1 自旋锁 `lock()` |
+| 改完要让别人看见我之前写的 | release | 别人的 acquire 读 | 例 2 无锁栈 `push` |
+| 既要看见前一个人的，又要交给下一个人 | acq_rel | 前后两边 | 读改写一个接一个传东西 |
+| 只分号或计数 | relaxed | 没有 | 例 4 rte_ring 抢号 |
+
+- **失败序几乎总是 relaxed**：失败的 CAS 没写任何东西，不会是 release 一方。只有失败以后要马上拿读到的值去访问别的数据（比如读到一个指针，紧接着读它指向的东西），失败序才要 acquire。
 
 动手之前要先弄清楚，睡到底贵在哪里，什么时候转比睡划算。
 

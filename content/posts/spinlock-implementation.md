@@ -17,7 +17,7 @@ How it keeps looking decides whether the lock is fast. Look the wrong way and th
 
 ## First, the Syntax: Operations on `std::atomic` {#atomic-syntax}
 
-**Every operation on a `std::atomic<T>` is one indivisible load, store or read-modify-write, and its last argument is a memory order; the code in this post uses only the 8 below**.
+**Every operation on a `std::atomic<T>` is one indivisible load, store or read-modify-write, and its last argument is a memory order. The code in this post uses only the 8 below**.
 
 | Call | What it does | Returns | Used here in |
 |---|---|---|---|
@@ -30,27 +30,100 @@ How it keeps looking decides whether the lock is fast. Look the wrong way and th
 | `x.wait(old, order)` | C++20: sleeps while the value still equals `old`, returns once woken and the value has changed | nothing | the futex mutex (1.1) |
 | `x.notify_one()` / `x.notify_all()` | wakes one / all threads waiting on `x` | nothing | the same |
 
-- **`exchange` versus CAS: one just writes, the other compares first**
-  - **`exchange` always writes**: when grabbing the lock it writes 1; an old value of 0 means you took the lock, an old value of 1 means someone else holds it, and writing 1 over it changed nothing.
-  - **CAS writes only on a match**: use it when the new value is computed from the old one, like `old * 2` or `n + 1`; a mismatch means someone just changed it, so recompute from the latest value.
-  - **Both are read-modify-writes**: repeated while waiting, each one takes the cache line exclusive (1.4).
-- **`compare_exchange`'s parameters**
-  - **`expected` is passed by reference**: it goes in as "what I think the value is" and, on failure, comes out as "what it actually is". So it has to be a variable; a literal `0` won't compile.
-  - **`desired` is passed by value**: the new value to write when they are equal.
-  - **Two memory orders**: the first applies on success, when both the read and the write happened; the second on failure, when only a read happened, so the standard forbids release and acq_rel there.
-  - **Passing only one order**: success and failure share it, and the failure side is weakened automatically, acq_rel to acquire and release to relaxed.
-  - **Example**: rte_ring's `prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed)` in [#18](/posts/thread-safe-queue/) 2.1. If `prod_head_` is still `head`, it becomes `head + 1` and that slot is ours; if another producer got there first, `head` is replaced with the latest value and the surrounding `do while` checks for full with the new `head` and tries again.
-  - **`weak` and `strong` take exactly the same parameters**: how they differ and which to pick is in 1.3.
-- **The memory order argument**
-  - **It doesn't govern `x` itself, but this thread's reads and writes of other variables around the operation**: every operation on `x` is indivisible whatever order you pass, and all threads see `x`'s changes in the same sequence. The order only decides whether the surrounding reads and writes may move across this operation, and whether another thread can rely on `x` to see them.
-  - **release covers what comes before it, acquire what comes after it**: a release store to `x` keeps earlier reads and writes from moving after it. An acquire load of `x` keeps later reads and writes from moving before it. When another thread's acquire load reads the value a release store wrote, it sees every write made before that release. relaxed guarantees only `x` itself, and the surrounding accesses may move freely.
-  - **CAS's success and failure orders say what kind of operation this CAS counts as when it succeeds or fails**: on success it both read and wrote `x`, so it can be acquire and release at once. On failure it only read `x` and wrote nothing, so it is just a load and can only be acquire or relaxed.
-  - **Example**: the lock CAS in 1.3 is "acquire on success, relaxed on failure". Having taken the lock, the critical section's reads and writes must not move before it, and it must see what the previous holder wrote before releasing. Having failed, it enters nothing and needs to see nothing. The CAS in [#18](/posts/thread-safe-queue/) 2.1 only hands out numbers and the data travels through `prod_tail_`'s release/acquire, so it is relaxed throughout.
-  - **It can be left out, but then it's `seq_cst`, not `relaxed`**: the strictest and most expensive, and on x86 a `store` compiles to `xchg`; on the hot path write it explicitly on every atomic operation ([#2](/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1).
-  - **Loads, stores and RMWs accept different orders**: `load` can't take release or acq_rel; `store` can't take acquire or acq_rel; RMWs such as `exchange`, CAS and `fetch_add` take any.
-  - **Operators are the same as leaving the order out**: `x = v` is a `store`, reading `x` is a `load`, `++x` and `x += n` are `fetch_add`, all `seq_cst`.
-- **`wait` isn't a hand-written `while` loop**: on Linux it ends in the futex system call, the thread is suspended and uses no CPU, and being woken by `notify` takes microseconds; that's exactly the cost a spinlock avoids (1.1).
-- **`_mm_pause`, `_umonitor` and `_umwait` aren't `std::atomic` operations**: they are built-ins that map directly to one CPU instruction, covered in 1.6 and 2.5.
+- **`exchange` always writes, CAS writes only on a match**: use CAS when the new value is computed from the old one (`old * 2`, `n + 1`). Both are read-modify-writes, and each one takes the cache line exclusive (1.4).
+- **`expected` is passed by reference**: it goes in as "what I think the value is" and, on failure, comes out as "what it actually is", so it has to be a variable. A literal `0` won't compile.
+- **CAS takes two memory orders**: the first applies on success, the second on failure. Pass only one and both share it, with the failure side weakened automatically, acq_rel to acquire and release to relaxed. How `weak` and `strong` differ is in 1.3.
+- **Leaving the order out means `seq_cst`, not `relaxed`**: so do the operator forms (`x = v`, `++x`, `x += n`). On the hot path write it explicitly on every atomic operation ([#2](/posts/memory-ordering-false-sharing-dependency-chains/#mo-kinds) 2.1).
+- **`load` can't take release, `store` can't take acquire**: read-modify-writes take any order.
+- **`wait` puts the thread to sleep**: on Linux it ends in futex, and waking takes microseconds, the very cost a spinlock avoids (1.1).
+- **`_mm_pause`, `_umonitor` and `_umwait` aren't `std::atomic` operations**: they are built-ins that map to one CPU instruction each (1.6, 2.5).
+
+### What a Memory Order Governs, and What It Pairs With {#mo-pairing}
+
+> **The essence of pairing: an acquire pairs with whichever release wrote the value it reads**.
+
+- **The order doesn't govern `x` itself**: every operation on `x` is indivisible whatever order you pass, and all threads see its changes in the same sequence. The order governs this thread's reads and writes of other variables around the operation.
+- **A release store**: earlier reads and writes can't move after it.
+- **An acquire load**: later reads and writes can't move before it.
+- **Once they pair**: everything written before the release is visible after the acquire. Elapsed time doesn't matter, only whose value was read. relaxed pairs with nothing.
+- **A successful CAS both reads and writes**: it can be the acquire side or the release side. A failed CAS only read once and wrote nothing, so it can only be acquire or relaxed.
+
+All four examples below contain a CAS: on the acquire side, on the release side, in the middle of a chain, and not pairing at all.
+
+**Example 1: a spinlock, where the CAS is the acquire side**
+
+```cpp
+// lock()
+locked_.compare_exchange_weak(expected /* = 0 */, 1, std::memory_order_acquire,
+                              std::memory_order_relaxed);
+// unlock()
+locked_.store(0, std::memory_order_release);
+```
+
+```text
+T1:  CAS 0→1 succeeds ── critical section writes data = 42 ── store(0, release) ①
+                                                                      │
+T2:  CAS fails (reads 1) … CAS fails (reads 1) … CAS succeeds (reads 0) ② ── reads data
+```
+
+- **What pairs**: the 0 that ② reads was written by ①. ① is release and ②'s success order is acquire, so they pair.
+- **What it guarantees**: the `data = 42` T1 wrote before ① is visible to T2 after ②.
+- **Why the failed attempts are relaxed**: the 1 they read was written by T1's CAS. T2 didn't enter the critical section, so it needs to see nothing of T1's.
+
+**Example 2: a lock-free stack's push, where the CAS is the release side**
+
+```cpp
+// push
+Node* n = new Node{42};                                    // write the data first
+n->next = head.load(std::memory_order_relaxed);
+while (!head.compare_exchange_weak(n->next, n, std::memory_order_release,
+                                   std::memory_order_relaxed)) {}
+// first step of pop (a full pop also has the ABA problem; only pairing matters here)
+Node* top = head.load(std::memory_order_acquire);
+int v = top->data;                                         // must read 42
+```
+
+```text
+P:  write n->data = 42 ── write n->next ── CAS head: old→n succeeds (release) ①
+                                                             │
+C:                                  head.load(acquire) reads n ② ── reads n->data
+```
+
+- **What pairs**: the `n` that ② reads was written into `head` by ①. A successful CAS wrote `head`, its success order is release, so they pair.
+- **What it guarantees**: the `n->data` and `n->next` P wrote before the CAS are visible to C. Without the pairing, C could get `n`'s address and read uninitialised memory through it.
+- **Why the failure order is relaxed**: a failed CAS wrote nothing into `head` and published nothing. It just picks up the latest `head` into `n->next` and tries again.
+
+**Example 3: CASes that form a chain still pair one step removed**
+
+```text
+P1:  write a->data ── CAS head: null→a succeeds (release) ①
+P2:  CAS head: a→b succeeds ② (the a it read is the one ① wrote)
+C:   head.load(acquire) reads b ③ ── follows b->next to a ── reads a->data
+```
+
+- **C read what ② wrote, not what ① wrote**: it still sees `a->data`.
+- **Why**: ② is a read-modify-write that read exactly ①'s value and modified it. The RMWs after ① form a chain, and an acquire that reads any value on it pairs with the release ① at its head.
+- **A plain `store` breaks the chain**: if someone overwrites `head` with `head.store(...)` in between, a C that reads that value has nothing to do with ①.
+
+**Example 4: rte_ring's slot claim, where the CAS doesn't pair**
+
+```cpp
+prod_head_.compare_exchange_weak(head, head + 1, std::memory_order_relaxed);
+```
+
+- **No data travels through it**: other threads read `prod_head_` only to claim the next number, never to reach `buf_`.
+- **The data takes another pair**: slot contents reach the consumer through `prod_tail_`'s release/acquire ([#18](/posts/thread-safe-queue/) 2.1), so this CAS is relaxed throughout.
+
+**The four side by side**:
+
+| Where the CAS stands | Success order | The other side | Example |
+|---|---|---|---|
+| After taking it, must see what others wrote | acquire | someone's release store | Example 1, spinlock `lock()` |
+| After changing it, others must see what I wrote before | release | someone's acquire load | Example 2, stack `push` |
+| Must see the previous one's and hand on to the next | acq_rel | both sides | RMWs passing data one after another |
+| Only hands out numbers or counts | relaxed | none | Example 4, rte_ring claim |
+
+- **The failure order is almost always relaxed**: a failed CAS wrote nothing, so it is never the release side. It needs acquire only when the value it read is used straight away to reach other data (for example, reading a pointer and then what it points to).
 
 Before writing any of it, though, it helps to see where the cost of sleeping comes from, and when spinning beats sleeping.
 
