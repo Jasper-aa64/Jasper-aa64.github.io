@@ -131,25 +131,24 @@ toc: true
 
 | 知识点 | 一句话 | 看哪里 |
 |---|---|---|
-| 进程与 IPC | 进程是资源的容器（地址空间、fd 表），线程是里面的执行流；IPC 里共享内存最快，数据不经过内核拷贝，同步要自己做。 | [技能问答第 6 节](/zh/interview/cv-skills-review/#system)、[速查：IPC](/zh/ref/ipc/) |
+| 进程与 IPC | 进程是资源的容器（地址空间、fd 表），线程是里面的执行流。<br>IPC 里共享内存最快，数据不经过内核拷贝，同步要自己做。 | [技能问答第 6 节](/zh/interview/cv-skills-review/#system)、[速查：IPC](/zh/ref/ipc/) |
 | epoll | 要监听的 fd 存在红黑树里，就绪的 fd 由内核挂到就绪链表上，`epoll_wait` 只取这个链表，不像 `select` 每次扫全部 fd。 | [速查：epoll](/zh/ref/epoll-internals/) |
-| 虚拟内存与缺页 | `malloc` 拿到的只是一段虚拟地址，第一次访问才缺页、内核才分配物理页；所以开盘前先把要用的内存写一遍。 | [速查：new 和缺页](/zh/ref/new-malloc-page-fault/) |
-| 缓存友好的数据布局 | 只记一句：**一次处理碰的缓存行越少越好**。具体三招：热字段放一起、冷字段挪走；循环只读一个字段就用 SoA；不同线程写的变量分到不同的行。 | [#6 第 2 节](/zh/posts/alignment-layout-cache-dram-geometry/) |
-| SIMD 向量化 | 一条指令算一排数，AVX2 一次 4 个 double；先让编译器自动向量化、看汇编确认，它做不到的热点才手写 intrinsics。追问见下面五题。 | [SIMD](/zh/posts/simd-vectorization-intrinsics/) |
-| 实时调度策略与优先级 | `SCHED_FIFO` 的线程比所有普通线程先跑，同优先级之间不主动让出就一直跑；优先级反转用带优先级继承的锁解决。 | [#19 第 1、2 节](/zh/posts/scheduling-priority-inversion-kernel-tuning/) |
-| 中断亲和 | 网卡中断可能落在热线程的核上把它打断；改 `/proc/irq/N/smp_affinity`，把中断挪到网卡那一侧的打杂核。 | [绑核那篇 5.5 节](/zh/posts/cpu-affinity-core-isolation-numa/#irq-affinity) |
-| 基于 TSC 的延迟测量与分位数 | 前后各读一次 TSC（`rdtsc` / `rdtscp`，加栅栏防止被测代码挪出去），差值按校准出的频率换成 ns；报 P50、P99、P99.9，不报平均，平均会被少数尖刺拉高。 | [#20 TSC](/zh/posts/tsc-latency-measurement/)、[技能问答第 7 节](/zh/interview/cv-skills-review/#tools) |
-| 自旋锁：TTAS、票据锁、MCS | TTAS 先用普通读等，看到空闲再 CAS，等的时候不反复抢独占权；票据锁按取号顺序给锁，公平；MCS 每个等待者在自己的节点上转，释放时只碰下一个人的那条行。 | [自旋锁](/zh/posts/spinlock-implementation/) |
+| 虚拟内存与缺页 | `malloc` 拿到的只是一段虚拟地址，第一次访问才缺页、内核才分配物理页。<br>所以开盘前先把要用的内存写一遍。 | [速查：new 和缺页](/zh/ref/new-malloc-page-fault/) |
+| 缓存友好的数据布局 | 只记一句：**一次处理碰的缓存行越少越好**。具体三招：热字段放一起、冷字段挪走。<br>循环只读一个字段就用 SoA。<br>不同线程写的变量分到不同的行。 | [#6 第 2 节](/zh/posts/alignment-layout-cache-dram-geometry/) |
+| SIMD 向量化 | 一条指令算一排数，AVX2 一次 4 个 double。<br>先让编译器自动向量化、看汇编确认，它做不到的热点才手写 intrinsics。追问见下面四题。 | [SIMD](/zh/posts/simd-vectorization-intrinsics/) |
+| 实时调度策略与优先级 | `SCHED_FIFO` 的线程比所有普通线程先跑，同优先级之间不主动让出就一直跑。<br>优先级反转用带优先级继承的锁解决。 | [#19 第 1、2 节](/zh/posts/scheduling-priority-inversion-kernel-tuning/) |
+| 中断亲和 | 网卡中断可能落在热线程的核上把它打断。<br>改 `/proc/irq/N/smp_affinity`，把中断挪到网卡那一侧的打杂核。 | [绑核那篇 5.5 节](/zh/posts/cpu-affinity-core-isolation-numa/#irq-affinity) |
+| 基于 TSC 的延迟测量与分位数 | 前后各读一次 TSC（`rdtsc` / `rdtscp`，加栅栏防止被测代码挪出去），差值按校准出的频率换成 ns。<br>报 P50、P99、P99.9，不报平均，平均会被少数尖刺拉高。 | [#20 TSC](/zh/posts/tsc-latency-measurement/)、[技能问答第 7 节](/zh/interview/cv-skills-review/#tools) |
+| 自旋锁：TTAS、票据锁、MCS | TTAS 先用普通读等，看到空闲再 CAS，等的时候不反复抢独占权。<br>票据锁按取号顺序给锁，公平。<br>MCS 每个等待者在自己的节点上转，释放时只碰下一个人的那条行。 | [自旋锁](/zh/posts/spinlock-implementation/) |
 
-**SIMD 的五个追问**
+**SIMD 的四个追问**
 
 | 问 | 答 |
 |---|---|
-| 多个线程写相似度矩阵，怎么避免数据竞争 | 按输出切：每个线程只写自己的那几行，输入大家只读，不用锁也不用原子；`join` 之后再读结果。分界别落在同一条缓存行里，否则是伪共享（[4.1 节](/zh/posts/simd-vectorization-intrinsics/#parallel-matrix)）。 |
-| AoS 改成 SoA 为什么可能更快 | 循环只用一个字段时，SoA 只搬这个字段，缓存和带宽不浪费；同一字段连续存放，一条向量 load 就装满，AoS 要先洗牌。每次用一个对象的全部字段时，SoA 反而碰的行多（[2.3 节](/zh/posts/simd-vectorization-intrinsics/#layout)）。 |
-| 数据布局和 SIMD 向量化有什么关系 | 一条向量 load 只能读一段连续地址，所以要同时算的那些数必须挨着放；SoA 正好把同一个字段排成连续数组。 |
-| 显式写 intrinsics，还是靠编译器自动向量化 | 先靠编译器，看报告和汇编确认它做了；它做不到的热点才手写。缓存案例里我手写了：4 个期权各走一遍同一套算式，编译器认不出这种并行，我用 `_mm256_fmadd_pd` 把 4 个并排放进一条指令（[项目页 5.6](/zh/interview/cv-projects/#case-simd)）。 |
-| 编译器什么情况下才能自动向量化 | 它能证明“一排同时算”和“一个一个算”结果一样的时候：指针不重叠（`__restrict`）、`a[i]` 不依赖 `a[i - 1]`、数据连续、循环里没有调不进去的函数；浮点求和还要允许重排（`-ffast-math` 或 `omp simd reduction`）；再加 `-march` 才用得上 256 位（[2.2 节](/zh/posts/simd-vectorization-intrinsics/)）。 |
+| AoS 改成 SoA 为什么可能更快 | SoA 把同一字段排成连续数组，一条向量 load 就装满，AoS 要洗牌挑出来。<br>循环只用一个字段时，SoA 只搬这个字段，缓存和带宽不浪费。<br>每次用一个对象的全部字段时，SoA 反而碰的行多（[2.3 节](/zh/posts/simd-vectorization-intrinsics/#layout)）。 |
+| 数据布局和 SIMD 向量化有什么关系 | 一条向量 load 只能读一段连续地址，所以要同时算的那些数必须挨着放。<br>SoA 正好把同一个字段排成连续数组。 |
+| 显式写 intrinsics，还是靠编译器自动向量化 | 先靠编译器，看报告和汇编确认它做了。<br>它做不到的热点才手写。缓存案例里我手写了：4 个期权各走一遍同一套算式，我用 `_mm256_fmadd_pd` 把 4 个并排放进一条指令（[项目页 5.6](/zh/interview/cv-projects/#case-simd)）。 |
+| 编译器什么情况下才能自动向量化 | 它能证明“一排同时算”和“一个一个算”结果一样的时候：指针不重叠（`__restrict`）、`a[i]` 不依赖 `a[i - 1]`、数据连续、循环里没有调不进去的函数。<br>浮点求和还要允许重排（`-ffast-math` 或 `omp simd reduction`）。<br>再加 `-march` 才用得上 256 位（[2.2 节](/zh/posts/simd-vectorization-intrinsics/)）。 |
 
 ## 5. 每天 {#days}
 
