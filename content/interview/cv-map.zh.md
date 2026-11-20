@@ -64,13 +64,13 @@ toc: true
 
 [回测框架按交易日回放历史行情](/zh/interview/backtest-framework/#steps)（[每个交易日约 650 万条、2,000 余只股票](/zh/interview/backtest-framework/#data)）。[为其搭建性能验证流程](/zh/interview/backtest-framework/#backtest-flow)：[每次改动先比对输出、确认结果不变](/zh/interview/backtest-framework/#flow-output)，[再与原版配对计时](/zh/interview/backtest-framework/#flow-paired)。
 
-→ 代码：[框架一天 4 步](/zh/interview/backtest-framework/#steps)、[装载](/zh/interview/backtest-framework/#load)、[回放和写结果](/zh/interview/backtest-framework/#replay)、[框架完整程序](/zh/interview/backtest-framework/#full)；验证流程的完整程序 [回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-flow)
+→ 代码：[框架一天 4 步](/zh/interview/backtest-framework/#steps)、[装载](/zh/interview/backtest-framework/#load)、[回放和写结果](/zh/interview/backtest-framework/#replay)、[框架完整程序](/zh/interview/backtest-framework/#full)；验证流程 [回测专页第 4 节](/zh/interview/backtest-framework/#backtest-flow)
 
 ### 2.6 因子回测优化 {#backtest-opt}
 
 [去掉每个交易日重复执行的初始化，运行耗时降低约 22%](/zh/interview/backtest-framework/#opt-init)；[再用 perf 剖析定位到行情装载的开销](/zh/interview/backtest-framework/#opt-load)：[每个交易日为每只股票按固定 6000 条预分配行情数组，一天约 17.5 GB，时间大量耗在缺页与内存分配上](/zh/interview/backtest-framework/#opt-load)；[改为按实际条数分配、行情结构体精简一半以上、bar 时间轴与字符串改为共享，行情记录用 arena 统一分配、跨交易日复用](/zh/interview/backtest-framework/#opt-load)，[耗时在此基础上再降约 44%](/zh/interview/backtest-framework/#opt-load)。
 
-→ 代码：[改之前的定长数组](/zh/interview/backtest-framework/#load)、[改之后的 `Tick`、`StockDay`、`Arena`](/zh/interview/backtest-framework/#data)；完整程序 [回测专页 7.2](/zh/interview/backtest-framework/#hw-backtest-opt)
+→ 代码：[改之前的定长数组](/zh/interview/backtest-framework/#load)、[改之后的 `Tick`、`StockDay`、`Arena`](/zh/interview/backtest-framework/#data)；完整程序 [回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-opt)
 
 ## 3. 项目 1：C++ 性能自动优化 Agent Skill {#project}
 
