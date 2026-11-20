@@ -42,7 +42,12 @@ How it keeps looking decides whether the lock is fast. Look the wrong way and th
 
 > **The essence of CAS memory orders: the success order decides which side of a pairing this read-modify-write takes, and the failure order covers only the one load on failure**.
 
-In `x.compare_exchange_weak(expected, desired, success, failure)`, the orders don't govern `x` itself: every operation on `x` is indivisible whatever order you pass, and all threads see its changes in the same sequence. They govern this thread's reads and writes of other variables around the CAS, and whether another thread can rely on `x` to see them. That is what pairing does.
+**The order is a property of this one operation on `x`, but what it governs is reads and writes of other variables around that operation**:
+
+- **Where it attaches**: passed to `x.compare_exchange_weak(expected, desired, success, failure)`, it is the order of this one CAS. It isn't a permanent property of `x`, and the next operation on `x` can pass a different order.
+- **What it governs**: whether this thread's reads and writes of other variables (the data in a critical section, `buf_`) may move across this CAS, and whether another thread can see them through `x`.
+- **What it doesn't govern**: `x` itself. Whatever order you pass, every operation on `x` is indivisible and all threads see `x`'s changes in the same sequence. With relaxed, `x` still never gets half-written or loses an update.
+- **What `x` does in a pairing**: it is the variable where the two sides meet. Both operate on `x`, and they pair only when one side reads the value the other wrote. What gets carried across once they pair is other variables.
 
 **The pairing rule, all three at once**:
 
