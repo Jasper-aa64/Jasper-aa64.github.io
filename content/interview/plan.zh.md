@@ -66,8 +66,8 @@ toc: true
 | 5 | 实习 2 行情优化 | 计数按 128 字节隔离，`static_assert` 钉布局；预触；读时钟；打点取分位数 | [SPMC 专页 3.2](/zh/interview/md-feed-spmc/#hw-md-opt) | 15 分钟 | 周二 | ⬜ |
 | 6 | 实习 3 因子开发 | 增量滚动标准差（Welford 进一个出一个）；按 key、按容差对拍；边界单元测试 | [因子专页 4.1](/zh/interview/cv-factor/#hw-factor-dev) | 20 分钟 | 周三 | ⬜ |
 | 7 | 实习 4 因子计算优化 | 重点两个：单调队列滚动最大值、CRTP 的 `FactorSet`；其余看一遍能说 | [因子专页 4.2](/zh/interview/cv-factor/#hw-factor-opt) | 15 分钟 | 周三 | ⬜ |
-| 8 | 实习 5 回测框架 | 比输出（门先用错的版本验），再配对计时（顺序随机、只看轮内差、先 A/A） | [回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-flow) | 15 分钟 | 周四 | ⬜ |
-| 9 | 实习 6 回测优化 | `TickArena`：`reset` 不够时多要一半、`take` 顺着切、跨天复用；`Tick` 平凡可析构 | [回测专页 7.2](/zh/interview/backtest-framework/#hw-backtest-opt) | 15 分钟 | 周四 | ⬜ |
+| 8 | 实习 5 回测框架 | 不手写，看第 4 节能讲清：比输出（门先用错的版本验），再配对计时（顺序随机、只看轮内差、先 A/A） | [回测专页第 4 节](/zh/interview/backtest-framework/#backtest-flow) | 15 分钟 | 周四 | ⬜ |
+| 9 | 实习 6 回测优化 | `TickArena`：`reset` 不够时多要一半、`take` 顺着切、跨天复用；`Tick` 平凡可析构 | [回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-opt) | 15 分钟 | 周四 | ⬜ |
 | 10 | 项目 1 缓存案例 | 基线 → 分批取数加预取下一批 → SIMD → 两个核 40 / 24 | [第 12 节](https://jasper-aa64.github.io/zh/interview/cv-projects/#handwrite) | 25 分钟 | 周四 | ⬜ |
 
 ## 4. 一句话答案卡：不看稿说出来 {#cards}
@@ -163,7 +163,7 @@ toc: true
 |---|---|---|---|---|
 | **11-17 周二** ✅ | SPSC、LRU、博客版 SPMC 各写过一遍 | — | 4.1 的前几题 | — |
 | **11-18 周三** | SPMC：[专页 1.2 节](/zh/interview/md-feed-spmc/#ring)那一版，20 分钟 | [回测框架专页](/zh/interview/backtest-framework/)；[CV map](/zh/interview/cv-map/)实习部分每句点一遍 | 4.2 全部；自我介绍 45 秒 | 4.1 剩下的 |
-| **11-19 周四** | 因子开发 [因子专页 4.1](/zh/interview/cv-factor/#hw-factor-dev)，20 分钟 | [SPMC 专页 3.2](/zh/interview/md-feed-spmc/#hw-md-opt)、[因子专页 4.2](/zh/interview/cv-factor/#hw-factor-opt)、[回测专页 7.2](/zh/interview/backtest-framework/#hw-backtest-opt)、[缓存案例第 12 节](/zh/interview/cv-projects/#handwrite) | 4.3 全部；第 6 节三段加反问 | 晚上 30 分钟模拟，一题超过 20 秒就打断 |
+| **11-19 周四** | 因子开发 [因子专页 4.1](/zh/interview/cv-factor/#hw-factor-dev)，20 分钟 | [SPMC 专页 3.2](/zh/interview/md-feed-spmc/#hw-md-opt)、[因子专页 4.2](/zh/interview/cv-factor/#hw-factor-opt)、[回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-opt)、[缓存案例第 12 节](/zh/interview/cv-projects/#handwrite) | 4.3 全部；第 6 节三段加反问 | 晚上 30 分钟模拟，一题超过 20 秒就打断 |
 | **11-20 周五** | 不写新代码：看 SPSC、LRU、SPMC、7.3 四份参考代码，背结构 | [缓存案例博客](/zh/posts/low-latency-cache-case-study/)的 8 段代码过一遍：[1.1 数据布局](/zh/posts/low-latency-cache-case-study/#11-数据怎么摆期权的地址在股票记录里)、[1.2 基线](/zh/posts/low-latency-cache-case-study/#12-基线一个期权一个期权地取数计算)、[2.2 两趟](/zh/posts/low-latency-cache-case-study/#22-两趟先把一批的行都要过来再集中算)、[3.2 预取](/zh/posts/low-latency-cache-case-study/#32-什么时候要第一趟之后第二趟之前)、[4.2 clflushopt](/zh/posts/low-latency-cache-case-study/#42-clflush-与-clflushopt一个串行一个能并行)、[5.1 两个核 40 / 24](/zh/posts/low-latency-cache-case-study/#51-怎么拆主核留-40-个辅核拿-24-个)、[5.2 读回刚写的行](/zh/posts/low-latency-cache-case-study/#52-读回自己刚写的行对面一读副本就没了)、[6.2 SIMD](/zh/posts/low-latency-cache-case-study/#simd-code) | 下午把第 4 节过一遍，[4.4 待过的知识点](#review)逐条出声说 | — |
 
 周五 17:00 试麦克风和共享屏幕，关掉笔记。

@@ -623,7 +623,6 @@ for (auto& code : codes) stocks[code] = new StockDayOld();   // 每个交易日�
 > **验证流程的本质：先证明结果没变，再用配对计时抵消机器的漂移**。
 
 - **简历第 5 条做的就是这个**：框架原本就有，我给它搭的是验证流程，第 3 节的优化都按这个流程收。
-- **完整代码**：比输出的门和配对计时写成一个 C++ 程序，在 [7.1 节](#hw-backtest-flow)。
 
 ### 4.1 同一个程序跑几次就差好几秒：性能结论只认配对计时 {#flow-noise}
 
@@ -735,111 +734,11 @@ print("新版更快的轮数", sum(d < 0 for d in diffs), "/", len(diffs))
 | 能不能多线程 | 能按股票分：每只股票的 `Factors` 和那段 `ticks` 互不相干，分给几个线程各跑一批，只有输出要合并。也可以按交易日分（第 5 节）。 |
 | `assert` 在 `-O2` 下还检查吗 | 检查。`-O2` 不定义 `NDEBUG`，加 `-DNDEBUG` 才会去掉。 |
 
-## 7. 手写练习：另外两份完整代码 {#handwrite}
+## 7. 手写练习：arena {#handwrite}
 
-[2.6 节](#full)是框架一天怎么跑的完整程序；这一节再补两份：7.1 对第 4 节的验证流程，7.2 对第 3.2 节的 arena。先按“开写前说”出声说 30 秒，再从空白写，打印“全部测试通过！”才算写对。
+这一节只练一份：第 3.2 节的 arena。先出声说 30 秒思路，再从空白写，打印“全部测试通过！”才算写对。
 
-### 7.1 回测框架：比输出 + 配对计时 {#hw-backtest-flow}
-
-- **开写前说**：第一关比输出，不一致直接否决，这道门先用一个故意做错的版本验；第二关每轮新旧紧挨着各跑一次、顺序随机，只看轮内的差；先跑 A/A 看噪声多大；判据事先写死：区间整个在 0 的负侧才采纳。
-- **写的时候注意**：[4.3 节](#flow-paired)是 Python 驱动两个可执行文件，这里把同样的流程写成一个 C++ 程序，流程一步不少。
-- **我机器上的一次输出**：A/A 中位差 +1.1%、区间 [−4.7%, +10.4%]，不采纳；新版中位差 −86%、30 轮全快，采纳。
-
-<details>
-<summary><strong>参考代码</strong>（86 行，先自己写，写完或卡住再展开）</summary>
-
-```cpp
-// 实习 5：回测框架的验证流程。第一关比输出（不一致直接否决）；第二关配对计时（每轮新旧紧挨着、顺序随机，只看轮内的差）
-// 页面里是 Python 驱动两个可执行文件；这里把同样的流程写在一个 C++ 程序里，方便手写
-// 编译：g++ -std=c++17 -O2 -Wall -Wextra i5_backtest_flow.cpp -o bt_flow && ./bt_flow
-#include <algorithm>
-#include <cassert>
-#include <chrono>
-#include <cstdint>
-#include <cstdio>
-#include <functional>
-#include <random>
-#include <string>
-#include <vector>
-
-struct Tick { int32_t time; double last; };
-using Day = std::vector<std::vector<Tick>>;               // 每只股票一天的行情，文件里已按时间排好
-
-// ---- 被测的“一个交易日”：装数据 → 算因子 → 输出。返回输出（这里用每只股票一行结果代替文件）----
-std::vector<std::string> run_old(const Day& day) {          // 原版：每只股票装完再排一次序
-    std::vector<std::string> out;
-    for (auto ticks : day) {
-        std::sort(ticks.begin(), ticks.end(), [](const Tick& a, const Tick& b) { return a.time < b.time; });
-        double s = 0; for (auto& t : ticks) s += t.last;
-        out.push_back(std::to_string(s));
-    }
-    return out;
-}
-std::vector<std::string> run_new(const Day& day) {          // 候选：数据本来有序，去掉排序
-    std::vector<std::string> out;
-    for (auto& ticks : day) { double s = 0; for (auto& t : ticks) s += t.last; out.push_back(std::to_string(s)); }
-    return out;
-}
-std::vector<std::string> run_wrong(const Day& day) {        // 故意做错：跳过每只股票前 100 条
-    std::vector<std::string> out;
-    for (auto& ticks : day) { double s = 0; for (size_t i = 100; i < ticks.size(); ++i) s += ticks[i].last; out.push_back(std::to_string(s)); }
-    return out;
-}
-
-// ---- 第一关：逐行比输出（页面里是逐个文件比 md5）----
-bool same_output(const std::vector<std::string>& a, const std::vector<std::string>& b) { return a == b; }
-
-// ---- 第二关：配对计时 ----
-using Runner = std::function<std::vector<std::string>(const Day&)>;
-double time_once(const Runner& f, const Day& d, std::vector<std::string>* out) {
-    auto t0 = std::chrono::steady_clock::now();
-    auto r = f(d);
-    double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-    if (out) *out = std::move(r);
-    return s;
-}
-struct Verdict { double median, lo, hi; int faster, rounds; };
-Verdict paired(const Runner& old_f, const Runner& new_f, const Day& d, int rounds, std::mt19937& rng) {
-    std::vector<std::string> ref, got;
-    time_once(old_f, d, &ref); time_once(new_f, d, nullptr);       // 各预热一次，丢掉
-    std::vector<double> diffs;
-    for (int r = 0; r < rounds; ++r) {
-        bool old_first = rng() & 1;                                 // 谁先跑随机定
-        double t_old, t_new;
-        if (old_first) { t_old = time_once(old_f, d, nullptr); t_new = time_once(new_f, d, &got); }
-        else           { t_new = time_once(new_f, d, &got); t_old = time_once(old_f, d, nullptr); }
-        assert(same_output(ref, got));                              // 每次运行都过第一关
-        diffs.push_back((t_new - t_old) / t_old);                   // 只看同一轮里的差，用比例
-    }
-    std::sort(diffs.begin(), diffs.end());
-    int faster = int(std::count_if(diffs.begin(), diffs.end(), [](double x) { return x < 0; }));
-    return {diffs[rounds / 2], diffs[size_t(0.05 * rounds)], diffs[size_t(0.95 * rounds) - 1], faster, rounds};
-}
-void print(const char* name, const Verdict& v) {
-    bool accept = v.hi < 0;                                         // 判据事先写死：区间整个在 0 的负侧
-    std::printf("%-6s 中位差 %+6.1f%%  90%% 区间 [%+6.1f%%, %+6.1f%%]  更快 %d/%d 轮  → %s\n",
-                name, v.median * 100, v.lo * 100, v.hi * 100, v.faster, v.rounds, accept ? "采纳" : "不采纳");
-}
-
-int main() {
-    std::mt19937 rng(1);
-    Day day(300);
-    for (auto& s : day) { int n = 2000 + rng() % 2000; for (int i = 0; i < n; ++i) s.push_back({i * 3, 10.0 + (rng() % 100) * 0.01}); }
-
-    // 第一关的门自己要验：错的版本必须被抓到
-    assert(!same_output(run_old(day), run_wrong(day)));
-    assert(same_output(run_old(day), run_new(day)));
-
-    // 先跑 A/A：同一个程序当两边，它告诉你噪声有多大
-    print("A/A", paired(run_old, run_old, day, 30, rng));
-    print("新/旧", paired(run_old, run_new, day, 30, rng));
-    std::printf("全部测试通过！\n");
-}
-```
-
-</details>
-
-### 7.2 回测优化：按实际条数从 arena 切，跨交易日复用 {#hw-backtest-opt}
+### 7.1 回测优化：按实际条数从 arena 切，跨交易日复用 {#hw-backtest-opt}
 
 - **开写前说**：一天的行情同生同死，用一块 arena；每天开头 `reset(今天总条数)`，够用就偏移归零、原地覆盖，不够才换块，换的时候多要一半；每只股票 `take(实际条数)`；`Tick` 必须平凡可析构。
 - **写的时候注意**：Linux 上用 `mmap`，其他平台用 `malloc` 代替；测试钉住了[3.2 节](#opt-load)“⑤ 第一版没复用上”那个坑：扩容规则是“刚好够”时，第二天多 2.6% 就要换块，复用没有发生。

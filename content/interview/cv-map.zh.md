@@ -92,7 +92,7 @@ toc: true
 
 [每个改动单独验证](/zh/interview/cv-projects/#verify-one-change)：[先比对输出，与原版不一致即否决](/zh/interview/cv-projects/#verify-correctness)；[再测速度，每轮让新旧版本紧挨着各跑一次、先后顺序随机，逐轮对比，避免机器频率、温度等随时间漂移偏向某一方](/zh/interview/cv-projects/#verify-paired)，[多轮结果稳定更快才采纳](/zh/interview/cv-projects/#verify-confirm)。
 
-→ 代码：配对计时的完整程序在回测框架专页，[回测专页 7.1](/zh/interview/backtest-framework/#hw-backtest-flow)
+→ 流程：[回测专页第 4 节](/zh/interview/backtest-framework/#backtest-flow)
 
 ### 3.4 缓存性能瓶颈案例 {#case}
 
