@@ -38,17 +38,26 @@ How it keeps looking decides whether the lock is fast. Look the wrong way and th
 - **`wait` puts the thread to sleep**: on Linux it ends in futex, and waking takes microseconds, the very cost a spinlock avoids (1.1).
 - **`_mm_pause`, `_umonitor` and `_umwait` aren't `std::atomic` operations**: they are built-ins that map to one CPU instruction each (1.6, 2.5).
 
-### What a Memory Order Governs, and What It Pairs With {#mo-pairing}
+### CAS Memory Orders: What They Govern and What They Pair With {#mo-pairing}
 
-> **The essence of pairing: an acquire pairs with whichever release wrote the value it reads**.
+> **The essence of CAS memory orders: the success order decides which side of a pairing this read-modify-write takes, and the failure order covers only the one load on failure**.
 
-- **The order doesn't govern `x` itself**: every operation on `x` is indivisible whatever order you pass, and all threads see its changes in the same sequence. The order governs this thread's reads and writes of other variables around the operation.
-- **A release store**: earlier reads and writes can't move after it.
-- **An acquire load**: later reads and writes can't move before it.
-- **Once they pair**: everything written before the release is visible after the acquire. Elapsed time doesn't matter, only whose value was read. relaxed pairs with nothing.
-- **A successful CAS both reads and writes**: it can be the acquire side or the release side. A failed CAS only read once and wrote nothing, so it can only be acquire or relaxed.
+In `x.compare_exchange_weak(expected, desired, success, failure)`, the orders don't govern `x` itself: every operation on `x` is indivisible whatever order you pass, and all threads see its changes in the same sequence. They govern this thread's reads and writes of other variables around the CAS, and whether another thread can rely on `x` to see them. That is what pairing does.
 
-All four examples below contain a CAS: on the acquire side, on the release side, in the middle of a chain, and not pairing at all.
+**The pairing rule, all three at once**:
+
+1. **The same atomic variable**: that is `x`. A release on some other variable has nothing to do with this CAS.
+2. **One side writes, the other reads, and the read gets exactly the value that write stored**: reading an older value, or one a plain `store` wrote over it, means no pairing. Reading a value that a chain of read-modify-writes stored after that write still pairs (example 3). Elapsed time doesn't matter.
+3. **The writing side is at least release, the reading side at least acquire**: relaxed pairs with nothing.
+
+**Once they pair**: every read and write made before the write is visible on the reading side after the read.
+
+**Which access each CAS order covers**:
+
+- **On success it read `x` and wrote `x`, and the success order covers both**: with acquire, its read can pair with someone's release store (example 1). With release, its write can be paired by someone's acquire load (example 2). acq_rel pairs at both ends.
+- **On failure it only read `x`, and the failure order covers just that read**: acquire pairs with the release that stored that value, relaxed doesn't. It wrote nothing, so it can't be release.
+
+In the four examples below the CAS is on the acquire side, on the release side, in the middle of a chain, and not pairing at all.
 
 **Example 1: a spinlock, where the CAS is the acquire side**
 
