@@ -38,7 +38,7 @@ toc: true
 
 ### 2.1 行情接入 {#md-feed}
 
-[接入两家行情源并转换为统一结构落盘](/zh/interview/md-feed-spmc/#usage)，[回调线程经 SPMC 广播队列向落盘进程交付数据](/zh/interview/md-feed-spmc/#ring)；[基于真实行情校验价格、委托类型、成交金额等字段](/zh/interview/md-feed-spmc/#md-verify)，[经整日 4.5 亿条行情回放验证](/zh/interview/md-feed-spmc/#md-replay)，[支持断线自动续传](/zh/interview/md-feed-spmc/#md-reconnect)。
+[对接两家厂商的 Level-2 行情 SDK（快照、逐笔委托、逐笔成交），在 SDK 回调中转换为统一结构落盘](/zh/interview/md-feed-spmc/#usage)，[回调线程经 SPMC 广播队列向落盘进程交付数据](/zh/interview/md-feed-spmc/#ring)；[基于真实行情校验价格、委托类型、成交金额等字段](/zh/interview/md-feed-spmc/#md-verify)，[经整日 4.5 亿条行情回放验证](/zh/interview/md-feed-spmc/#md-replay)，[支持断线自动续传](/zh/interview/md-feed-spmc/#md-reconnect)。
 
 → 代码：[环](/zh/interview/md-feed-spmc/#ring)、[放进共享内存](/zh/interview/md-feed-spmc/#shm)、[回调和落盘线程](/zh/interview/md-feed-spmc/#usage)；完整程序 [SPMC 专页 3.1](/zh/interview/md-feed-spmc/#hw-md-feed)
 
@@ -62,7 +62,7 @@ toc: true
 
 ### 2.5 因子回测框架 {#backtest-flow}
 
-[回测框架按交易日回放历史行情](/zh/interview/backtest-framework/#steps)（[每个交易日约 650 万条、2,000 余只股票](/zh/interview/backtest-framework/#data)）。[为其搭建性能验证流程](/zh/interview/backtest-framework/#backtest-flow)：[每次改动先比对输出、确认结果不变](/zh/interview/backtest-framework/#flow-output)，[再与原版配对计时](/zh/interview/backtest-framework/#flow-paired)。
+[回测框架按交易日回放历史行情](/zh/interview/backtest-framework/#steps)。[为其搭建性能验证流程](/zh/interview/backtest-framework/#backtest-flow)：[每次改动先比对输出、确认结果不变](/zh/interview/backtest-framework/#flow-output)，[再与原版配对计时](/zh/interview/backtest-framework/#flow-paired)。
 
 → 代码：[框架一天 4 步](/zh/interview/backtest-framework/#steps)、[装载](/zh/interview/backtest-framework/#load)、[回放和写结果](/zh/interview/backtest-framework/#replay)、[框架完整程序](/zh/interview/backtest-framework/#full)；验证流程 [回测专页第 4 节](/zh/interview/backtest-framework/#backtest-flow)
 
