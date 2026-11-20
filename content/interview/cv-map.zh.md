@@ -100,6 +100,21 @@ toc: true
 
 → 代码：[缓存案例博客](/zh/posts/low-latency-cache-case-study/)里的 8 段，[1.1 数据布局](/zh/posts/low-latency-cache-case-study/#11-数据怎么摆期权的地址在股票记录里)、[1.2 基线](/zh/posts/low-latency-cache-case-study/#12-基线一个期权一个期权地取数计算)、[2.2 两趟](/zh/posts/low-latency-cache-case-study/#22-两趟先把一批的行都要过来再集中算)、[3.2 预取](/zh/posts/low-latency-cache-case-study/#32-什么时候要第一趟之后第二趟之前)、[4.2 clflushopt](/zh/posts/low-latency-cache-case-study/#42-clflush-与-clflushopt一个串行一个能并行)、[5.1 两个核 40 / 24](/zh/posts/low-latency-cache-case-study/#51-怎么拆主核留-40-个辅核拿-24-个)、[5.2 读回刚写的行](/zh/posts/low-latency-cache-case-study/#52-读回自己刚写的行对面一读副本就没了)、[6.2 SIMD](/zh/posts/low-latency-cache-case-study/#simd-code)；四个版本的完整程序 [第 12 节](/zh/interview/cv-projects/#handwrite)
 
+### 3.5 项目 1 按 STAR 讲 {#project-star}
+
+> **S（背景）**：让 coding agent 自己优化 C++ 代码，最常见三种坏结果：改快了但结果错了；把测量噪声当成提速；拿到一点收益就停（[1.1](/zh/interview/cv-projects/#skill-three-failures)）。
+>
+> **T（任务）**：设计一套性能优化流程，封装成 Agent skill，让 Agent 按流程自己完成剖析、改写、验证和决策，每一步留痕、结果能复现。再拿一个公开的 C++ 低延迟案例把流程走通。
+>
+> **A（做法）**：
+>
+> 1. **分诊**：先比墙钟和 CPU 时间，分成 CPU 热点、等待与 I/O、锁竞争、多核扩展四类，再选工具。CPU 热点用 `perf stat`、`perf report`、`perf annotate` 一层层往下，跨核争用用 `perf c2c` 定位到缓存行（[第 2 节](/zh/interview/cv-projects/#skill-triage)）。
+> 2. **按信号加载修法**：每类瓶颈一张卡片，索引里只写“看到什么算命中”。命中了才加载成因、修法和验证方法，省上下文，加一类瓶颈只加一张卡片（[第 3 节](/zh/interview/cv-projects/#skill-signals)）。
+> 3. **三道关**：先比输出，不一致直接否决；再配对计时，新旧紧挨着跑、顺序随机，先跑 A/A 看噪声，筛选和确认用不同的数据；停的条件开跑前写好（[第 4 节](/zh/interview/cv-projects/#skill-verify)）。
+> 4. **用在案例上**：一条行情重算 64 个期权，要碰 140 条缓存行，判断是卡在等内存加上长依赖链。Agent 按流程依次落地：分批取数让缺失重叠，软件预取下一批，拆给两个核（40 / 24），4 个期权一组用 AVX2 算（[第 5 节](/zh/interview/cv-projects/#skill-case)）。
+>
+> **R（结果）**：案例的 P50 延迟降低约 67%，在测试机（虚拟机）上测的，只说百分比。每个改动都过了比输出和配对计时，记录完整、能复现。代码是 Agent 改的，流程、判据和否决是我做的。有几条规则是知道答案以后补的，所以它证明的是流程能走通，要证明能推广，还得拿 Agent 没见过的代码盲测（[5.7](/zh/interview/cv-projects/#case-honest)）。
+
 ## 4. CV 上没写、讨论过的知识点 {#extra}
 
 简历上没有、准备时聊到的知识点，从 11-20 起记在这里，一条一句话加链接。
