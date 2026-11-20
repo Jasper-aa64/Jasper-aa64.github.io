@@ -20,7 +20,7 @@ toc: true
 
 **低延迟优化**：熟悉[缓存友好的数据布局](/zh/posts/alignment-layout-cache-dram-geometry/)、[伪共享规避](/zh/posts/memory-ordering-false-sharing-dependency-chains/#false-sharing)、[内存池与 arena 分配器](/zh/posts/hot-path-memory-allocators/)、[缓存预取与预热](/zh/posts/prefetch-warmup-double-buffer/)、[SIMD 向量化](/zh/posts/simd-vectorization-intrinsics/)、[分支优化](/zh/posts/branch-prediction-branch-optimization/)、[循环优化与指令级并行](/zh/posts/loop-optimization/)、[强度削弱与定点数运算](/zh/posts/strength-reduction-arithmetic/)。　→ [问答](/zh/interview/cv-skills-review/#optimization)
 
-**Linux 调优**：熟悉 [CPU 绑核与核心隔离](/zh/posts/cpu-affinity-core-isolation-numa/)、[中断亲和](/zh/posts/cpu-affinity-core-isolation-numa/)、[实时调度策略与优先级](/zh/posts/scheduling-priority-inversion-kernel-tuning/)、[大页内存](/zh/posts/scheduling-priority-inversion-kernel-tuning/)。　→ [问答](/zh/interview/cv-skills-review/#linux-tuning)
+**Linux 调优**：熟悉 [CPU 绑核与核心隔离](/zh/posts/cpu-affinity-core-isolation-numa/)、[中断亲和](/zh/posts/cpu-affinity-core-isolation-numa/)、[实时调度策略与优先级](/zh/posts/scheduling-priority-inversion-kernel-tuning/#sched-classes)、[大页内存](/zh/posts/scheduling-priority-inversion-kernel-tuning/)。　→ [问答](/zh/interview/cv-skills-review/#linux-tuning)
 
 **并发编程**：熟悉[多线程与并发编程](/zh/ref/thread-sync/)，掌握 [std::atomic 与内存序](/zh/posts/memory-ordering-false-sharing-dependency-chains/#release-acquire)、[互斥锁、条件变量](/zh/ref/thread-sync/)、[线程池](/zh/ref/thread-pool-future/)；理解 [lock-free / wait-free 的进度保证](/zh/posts/wait-free-sticky-counter/)，了解 [SPSC 无锁队列](/zh/posts/lock-free-queue-logger-micro-batching/#spsc)、[SPMC 广播队列](/zh/interview/md-feed-spmc/)、[自旋锁（TTAS、票据锁、MCS）](/zh/posts/spinlock-implementation/)、[共享内存通信](/zh/ref/ipc/)与 [micro-batching](/zh/posts/lock-free-queue-logger-micro-batching/#micro-batching)。　→ [问答](/zh/interview/cv-skills-review/#concurrency)
 
@@ -108,3 +108,4 @@ toc: true
 |---|---|---|
 | MPMC 队列（rte_ring） | 生产者用 CAS 抢 `prod_head_`，各写各的槽，写完按抢到的顺序推进 `prod_tail_`；消费者一边对称，用 `cons_head_`、`cons_tail_`。 | [#18 线程安全队列 2.1](/zh/posts/thread-safe-queue/#21-rte_ring先抢位置再按抢的顺序发布) |
 | Disruptor | 生产者可以一个也可以多个（多个时 `fetch_add` 抢号、每一格标圈数，生产者之间不互相等），特点在消费者一侧：每个消费者都读全部（广播），生产者等最慢的那个，不覆盖。 | [#18 线程安全队列 2.2](/zh/posts/thread-safe-queue/#22-disruptor每一格自己标写好了)、[2.3](/zh/posts/thread-safe-queue/#23-背压和等待策略满了等最慢的消费者空了怎么等) |
+| CPU 调度（通用） | 只做两个决定：什么时候换下当前线程（看抢占），换谁上（调度策略）。策略在“平均等得最短”（SJF）和“谁都很快轮到”（RR）之间取舍，MLFQ 不预知长短也能近似 SJF。 | [#19 调度 1.1](/zh/posts/scheduling-priority-inversion-kernel-tuning/#how-scheduling)，Linux 的做法见 [1.2](/zh/posts/scheduling-priority-inversion-kernel-tuning/#sched-classes) |

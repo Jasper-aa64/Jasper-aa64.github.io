@@ -20,7 +20,10 @@ The market-data thread is pinned to core 3. A log-compression thread that is not
 
 ### 1.1 How the CPU Is Scheduled: Two Decisions, When to Switch and Whom to Run {#how-scheduling}
 
-**The scheduler makes only two decisions: when to take the current thread off the CPU, and which thread to run next. The first is about preemption, the second is the scheduling policy; every policy trades "shortest average wait" against "everyone gets a turn soon"**.
+> **The essence of CPU scheduling: two decisions, when to take the current thread off the CPU and which thread to run next**.
+
+- **When to switch is about preemption**: the thread blocks or exits by itself, or a timer interrupt or a higher-priority thread takes the CPU away.
+- **Whom to run is the scheduling policy**: every policy trades "shortest average wait" against "everyone gets a turn soon". SJF gives the shortest average wait, RR gives everyone a turn soon.
 
 1. **When to switch: the thread gives up the CPU, or it's preempted**
    - **The thread gives up the CPU itself**: it blocks (on I/O, a lock, `sleep`) or exits, and the scheduler picks the next one at once. Switching only then is called non-preemptive; one infinite loop can hold a core, so general-purpose systems don't use it.
@@ -38,7 +41,11 @@ The market-data thread is pinned to core 3. A log-compression thread that is not
 
 ### 1.2 What Linux Does: Scheduling Classes Give an Absolute Order, Each Class Uses One Policy {#sched-classes}
 
-**Linux first puts threads into scheduling classes, and the classes come in absolute order: while an earlier class has a runnable thread, later classes get nothing. Within a class, the normal class shares the CPU by weight, and the real-time class preempts strictly by priority**.
+> **The essence of Linux scheduling: classes come in absolute order, and within them the normal class shares by weight while the real-time class preempts by priority**.
+
+- **Between classes**: while an earlier class has a runnable thread, later classes get nothing.
+- **The normal class**: guarantees each thread its weighted share, not who runs first, so a hot thread may wait out a whole slice of the other's (milliseconds).
+- **The real-time class**: a higher priority preempts as soon as it is runnable, and wake-up to running takes microseconds.
 
 1. **Class order: stop → deadline → real-time → normal → idle**
    - **Each time the next thread is picked, the classes are asked in this order**: stop is for the kernel's own jobs such as migration; deadline is `SCHED_DEADLINE`; real-time is `SCHED_FIFO` and `SCHED_RR`; normal is `SCHED_OTHER`, `SCHED_BATCH` and `SCHED_IDLE`.
