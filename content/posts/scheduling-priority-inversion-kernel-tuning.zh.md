@@ -358,7 +358,7 @@ swappiness 调小只是让内核少换出，内存压力大时照样会换。**�
 | 内存锁定 | 程序里调 `mlockall(MCL_CURRENT \| MCL_FUTURE)` | 否 | 页不被换出 | 首次访问才分配物理页，要预先缺页 |
 | 大页 | `echo <页数> > /sys/devices/system/node/nodeX/hugepages/hugepages-2048kB/nr_hugepages` | 否 | 少 TLB 未命中、少缺页 | 按 NUMA 节点分配 |
 | 绑核 | `taskset -c 8-15 ./app` | 否 | 程序只在隔离核上跑 | 每个热线程最好单独绑一个核 |
-| 实时调度 | `chrt -f 99 taskset -c 8-15 ./app` | 否 | 实时优先级抢占普通任务 | 99 和内核线程同级，一般给 50–80；注意 RT 限流 |
+| 实时调度 | `chrt -f 99 taskset -c 8-15 ./app` | 否 | 实时优先级抢占普通任务 | 99 不留余地，同核的实时内核线程都抢不过它，一般给 50–80。注意 RT 限流 |
 | NUMA 绑定 | `numactl --cpunodebind=0 --membind=0 ./app` | 否 | CPU 和内存在同一个节点 | 用 `numactl --show` 验证 |
 
 `mlockall` 的漏洞和预先缺页见 #3 第 2、3 部分；绑核和 NUMA 绑定见 #1。实时调度那一行的 99 不要照抄：99 排在所有实时线程最前面，同核的实时内核线程都抢不过它，忙轮询时还会碰上 RT 限流和饿死内核线程（1.4、1.5），**一般给 50–80**。

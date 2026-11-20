@@ -357,7 +357,7 @@ This table is the OS-side counterpart of 4.1, and the mechanisms are in #1 Part 
 | Lock memory | Call `mlockall(MCL_CURRENT \| MCL_FUTURE)` in the program | No | Pages are never swapped out | Physical pages are only allocated on first touch, so prefault |
 | Huge pages | `echo <count> > /sys/devices/system/node/nodeX/hugepages/hugepages-2048kB/nr_hugepages` | No | Fewer TLB misses and page faults | Allocated per NUMA node |
 | Pin to cores | `taskset -c 8-15 ./app` | No | The program runs only on the isolated cores | Ideally pin each hot thread to its own core |
-| Real-time scheduling | `chrt -f 99 taskset -c 8-15 ./app` | No | A real-time priority preempts normal tasks | 99 ties with kernel threads, usually use 50–80; watch for RT throttling |
+| Real-time scheduling | `chrt -f 99 taskset -c 8-15 ./app` | No | A real-time priority preempts normal tasks | 99 leaves no headroom for real-time kernel threads on the core, usually use 50–80. Watch for RT throttling |
 | NUMA binding | `numactl --cpunodebind=0 --membind=0 ./app` | No | CPU and memory on the same node | Verify with `numactl --show` |
 
 The loophole in `mlockall` and prefaulting are in #3 Parts 2 and 3; pinning and NUMA binding are in #1. Don't copy the 99 in the real-time row: 99 sits ahead of every real-time thread, so no real-time kernel thread on the core can preempt it, and a busy-polling thread also runs into RT throttling and starved kernel threads (1.4, 1.5), so **use 50–80**.
