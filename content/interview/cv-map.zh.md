@@ -131,6 +131,7 @@ toc: true
 | RAII | 资源在构造函数里拿、在析构函数里还，不管正常返回还是抛异常，离开作用域都会调析构，所以锁、内存、文件不会漏释放。 | [构造、拷贝、析构和 RAII 第 4 节](/zh/ref/special-members-raii/#4-raii把释放写进析构函数) |
 | 自旋锁的几次迭代 | 每一版压掉一种等锁代价：CAS 循环不睡，TTAS 等时只读，没有缓存行乒乓，PAUSE 免掉放锁时的流水线冲刷，退避错开一起冲，票据锁排队不饿死，MCS 每个核盯自己的行，交接只搬一次行。 | [自旋锁第 1 节](/zh/posts/spinlock-implementation/#1-自旋锁怎么写从-cas-循环到-ttas-和-pause)、[2.3 三种锁对比](/zh/posts/spinlock-implementation/#23-三种锁放在一起比) |
 | SPMC 撕裂读怎么防 | 撕裂读是读者读到一半，生产者绕一圈回来重写同一格，读到的一半旧一半新。<br>防法：生产者先把戳作废成 0，再写数据，最后 release 盖新号。读者复制完再读一次戳，变了就丢。 | [SPMC 专页 1.7](/zh/interview/md-feed-spmc/#classic) |
+| SPMC 跨进程怎么传下标 | 不传。读者的进度 `next_idx` 各自私有，不放进共享内存，生产者从不看读者。<br>共享内存里是环、每格的戳和写序号 `write_idx`，新读者只在 `getReader` 时读一次 `write_idx` 定起点。 | [SPMC 专页 1.2](/zh/interview/md-feed-spmc/#ring) |
 | 系统调用为什么慢 | 要切到内核态、保存恢复寄存器，还会污染缓存和 TLB。热路径上避免，读时钟这类走 vDSO。 | [epoll 4.1](/zh/ref/epoll-internals/#41-系统调用不等于切换线程)、[SPMC 专页 2.4](/zh/interview/md-feed-spmc/#clock) |
 
 ### 4.1 自旋锁的几次迭代 {#spinlock-iterations}
