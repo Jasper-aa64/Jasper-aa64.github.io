@@ -114,6 +114,30 @@ Example: insert $3 = 011_2$, $5 = 101_2$, $6 = 110_2$ in order.
 
 The basis is $\{3, 5\}$ with rank 2, and it reaches $2^2 = 4$ values $\{0, 3, 5, 6\}$: the linear space from section 1. Code, counting and maxima are in [L2 XOR Basis](/algo/l2-xor-basis/).
 
+### 4.4 Gaussian Elimination Mod 2 and the XOR Basis: the Same Thing, Matrix Turned Sideways
+
+> The essence of mod-2 elimination versus an XOR basis: both eliminate over GF(2), and they differ only in whether the numbers are laid out as rows or as columns.
+
+One question written two ways: can a subset of 6, 3, 5 XOR to 6, and in how many ways?
+
+- **XOR basis**: insert $6 = 110_2$, $3 = 011_2$, $5 = 101_2$ in order, then query 6. The rank is $r = 2$, 6 is reachable, and there are $2^{n-r} = 2^{3-2} = 2$ choices.
+- **Mod-2 system**: let $x_i \in \{0, 1\}$ say whether number $i$ is chosen and write one equation per bit, $x_1 \cdot 110 \oplus x_2 \cdot 011 \oplus x_3 \cdot 101 = 110$. That is $Ax = b$ with 6, 3, 5 as the **columns** of $A$ and $b = 110$: 3 equations in 3 unknowns. Elimination leaves one free variable, and the solutions are $(1, 0, 0)$ and $(0, 1, 1)$, exactly 2.
+
+So "can a subset of these numbers XOR to $v$" is "does the 0/1 system $Ax = v$, with these numbers as columns, have a solution". An XOR basis eliminates the numbers as rows and finds the space they span (the row space); the system asks whether $v$ lies in the column space of $A$, i.e. "is $b$ in the image" from section 6. It is the same set of numbers and row rank equals column rank, so $2^{n-r}$ comes out the same on both sides: the numbers whose insertion fails are exactly the free variables of the system.
+
+The difference is in how each is used:
+
+| | Gaussian elimination mod 2 (0/1 matrix) | XOR basis |
+| --- | --- | --- |
+| What the problem gives | a system of equations, e.g. light switches: each switch is an unknown, each light an equation | a set of numbers, asking what subset XORs can reach |
+| A number in the matrix is | a column (the coefficients of one unknown) | a row, eliminated on insertion |
+| What it cares about | the solution: which $x_i$ are 1, how many free variables | the span: which values are reachable, the maximum, the $k$-th smallest |
+| How it eliminates | the whole matrix at once, offline | one number at a time, online |
+| Size | thousands of unknowns and equations, each row a bitset, $O(n^3 / 64)$ | each number has at most 60 bits, so only 60 columns, $O(60)$ per insertion |
+| Can it give the actual choice | yes, the solution vector is the choice | not by default, since `b[i]` keeps only the reduced result; to recover choices, pair each `b[i]` with a mask of which original numbers it came from |
+
+If the problem gives a set of numbers and asks about subset XORs, use an XOR basis; if it gives constraints and asks for each variable to be 0 or 1 (light switches, xor systems), use mod-2 Gaussian elimination with bitsets.
+
 ## 5. A Matrix Is a Linear Map
 
 An $m \times n$ matrix $A$ sends an $n$-dimensional vector $x$ to an $m$-dimensional vector $Ax$ and preserves addition and scaling: $A(x + y) = Ax + Ay$ and $A(kx) = k \cdot Ax$. A map that preserves both operations is a **linear map**. Conversely every linear map can be written as a matrix: column $j$ holds the image of the $j$-th unit vector. So a matrix and a linear map are the same thing.
