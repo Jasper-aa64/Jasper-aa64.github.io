@@ -7,7 +7,7 @@ weight: 10
 math: true
 toc: true
 ---
-In the mathematics problems of the second half of a contest, the hard part is rarely the theorem itself. Most theorems can be memorised; what goes wrong is not seeing which one a problem needs, or seeing it and failing to derive a form that can be coded. So this post is ordered by what you do in a contest rather than by theorem: first how to approach a mathematics problem at all (section 1), then number theory, counting and linear algebra (linear algebra opens in 4.0 with a model of spaces, bases and maps), with each tool described by what it solves, which signal in the statement points to it and how its formula is derived (sections 2 to 4), and finally three problems written from the statement up (section 5).
+In the mathematics problems of the second half of a contest, the hard part is rarely the theorem itself. Most theorems can be memorised; what goes wrong is not seeing which one a problem needs, or seeing it and failing to derive a form that can be coded. So this post is ordered by what you do in a contest rather than by theorem: first how to approach a mathematics problem at all (section 1), then number theory, counting and linear algebra, with each tool described by what it solves, which signal in the statement points to it and how its formula is derived (sections 2 to 4), and finally three problems written from the statement up (section 5).
 
 ## 1. How to approach a mathematics problem
 
@@ -349,94 +349,6 @@ When it does not split, define states and write equations. Expectation DP usuall
 
 ## 4. Linear algebra
 
-### 4.0 A Model First: Spaces, Bases, Maps {#la-model}
-
-> The essence of linear algebra: sets closed under addition and scalar multiplication, and the maps that preserve both operations.
-
-The first kind is a linear space and the second kind is a matrix. Every tool in 4.1 to 4.6 asks a different question about these two objects, so once the model is in place it is clear what each subsection is asking.
-
-#### 4.0.1 Linear spaces: adding and scaling never leave the set
-
-A set whose elements (called vectors) stay inside the set when added together or multiplied by any coefficient is a **linear space**. It always contains the zero vector, since any vector times 0 gives it.
-
-Where the coefficients come from is the **field**. Contests use three:
-
-| Field | Coefficients | What a vector is | Typical problems |
-| --- | --- | --- | --- |
-| Reals $\mathbb{R}$ | any real number | real coordinates | expectation systems with cycles, geometry |
-| Integers mod a prime $\mathbb{F}_p$ | $0$ to $p-1$, division becomes multiplying by an inverse | coordinates mod $p$ | counting, solving systems mod $p$, determinants |
-| GF(2) | only 0 and 1 | a 0/1 string, i.e. the binary digits of an integer | xor, light switches |
-
-All three allow addition, subtraction, multiplication and division by non-zero elements, so every statement in this section holds word for word in all three, and Gaussian elimination is the same procedure in all three (4.4).
-
-Examples and non-examples:
-
-- In $\mathbb{R}^2$, the line through the origin $\{(t, 2t)\}$ is a linear space: sums and multiples of its points stay on the line.
-- A line missing the origin is not, because multiplying by 0 lands on the origin; the first quadrant is not either, because multiplying by $-1$ leaves it.
-- Over GF(2), $\{0, 3, 5, 6\}$ is a linear space, since the xor of any two of its elements is still in it; $\{0, 1, 2\}$ is not, since $1 \oplus 2 = 3$.
-
-#### 4.0.2 Basis, dimension, rank: the fewest vectors that describe the whole space
-
-The set of all linear combinations $k_1 v_1 + k_2 v_2 + \cdots + k_n v_n$ of some vectors is their **span**, and it is automatically a linear space. If one of the vectors is a combination of the others it is redundant, and removing it leaves the span unchanged. Remove until nothing more can go: what remains is **linearly independent** (only the all-zero combination gives the zero vector), it is a **basis** of the space, and its size is the **dimension** of the space.
-
-Two properties of a basis are used again and again:
-
-- **Unique representation**: every element of the space has exactly one set of coefficients on the basis. If it had two, subtracting them would give a combination of the basis with coefficients not all 0 that equals the zero vector, contradicting independence.
-- **The dimension fixes the number of elements**: an element of an $r$-dimensional space is a choice of $r$ coefficients. Over the reals there are infinitely many, modulo $p$ there are $p^r$, and over GF(2) there are $2^r$.
-
-The dimension of the span of some vectors is their **rank**. Put them in the rows of a matrix and run Gaussian elimination: the number of pivots is the rank, because elimination only replaces rows by other combinations, which keeps the span, and after elimination no pivot row can be removed.
-
-#### 4.0.3 A matrix is a linear map
-
-An $m \times n$ matrix $A$ sends an $n$-dimensional vector $x$ to an $m$-dimensional vector $Ax$ and preserves addition and scaling: $A(x + y) = Ax + Ay$ and $A(kx) = k \cdot Ax$. A map that preserves both operations is a **linear map**. Conversely every linear map can be written as a matrix: column $j$ holds the image of the $j$-th unit vector. So a matrix and a linear map are the same thing.
-
-This gives two readings used below:
-
-- **Matrix multiplication is composition of maps**: $(AB)x = A(Bx)$, first $B$ and then $A$. Composition is associative by nature, which is why $M^n$ can be computed by fast exponentiation (4.1).
-- **$Ax$ is a linear combination of the columns of $A$**, with the entries of $x$ as coefficients: $Ax = x_1 \cdot (\text{column } 1) + \cdots + x_n \cdot (\text{column } n)$. So everything $A$ can reach is the span of its columns.
-
-#### 4.0.4 Image and kernel: everything about solving equations
-
-A linear map $A$ comes with two spaces:
-
-- The **image** (also called the column space): every reachable $Ax$. Its dimension is the rank $r$ of $A$.
-- The **kernel**: every $x$ that $A$ sends to the zero vector, i.e. all solutions of the homogeneous system $Ax = 0$.
-
-The **rank–nullity theorem** ties them together: the kernel has dimension $n - r$, where $n$ is the number of unknowns. One way to see it: $x$ has $n$ degrees of freedom, $r$ of them decide where in the image the result lands, and the other $n - r$ can change freely without changing the result; those $n - r$ directions are the kernel.
-
-Everything about solving $Ax = b$ follows:
-
-- **Is there a solution**: exactly when $b$ is in the image. A row reading "$0 = $ non-zero" after elimination means $b$ is not in the image.
-- **What the solutions look like**: take any one solution $x_0$; all solutions are $x_0$ plus any vector of the kernel. The difference of two solutions satisfies $A(x_1 - x_0) = b - b = 0$, so it lies in the kernel.
-- **How many solutions**: as many as the kernel has elements. The kernel has dimension $n - r$, so modulo $p$ there are $p^{n-r}$ solutions; $n - r$ is the number of free variables after elimination.
-
-The XOR-basis fact "every reachable value is reached by exactly $2^{n-r}$ subsets" is the same statement: write a choice of subset as $x \in \{0, 1\}^n$; "choice to xor sum" is a linear map over GF(2), its image is the set of reachable values with $2^r$ elements, and the choices giving one value form a shifted copy of the kernel with $2^{n-r}$ elements.
-
-<a href="/images/algo/kernel-image.en.svg" target="_blank" rel="noopener"><img src="/images/algo/kernel-image.en.svg" alt="Image and kernel of a linear map A. Left, the input space: the blue line through the origin is the kernel, all solutions of Ax = 0, of dimension n − r; the dashed orange line parallel to it through x₀ is the set of all solutions of Ax = b. A sends the whole blue line to 0 and the whole orange line to b. Right, the output space: the blue plane is the image, every result A can reach, of dimension r; b′ outside the image has no solution. The dimensions of kernel and image add up to n, and the number of solutions equals the size of the kernel." loading="lazy" decoding="async"></a>
-
-#### 4.0.5 Determinant: does the map flatten space
-
-For a square matrix $A$, over the reals $\det A$ is the factor by which the map scales volume, with the sign telling whether orientation flips. $\det A = 0$ means $A$ squashes the $n$-dimensional space into fewer dimensions, so some non-zero vector must go to the zero vector. The following all say the same thing:
-
-- $\det A \ne 0$;
-- the rank is $n$;
-- the kernel contains only the zero vector;
-- for every $b$, $Ax = b$ has exactly one solution;
-- $A$ is invertible.
-
-Counting problems use another form of the determinant: $\det A = \sum_{\sigma} \operatorname{sgn}(\sigma) \prod_{i} A_{i, \sigma(i)}$, a signed sum over all permutations $\sigma$. The matrix-tree theorem and the LGV lemma both build a matrix whose signed sum counts exactly the configurations wanted (4.6).
-
-#### 4.0.6 What each later subsection asks in this model
-
-| Subsection | Question |
-| --- | --- |
-| 4.1 Matrix power | the result of applying the same linear map $n$ times: $v_n = M^{n-1} v_1$ |
-| 4.2 (min, +) matrices | leave linear spaces, keep only associativity and distributivity, and fast exponentiation still works |
-| 4.3 BM | the sequence produced by repeatedly applying a fixed linear map satisfies a linear recurrence of order at most the dimension |
-| 4.4 Gaussian elimination | find the rank, decide whether $b$ is in the image, count the dimension of the kernel (the free variables) |
-| 4.5 XOR basis | build a basis of the span over GF(2), one insertion at a time |
-| 4.6 Determinants | whether the map is invertible, and counting through a signed sum over permutations |
-
 ### 4.1 Matrix power: the $10^{18}$-th term of a linear recurrence
 
 If each state vector comes linearly from the previous one, $v_{i+1} = M v_i$ with $M$ independent of $i$, then $v_n = M^{n-1} v_1$, and computing $M^{n-1}$ by fast power costs $O(k^3 \log n)$, where $k$ is the vector length:
@@ -480,7 +392,7 @@ In a contest: run a brute-force DP for the first few hundred terms, hand them to
 
 ### 4.4 Gaussian elimination over three fields
 
-Gaussian elimination goes column by column: find a non-zero pivot row in the current column, swap it up, and use it to clear that column in the other rows. Over the reals pick the pivot of largest absolute value to limit error; modulo a prime, division becomes multiplication by an inverse; modulo 2, each row is a bitset and elimination is xor, $O(n^3 / 64)$. Then read the result: a row saying $0 = $ non-zero means no solution; as many pivots as unknowns means a unique solution; otherwise there are free variables, each can take any value, and the number of solutions is $p^{\text{free}}$ ($2^{\text{free}}$ modulo 2). The number of free variables is the dimension of the kernel, $n - r$ (4.0.4).
+Gaussian elimination goes column by column: find a non-zero pivot row in the current column, swap it up, and use it to clear that column in the other rows. Over the reals pick the pivot of largest absolute value to limit error; modulo a prime, division becomes multiplication by an inverse; modulo 2, each row is a bitset and elimination is xor, $O(n^3 / 64)$. Then read the result: a row saying $0 = $ non-zero means no solution; as many pivots as unknowns means a unique solution; otherwise there are free variables, each can take any value, and the number of solutions is $p^{\text{free}}$ ($2^{\text{free}}$ modulo 2).
 
 Three kinds of signals lead to linear systems. Expected values of random walks on graphs with cycles: $E_u = 1 + \frac{1}{\deg u} \sum_{v \sim u} E_v$, with $E = 0$ at the target, $n$ equations in $n$ unknowns. Light-switch problems: each switch toggles some lights, whether it is pressed an odd number of times is a 0/1 unknown, and each light's final state is an equation modulo 2. And xor constraints of all kinds. **Expectations with cycles, light switches and xor constraints all turn into linear systems, and the number of solutions is read off the free variables.**
 

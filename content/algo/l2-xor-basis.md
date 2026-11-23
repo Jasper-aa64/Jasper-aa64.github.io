@@ -2,12 +2,127 @@
 title: "L2: XOR Basis"
 date: 2026-11-02
 slug: "l2-xor-basis"
-description: "XOR is addition over GF(2), so all subset XORs form a linear space, and an XOR basis is a basis of it with at most 60 numbers: insertion by highest bit, 2^r values each reached by 2^(n-r) subsets, greedy maximum, k-th smallest after reduction; prefix XORs, weighted greedy, range queries that keep the rightmost number; maximum XOR path written from scratch; two recent contest problems: CCPC Final 2025 L counts distinct range spans, 2026 ICPC Online II A finds the smallest common space. With 8 practice problems."
+description: "Starts with a model in ordinary linear algebra: linear spaces, basis and rank, finding a basis by Gaussian elimination, matrices as linear maps, image and kernel, determinants. XOR is addition over GF(2), so all subset XORs form a linear space, and an XOR basis is a basis of it with at most 60 numbers: insertion by highest bit, 2^r values each reached by 2^(n-r) subsets, greedy maximum, k-th smallest after reduction; prefix XORs, weighted greedy, range queries that keep the rightmost number; maximum XOR path written from scratch; two recent contest problems: CCPC Final 2025 L counts distinct range spans, 2026 ICPC Online II A finds the smallest common space. With 8 practice problems."
 weight: 16
 math: true
 toc: true
 ---
-Given $n$ numbers, pick any subset and XOR it together: what is the largest result? With $n = 50$ there are $2^{50}$ subsets, too many to enumerate. But the subset XORs repeat a lot. With three numbers $a$, $b$, $a \oplus b$, the values you can reach are exactly the ones you reach with $a$ and $b$ alone; the third number is redundant. Remove redundant numbers one at a time and at most 60 remain (each number has 60 bits), yet not a single reachable value is lost. What remains is an **XOR basis** (线性基). To say precisely what "redundant" means, and why at most 60 remain, we put XOR into linear algebra.
+Given $n$ numbers, pick any subset and XOR it together: what is the largest result? With $n = 50$ there are $2^{50}$ subsets, too many to enumerate. But the subset XORs repeat a lot. With three numbers $a$, $b$, $a \oplus b$, the values you can reach are exactly the ones you reach with $a$ and $b$ alone; the third number is redundant. Remove redundant numbers one at a time and at most 60 remain (each number has 60 bits), yet not a single reachable value is lost. What remains is an **XOR basis** (线性基). To say precisely what "redundant" means, and why at most 60 remain, we put XOR into linear algebra: section 0 sets up a model of spaces, bases and maps in ordinary linear algebra, and section 1 carries it over to XOR.
+
+## 0. A Model First: Spaces, Bases and Maps in Ordinary Linear Algebra {#la-model}
+
+> The essence of linear algebra: sets closed under addition and scalar multiplication, and the maps that preserve both operations.
+
+The first kind is a linear space and the second kind is a matrix. An XOR basis is linear algebra over GF(2); this section sets up the model in ordinary linear algebra, and from section 1 on the coefficients become 0 and 1 and every statement carries over directly.
+
+### 0.1 Linear spaces: adding and scaling never leave the set
+
+A set whose elements (called vectors) stay inside the set when added together or multiplied by any coefficient is a **linear space**. It always contains the zero vector, since any vector times 0 gives it.
+
+Where the coefficients come from is the **field**. Contests use three:
+
+| Field | Coefficients | What a vector is | Typical problems |
+| --- | --- | --- | --- |
+| Reals $\mathbb{R}$ | any real number | real coordinates | expectation systems with cycles, geometry |
+| Integers mod a prime $\mathbb{F}_p$ | $0$ to $p-1$, division becomes multiplying by an inverse | coordinates mod $p$ | counting, solving systems mod $p$, determinants |
+| GF(2) | only 0 and 1 | a 0/1 string, i.e. the binary digits of an integer | xor, light switches |
+
+All three allow addition, subtraction, multiplication and division by non-zero elements, so every statement in this section holds word for word in all three, and finding a basis is the same procedure in all three (0.3).
+
+Examples and non-examples:
+
+- In $\mathbb{R}^2$, the line through the origin $\{(t, 2t)\}$ is a linear space: sums and multiples of its points stay on the line.
+- A line missing the origin is not, because multiplying by 0 lands on the origin; the first quadrant is not either, because multiplying by $-1$ leaves it.
+- Over GF(2), $\{0, 3, 5, 6\}$ is a linear space, since the xor of any two of its elements is still in it; $\{0, 1, 2\}$ is not, since $1 \oplus 2 = 3$.
+
+### 0.2 Basis, dimension, rank: the fewest vectors that describe the whole space
+
+The set of all linear combinations $k_1 v_1 + k_2 v_2 + \cdots + k_n v_n$ of some vectors is their **span**, and it is automatically a linear space. If one of the vectors is a combination of the others it is redundant, and removing it leaves the span unchanged. Remove until nothing more can go: what remains is **linearly independent** (only the all-zero combination gives the zero vector), it is a **basis** of the space, and its size is the **dimension** of the space. The dimension of the span of some vectors is their **rank**.
+
+Two properties of a basis are used again and again:
+
+- **Unique representation**: every element of the space has exactly one set of coefficients on the basis. If it had two, subtracting them would give a combination of the basis with coefficients not all 0 that equals the zero vector, contradicting independence.
+- **The dimension fixes the number of elements**: an element of an $r$-dimensional space is a choice of $r$ coefficients. Over the reals there are infinitely many, modulo $p$ there are $p^r$, and over GF(2) there are $2^r$.
+
+### 0.3 Finding a basis: Gaussian elimination turns redundant vectors into 0
+
+Finding a basis means turning "remove the redundant vectors" into an algorithm, and the algorithm is Gaussian elimination.
+
+1. Put the $n$ vectors in the $n$ rows of a matrix.
+2. Starting from the first column, pick a row that is non-zero in this column as the pivot row, swap it up, and use it to clear this column in the rows below.
+3. After all columns are done, the non-zero rows form a basis, and their number is the rank.
+
+Elimination only replaces a row by a combination of it with other rows, which keeps the span. A redundant vector is a combination of other rows, so it is cleared to an all-zero row. Each remaining non-zero row has a pivot column where all other rows are 0, so none of them is a combination of the others, and they are linearly independent.
+
+Over GF(2) a vector is a 0/1 string, which fits exactly in the binary digits of an integer, so **a basis vector is an integer**:
+
+| | Ordinary linear algebra | XOR basis |
+| --- | --- | --- |
+| A vector | coordinates, e.g. $(1, 0, 1)$ | an integer, e.g. $5 = 101_2$ |
+| Adding vectors | add entry by entry | `x ^ y` |
+| Basis | the non-zero rows after elimination | the non-zero numbers in `b[0..59]` |
+| Pivot | the first non-zero column of each non-zero row | the highest bit of `b[i]` is exactly bit $i$ |
+
+An XOR basis eliminates in a different order: instead of taking the whole matrix and clearing column by column, it **eliminates each number as it arrives**. To insert $x$, scan from the high bit down; if bit $i$ is 1 and `b[i]` is occupied, `x ^= b[i]` clears that bit, which is one row operation; if `b[i]` is empty, store $x$ there as a new basis vector; if $x$ is cleared all the way to 0, it is the XOR of existing basis vectors and is redundant. Code and proofs are in section 2.
+
+Example: insert $3 = 011_2$, $5 = 101_2$, $6 = 110_2$ in order.
+
+- Insert 3: the highest bit is bit 1, `b[1]` is empty, store it, `b[1] = 011`.
+- Insert 5: the highest bit is bit 2, `b[2]` is empty, store it, `b[2] = 101`.
+- Insert 6: bit 2 is 1, XOR with `b[2]` gives $110 \oplus 101 = 011$; bit 1 is 1, XOR with `b[1]` gives $011 \oplus 011 = 000$. It is cleared to 0, so $6 = 3 \oplus 5$ is redundant.
+
+The basis is $\{3, 5\}$ with rank 2, and it reaches $2^2 = 4$ values $\{0, 3, 5, 6\}$: the linear space from 0.1.
+
+### 0.4 A matrix is a linear map
+
+An $m \times n$ matrix $A$ sends an $n$-dimensional vector $x$ to an $m$-dimensional vector $Ax$ and preserves addition and scaling: $A(x + y) = Ax + Ay$ and $A(kx) = k \cdot Ax$. A map that preserves both operations is a **linear map**. Conversely every linear map can be written as a matrix: column $j$ holds the image of the $j$-th unit vector. So a matrix and a linear map are the same thing.
+
+This gives two readings used below:
+
+- **Matrix multiplication is composition of maps**: $(AB)x = A(Bx)$, first $B$ and then $A$. Composition is associative by nature, which is exactly what fast matrix exponentiation relies on.
+- **$Ax$ is a linear combination of the columns of $A$**, with the entries of $x$ as coefficients: $Ax = x_1 \cdot (\text{column } 1) + \cdots + x_n \cdot (\text{column } n)$. So everything $A$ can reach is the span of its columns.
+
+### 0.5 Image and kernel: everything about solving equations
+
+A linear map $A$ comes with two spaces:
+
+- The **image** (also called the column space): every reachable $Ax$. Its dimension is the rank $r$ of $A$.
+- The **kernel**: every $x$ that $A$ sends to the zero vector, i.e. all solutions of the homogeneous system $Ax = 0$.
+
+The **rank–nullity theorem** ties them together: the kernel has dimension $n - r$, where $n$ is the number of unknowns. One way to see it: $x$ has $n$ degrees of freedom, $r$ of them decide where in the image the result lands, and the other $n - r$ can change freely without changing the result; those $n - r$ directions are the kernel.
+
+Everything about solving $Ax = b$ follows:
+
+- **Is there a solution**: exactly when $b$ is in the image. A row reading "$0 = $ non-zero" after elimination means $b$ is not in the image.
+- **What the solutions look like**: take any one solution $x_0$; all solutions are $x_0$ plus any vector of the kernel. The difference of two solutions satisfies $A(x_1 - x_0) = b - b = 0$, so it lies in the kernel.
+- **How many solutions**: as many as the kernel has elements. The kernel has dimension $n - r$, so modulo $p$ there are $p^{n-r}$ solutions; $n - r$ is the number of free variables after elimination.
+
+The fact in 3.2 that "every reachable value is reached by exactly $2^{n-r}$ subsets" is the same statement: write a choice of subset as $x \in \{0, 1\}^n$; "choice to xor sum" is a linear map over GF(2), its image is the set of reachable values with $2^r$ elements, and the choices giving one value form a shifted copy of the kernel with $2^{n-r}$ elements.
+
+<a href="/images/algo/kernel-image.en.svg" target="_blank" rel="noopener"><img src="/images/algo/kernel-image.en.svg" alt="Image and kernel of a linear map A. Left, the input space: the blue line through the origin is the kernel, all solutions of Ax = 0, of dimension n − r; the dashed orange line parallel to it through x₀ is the set of all solutions of Ax = b. A sends the whole blue line to 0 and the whole orange line to b. Right, the output space: the blue plane is the image, every result A can reach, of dimension r; b′ outside the image has no solution. The dimensions of kernel and image add up to n, and the number of solutions equals the size of the kernel." loading="lazy" decoding="async"></a>
+
+### 0.6 Determinant: does the map flatten space
+
+For a square matrix $A$, over the reals $\det A$ is the factor by which the map scales volume, with the sign telling whether orientation flips. $\det A = 0$ means $A$ squashes the $n$-dimensional space into fewer dimensions, so some non-zero vector must go to the zero vector. The following all say the same thing:
+
+- $\det A \ne 0$;
+- the rank is $n$;
+- the kernel contains only the zero vector;
+- for every $b$, $Ax = b$ has exactly one solution;
+- $A$ is invertible.
+
+Counting problems use another form of the determinant: $\det A = \sum_{\sigma} \operatorname{sgn}(\sigma) \prod_{i} A_{i, \sigma(i)}$, a signed sum over all permutations $\sigma$. The matrix-tree theorem and the LGV lemma both build a matrix whose signed sum counts exactly the configurations wanted; see [section 4.6 of C0](/algo/c0-contest-math-overview/).
+
+### 0.7 What the model corresponds to in an XOR basis
+
+| Ordinary linear algebra | In an XOR basis | Section |
+| --- | --- | --- |
+| Linear space | all values reachable by XOR-ing any subset | 1.1, 1.2 |
+| Basis, rank | the non-zero numbers in `b`, $r \le 60$ of them | 2.1 |
+| Finding a basis by Gaussian elimination | insertion: eliminate each number as it arrives | 2.1 to 2.3 |
+| Unique representation, $2^r$ elements in $r$ dimensions | $2^r$ distinct XOR values | 3.1 |
+| Kernel of dimension $n - r$ | each value reached by $2^{n-r}$ subsets | 3.2 |
+| Reduced row echelon form | normalisation, $k$-th smallest | 4.2, 4.3 |
 
 ## 1. XOR Is Addition Mod 2
 
@@ -20,8 +135,6 @@ Over GF(2) the coefficients are only 0 and 1, so a linear combination $x_1 a_1 +
 - **Span**: the set of all subset XORs, written $\operatorname{span}(a_1, \dots, a_n)$.
 - **Linear independence**: no nonempty subset XORs to 0. When a statement says "no nonempty subset has XOR 0", it is asking for linear independence.
 - **Basis and rank**: a linearly independent set of numbers that can XOR to every value in the space is a basis of the space; its size is the dimension of the space, also called the **rank** of the original numbers, written $r$. A 60-dimensional space holds at most 60 linearly independent numbers, so $r \le 60$.
-
-Linear space, basis, rank and kernel mean the same thing over the reals and modulo a prime; [section 4.0 of C0](/algo/c0-contest-math-overview/#la-model) ties them into one model with ordinary linear algebra, and GF(2) here only restricts the coefficients to 0 and 1.
 
 The "redundant" number from the opening is one that the others can XOR to; removing it leaves the span unchanged. When nothing more can be removed, the remaining numbers are linearly independent, i.e. a basis. **After switching to the basis, the reachable values are the same, while the count of numbers drops from $n$ to $r \le 60$**; every problem below is solved on those at most 60 numbers.
 
