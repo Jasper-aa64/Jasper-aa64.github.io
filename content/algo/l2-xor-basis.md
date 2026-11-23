@@ -21,6 +21,8 @@ Over GF(2) the coefficients are only 0 and 1, so a linear combination $x_1 a_1 +
 - **Linear independence**: no nonempty subset XORs to 0. When a statement says "no nonempty subset has XOR 0", it is asking for linear independence.
 - **Basis and rank**: a linearly independent set of numbers that can XOR to every value in the space is a basis of the space; its size is the dimension of the space, also called the **rank** of the original numbers, written $r$. A 60-dimensional space holds at most 60 linearly independent numbers, so $r \le 60$.
 
+Linear space, basis, rank and kernel mean the same thing over the reals and modulo a prime; [section 4.0 of C0](/algo/c0-contest-math-overview/#la-model) ties them into one model with ordinary linear algebra, and GF(2) here only restricts the coefficients to 0 and 1.
+
 The "redundant" number from the opening is one that the others can XOR to; removing it leaves the span unchanged. When nothing more can be removed, the remaining numbers are linearly independent, i.e. a basis. **After switching to the basis, the reachable values are the same, while the count of numbers drops from $n$ to $r \le 60$**; every problem below is solved on those at most 60 numbers.
 
 ### 1.2 The Precondition: The Set Must Be Closed under XOR

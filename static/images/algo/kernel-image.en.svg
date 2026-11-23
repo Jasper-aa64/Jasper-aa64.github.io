@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 450" width="1000" height="450" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker>
+<style>.h{font-size:17px;font-weight:700;fill:#1f2328}.s{font-size:14px;fill:#57606a}</style>
+</defs>
+<rect x="0" y="0" width="1000" height="450" fill="#ffffff"/>
+<rect x="20" y="20" width="420" height="350" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<rect x="560" y="20" width="420" height="350" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="230" y="48" class="h" text-anchor="middle">Input space: x has n entries</text>
+<text x="770" y="48" class="h" text-anchor="middle">Output space: Ax has m entries</text>
+<line x1="70" y1="341.4" x2="390" y2="158.6" stroke="#0969da" stroke-width="3"/>
+<line x1="70" y1="261.4" x2="390" y2="78.6" stroke="#bc4c00" stroke-width="3" stroke-dasharray="9 5"/>
+<circle cx="230" cy="250" r="5" fill="#0969da"/>
+<text x="242" y="270" font-size="15" font-weight="700" fill="#0969da">0</text>
+<circle cx="200" cy="187.1" r="5" fill="#bc4c00"/>
+<text x="188" y="210" font-size="15" font-weight="700" fill="#bc4c00">x₀</text>
+<text x="40" y="360" font-size="14" font-weight="700" fill="#0969da">Kernel: all solutions of Ax = 0, dimension n − r</text>
+<text x="40" y="76" font-size="14" font-weight="700" fill="#bc4c00">All solutions of Ax = b = x₀ + kernel</text>
+<polygon points="600,300 850,300 940,190 690,190" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+<text x="770" y="330" class="s" text-anchor="middle" font-weight="700" fill="#0969da">Image (column space): every reachable Ax, dimension r</text>
+<circle cx="735" cy="262" r="5" fill="#0969da"/>
+<text x="722" y="282" font-size="15" font-weight="700" fill="#0969da">0</text>
+<circle cx="820" cy="220" r="5" fill="#bc4c00"/>
+<text x="832" y="225" font-size="15" font-weight="700" fill="#bc4c00">b</text>
+<circle cx="890" cy="120" r="5" fill="#cf222e"/>
+<text x="965" y="100" font-size="14" font-weight="700" fill="#cf222e" text-anchor="end">b′ not in the image: no solution</text>
+<path d="M 345 186 Q 540 290 727 262" fill="none" stroke="#0969da" stroke-width="1.8" marker-end="url(#arr)"/>
+<path d="M 345 104 Q 560 120 812 216" fill="none" stroke="#bc4c00" stroke-width="1.8" marker-end="url(#arr)"/>
+<text x="500" y="150" font-size="22" font-weight="700" fill="#1f2328" text-anchor="middle">A</text>
+<text x="500" y="404" class="s" text-anchor="middle">dim(kernel) + dim(image) = n (rank–nullity), r is the rank</text>
+<text x="500" y="428" class="s" text-anchor="middle">Number of solutions = size of the kernel: p^(n−r) mod p, 2^(n−r) over GF(2)</text>
+</svg>
