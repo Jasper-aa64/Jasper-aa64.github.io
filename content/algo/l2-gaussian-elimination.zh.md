@@ -50,8 +50,6 @@ $n$ 个方程、$m$ 个未知数，写成 $n$ 行 $m + 1$ 列的**增广矩阵**
 <iframe src="/maps/gauss-steps.zh.html" title="高斯消元：分步看" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:500px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/gauss-steps.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
 
-复杂度：每列消一遍整个矩阵，$O(n \cdot m \cdot (m + 1))$，方阵就是 $O(n^3)$，$n = 500$ 左右是上限。
-
 ## 2. 实数：选绝对值最大的主元
 
 ### 2.1 主元太小，误差会被放大
@@ -65,6 +63,45 @@ $n$ 个方程、$m$ 个未知数，写成 $n$ 行 $m + 1$ 列的**增广矩阵**
 
 所以实数消元**每列都选绝对值最大的那一行作主元**（列主元），判断“是不是 0”用 $|x| < \varepsilon$，不能用 `== 0`。
 
+#### 复杂度
+
+$O(n \cdot m \cdot w)$：$n$ 行、消 $m$ 列、每行 $w$ 列（一个右端时 $w = m + 1$），方阵就是 $O(n^3)$，$n = 500$ 左右是上限。每处理一列，要把整个矩阵的每一行都消一遍。
+
+#### 模板（实数）
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+const double EPS = 1e-8;
+
+// 高斯–约当消元（实数）：a 有 n 行，消前 m 列，后面的列是右端（可以不止一列），跟着一起变
+// 返回 -1：无解；否则返回秩 r，r == m 是唯一解，r < m 有自由元
+// where[c]：第 c 个未知数的主元在哪一行，-1 表示自由元；有解时 x_c = a[where[c]][m]，自由元取 0
+int gauss(vector<vector<double>>& a, int m, vector<int>& where) {
+    int n = a.size(), w = n ? a[0].size() : 0, r = 0;
+    where.assign(m, -1);
+    for (int c = 0; c < m && r < n; c++) {
+        int p = r;
+        for (int i = r; i < n; i++)
+            if (fabs(a[i][c]) > fabs(a[p][c])) p = i;    // 选绝对值最大的主元
+        if (fabs(a[p][c]) < EPS) continue;               // 这一列没有主元：x_c 是自由元，r 不动
+        swap(a[p], a[r]);
+        for (int j = w - 1; j >= c; j--) a[r][j] /= a[r][c];
+        for (int i = 0; i < n; i++)
+            if (i != r && fabs(a[i][c]) > EPS)
+                for (int j = w - 1; j >= c; j--) a[i][j] -= a[i][c] * a[r][j];
+        where[c] = r++;
+    }
+    for (int i = r; i < n; i++)
+        for (int j = m; j < w; j++)
+            if (fabs(a[i][j]) > EPS) return -1;          // 0 = 非零：先查无解，再看自由元
+    return r;
+}
+```
+
+返回值先看是不是 $-1$（无解），再看秩是不是 $m$（唯一解）。这是 1.2 读结果的顺序：一个方程组可以同时有自由元和矛盾的行，这时答案是无解。
+
 ### 2.2 例：洛谷 P2455 线性方程组，区分无解和无穷多解
 
 题（[洛谷 P2455](https://www.luogu.com.cn/problem/P2455)，SDOI2006）：$n \le 50$ 元一次方程组，系数是整数。唯一解就输出每个 $x_i$，保留 2 位小数；无解输出 $-1$；有无穷多解输出 $0$。
@@ -75,7 +112,7 @@ $n$ 个方程、$m$ 个未知数，写成 $n$ 行 $m + 1$ 列的**增广矩阵**
 #include <bits/stdc++.h>
 using namespace std;
 
-const double EPS = 1e-8;
+// 套 2.1 的 gauss（实数）
 
 int main() {
     ios::sync_with_stdio(false);
@@ -86,24 +123,10 @@ int main() {
     for (auto& row : a)
         for (auto& v : row) cin >> v;
 
-    vector<int> where(n, -1);                             // where[c]：以第 c 列为主元的行
-    int r = 0;
-    for (int c = 0; c < n && r < n; c++) {
-        int p = r;
-        for (int i = r; i < n; i++)
-            if (fabs(a[i][c]) > fabs(a[p][c])) p = i;     // 选绝对值最大的主元
-        if (fabs(a[p][c]) < EPS) continue;               // 这一列没有主元：x_c 是自由元，行不动
-        swap(a[p], a[r]);
-        for (int j = n; j >= c; j--) a[r][j] /= a[r][c];
-        for (int i = 0; i < n; i++)
-            if (i != r && fabs(a[i][c]) > EPS)
-                for (int j = n; j >= c; j--) a[i][j] -= a[i][c] * a[r][j];
-        where[c] = r++;
-    }
-
-    for (int i = r; i < n; i++)
-        if (fabs(a[i][n]) > EPS) { cout << -1 << '\n'; return 0; }   // 0 = 非零
-    if (r < n) { cout << 0 << '\n'; return 0; }                      // 有自由元
+    vector<int> where;
+    int r = gauss(a, n, where);
+    if (r < 0) { cout << -1 << '\n'; return 0; }
+    if (r < n) { cout << 0 << '\n'; return 0; }
 
     cout << fixed << setprecision(2);
     for (int c = 0; c < n; c++)
@@ -133,6 +156,8 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
+// 套 2.1 的 gauss（实数）
+
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
@@ -157,16 +182,8 @@ int main() {
             if (v != n) a[u - 1][v - 1] -= 1.0 / deg[v];
         a[u - 1][k] = (u == 1);
     }
-    for (int c = 0; c < k; c++) {                          // 这题解唯一，每列都有主元
-        int p = c;
-        for (int i = c; i < k; i++)
-            if (fabs(a[i][c]) > fabs(a[p][c])) p = i;
-        swap(a[p], a[c]);
-        for (int j = k; j >= c; j--) a[c][j] /= a[c][c];
-        for (int i = 0; i < k; i++)
-            if (i != c && a[i][c] != 0)
-                for (int j = k; j >= c; j--) a[i][j] -= a[i][c] * a[c][j];
-    }
+    vector<int> where;
+    gauss(a, k, where);                                    // 解唯一，每列都有主元，where[c] == c
 
     // 边 (u, v) 被走的期望次数：从 u 出发选中它，加上从 v 出发选中它；到了 n 就停
     vector<double> e(m);
@@ -190,15 +207,13 @@ int main() {
 - 找主元时**只要非零就行**，不用选最大；
 - 除以主元换成**乘它的逆元**（快速幂求 $a^{p-2}$）。
 
-非零的数在模质数下都有逆元，所以第 2 步总能做。模数不是质数时，非零的主元可能没有逆元，要换成两行之间辗转相除的消法，见练习 6。复杂度在 $O(n^3)$ 之外，每列多求一次逆元，共 $O(n^3 + n \log p)$。
+非零的数在模质数下都有逆元，所以第 2 步总能做。模数不是质数时，非零的主元可能没有逆元，要换成两行之间辗转相除的消法，见练习 6。
 
-### 3.2 例：洛谷 P4783 矩阵求逆
+#### 复杂度
 
-题（[洛谷 P4783](https://www.luogu.com.cn/problem/P4783)）：$N \le 400$ 的方阵，求它模 $10^9 + 7$ 的逆矩阵；不可逆输出 `No Solution`。
+$O(n \cdot m \cdot w + r \log p)$：消元部分和实数一样，另外每个主元求一次逆元（快速幂 $O(\log p)$），$r$ 是秩。方阵就是 $O(n^3 + n \log p)$。
 
-把 $A$ 和单位阵 $I$ 并排写成 $[A \mid I]$，对整个 $n \times 2n$ 矩阵做消元，把左半边消成 $I$，右半边就是 $A^{-1}$。
-
-为什么：每个行变换都等于左乘一个可逆矩阵，一串行变换合起来是左乘某个矩阵 $E$。左半边从 $A$ 变成 $I$，说明 $EA = I$，所以 $E = A^{-1}$；右半边从 $I$ 变成 $EI = E$，正好是 $A^{-1}$。左半边某一列找不到主元，$A$ 的秩不满，不可逆。
+#### 模板（模质数）
 
 ```cpp
 #include <bits/stdc++.h>
@@ -214,6 +229,45 @@ ll qp(ll a, ll e) {
     return r;
 }
 
+// 高斯–约当消元（模质数 P）：a 有 n 行，消前 m 列，后面的列是右端（可以不止一列），跟着一起变
+// 返回值和 where 的含义同实数版：-1 无解，否则返回秩
+int gauss(vector<vector<ll>>& a, int m, vector<int>& where) {
+    int n = a.size(), w = n ? a[0].size() : 0, r = 0;
+    where.assign(m, -1);
+    for (int c = 0; c < m && r < n; c++) {
+        int p = r;
+        while (p < n && a[p][c] == 0) p++;               // 模 p 下只要非零就能当主元
+        if (p == n) continue;
+        swap(a[p], a[r]);
+        ll iv = qp(a[r][c], P - 2);                      // 除以主元换成乘逆元
+        for (int j = c; j < w; j++) a[r][j] = a[r][j] * iv % P;
+        for (int i = 0; i < n; i++)
+            if (i != r && a[i][c]) {
+                ll f = a[i][c];
+                for (int j = c; j < w; j++) a[i][j] = (a[i][j] - f * a[r][j] % P + P) % P;
+            }
+        where[c] = r++;
+    }
+    for (int i = r; i < n; i++)
+        for (int j = m; j < w; j++)
+            if (a[i][j]) return -1;
+    return r;
+}
+```
+
+### 3.2 例：洛谷 P4783 矩阵求逆
+
+题（[洛谷 P4783](https://www.luogu.com.cn/problem/P4783)）：$N \le 400$ 的方阵，求它模 $10^9 + 7$ 的逆矩阵；不可逆输出 `No Solution`。
+
+把 $A$ 和单位阵 $I$ 并排写成 $[A \mid I]$，对整个 $n \times 2n$ 矩阵做消元，把左半边消成 $I$，右半边就是 $A^{-1}$。
+
+为什么：每个行变换都等于左乘一个可逆矩阵，一串行变换合起来是左乘某个矩阵 $E$。左半边从 $A$ 变成 $I$，说明 $EA = I$，所以 $E = A^{-1}$；右半边从 $I$ 变成 $EI = E$，正好是 $A^{-1}$。左半边某一列找不到主元，$A$ 的秩不满，不可逆。
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+// 套 3.1 的 gauss（模质数，P 和 qp 也在里面）
+
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
@@ -224,19 +278,8 @@ int main() {
         for (int j = 0; j < n; j++) cin >> a[i][j];
         a[i][n + i] = 1;
     }
-    for (int c = 0; c < n; c++) {
-        int p = c;
-        while (p < n && a[p][c] == 0) p++;                // 模 p 下只要非零就能当主元
-        if (p == n) { cout << "No Solution\n"; return 0; }
-        swap(a[p], a[c]);
-        ll iv = qp(a[c][c], P - 2);                        // 除法换成乘逆元
-        for (int j = 0; j < 2 * n; j++) a[c][j] = a[c][j] * iv % P;
-        for (int i = 0; i < n; i++)
-            if (i != c && a[i][c]) {
-                ll f = a[i][c];
-                for (int j = 0; j < 2 * n; j++) a[i][j] = (a[i][j] - f * a[c][j] % P + P) % P;
-            }
-    }
+    vector<int> where;
+    if (gauss(a, n, where) != n) { cout << "No Solution\n"; return 0; }   // 左半边消不成 I
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++) cout << a[i][n + j] << " \n"[j == n - 1];
 }
@@ -254,7 +297,37 @@ int main() {
 
 GF(2) 上只有 0 和 1，$1 + 1 = 0$，加法和减法都是异或；主元一定是 1，不用除。消元的第 3 步“第 $i$ 行减去第 $r$ 行的若干倍”只剩一种情况：第 $i$ 行这一列是 1，就整行异或上第 $r$ 行。
 
-把一行存成 `bitset`，一整行的异或一次处理 64 位，消元从 $O(n^3)$ 变成 $O(n^3 / 64)$，$n$ 到 2000 也能跑。
+#### 复杂度
+
+$O(n \cdot m \cdot (m + 1) / 64)$，方阵就是 $O(n^3 / 64)$，$n$ 到 2000 也能跑。把一行存成 `bitset`，一整行的异或一次处理 64 位，所以比实数版少一个 64 的因子。
+
+#### 模板（模 2）
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MX = 2000;                                     // 未知数个数的上限
+
+// 高斯–约当消元（模 2）：每行是一个 bitset，前 m 位是系数，第 m 位是右端
+// 返回值和 where 的含义同实数版：-1 无解，否则返回秩；有解时 x_c = a[where[c]][m]
+int gauss(vector<bitset<MX + 1>>& a, int m, vector<int>& where) {
+    int n = a.size(), r = 0;
+    where.assign(m, -1);
+    for (int c = 0; c < m && r < n; c++) {
+        int p = r;
+        while (p < n && !a[p][c]) p++;
+        if (p == n) continue;
+        swap(a[p], a[r]);
+        for (int i = 0; i < n; i++)
+            if (i != r && a[i][c]) a[i] ^= a[r];         // 整行异或，bitset 一次处理 64 位
+        where[c] = r++;
+    }
+    for (int i = r; i < n; i++)
+        if (a[i][m]) return -1;                          // 0 = 1
+    return r;
+}
+```
 
 ### 4.2 例：POJ 1222 开关灯
 
@@ -274,6 +347,8 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
+// 套 4.1 的 gauss（模 2）
+
 const int R = 5, C = 6, V = R * C;
 
 int main() {
@@ -284,7 +359,7 @@ int main() {
     for (int t = 1; t <= T; t++) {
         // 第 r 行方程：灯 r 被翻转的次数之和 ≡ 它一开始亮不亮 (mod 2)
         // 第 c 列：按开关 c 会翻转哪些灯；第 V 列是右端
-        vector<bitset<V + 1>> a(V);
+        vector<bitset<MX + 1>> a(V);
         for (int i = 0; i < R; i++)
             for (int j = 0; j < C; j++) {
                 int s;
@@ -299,17 +374,8 @@ int main() {
                     if (x >= 0 && x < R && y >= 0 && y < C) a[x * C + y][i * C + j] = 1;
                 }
 
-        int r = 0;
-        vector<int> where(V, -1);
-        for (int c = 0; c < V && r < V; c++) {
-            int p = r;
-            while (p < V && !a[p][c]) p++;
-            if (p == V) continue;
-            swap(a[p], a[r]);
-            for (int i = 0; i < V; i++)
-                if (i != r && a[i][c]) a[i] ^= a[r];       // 一整行异或，bitset 一次 64 位
-            where[c] = r++;
-        }
+        vector<int> where;
+        gauss(a, V, where);                                // 题目保证有解，满秩
 
         cout << "PUZZLE #" << t << '\n';
         for (int i = 0; i < R; i++)
@@ -343,7 +409,7 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 2000;   // 未知数 2n ≤ 2000
+// 套 4.1 的 gauss（模 2）
 
 int main() {
     ios::sync_with_stdio(false);
@@ -385,19 +451,8 @@ int main() {
         }
     }
 
-    int E = eq.size(), r = 0;
-    vector<int> where(V, -1);
-    for (int c = 0; c < V && r < E; c++) {
-        int p = r;
-        while (p < E && !eq[p][c]) p++;
-        if (p == E) continue;
-        swap(eq[p], eq[r]);
-        for (int i = 0; i < E; i++)
-            if (i != r && eq[i][c]) eq[i] ^= eq[r];
-        where[c] = r++;
-    }
-    for (int i = r; i < E; i++)
-        if (eq[i][V]) { cout << "NO\n"; return 0; }       // 0 = 1
+    vector<int> where;
+    if (gauss(eq, V, where) < 0) { cout << "NO\n"; return 0; }
 
     string s(n, '.');
     for (int j = 0; j < n; j++) {

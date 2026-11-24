@@ -52,7 +52,12 @@
           startup: {
             pageReady() {
               return MathJax.startup.defaultPageReady().then(() => {
-                const fit = () => document.querySelectorAll('.prose mjx-container[jax="CHTML"]:not([display="true"])').forEach(m => {
+                // keep each formula's TeX on its container, so copying text gives back $...$ (see the copy handler below)
+                for (const item of MathJax.startup.document.math) {
+                  const root = item.typesetRoot;
+                  if (root) { root.dataset.tex = item.math; if (item.display) root.dataset.display = '1'; }
+                }
+                const fit =() => document.querySelectorAll('.prose mjx-container[jax="CHTML"]:not([display="true"])').forEach(m => {
                   let box = m.parentElement;
                   while (getComputedStyle(box).display.startsWith('inline')) box = box.parentElement;
                   const cs = getComputedStyle(box);
@@ -70,6 +75,57 @@
         };
       </script>
       <script defer src="/assets/mathjax/es5/tex-chtml.js"></script>
+      <script>
+        // Copying prose gives Markdown: formulas back as $...$ / $$...$$, inline code as `...`, bold as **...**.
+        // A selection that starts or ends inside a formula is widened to the whole formula.
+        document.addEventListener('copy', e => {
+          const sel = getSelection();
+          if (!sel.rangeCount || sel.isCollapsed) return;
+          const range = sel.getRangeAt(0).cloneRange();
+          const anc = range.commonAncestorContainer;
+          if ((anc.nodeType === 1 ? anc : anc.parentElement).closest('pre')) return;   // inside a code block: plain copy
+          const box = n => (n.nodeType === 1 ? n : n.parentElement)?.closest('mjx-container[data-tex]');
+          const s = box(range.startContainer), t = box(range.endContainer);
+          if (s) range.setStartBefore(s);
+          if (t) range.setEndAfter(t);
+          const frag = range.cloneContents();
+          if (!frag.querySelector('mjx-container[data-tex], code, strong, b')) return;
+          const block = text => { const p = document.createElement('pre'); p.textContent = text; return p; };   // keeps its line breaks in innerText
+          frag.querySelectorAll('.code-block__bar').forEach(b => b.remove());
+          frag.querySelectorAll('pre').forEach(p => {
+            const lang = (p.querySelector('code')?.className.match(/language-(\S+)/) || [])[1] || '';
+            p.replaceWith(block('```' + lang + '\n' + p.textContent.replace(/\n$/, '') + '\n```'));
+          });
+          frag.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {   // the heading's anchor link shows as a stray #; drop it
+            const p = document.createElement('p');
+            p.textContent = '#'.repeat(+h.tagName[1]) + ' ' + h.textContent.replace(/^\s*#\s*|\s*#\s*$/g, '').trim();
+            h.replaceWith(p);
+          });
+          frag.querySelectorAll('li').forEach(li => {
+            const ol = li.parentElement?.tagName === 'OL';
+            li.prepend(ol ? [...li.parentElement.children].indexOf(li) + (+li.parentElement.getAttribute('start') || 1) + '. ' : '- ');
+          });
+          frag.querySelectorAll('mjx-container[data-tex]').forEach(m => {
+            const tex = m.dataset.tex.trim();
+            m.replaceWith(m.dataset.display ? block('$$\n' + tex + '\n$$') : '$' + tex + '$');
+          });
+          frag.querySelectorAll('code').forEach(c => { if (!c.closest('pre')) c.replaceWith('`' + c.textContent + '`'); });
+          frag.querySelectorAll('strong, b').forEach(b => b.replaceWith('**' + b.textContent + '**'));
+          frag.querySelectorAll('table').forEach(t => {
+            const rows = [...t.querySelectorAll('tr')].map(tr => '| ' + [...tr.children].map(c => c.textContent.trim()).join(' | ') + ' |');
+            if (t.querySelector('th') && rows.length) rows.splice(1, 0, '|' + ' --- |'.repeat(t.querySelector('tr').children.length));
+            t.replaceWith(block(rows.join('\n')));
+          });
+          const tmp = document.createElement('div');
+          tmp.style.cssText = 'position:fixed;left:-9999px;top:0';
+          tmp.appendChild(frag);
+          document.body.appendChild(tmp);
+          const text = tmp.innerText;
+          tmp.remove();
+          e.clipboardData.setData('text/plain', text);
+          e.preventDefault();
+        });
+      </script>
     {{ end }}
     {{ if .Params.mermaid }}
       <script type="module">

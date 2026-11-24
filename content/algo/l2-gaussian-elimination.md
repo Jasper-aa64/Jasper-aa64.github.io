@@ -50,8 +50,6 @@ The animation below goes step by step through three systems: a unique solution, 
 <iframe src="/maps/gauss-steps.en.html" title="Gaussian elimination, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:500px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/gauss-steps.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
 
-Cost: each column sweeps the whole matrix, $O(n \cdot m \cdot (m + 1))$, which is $O(n^3)$ for a square system; $n$ around 500 is the limit.
-
 ## 2. Reals: Pick the Pivot of Largest Absolute Value
 
 ### 2.1 A Tiny Pivot Magnifies the Error
@@ -65,6 +63,45 @@ Example: $10^{-20} x + y = 1$ and $x + y = 2$; the true solution is about $x = 1
 
 So over the reals, **pick the row with the largest absolute value in the column as the pivot** (partial pivoting), and test "is it zero" with $|x| < \varepsilon$, never `== 0`.
 
+#### Cost
+
+$O(n \cdot m \cdot w)$: $n$ rows, $m$ columns eliminated, $w$ columns per row ($w = m + 1$ with one right-hand side); $O(n^3)$ for a square system, and $n$ around 500 is the limit. Each column sweeps every row of the matrix.
+
+#### Template (reals)
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+const double EPS = 1e-8;
+
+// Gauss-Jordan over the reals: a has n rows; eliminate the first m columns, the columns after them (the RHS, possibly several) follow along
+// returns -1: no solution; otherwise the rank r: r == m is a unique solution, r < m has free variables
+// where[c]: the row holding the pivot of unknown c, -1 for a free variable; when solvable x_c = a[where[c]][m], free variables 0
+int gauss(vector<vector<double>>& a, int m, vector<int>& where) {
+    int n = a.size(), w = n ? a[0].size() : 0, r = 0;
+    where.assign(m, -1);
+    for (int c = 0; c < m && r < n; c++) {
+        int p = r;
+        for (int i = r; i < n; i++)
+            if (fabs(a[i][c]) > fabs(a[p][c])) p = i;    // pivot with the largest absolute value
+        if (fabs(a[p][c]) < EPS) continue;               // no pivot in this column: x_c is free, r stays
+        swap(a[p], a[r]);
+        for (int j = w - 1; j >= c; j--) a[r][j] /= a[r][c];
+        for (int i = 0; i < n; i++)
+            if (i != r && fabs(a[i][c]) > EPS)
+                for (int j = w - 1; j >= c; j--) a[i][j] -= a[i][c] * a[r][j];
+        where[c] = r++;
+    }
+    for (int i = r; i < n; i++)
+        for (int j = m; j < w; j++)
+            if (fabs(a[i][j]) > EPS) return -1;          // 0 = nonzero: check for no solution before free variables
+    return r;
+}
+```
+
+Check the return value for $-1$ (no solution) first, then whether the rank is $m$ (unique solution). This is the reading order of 1.2: a system can have free variables and a contradictory row at the same time, and then the answer is no solution.
+
 ### 2.2 Example: Luogu P2455, Telling No Solution from Infinitely Many
 
 Problem ([Luogu P2455](https://www.luogu.com.cn/problem/P2455), SDOI2006): a linear system in $n \le 50$ unknowns with integer coefficients. Print each $x_i$ with 2 decimals if the solution is unique, $-1$ if there is no solution, and $0$ if there are infinitely many.
@@ -75,7 +112,7 @@ This is exactly the reading step of 1.2, and the trap is the order: when a colum
 #include <bits/stdc++.h>
 using namespace std;
 
-const double EPS = 1e-8;
+// uses gauss from 2.1 (reals)
 
 int main() {
     ios::sync_with_stdio(false);
@@ -86,24 +123,10 @@ int main() {
     for (auto& row : a)
         for (auto& v : row) cin >> v;
 
-    vector<int> where(n, -1);                             // where[c]: the row holding column c's pivot
-    int r = 0;
-    for (int c = 0; c < n && r < n; c++) {
-        int p = r;
-        for (int i = r; i < n; i++)
-            if (fabs(a[i][c]) > fabs(a[p][c])) p = i;     // largest absolute value as the pivot
-        if (fabs(a[p][c]) < EPS) continue;               // no pivot in this column: x_c is free, the row stays
-        swap(a[p], a[r]);
-        for (int j = n; j >= c; j--) a[r][j] /= a[r][c];
-        for (int i = 0; i < n; i++)
-            if (i != r && fabs(a[i][c]) > EPS)
-                for (int j = n; j >= c; j--) a[i][j] -= a[i][c] * a[r][j];
-        where[c] = r++;
-    }
-
-    for (int i = r; i < n; i++)
-        if (fabs(a[i][n]) > EPS) { cout << -1 << '\n'; return 0; }   // 0 = nonzero
-    if (r < n) { cout << 0 << '\n'; return 0; }                      // free variables
+    vector<int> where;
+    int r = gauss(a, n, where);
+    if (r < 0) { cout << -1 << '\n'; return 0; }
+    if (r < n) { cout << 0 << '\n'; return 0; }
 
     cout << fixed << setprecision(2);
     for (int c = 0; c < n; c++)
@@ -133,6 +156,8 @@ Edge $(u, v)$ is walked $\dfrac{f_u}{\deg u} + \dfrac{f_v}{\deg v}$ times in exp
 #include <bits/stdc++.h>
 using namespace std;
 
+// uses gauss from 2.1 (reals)
+
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
@@ -157,16 +182,8 @@ int main() {
             if (v != n) a[u - 1][v - 1] -= 1.0 / deg[v];
         a[u - 1][k] = (u == 1);
     }
-    for (int c = 0; c < k; c++) {                          // the solution is unique, every column has a pivot
-        int p = c;
-        for (int i = c; i < k; i++)
-            if (fabs(a[i][c]) > fabs(a[p][c])) p = i;
-        swap(a[p], a[c]);
-        for (int j = k; j >= c; j--) a[c][j] /= a[c][c];
-        for (int i = 0; i < k; i++)
-            if (i != c && a[i][c] != 0)
-                for (int j = k; j >= c; j--) a[i][j] -= a[i][c] * a[c][j];
-    }
+    vector<int> where;
+    gauss(a, k, where);                                    // unique solution: every column has a pivot, where[c] == c
 
     // expected uses of edge (u, v): chosen when leaving u, plus when leaving v; nothing leaves n
     vector<double> e(m);
@@ -190,15 +207,13 @@ Modulo a prime $p$ numbers are exact, with no rounding, and the elimination is t
 - any **nonzero** entry can be the pivot; there is no need for the largest;
 - dividing by the pivot becomes **multiplying by its inverse** (fast power $a^{p-2}$).
 
-Every nonzero number has an inverse modulo a prime, so step 2 always works. When the modulus is not prime, a nonzero pivot may have no inverse, and the elimination has to run a Euclid-style subtraction between two rows instead; see practice problem 6. On top of $O(n^3)$, each column computes one inverse, $O(n^3 + n \log p)$ in total.
+Every nonzero number has an inverse modulo a prime, so step 2 always works. When the modulus is not prime, a nonzero pivot may have no inverse, and the elimination has to run a Euclid-style subtraction between two rows instead; see practice problem 6.
 
-### 3.2 Example: Luogu P4783, Matrix Inverse
+#### Cost
 
-Problem ([Luogu P4783](https://www.luogu.com.cn/problem/P4783)): invert an $N \times N$ matrix modulo $10^9 + 7$ with $N \le 400$, or print `No Solution` if it is singular.
+$O(n \cdot m \cdot w + r \log p)$: the elimination is the same as over the reals, plus one inverse per pivot (fast power, $O(\log p)$), where $r$ is the rank. For a square system that is $O(n^3 + n \log p)$.
 
-Put $A$ and the identity $I$ side by side as $[A \mid I]$ and eliminate the whole $n \times 2n$ matrix until the left half is $I$; the right half is then $A^{-1}$.
-
-Why: each row operation is a left multiplication by an invertible matrix, so the whole sequence is a left multiplication by some matrix $E$. The left half going from $A$ to $I$ means $EA = I$, so $E = A^{-1}$; the right half goes from $I$ to $EI = E$, which is exactly $A^{-1}$. If some column of the left half has no pivot, $A$ does not have full rank and is not invertible.
+#### Template (mod a prime)
 
 ```cpp
 #include <bits/stdc++.h>
@@ -214,6 +229,45 @@ ll qp(ll a, ll e) {
     return r;
 }
 
+// Gauss-Jordan mod a prime P: a has n rows; eliminate the first m columns, the columns after them (the RHS, possibly several) follow along
+// return value and where as in the real version: -1 for no solution, otherwise the rank
+int gauss(vector<vector<ll>>& a, int m, vector<int>& where) {
+    int n = a.size(), w = n ? a[0].size() : 0, r = 0;
+    where.assign(m, -1);
+    for (int c = 0; c < m && r < n; c++) {
+        int p = r;
+        while (p < n && a[p][c] == 0) p++;               // mod p any nonzero entry can be the pivot
+        if (p == n) continue;
+        swap(a[p], a[r]);
+        ll iv = qp(a[r][c], P - 2);                      // multiply by the inverse instead of dividing
+        for (int j = c; j < w; j++) a[r][j] = a[r][j] * iv % P;
+        for (int i = 0; i < n; i++)
+            if (i != r && a[i][c]) {
+                ll f = a[i][c];
+                for (int j = c; j < w; j++) a[i][j] = (a[i][j] - f * a[r][j] % P + P) % P;
+            }
+        where[c] = r++;
+    }
+    for (int i = r; i < n; i++)
+        for (int j = m; j < w; j++)
+            if (a[i][j]) return -1;
+    return r;
+}
+```
+
+### 3.2 Example: Luogu P4783, Matrix Inverse
+
+Problem ([Luogu P4783](https://www.luogu.com.cn/problem/P4783)): invert an $N \times N$ matrix modulo $10^9 + 7$ with $N \le 400$, or print `No Solution` if it is singular.
+
+Put $A$ and the identity $I$ side by side as $[A \mid I]$ and eliminate the whole $n \times 2n$ matrix until the left half is $I$; the right half is then $A^{-1}$.
+
+Why: each row operation is a left multiplication by an invertible matrix, so the whole sequence is a left multiplication by some matrix $E$. The left half going from $A$ to $I$ means $EA = I$, so $E = A^{-1}$; the right half goes from $I$ to $EI = E$, which is exactly $A^{-1}$. If some column of the left half has no pivot, $A$ does not have full rank and is not invertible.
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+// uses gauss from 3.1 (mod a prime; P and qp come with it)
+
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
@@ -224,19 +278,8 @@ int main() {
         for (int j = 0; j < n; j++) cin >> a[i][j];
         a[i][n + i] = 1;
     }
-    for (int c = 0; c < n; c++) {
-        int p = c;
-        while (p < n && a[p][c] == 0) p++;                // mod p any nonzero entry can be the pivot
-        if (p == n) { cout << "No Solution\n"; return 0; }
-        swap(a[p], a[c]);
-        ll iv = qp(a[c][c], P - 2);                        // division becomes multiplication by the inverse
-        for (int j = 0; j < 2 * n; j++) a[c][j] = a[c][j] * iv % P;
-        for (int i = 0; i < n; i++)
-            if (i != c && a[i][c]) {
-                ll f = a[i][c];
-                for (int j = 0; j < 2 * n; j++) a[i][j] = (a[i][j] - f * a[c][j] % P + P) % P;
-            }
-    }
+    vector<int> where;
+    if (gauss(a, n, where) != n) { cout << "No Solution\n"; return 0; }   // the left half cannot become I
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++) cout << a[i][n + j] << " \n"[j == n - 1];
 }
@@ -254,7 +297,37 @@ How the three row operations affect the determinant: swapping two rows flips the
 
 GF(2) has only 0 and 1 with $1 + 1 = 0$, so addition and subtraction are both XOR; the pivot is always 1, so there is no division. Step 3, "subtract a multiple of row $r$ from row $i$", has only one case left: if row $i$ has a 1 in this column, XOR the whole of row $r$ into it.
 
-With each row in a `bitset`, XOR-ing a whole row handles 64 bits at once, and elimination drops from $O(n^3)$ to $O(n^3 / 64)$, fast enough for $n$ up to 2000.
+#### Cost
+
+$O(n \cdot m \cdot (m + 1) / 64)$, $O(n^3 / 64)$ for a square system, fast enough for $n$ up to 2000. With each row in a `bitset`, XOR-ing a whole row handles 64 bits at once, which saves a factor of 64 over the real version.
+
+#### Template (mod 2)
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MX = 2000;                                     // max number of unknowns
+
+// Gauss-Jordan mod 2: each row is a bitset, bits 0..m-1 are coefficients, bit m is the RHS
+// return value and where as in the real version: -1 for no solution, otherwise the rank; when solvable x_c = a[where[c]][m]
+int gauss(vector<bitset<MX + 1>>& a, int m, vector<int>& where) {
+    int n = a.size(), r = 0;
+    where.assign(m, -1);
+    for (int c = 0; c < m && r < n; c++) {
+        int p = r;
+        while (p < n && !a[p][c]) p++;
+        if (p == n) continue;
+        swap(a[p], a[r]);
+        for (int i = 0; i < n; i++)
+            if (i != r && a[i][c]) a[i] ^= a[r];         // XOR the whole row, 64 bits at a time
+        where[c] = r++;
+    }
+    for (int i = r; i < n; i++)
+        if (a[i][m]) return -1;                          // 0 = 1
+    return r;
+}
+```
 
 ### 4.2 Example: POJ 1222, Lights Out
 
@@ -274,6 +347,8 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
+// uses gauss from 4.1 (mod 2)
+
 const int R = 5, C = 6, V = R * C;
 
 int main() {
@@ -284,7 +359,7 @@ int main() {
     for (int t = 1; t <= T; t++) {
         // equation r: number of flips of light r ≡ its initial state (mod 2)
         // column c: which lights switch c flips; column V is the right-hand side
-        vector<bitset<V + 1>> a(V);
+        vector<bitset<MX + 1>> a(V);
         for (int i = 0; i < R; i++)
             for (int j = 0; j < C; j++) {
                 int s;
@@ -299,17 +374,8 @@ int main() {
                     if (x >= 0 && x < R && y >= 0 && y < C) a[x * C + y][i * C + j] = 1;
                 }
 
-        int r = 0;
-        vector<int> where(V, -1);
-        for (int c = 0; c < V && r < V; c++) {
-            int p = r;
-            while (p < V && !a[p][c]) p++;
-            if (p == V) continue;
-            swap(a[p], a[r]);
-            for (int i = 0; i < V; i++)
-                if (i != r && a[i][c]) a[i] ^= a[r];       // XOR a whole row, 64 bits at a time
-            where[c] = r++;
-        }
+        vector<int> where;
+        gauss(a, V, where);                                // the statement guarantees a solution: full rank
 
         cout << "PUZZLE #" << t << '\n';
         for (int i = 0; i < R; i++)
@@ -343,7 +409,7 @@ which splits into two equations mod 2, one per component. There are $2n \le 2000
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 2000;   // 2n ≤ 2000 unknowns
+// uses gauss from 4.1 (mod 2)
 
 int main() {
     ios::sync_with_stdio(false);
@@ -385,19 +451,8 @@ int main() {
         }
     }
 
-    int E = eq.size(), r = 0;
-    vector<int> where(V, -1);
-    for (int c = 0; c < V && r < E; c++) {
-        int p = r;
-        while (p < E && !eq[p][c]) p++;
-        if (p == E) continue;
-        swap(eq[p], eq[r]);
-        for (int i = 0; i < E; i++)
-            if (i != r && eq[i][c]) eq[i] ^= eq[r];
-        where[c] = r++;
-    }
-    for (int i = r; i < E; i++)
-        if (eq[i][V]) { cout << "NO\n"; return 0; }       // 0 = 1
+    vector<int> where;
+    if (gauss(eq, V, where) < 0) { cout << "NO\n"; return 0; }
 
     string s(n, '.');
     for (int j = 0; j < n; j++) {

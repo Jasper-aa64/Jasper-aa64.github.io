@@ -38,6 +38,10 @@ Take $a = (1, 2, 4)$ and forbid choosing two neighbours. The legal choices are n
 
 The basis is an array `b[0..59]` with one rule: **`b[i]` is either 0 or a number whose highest bit is exactly bit $i$**. To insert $x$, scan from the high bits down: if bit $i$ is 1 and `b[i]` is empty, store $x$ in `b[i]`; if `b[i]` is taken, set $x \leftarrow x \oplus b_i$, which clears bit $i$, and continue with the lower bits.
 
+#### Cost
+
+`insert` and `contains` are both $O(60)$: going down from bit 59, each bit does at most one XOR. Inserting all $n$ numbers costs $O(60 n)$.
+
 ```cpp
 struct XorBasis {
     static const int B = 60;          // all values are below 2^60 (10^18 < 2^60)
@@ -63,8 +67,6 @@ struct XorBasis {
     }
 };
 ```
-
-One insertion does at most 60 XORs, so inserting all $n$ numbers costs $O(60 n)$.
 
 The animation below walks through insertion bit by bit. It starts with 6, 3, 5, 1: 5 is cleared to 0 and fails, and the other three each take a pivot bit. You can type your own numbers.
 
@@ -110,6 +112,10 @@ Numbers are compared by their highest bit first, so to make the result as large 
 
 The start need not be 0. For "the maximum of $s$ XOR any subset", start the greedy at $v = s$; the path problem in Section 6 needs this. The minimum is the mirror image: XOR whenever it makes $v$ smaller, which gives the minimum of $s$ XOR any subset.
 
+#### Cost
+
+`max_xor` and `min_xor` are both $O(60)$, one look per bit.
+
 ```cpp
     long long max_xor(long long v = 0) const {   // max of v XOR any subset
         for (int i = B - 1; i >= 0; i--) v = max(v, v ^ b[i]);
@@ -121,11 +127,15 @@ The start need not be 0. For "the maximum of $s$ XOR any subset", start the gree
     }
 ```
 
-These are member functions of `XorBasis`; when `b[i]` is 0 the XOR leaves $v$ unchanged, so no special case is needed. With $s = 0$ the minimum is always 0 (the empty set); for "the minimum over nonempty subsets", see the end of 4.3. Both are $O(60)$.
+These are member functions of `XorBasis`; when `b[i]` is 0 the XOR leaves $v$ unchanged, so no special case is needed. With $s = 0$ the minimum is always 0 (the empty set); for "the minimum over nonempty subsets", see the end of 4.3.
 
 ### 4.2 Reduction: Each Pivot Bit Lives in One Number Only
 
 The maximum only cares about making each bit 1 when possible. The $k$-th smallest needs the full order of all $2^r$ values, and `b` as it stands does not show that order: ones that a higher basis number has in lower bits interfere with the comparison of those lower bits. So tidy it first. Call the highest bit $i$ of each nonzero `b[i]` a **pivot bit**. **Reduction** makes every pivot bit appear only in its own number: whenever `b[i]` has a 1 in a lower pivot bit $j$, XOR `b[j]` in to clear it.
+
+#### Cost
+
+`reduce()` is $O(60^2)$: two nested loops of at most 60 each.
 
 ```cpp
     void reduce() {                              // reduction: each pivot bit stays in its own number
@@ -135,13 +145,17 @@ The maximum only cares about making each bit 1 when possible. The $k$-th smalles
     }
 ```
 
-`i` goes upward, so when `b[i]` is processed all lower `b[j]` are already reduced and contain no pivot bit other than bit $j$; XORing one in only clears bit $j$ of `b[i]` and cannot turn another pivot bit back to 1. XORing in basis numbers changes neither the span nor the highest bit of `b[i]`, so after reduction we still have a basis of the same space that still obeys the rule of 2.1. The cost is $O(60^2)$.
+`i` goes upward, so when `b[i]` is processed all lower `b[j]` are already reduced and contain no pivot bit other than bit $j$; XORing one in only clears bit $j$ of `b[i]` and cannot turn another pivot bit back to 1. XORing in basis numbers changes neither the span nor the highest bit of `b[i]`, so after reduction we still have a basis of the same space that still obeys the rule of 2.1.
 
 ### 4.3 $k$-th Smallest: The Binary Digits of $k$ Are the Choice
 
 After reduction, number the $r$ basis elements by pivot bit from low to high as $c_0, c_1, \dots, c_{r-1}$, and write $p_t$ for the pivot bit of $c_t$. For any choice, bit $p_t$ of the result is exactly "was $c_t$ chosen", because every other basis number has a 0 there.
 
 Compare the results of two different choices. Let $t$ be the largest index on which they differ. Bits above $p_t$ are affected only by basis numbers with index above $t$ (those with index at most $t$ have top bit at most $p_t$), and both sides choose those identically, so all bits above $p_t$ agree; in bit $p_t$, the side that chose $c_t$ has a 1 and the other a 0. Therefore **writing a choice as the binary number $\sum_{t \text{ chosen}} 2^t$, the order of results matches the order of these binary numbers**: the $k$-th value from the smallest ($k$ counted from 0, value 0 being the 0-th) is obtained by choosing basis numbers according to the binary digits of $k$.
+
+#### Cost
+
+`kth` is $O(60)$; the `reduce()` before it is needed only once, $O(60^2)$.
 
 ```cpp
     long long kth(unsigned long long k) const {  // call reduce() first; k from 0, the 0-th is 0
@@ -151,8 +165,6 @@ Compare the results of two different choices. Let $t$ be the largest index on wh
         return k ? -1 : v;                       // k >= 2^r: no such value
     }
 ```
-
-`kth` is $O(60)$, and the `reduce()` before it runs once, $O(60^2)$.
 
 The figure below ties 4.2 and 4.3 together on a 4-bit example: the top shows `b` before and after reduction, the bottom shows the value chosen by each $k = 0, \dots, 7$.
 
@@ -187,6 +199,10 @@ Each number carries a nonnegative weight, and we want a linearly independent set
 
 Why the greedy is right. Let the greedy picks, sorted by weight, be $g_1, \dots, g_r$ with nonincreasing weights; take any linearly independent set, also sorted, $o_1, \dots, o_m$. First, $m \le r$: the greedy picks are a basis of all the numbers, and no independent set exceeds the rank. Next we show $w(g_t) \ge w(o_t)$ for every $t$; summing gives optimality. Suppose $w(o_t) > w(g_t)$ for some $t$. $o_1, \dots, o_t$ are $t$ independent numbers, while $g_1, \dots, g_{t-1}$ span only $t - 1$ dimensions, so some $o_j$ ($j \le t$) cannot be expressed by $g_1, \dots, g_{t-1}$. Its weight is $w(o_j) \ge w(o_t) > w(g_t)$, so the greedy processed it before $g_t$; at that time all picks so far were among $g_1, \dots, g_{t-1}$ and could not express $o_j$, so $o_j$ should have been inserted and become some $g_s$ ($s < t$), contradicting that $g_1, \dots, g_{t-1}$ cannot express it.
 
+#### Cost
+
+Sorting is $O(n \log n)$ and the inserts $O(60 n)$.
+
 ```cpp
 // items: (number, weight), weights nonnegative. Returns the max total weight of an independent set
 long long max_weight(vector<pair<long long, long long>> items) {
@@ -200,8 +216,6 @@ long long max_weight(vector<pair<long long, long long>> items) {
 }
 ```
 
-Sorting is $O(n \log n)$ and the inserts $O(60 n)$.
-
 **Independent sets have the exchange property (a smaller one can always borrow a number from a larger one to grow), so inserting greedily by decreasing weight is optimal.** The next section reuses this with position as the weight.
 
 ### 5.3 Range Queries: The Prefix Basis, Each Pivot Bit Keeps the Rightmost Number
@@ -209,6 +223,10 @@ Sorting is $O(n \log n)$ and the inserts $O(60 n)$.
 Example (CF 1100F): an array and many queries asking for the maximum subset XOR inside $[l, r]$. Rebuilding a basis per query costs $O(60 \cdot \text{length})$, too slow.
 
 The technique is called the **prefix basis**: insert from left to right and keep a position `pos[i]` next to each `b[i]`. When inserting the $p$-th number, if the `b[i]` it meets has a position smaller than $p$, swap them: the newcomer stays in `b[i]` and the old number carries its position further down to the lower bits. The basis after inserting the $r$-th number answers every query with right end $r$: run the greedy using only the `b[i]` with `pos[i]` $\ge l$.
+
+#### Cost
+
+Each insertion and each query is $O(60)$; with the queries sorted by $r$ offline, the total is $O(q \log q + 60 (n + q))$.
 
 ```cpp
 struct PrefixBasis {
@@ -234,7 +252,7 @@ struct PrefixBasis {
 };
 ```
 
-Why keeping only `pos[i]` $\ge l$ is right: this is the greedy of 5.2 with position as the weight. Insert by decreasing position, $a_r, a_{r-1}, \dots$; once $a_l$ is in, the basis can already express every number in $a_l, \dots, a_r$, and numbers further left only fill dimensions that are still empty, never pushing out what is there. So in the basis built greedily from right to left, the part with position $\ge l$ spans exactly $a_l, \dots, a_r$. The swapping insertion maintains this greedy result online: the newcomer has the largest position and should be chosen first, so whenever it meets an older number it pushes that one down, and the number pushed all the way to 0 is the leftmost of a linearly dependent group. **Each pivot bit keeps the rightmost number, and a query $[l, r]$ uses only the part with position $\ge l$.** Sort the queries by $r$ offline and keep a single basis; each insertion and each query costs $O(60)$, $O(q \log q + 60 (n + q))$ in total with the sort.
+Why keeping only `pos[i]` $\ge l$ is right: this is the greedy of 5.2 with position as the weight. Insert by decreasing position, $a_r, a_{r-1}, \dots$; once $a_l$ is in, the basis can already express every number in $a_l, \dots, a_r$, and numbers further left only fill dimensions that are still empty, never pushing out what is there. So in the basis built greedily from right to left, the part with position $\ge l$ spans exactly $a_l, \dots, a_r$. The swapping insertion maintains this greedy result online: the newcomer has the largest position and should be chosen first, so whenever it meets an older number it pushes that one down, and the number pushed all the way to 0 is the leftmost of a linearly dependent group. **Each pivot bit keeps the rightmost number, and a query $[l, r]$ uses only the part with position $\ge l$.** Sort the queries by $r$ offline and keep a single basis.
 
 The figure below shows the basis after each insertion of the array $5, 6, 3, 4$, and the query $[3, 4]$ at right end 4:
 
