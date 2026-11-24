@@ -520,6 +520,6 @@ Each problem lists the section it uses.
 
 ## Connections to Other Boxes on the Map
 
-- The elimination of 2.3 is Gaussian elimination mod 2. When Gaussian elimination comes later, the number of solutions of an XOR system ($2^{\text{free variables}}$) is the same number as the $2^{n-r}$ of 3.2: the free variables are exactly the numbers whose insertion failed.
+- The elimination of 2.3 is Gaussian elimination mod 2, and insertion is a special case of incremental elimination in [L3 Gaussian Elimination](/algo/l3-gaussian-elimination/) section 5.2. The number of solutions of an XOR system ($2^{\text{free variables}}$) is the same number as the $2^{n-r}$ of 3.2: the free variables are exactly the numbers whose insertion failed.
 - The 0/1 trie of A6 also finds a maximum XOR, but of "$x$ with one number of the set": only a single number may be chosen; a basis answers "any subset". A statement that says "pick two numbers" wants a trie; one that says "pick some numbers" wants a basis.
 - The greedy of 5.2 is greedy on a matroid, the same structure as Kruskal's minimum spanning tree (acyclic edge sets in place of independent sets).

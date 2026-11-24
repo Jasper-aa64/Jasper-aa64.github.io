@@ -242,7 +242,7 @@ The tools of [C0 section 4](/algo/c0-contest-math-overview/), and the question e
 | Matrix power | the result of applying the same linear map $n$ times: $v_n = M^{n-1} v_1$ |
 | (min, +) matrices | leave linear spaces, keep only associativity and distributivity, and fast exponentiation still works |
 | BM | the sequence produced by repeatedly applying a fixed linear map satisfies a linear recurrence of order at most the dimension |
-| Gaussian elimination | find the rank, decide whether $b$ is in the image, count the dimension of the kernel (the free variables) |
+| Gaussian elimination | find the rank, decide whether $b$ is in the image, count the dimension of the kernel (the free variables); code and problems in [L3](/algo/l3-gaussian-elimination/) |
 | XOR basis | build a basis of the span over GF(2), one insertion at a time |
 | Determinant | whether the map is invertible, and counting through a signed sum over permutations |
 

@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>高斯消元：分步看</title>
+<link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
+<style>
+:root { --bg:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --card:#f6f8fa; --hl:#bf3989; --hlbg:#ffeff7;
+  --x:#0969da; --xbg:#ddf4ff; --ok:#1a7f37; --okbg:#dafbe1; --bad:#cf222e; --badbg:#ffebe9; --piv:#8250df; --pivbg:#fbefff; --free:#eaeef2; }
+.dark { --bg:#17161b; --fg:#e9e7ef; --muted:#a19caf; --line:#3a3945; --card:#1f1e25; --hl:#ff7bb0; --hlbg:#3a1f2d;
+  --x:#58a6ff; --xbg:#132a44; --ok:#3fb950; --okbg:#12301c; --bad:#ff7b72; --badbg:#4a1d22; --piv:#d2a8ff; --pivbg:#2e2148; --free:#2a2932; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
+body { font: 15px/1.65 PingFang SC, Microsoft YaHei, Noto Sans CJK SC, Segoe UI, sans-serif; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 12px 16px; box-sizing: border-box; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; font-size: 14px; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+button:hover { border-color: var(--hl); color: var(--hl); }
+button.on { border-color: var(--x); color: var(--x); background: var(--xbg); font-weight: 700; }
+button:disabled { opacity: .4; cursor: default; border-color: var(--line); color: var(--fg); }
+.eqs { margin: 10px 0 0; font: 14px Consolas, Menlo, monospace; color: var(--muted); }
+.gwrap { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 4px; margin: 8px 0; }
+th { font: 600 13px Consolas, Menlo, monospace; color: var(--muted); padding: 0 4px; }
+th.col { color: var(--hl); }
+th.free { color: var(--muted); text-decoration: line-through; }
+td { box-sizing: border-box; min-width: 54px; height: 34px; text-align: center; font: 15px Consolas, Menlo, monospace; border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 0 6px; transition: background .25s; }
+td.rl { border: 0; background: none; color: var(--muted); font-size: 13px; min-width: 0; text-align: right; }
+td.bar { border: 0; background: none; min-width: 0; width: 2px; padding: 0; border-left: 2px solid var(--line); }
+td.col { background: var(--hlbg); border-color: var(--hl); }
+td.piv { background: var(--pivbg); border-color: var(--piv); color: var(--piv); font-weight: 800; }
+td.cand { box-shadow: 0 0 0 2px var(--x) inset; }
+td.chg { background: var(--okbg); border-color: var(--ok); }
+td.src { border-color: var(--piv); border-style: dashed; }
+td.bad { background: var(--badbg); border-color: var(--bad); color: var(--bad); font-weight: 700; }
+td.done { color: var(--muted); }
+.panel { box-sizing: border-box; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.panel .h { font-weight: 700; color: var(--hl); }
+.panel .t { margin: 4px 0 0; }
+.panel .t.ok { color: var(--ok); } .panel .t.bad { color: var(--bad); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.tips { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="eqs" id="eqs"></div>
+  <div class="gwrap"><table id="tb"></table></div>
+  <div class="panel" id="panel"><div class="h" id="head"></div><p class="t" id="txt"></p></div>
+  <div class="btns"><button id="prev">上一步</button><button id="next">下一步</button><button id="play">自动播放</button><button id="reset">重来</button></div>
+  <p class="tips">粉色是当前处理的列（只看当前行及以下），紫色是主元，绿色是这一步改过的行，虚线框是拿来消别人的主元行。分数是精确值。</p>
+</div>
+<script>
+(function () {
+  var L = {"p1": "唯一解", "p2": "有自由元", "p3": "无解", "play": "自动播放", "pause": "暂停", "row": "第 {i} 行", "h0": "开始之前", "hcol": "第 {c} 列", "hend": "读结果", "start": "3 个方程 3 个未知数，写成增广矩阵，竖线右边是右端 b。从第 1 列开始，当前行是第 1 行。点“下一步”或按右方向键。", "pick": "在第 {r} 行及以下找第 {c} 列绝对值最大的数：第 {p} 行的 {v}，用它作主元。", "nofree": "第 {r} 行及以下，第 {c} 列全是 0，找不到主元：x{c} 是自由元。当前行不动，还是第 {r} 行，直接看下一列。", "swap": "交换第 {p} 行和第 {r} 行，主元换到当前行。交换不改变解集。", "norm": "第 {r} 行除以主元 {v}，主元变成 1。", "elim": "第 {i} 行减去第 {r} 行的 {f} 倍，第 {c} 列消成 0。上下都消，消完不用回代。", "one": "每列都有主元，没有自由元，唯一解：{s}。", "many": "没有 0 = 非零 的行，有自由元 {f}，解有无穷多个：{s}（自由元任取）。", "none": "第 {i} 行系数全是 0，右端是 {v}，写出来是 0 = {v}：无解。", "noneFree": "虽然也有自由元，但先查到矛盾，答案是无解。"};
+  var root = document.documentElement;
+  function theme() {
+    var t = null;
+    try { if (window.parent !== window) t = window.parent.document.documentElement.dataset.theme; } catch (e) {}
+    if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    root.classList.toggle('dark', t !== 'light');
+  }
+  theme();
+  try { if (window.parent !== window) new MutationObserver(theme).observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+  function fit() { try { if (window.frameElement) window.frameElement.style.height = document.body.scrollHeight + 'px'; } catch (e) {} }
+  function fmt(s, o) { return s.replace(/\{(\w+)\}/g, function (_, k) { return o[k]; }); }
+
+  // exact fractions [num, den], den > 0
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = a % b; a = b; b = t; } return a || 1; }
+  function F(n, d) { d = d || 1; if (d < 0) { n = -n; d = -d; } var g = gcd(n, d); return [n / g, d / g]; }
+  function sub(a, b) { return F(a[0] * b[1] - b[0] * a[1], a[1] * b[1]); }
+  function mul(a, b) { return F(a[0] * b[0], a[1] * b[1]); }
+  function div(a, b) { return F(a[0] * b[1], a[1] * b[0]); }
+  function abs(a) { return Math.abs(a[0] / a[1]); }
+  function str(a) { return a[1] === 1 ? String(a[0]) : a[0] + '/' + a[1]; }
+  function zero(a) { return a[0] === 0; }
+
+  var PRESETS = [
+    { name: L.p1, m: [[2, -1, 1, 1], [4, 1, -1, 5], [1, 1, 1, 0]] },
+    { name: L.p2, m: [[1, 2, 1, 4], [2, 4, 3, 9], [1, 2, 2, 5]] },
+    { name: L.p3, m: [[1, 2, 1, 4], [2, 4, 3, 9], [1, 2, 2, 6]] }
+  ];
+  var N = 3, M = 3, steps = [], k = 0, timer = null, cur = 0;
+
+  function build(pm) {
+    var a = pm.map(function (row) { return row.map(function (v) { return F(v); }); });
+    var where = [-1, -1, -1], free = [], r = 0;
+    steps = [];
+    function push(o) { o.a = a.map(function (row) { return row.slice(); }); o.where = where.slice(); o.free = free.slice(); o.r = r; steps.push(o); }
+    push({ col: -1, head: L.h0, msg: L.start, cls: '' });
+    for (var c = 0; c < M; c++) {
+      var p = -1;
+      for (var i = r; i < N; i++) if (!zero(a[i][c]) && (p < 0 || abs(a[i][c]) > abs(a[p][c]))) p = i;
+      if (p < 0) {
+        free.push(c);
+        push({ col: c, head: fmt(L.hcol, { c: c + 1 }), msg: fmt(L.nofree, { c: c + 1, r: r + 1 }), cls: '' });
+        continue;
+      }
+      push({ col: c, cand: p, head: fmt(L.hcol, { c: c + 1 }), msg: fmt(L.pick, { c: c + 1, r: r + 1, p: p + 1, v: str(a[p][c]) }), cls: '' });
+      if (p !== r) {
+        var t = a[p]; a[p] = a[r]; a[r] = t;
+        push({ col: c, piv: [r, c], chg: [r, p], head: fmt(L.hcol, { c: c + 1 }), msg: fmt(L.swap, { p: p + 1, r: r + 1 }), cls: '' });
+      }
+      var pv = a[r][c];
+      if (!(pv[0] === 1 && pv[1] === 1)) {
+        a[r] = a[r].map(function (x) { return div(x, pv); });
+        push({ col: c, piv: [r, c], chg: [r], head: fmt(L.hcol, { c: c + 1 }), msg: fmt(L.norm, { r: r + 1, v: str(pv) }), cls: '' });
+      }
+      for (i = 0; i < N; i++) {
+        if (i === r || zero(a[i][c])) continue;
+        var f = a[i][c];
+        a[i] = a[i].map(function (x, j) { return sub(x, mul(f, a[r][j])); });
+        push({ col: c, piv: [r, c], chg: [i], src: r, head: fmt(L.hcol, { c: c + 1 }), msg: fmt(L.elim, { i: i + 1, r: r + 1, f: str(f), c: c + 1 }), cls: '' });
+      }
+      where[c] = r; r++;
+    }
+    var badRow = -1;
+    for (i = r; i < N; i++) if (!zero(a[i][M])) { badRow = i; break; }
+    if (badRow >= 0) push({ col: -1, bad: badRow, head: L.hend, msg: fmt(L.none, { i: badRow + 1, v: str(a[badRow][M]) }) + (free.length ? ' ' + L.noneFree : ''), cls: 'bad' });
+    else if (free.length) {
+      var parts = [];
+      for (c = 0; c < M; c++) if (where[c] >= 0) {
+        var s = 'x' + (c + 1) + ' = ' + str(a[where[c]][M]);
+        free.forEach(function (fc) { var co = a[where[c]][fc]; if (!zero(co)) s += ' − (' + str(co) + ')·x' + (fc + 1); });
+        parts.push(s);
+      }
+      push({ col: -1, head: L.hend, msg: fmt(L.many, { f: free.map(function (x) { return 'x' + (x + 1); }).join(', '), s: parts.join('；') }), cls: 'ok' });
+    } else {
+      push({ col: -1, head: L.hend, msg: fmt(L.one, { s: [0, 1, 2].map(function (c) { return 'x' + (c + 1) + ' = ' + str(a[where[c]][M]); }).join('，') }), cls: 'ok' });
+    }
+  }
+
+  var tb = document.getElementById('tb');
+  function render() {
+    var s = steps[k], html = '<tr><th></th>';
+    for (var c = 0; c < M; c++) html += '<th class="' + (c === s.col ? 'col' : '') + (s.free.indexOf(c) >= 0 ? ' free' : '') + '">x' + (c + 1) + '</th>';
+    html += '<th></th><th>b</th></tr>';
+    for (var i = 0; i < N; i++) {
+      html += '<tr><td class="rl">' + fmt(L.row, { i: i + 1 }) + '</td>';
+      for (c = 0; c <= M; c++) {
+        if (c === M) html += '<td class="bar"></td>';
+        var cls = [];
+        if (c === s.col && i >= s.r) cls.push('col');
+        if (s.cand === i && c === s.col) cls.push('cand');
+        if (s.piv && s.piv[0] === i && s.piv[1] === c) cls.push('piv');
+        else if (s.chg && s.chg.indexOf(i) >= 0) cls.push('chg');
+        else if (s.src === i) cls.push('src');
+        if (s.bad === i) cls.push('bad');
+        html += '<td class="' + cls.join(' ') + '">' + str(s.a[i][c]) + '</td>';
+      }
+      html += '</tr>';
+    }
+    tb.innerHTML = html;
+    document.getElementById('head').textContent = s.head;
+    var t = document.getElementById('txt'); t.textContent = s.msg; t.className = 't ' + s.cls;
+    document.getElementById('prev').disabled = k === 0;
+    document.getElementById('next').disabled = k === steps.length - 1;
+    fit();
+  }
+  function show(n) { k = Math.max(0, Math.min(steps.length - 1, n)); render(); }
+  var bPlay = document.getElementById('play');
+  function stop() { if (timer) { clearInterval(timer); timer = null; } bPlay.textContent = L.play; }
+  function play() {
+    if (timer) { stop(); return; }
+    if (k === steps.length - 1) show(0);
+    bPlay.textContent = L.pause;
+    timer = setInterval(function () { if (k >= steps.length - 1) stop(); else show(k + 1); }, 2000);
+  }
+  function eqText(m) {
+    return m.map(function (row) {
+      var s = '';
+      for (var c = 0; c < M; c++) {
+        var v = row[c]; if (!v) continue;
+        var term = (Math.abs(v) === 1 ? '' : Math.abs(v)) + 'x' + (c + 1);
+        s += s ? (v < 0 ? ' − ' : ' + ') + term : (v < 0 ? '−' : '') + term;
+      }
+      return s + ' = ' + row[M];
+    }).join('；  ');
+  }
+  function choose(i) {
+    stop(); cur = i;
+    var tabs = document.getElementById('tabs'); tabs.innerHTML = '';
+    PRESETS.forEach(function (p, j) {
+      var b = document.createElement('button'); b.textContent = p.name; if (j === i) b.className = 'on';
+      b.onclick = function () { choose(j); }; tabs.appendChild(b);
+    });
+    document.getElementById('eqs').textContent = eqText(PRESETS[i].m);
+    build(PRESETS[i].m); show(0);
+  }
+  document.getElementById('prev').onclick = function () { stop(); show(k - 1); };
+  document.getElementById('next').onclick = function () { stop(); show(k + 1); };
+  bPlay.onclick = play;
+  document.getElementById('reset').onclick = function () { stop(); show(0); };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') { stop(); show(k + 1); }
+    if (e.key === 'ArrowLeft') { stop(); show(k - 1); }
+  });
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  choose(0);
+})();
+</script>
+</body>
+</html>
