@@ -12,23 +12,6 @@ toc: true
 
 期望有环、开关灯、异或约束、矩阵求逆、行列式，列出来都是线性方程组，用的是同一个算法，只是加减乘除的规则不同。[L1](/zh/algo/l1-linear-algebra/) 讲了解方程的结论从哪来（像和核），这一篇讲怎么消、在哪些题里用：消元本身（第 1 节）、三种数域各改哪几行（第 2 到 4 节）、一条一条加方程的增量版本（第 5 节）。每一节后面跟一道例题。
 
-## 复杂度一览
-
-$n$ 个方程、$m$ 个未知数，方阵时 $n = m$；$r$ 是秩，$p$ 是模数。按每秒约 $10^8$ 次简单运算估规模。
-
-| 做法 | 复杂度 | 能跑到 | 见 |
-| --- | --- | --- | --- |
-| 实数消元（选最大主元） | $O(n \cdot m \cdot (m + 1))$，方阵 $O(n^3)$ | $n \approx 500$ | 1.2、2.1 |
-| 模质数消元 | $O(n^3 + n \log p)$：每列多求一次逆元 | $n \approx 500$ | 3.1 |
-| 矩阵求逆 | 对 $n \times 2n$ 的矩阵消元，约 $2 n^3$ 次乘法 | $n = 400$ | 3.2 |
-| 行列式 | 只消下面，约 $n^3 / 3$ 次乘法，加上 $O(n \log p)$ 的逆元 | $n \approx 500$ | 3.3 |
-| 模 2，一行存成 bitset | $O(n \cdot m \cdot (m + 1) / 64)$，方阵 $O(n^3 / 64)$ | $n \approx 2000$ | 4.1 |
-| 增量高斯加一条（模 2） | $O(r \cdot m / 64)$；加 $k$ 条是 $O(k \cdot r \cdot m / 64)$ | | 5.1 |
-| 增量高斯加一条（模 $p$） | $O(r \cdot m + \log p)$ | | 5.1 |
-| 线性基插入一个数 | $O(60)$，即 $m \le 60$、一行一个字的增量高斯 | | 5.2 |
-
-例题：P2455 $n \le 50$，$O(n^3)$；P3232 对 $n - 1 \le 499$ 个点消元 $O(n^3)$，再给 $m$ 条边排序 $O(m \log m)$；P4783 $2 \cdot 400^3 \approx 1.3 \times 10^8$；POJ 1222 只有 $30 \times 30$；CF 1344F $2000^3 / 64 \approx 1.3 \times 10^8$；昆明 E 约 $O(n^3)$。
-
 ## 1. 消元在做什么
 
 ### 1.1 三种行变换不改变解集
@@ -128,7 +111,7 @@ int main() {
 }
 ```
 
-`a[i][c]` 在内层循环里会被改，所以 `j` 从右往左扫，第 `c` 列最后改，前面用到的都是旧值。输出前把绝对值很小的数当成 0，避免打印出 `-0.00`。
+`a[i][c]` 在内层循环里会被改，所以 `j` 从右往左扫，第 `c` 列最后改，前面用到的都是旧值。输出前把绝对值很小的数当成 0，避免打印出 `-0.00`。复杂度 $O(n^3)$，$n \le 50$。
 
 ### 2.3 例：洛谷 P3232 游走，期望里有环
 
@@ -196,7 +179,7 @@ int main() {
 }
 ```
 
-这题解一定唯一（从 1 出发每个点的期望次数是确定的），代码里省掉了无解和自由元的判断。
+这题解一定唯一（从 1 出发每个点的期望次数是确定的），代码里省掉了无解和自由元的判断。复杂度：对 $n - 1$ 个点消元 $O(n^3)$，$n = 500$ 约 $1.25 \times 10^8$；再给 $m$ 条边排序 $O(m \log m)$。
 
 ## 3. 模质数：除法换成乘逆元
 
@@ -207,7 +190,7 @@ int main() {
 - 找主元时**只要非零就行**，不用选最大；
 - 除以主元换成**乘它的逆元**（快速幂求 $a^{p-2}$）。
 
-非零的数在模质数下都有逆元，所以第 2 步总能做。模数不是质数时，非零的主元可能没有逆元，要换成两行之间辗转相除的消法，见练习 6。
+非零的数在模质数下都有逆元，所以第 2 步总能做。模数不是质数时，非零的主元可能没有逆元，要换成两行之间辗转相除的消法，见练习 6。复杂度在 $O(n^3)$ 之外，每列多求一次逆元，共 $O(n^3 + n \log p)$。
 
 ### 3.2 例：洛谷 P4783 矩阵求逆
 
@@ -259,9 +242,11 @@ int main() {
 }
 ```
 
+对 $n \times 2n$ 的矩阵消元，约 $2 n^3$ 次乘法，$n = 400$ 时约 $1.3 \times 10^8$。
+
 ### 3.3 行列式：只消下面，乘对角线
 
-三种行变换对行列式的影响：交换两行变号；一行乘 $k$，行列式乘 $k$；一行加上另一行的倍数，行列式不变。所以只用第三种变换（再加交换）把矩阵消成上三角，行列式就是对角线乘积，每交换一次变一次号。这时不用把主元除成 1，也不用消上面的行。模质数的代码和矩阵树定理、LGV 引理在 [C0 第 4.6 节](/zh/algo/c0-contest-math-overview/)。
+三种行变换对行列式的影响：交换两行变号；一行乘 $k$，行列式乘 $k$；一行加上另一行的倍数，行列式不变。所以只用第三种变换（再加交换）把矩阵消成上三角，行列式就是对角线乘积，每交换一次变一次号。这时不用把主元除成 1，也不用消上面的行。模质数的代码和矩阵树定理、LGV 引理在 [C0 第 4.6 节](/zh/algo/c0-contest-math-overview/)。只消下面约 $n^3 / 3$ 次乘法，加上求逆元，共 $O(n^3 + n \log p)$。
 
 ## 4. 模 2：加减都是异或
 
@@ -440,19 +425,97 @@ int main() {
 
 模 2 下一次加入是 $O(\text{秩} \cdot m / 64)$。模 $p$ 下一样，第 3 步先把新行乘主元的逆元。
 
-### 5.2 线性基是增量高斯的特例
+### 5.2 模板：增量高斯（模 2）
 
-[L3 线性基](/zh/algo/l3-xor-basis/)的插入就是模 2 的增量高斯，只是省掉了几样东西：
+5.1 写成板子。第 $j$ 个未知数对应 bitset 的第 $j$ 位，`MX` 开到比未知数个数大就行。右端是一个 `int`，几组系数相同的方程组可以把右端按位打包一起消，5.3 就是 30 组一起消。先列接口和每个操作的复杂度，实现在后面。
 
-| | 增量高斯（模 2） | 线性基 |
-| --- | --- | --- |
-| 一行是什么 | 一条方程：系数 bitset + 右端 | 一个数，没有右端 |
-| 列数 | 任意，bitset 开到几千 | 不超过 60，一个 `long long` |
-| 按什么存 | 每行记它的主元列 | `b[i]` 就是主元在第 $i$ 位的那一行 |
-| 插入时清旧行 | 清，保持简化行阶梯形 | 不清，只保持行阶梯形；要第 $k$ 小时再规范化 |
-| 消成 0 时 | 看右端：相关还是矛盾 | 插入失败，这个数能被异或出来 |
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
 
-所以“这个数能不能被异或出来”和“这条方程是不是多余的”是同一个问题；带上右端，就多了“矛盾”这一种结局。
+const int MX = 1024;                             // 列数（未知数个数）的上限
+
+// 增量高斯（模 2）：一条一条加方程，始终保持简化行阶梯形
+struct IncGauss {
+    int n;                                       // 未知数个数
+    vector<bitset<MX>> row;
+    vector<int> rhs, piv;                        // 每行的右端、主元列；右端可以把若干位打包一起异或
+    bool bad = false;                            // 出现过矛盾
+    IncGauss(int n) : n(n) {}
+
+    void eliminate(bitset<MX>& v, int& b) const;   // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
+    int add(bitset<MX> v, int b);                // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+    int rank() const { return row.size(); }
+    int implied(bitset<MX> v) const;             // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
+    bitset<MX> solve() const;                    // !bad 时的一组解：自由元取 0，主元等于右端
+    vector<bitset<MX>> kernel() const;           // 齐次方程组解空间的基，n - rank() 个
+    void merge(const IncGauss& o);               // 把另一组的方程逐条加进来
+};
+```
+
+| 操作 | 复杂度 |
+| --- | --- |
+| `eliminate`、`add`、`implied` | $O(r \cdot \text{MX} / 64)$ |
+| `rank` | $O(1)$ |
+| `solve` | $O(r + \text{MX} / 64)$ |
+| `kernel` | $O((n - r)(r + \text{MX} / 64))$ |
+| `merge` | $O(r' \cdot r \cdot \text{MX} / 64)$，$r'$ 是另一组的秩 |
+
+$r$ 是当前的秩，$n$ 是未知数个数，$\text{MX} / 64$ 是一行 bitset 占的机器字数，一次整行异或就是这么多次整数异或。依次加 $k$ 条方程，总共 $O(k \cdot r \cdot \text{MX} / 64)$。
+
+`bad` 为真时方程组无解。否则解有 $2^{n - r}$ 个：`solve()` 给出一个，再异或上 `kernel()` 里任意几个向量，就是 [L1 第 4.5 节](/zh/algo/l1-linear-algebra/)说的“全部解是零空间整体平移一个解”。
+
+```cpp
+void IncGauss::eliminate(bitset<MX>& v, int& b) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
+}
+
+int IncGauss::add(bitset<MX> v, int b) {
+    eliminate(v, b);
+    int p = v._Find_first();
+    if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
+    for (int i = 0; i < (int)row.size(); i++)
+        if (row[i][p]) row[i] ^= v, rhs[i] ^= b;     // 新主元列在旧行里清成 0
+    row.push_back(v), rhs.push_back(b), piv.push_back(p);
+    return 1;
+}
+
+int IncGauss::implied(bitset<MX> v) const {
+    int b = 0;
+    eliminate(v, b);
+    return v.none() ? b : -1;
+}
+
+bitset<MX> IncGauss::solve() const {
+    bitset<MX> x;
+    for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
+    return x;
+}
+
+vector<bitset<MX>> IncGauss::kernel() const {    // 全部解 = solve() 异或上这些向量的任意子集
+    vector<int> isp(n, -1);
+    for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
+    vector<bitset<MX>> ks;
+    for (int f = 0; f < n; f++) {
+        if (isp[f] >= 0) continue;
+        bitset<MX> x;
+        x[f] = 1;                                // 这个自由元取 1，其余自由元取 0
+        for (int i = 0; i < (int)row.size(); i++)
+            if (row[i][f]) x[piv[i]] = 1;
+        ks.push_back(x);
+    }
+    return ks;
+}
+
+void IncGauss::merge(const IncGauss& o) {
+    for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
+}
+```
+
+模 $p$ 的版本：bitset 换成 `vector<long long>`，异或换成减去若干倍，第 3 步先把新行乘主元的逆元，加一条是 $O(r \cdot n + \log p)$。
+
+线性基是这份板子在列数不超过 60、没有右端时的写法；两者逐项对照，以及第 $k$ 小这类线性基常用的操作，在 [L3 线性基](/zh/algo/l3-xor-basis/)的附录。
 
 ### 5.3 例：2024 ICPC 昆明 E Extracting Weights，挑出独立的询问
 
@@ -460,7 +523,7 @@ int main() {
 
 **每次询问是一条方程。** 未知数是 $w_1, \dots, w_n$。询问 $(u, v)$ 的回答是路径上的点的权值异或和，系数就是“点在不在路径上”的 0/1 向量。$w$ 有 30 位，但每一位的方程组系数都一样，右端用一个 `int` 存，异或时 30 个方程组一起做。
 
-**能不能确定，看秩。** 所有 $k$ 条边的路径对应的方程，加上 $w_1 = 0$，秩为 $n$ 才能唯一确定全部权值。从中挑出 $n$ 条线性无关的方程，就是 5.1 的增量高斯：枚举所有距离为 $k$ 的点对，能让秩加 1 的就留下。
+**能不能确定，看秩。** 所有 $k$ 条边的路径对应的方程，加上 $w_1 = 0$，秩为 $n$ 才能唯一确定全部权值。从中挑出 $n$ 条线性无关的方程，就是 5.2 的板子：枚举所有距离为 $k$ 的点对，能让秩加 1 的就留下。
 
 **$w_1 = 0$ 要先放进去。** 它也是一条方程，不占询问次数。先插它，询问只需要补齐剩下的 $n - 1$ 维，最多问 $n - 1$ 次。如果先挑 $n - 1$ 条询问、最后再加它，这 $n - 1$ 条的组合可能恰好推出 $w_1 = 0$，它就加不进去，秩停在 $n - 1$；其实换一条询问或多问一条就够，却误判成 `NO`。
 
@@ -470,26 +533,7 @@ int main() {
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 256;
-
-// 增量高斯（模 2）：一条一条加方程，始终保持简化行阶梯形
-struct IncGauss {
-    int n;
-    vector<bitset<MX>> row;
-    vector<int> rhs, piv;                      // 右端（30 位一起做异或）、每行的主元列
-    IncGauss(int n) : n(n) {}
-    // 返回 1：新方程独立，秩加 1；0：能由已有方程推出；-1：和已有方程矛盾
-    int add(bitset<MX> v, int b) {
-        for (int i = 0; i < (int)row.size(); i++)
-            if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
-        int p = v._Find_first();
-        if (p >= n) return b ? -1 : 0;
-        for (int i = 0; i < (int)row.size(); i++)
-            if (row[i][p]) row[i] ^= v, rhs[i] ^= b;   // 新主元列在旧行里清成 0
-        row.push_back(v), rhs.push_back(b), piv.push_back(p);
-        return 1;
-    }
-};
+// 套 5.2 的 IncGauss
 
 int main() {
     ios::sync_with_stdio(false);
@@ -530,11 +574,11 @@ int main() {
     e1[0] = 1;
     G.add(e1, 0);                                // w_1 = 0 也是一条方程，和询问一起消
     vector<pair<int, int>> ask;
-    for (int u = 1; u <= n && (int)G.row.size() < n; u++)
-        for (int v = u + 1; v <= n && (int)G.row.size() < n; v++)
+    for (int u = 1; u <= n && G.rank() < n; u++)
+        for (int v = u + 1; v <= n && G.rank() < n; v++)
             if (dist(u, v) == k && G.add(path(u, v), 0) == 1) ask.push_back({u, v});
 
-    if ((int)G.row.size() < n) { cout << "NO" << endl; return 0; }
+    if (G.rank() < n) { cout << "NO" << endl; return 0; }
     cout << "YES" << endl;
     cout << "? " << ask.size();
     for (auto [u, v] : ask) cout << ' ' << u << ' ' << v;
@@ -576,6 +620,6 @@ int main() {
 ## 和其他文章的连接
 
 - [L1 线性代数](/zh/algo/l1-linear-algebra/)：第 3 节“求基就是消元”，第 6 节解的结构（像和核），第 4.4 节模 2 消元和线性基是同一个矩阵的行和列。
-- [L3 线性基](/zh/algo/l3-xor-basis/)：插入就是 5.2 的特例，3.2 的计数就是 4.4。
+- [L3 线性基](/zh/algo/l3-xor-basis/)：插入是 5.2 增量高斯在列数不超过 60 时的特例（两者对照在它的附录），3.2 的计数就是 4.4。
 - [C0 赛场数学总览](/zh/algo/c0-contest-math-overview/)：4.4 列出了落到线性方程组的三类题面信号，4.6 是行列式的模板和计数用法。
 - 英文模板合集 [Matrix #2: Gaussian Elimination](/posts/matrix-2-gaussian-elimination/)：实数、模 $p$、模 2 的求解、行列式、求逆、求秩全套模板，以及模 $p$ 的增量版本。

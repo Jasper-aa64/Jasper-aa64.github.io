@@ -12,23 +12,6 @@ toc: true
 
 Expectations with cycles, Lights Out, XOR constraints, matrix inverses and determinants all become linear systems, and all use one algorithm with different arithmetic. [L1](/algo/l1-linear-algebra/) explains where the facts about solutions come from (image and kernel); this post covers how to eliminate and where it shows up in problems: the elimination itself (section 1), which lines change for each field (sections 2 to 4), and the incremental version that adds one equation at a time (section 5). Each section ends with a problem.
 
-## Complexity at a Glance
-
-$n$ equations in $m$ unknowns, $n = m$ for a square system; $r$ is the rank and $p$ the modulus. Sizes assume about $10^8$ simple operations per second.
-
-| Method | Complexity | Feasible up to | See |
-| --- | --- | --- | --- |
-| Real elimination (largest pivot) | $O(n \cdot m \cdot (m + 1))$, $O(n^3)$ when square | $n \approx 500$ | 1.2, 2.1 |
-| Elimination mod a prime | $O(n^3 + n \log p)$: one extra inverse per column | $n \approx 500$ | 3.1 |
-| Matrix inverse | eliminate the $n \times 2n$ matrix, about $2 n^3$ multiplications | $n = 400$ | 3.2 |
-| Determinant | clear only below, about $n^3 / 3$ multiplications plus $O(n \log p)$ for inverses | $n \approx 500$ | 3.3 |
-| Mod 2, one row per bitset | $O(n \cdot m \cdot (m + 1) / 64)$, $O(n^3 / 64)$ when square | $n \approx 2000$ | 4.1 |
-| Incremental Gauss, add one (mod 2) | $O(r \cdot m / 64)$; adding $k$ costs $O(k \cdot r \cdot m / 64)$ | | 5.1 |
-| Incremental Gauss, add one (mod $p$) | $O(r \cdot m + \log p)$ | | 5.1 |
-| XOR basis, insert one number | $O(60)$: incremental Gauss with $m \le 60$, one word per row | | 5.2 |
-
-Examples: P2455 has $n \le 50$, $O(n^3)$; P3232 eliminates over $n - 1 \le 499$ vertices in $O(n^3)$, then sorts $m$ edges in $O(m \log m)$; P4783 is $2 \cdot 400^3 \approx 1.3 \times 10^8$; POJ 1222 is only $30 \times 30$; CF 1344F is $2000^3 / 64 \approx 1.3 \times 10^8$; Kunming E is about $O(n^3)$.
-
 ## 1. What Elimination Does
 
 ### 1.1 Three Row Operations Keep the Solution Set
@@ -128,7 +111,7 @@ int main() {
 }
 ```
 
-`a[i][c]` changes inside the inner loop, so `j` runs from right to left and column `c` is updated last; every earlier update still sees the old value. Values with tiny absolute value are printed as 0, avoiding `-0.00`.
+`a[i][c]` changes inside the inner loop, so `j` runs from right to left and column `c` is updated last; every earlier update still sees the old value. Values with tiny absolute value are printed as 0, avoiding `-0.00`. Cost $O(n^3)$ with $n \le 50$.
 
 ### 2.3 Example: Luogu P3232, an Expectation with Cycles
 
@@ -196,7 +179,7 @@ int main() {
 }
 ```
 
-Here the solution is always unique (the expected visit counts from vertex 1 are determined), so the code skips the checks for no solution and free variables.
+Here the solution is always unique (the expected visit counts from vertex 1 are determined), so the code skips the checks for no solution and free variables. Cost: eliminating over $n - 1$ vertices is $O(n^3)$, about $1.25 \times 10^8$ at $n = 500$; sorting the $m$ edges adds $O(m \log m)$.
 
 ## 3. Modulo a Prime: Replace Division by an Inverse
 
@@ -207,7 +190,7 @@ Modulo a prime $p$ numbers are exact, with no rounding, and the elimination is t
 - any **nonzero** entry can be the pivot; there is no need for the largest;
 - dividing by the pivot becomes **multiplying by its inverse** (fast power $a^{p-2}$).
 
-Every nonzero number has an inverse modulo a prime, so step 2 always works. When the modulus is not prime, a nonzero pivot may have no inverse, and the elimination has to run a Euclid-style subtraction between two rows instead; see practice problem 6.
+Every nonzero number has an inverse modulo a prime, so step 2 always works. When the modulus is not prime, a nonzero pivot may have no inverse, and the elimination has to run a Euclid-style subtraction between two rows instead; see practice problem 6. On top of $O(n^3)$, each column computes one inverse, $O(n^3 + n \log p)$ in total.
 
 ### 3.2 Example: Luogu P4783, Matrix Inverse
 
@@ -259,9 +242,11 @@ int main() {
 }
 ```
 
+Eliminating the $n \times 2n$ matrix takes about $2 n^3$ multiplications, about $1.3 \times 10^8$ at $n = 400$.
+
 ### 3.3 Determinant: Clear Only Below, Multiply the Diagonal
 
-How the three row operations affect the determinant: swapping two rows flips the sign; multiplying a row by $k$ multiplies it by $k$; adding a multiple of another row leaves it unchanged. So use only the third operation (plus swaps) to reach an upper triangle; the determinant is the product of the diagonal, with one sign flip per swap. No need to scale pivots to 1 or to clear rows above. The mod-prime code, the matrix-tree theorem and the LGV lemma are in [C0 section 4.6](/algo/c0-contest-math-overview/).
+How the three row operations affect the determinant: swapping two rows flips the sign; multiplying a row by $k$ multiplies it by $k$; adding a multiple of another row leaves it unchanged. So use only the third operation (plus swaps) to reach an upper triangle; the determinant is the product of the diagonal, with one sign flip per swap. No need to scale pivots to 1 or to clear rows above. The mod-prime code, the matrix-tree theorem and the LGV lemma are in [C0 section 4.6](/algo/c0-contest-math-overview/). Clearing only below takes about $n^3 / 3$ multiplications, plus the inverses, $O(n^3 + n \log p)$ in total.
 
 ## 4. Mod 2: Addition and Subtraction Are XOR
 
@@ -440,19 +425,97 @@ Some problems feed equations one by one: you want the first moment all unknowns 
 
 Mod 2, one addition costs $O(\text{rank} \cdot m / 64)$. Mod $p$ is the same, with step 3 first multiplying the new row by the inverse of its pivot.
 
-### 5.2 An XOR Basis Is a Special Case
+### 5.2 Template: Incremental Gauss (mod 2)
 
-Insertion in the [L3 XOR basis](/algo/l3-xor-basis/) is incremental elimination mod 2 with a few things left out:
+5.1 as a template. Unknown $j$ is bit $j$ of the bitset; `MX` just has to exceed the number of unknowns. The right-hand side is an `int`, so several systems with the same coefficients can pack their right-hand sides bit by bit and be eliminated together; 5.3 does 30 at once. The interface and the cost of each operation come first, the implementation after.
 
-| | Incremental elimination (mod 2) | XOR basis |
-| --- | --- | --- |
-| A row is | an equation: coefficient bitset + right-hand side | a number, no right-hand side |
-| Columns | any number, bitsets of thousands | at most 60, one `long long` |
-| Stored by | each row remembers its pivot column | `b[i]` is the row whose pivot is bit $i$ |
-| Clears old rows on insert | yes, keeps reduced row echelon form | no, only row echelon form; reduce before $k$-th smallest |
-| Reduced to 0 | check the right-hand side: dependent or contradictory | insertion fails: the number is reachable |
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
 
-So "can this number be reached by XOR" and "is this equation redundant" are the same question; a right-hand side adds the third outcome, contradiction.
+const int MX = 1024;                             // max number of columns (unknowns)
+
+// incremental Gauss (mod 2): add equations one at a time, always in RREF
+struct IncGauss {
+    int n;                                       // number of unknowns
+    vector<bitset<MX>> row;
+    vector<int> rhs, piv;                        // right-hand side and pivot column of each row; several RHS bits can be packed and XORed together
+    bool bad = false;                            // a contradiction has appeared
+    IncGauss(int n) : n(n) {}
+
+    void eliminate(bitset<MX>& v, int& b) const;   // clear v on every pivot column using the rows; the RHS follows
+    int add(bitset<MX> v, int b);                // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
+    int rank() const { return row.size(); }
+    int implied(bitset<MX> v) const;             // is the left side v implied? return its RHS if so, else -1
+    bitset<MX> solve() const;                    // one solution when !bad: free variables 0, each pivot equals its RHS
+    vector<bitset<MX>> kernel() const;           // basis of the homogeneous solution space, n - rank() vectors
+    void merge(const IncGauss& o);               // add the other side's equations one by one
+};
+```
+
+| Operation | Cost |
+| --- | --- |
+| `eliminate`, `add`, `implied` | $O(r \cdot \text{MX} / 64)$ |
+| `rank` | $O(1)$ |
+| `solve` | $O(r + \text{MX} / 64)$ |
+| `kernel` | $O((n - r)(r + \text{MX} / 64))$ |
+| `merge` | $O(r' \cdot r \cdot \text{MX} / 64)$, $r'$ the other side's rank |
+
+$r$ is the current rank, $n$ the number of unknowns, and $\text{MX} / 64$ the number of machine words in one bitset row, so XOR-ing a whole row costs that many integer XORs. Adding $k$ equations one after another costs $O(k \cdot r \cdot \text{MX} / 64)$ in total.
+
+If `bad` is true the system has no solution. Otherwise it has $2^{n - r}$ solutions: `solve()` gives one, and XOR-ing in any subset of the vectors from `kernel()` gives the rest, the picture of [L1 section 4.5](/algo/l1-linear-algebra/): all solutions are the null space shifted by one solution.
+
+```cpp
+void IncGauss::eliminate(bitset<MX>& v, int& b) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
+}
+
+int IncGauss::add(bitset<MX> v, int b) {
+    eliminate(v, b);
+    int p = v._Find_first();
+    if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
+    for (int i = 0; i < (int)row.size(); i++)
+        if (row[i][p]) row[i] ^= v, rhs[i] ^= b;     // clear the new pivot column in the old rows
+    row.push_back(v), rhs.push_back(b), piv.push_back(p);
+    return 1;
+}
+
+int IncGauss::implied(bitset<MX> v) const {
+    int b = 0;
+    eliminate(v, b);
+    return v.none() ? b : -1;
+}
+
+bitset<MX> IncGauss::solve() const {
+    bitset<MX> x;
+    for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
+    return x;
+}
+
+vector<bitset<MX>> IncGauss::kernel() const {    // all solutions = solve() XOR any subset of these
+    vector<int> isp(n, -1);
+    for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
+    vector<bitset<MX>> ks;
+    for (int f = 0; f < n; f++) {
+        if (isp[f] >= 0) continue;
+        bitset<MX> x;
+        x[f] = 1;                                // this free variable 1, the others 0
+        for (int i = 0; i < (int)row.size(); i++)
+            if (row[i][f]) x[piv[i]] = 1;
+        ks.push_back(x);
+    }
+    return ks;
+}
+
+void IncGauss::merge(const IncGauss& o) {
+    for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
+}
+```
+
+Mod $p$: replace the bitset with `vector<long long>` and XOR with subtracting a multiple, and in step 3 first multiply the new row by the inverse of its pivot; adding one equation costs $O(r \cdot n + \log p)$.
+
+The XOR basis is this template with at most 60 columns and no right-hand side; a side-by-side comparison, and the operations the XOR basis is usually used for such as the $k$-th smallest, are in the appendix of [L3 XOR Basis](/algo/l3-xor-basis/).
 
 ### 5.3 Example: 2024 ICPC Kunming E Extracting Weights, Picking Independent Queries
 
@@ -460,7 +523,7 @@ Problem ([2024 ICPC Kunming Regional E](https://codeforces.com/gym/105588/proble
 
 **Each query is an equation.** The unknowns are $w_1, \dots, w_n$. The answer to $(u, v)$ is the XOR of the weights on the path, so the coefficients are the 0/1 vector "is the vertex on the path". $w$ has 30 bits, but the systems for the 30 bits share the same coefficients, so the right-hand side is one `int` and XOR handles all 30 systems at once.
 
-**Whether it is possible is a question of rank.** The equations of all paths with $k$ edges, plus $w_1 = 0$, must have rank $n$ to pin down every weight. Picking $n$ independent ones among them is exactly 5.1: enumerate every pair at distance $k$ and keep it when it raises the rank.
+**Whether it is possible is a question of rank.** The equations of all paths with $k$ edges, plus $w_1 = 0$, must have rank $n$ to pin down every weight. Picking $n$ independent ones among them is exactly the template of 5.2: enumerate every pair at distance $k$ and keep it when it raises the rank.
 
 **Insert $w_1 = 0$ first.** It is an equation too and costs no query. With it inserted first, the queries only need to fill the other $n - 1$ dimensions, so at most $n - 1$ are asked. If you pick $n - 1$ queries first and add it at the end, those $n - 1$ might already imply $w_1 = 0$; then it does not go in, the rank stops at $n - 1$, and you answer `NO` although a different or one more query would have been enough.
 
@@ -470,26 +533,7 @@ Problem ([2024 ICPC Kunming Regional E](https://codeforces.com/gym/105588/proble
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 256;
-
-// incremental elimination mod 2: add equations one by one, always in reduced row echelon form
-struct IncGauss {
-    int n;
-    vector<bitset<MX>> row;
-    vector<int> rhs, piv;                      // right-hand sides (30 bits XORed together), pivot column of each row
-    IncGauss(int n) : n(n) {}
-    // returns 1: independent, rank + 1; 0: implied by existing rows; -1: contradiction
-    int add(bitset<MX> v, int b) {
-        for (int i = 0; i < (int)row.size(); i++)
-            if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
-        int p = v._Find_first();
-        if (p >= n) return b ? -1 : 0;
-        for (int i = 0; i < (int)row.size(); i++)
-            if (row[i][p]) row[i] ^= v, rhs[i] ^= b;   // clear the new pivot column in old rows
-        row.push_back(v), rhs.push_back(b), piv.push_back(p);
-        return 1;
-    }
-};
+// uses IncGauss from 5.2
 
 int main() {
     ios::sync_with_stdio(false);
@@ -530,11 +574,11 @@ int main() {
     e1[0] = 1;
     G.add(e1, 0);                                // w_1 = 0 is an equation too, eliminated with the queries
     vector<pair<int, int>> ask;
-    for (int u = 1; u <= n && (int)G.row.size() < n; u++)
-        for (int v = u + 1; v <= n && (int)G.row.size() < n; v++)
+    for (int u = 1; u <= n && G.rank() < n; u++)
+        for (int v = u + 1; v <= n && G.rank() < n; v++)
             if (dist(u, v) == k && G.add(path(u, v), 0) == 1) ask.push_back({u, v});
 
-    if ((int)G.row.size() < n) { cout << "NO" << endl; return 0; }
+    if (G.rank() < n) { cout << "NO" << endl; return 0; }
     cout << "YES" << endl;
     cout << "? " << ask.size();
     for (auto [u, v] : ask) cout << ' ' << u << ' ' << v;
@@ -576,6 +620,6 @@ Each problem lists the section it uses.
 ## Connections to Other Posts
 
 - [L1 Linear Algebra](/algo/l1-linear-algebra/): section 3 "finding a basis is elimination", section 6 the structure of solutions (image and kernel), section 4.4 mod-2 elimination and the XOR basis as rows and columns of one matrix.
-- [L3 XOR Basis](/algo/l3-xor-basis/): insertion is the special case of 5.2, and the count in 3.2 is 4.4.
+- [L3 XOR Basis](/algo/l3-xor-basis/): insertion is the incremental Gauss of 5.2 with at most 60 columns (its appendix compares the two), and the count in 3.2 is 4.4.
 - [C0 Contest Math Overview](/algo/c0-contest-math-overview/): 4.4 lists the three kinds of statements that turn into linear systems, and 4.6 has the determinant template and counting uses.
 - The template collection [Matrix #2: Gaussian Elimination](/posts/matrix-2-gaussian-elimination/): full templates for solving, determinants, inverses and rank over the reals, mod $p$ and mod 2, and the incremental version mod $p$.

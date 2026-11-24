@@ -10,27 +10,6 @@ toc: true
 ---
 给 $n$ 个数，从中任选一些异或起来，最大能得到多少？$n = 50$ 时子集有 $2^{50}$ 个，枚举不动。可是这些子集的异或值里有大量重复：$a$、$b$、$a \oplus b$ 三个数，任选子集能得到的值和只用 $a$、$b$ 时一模一样，第三个数是多余的。把多余的数一个个去掉，剩下的数最多 60 个（每个数 60 位），能异或出的值却一个不少。剩下的这组数就是**线性基**。要说清楚“多余”是什么意思、为什么最多剩 60 个，需要把异或放进线性代数里看。
 
-## 复杂度一览
-
-$B = 60$ 是位数（一个 `long long`），$n$ 是数的个数，$q$ 是询问数。7.1 的 $a_i < 2^{32}$，所以那里的 $B$ 是 32。
-
-| 操作 | 复杂度 | 见 |
-| --- | --- | --- |
-| 插入一个数 / 判断能否表示 | $O(B)$ | 2.1、2.2 |
-| 插完 $n$ 个数 | $O(nB)$ | 2.1 |
-| 最大 / 最小异或 | $O(B)$ | 4.1 |
-| 规范化 `reduce()` | $O(B^2)$ | 4.2 |
-| 第 $k$ 小 | $O(B)$，之前 `reduce()` 一次 | 4.3 |
-| 前缀异或求秩（CF 1101G） | $O(nB)$ | 5.1 |
-| 带权选数 | 排序 $O(n \log n)$ + 插入 $O(nB)$ | 5.2 |
-| 前缀线性基（CF 1100F） | 插入、询问都是 $O(B)$；离线排序后总共 $O(q \log q + (n + q) B)$ | 5.3 |
-| 合并两组基 | $O(B^2)$；线段树上区间询问合并 $O(\log n)$ 个节点，$O(B^2 \log n)$ | 5.4 |
-| 最大 XOR 和路径 | $O((n + m) B)$，$m$ 是边数 | 6 |
-| Spirited Away | $O(32^2 n)$ | 7.1 |
-| All Closed（$m \le 20$ 是位数） | 至多 $m$ 轮，每轮 $O(m \sum \lvert S_i \rvert + 2^m)$ | 7.2 |
-
-文末附录的表还列了每个板子函数的复杂度，以及换成增量高斯后的对应写法。
-
 ## 1. 异或就是模 2 加法
 
 ### 1.1 一个数是 GF(2) 上的向量
@@ -142,7 +121,7 @@ $n$ 个数的子集有 $2^n$ 个，分到 $2^r$ 个不同值上，平均每个�
     }
 ```
 
-这两个是 `XorBasis` 的成员函数，`b[i]` 为 0 时异或不改变 $v$，不用特判。$s = 0$ 时最小值总是 0（空集），题目要“非空子集的最小值”，见 4.3 末尾。
+这两个是 `XorBasis` 的成员函数，`b[i]` 为 0 时异或不改变 $v$，不用特判。$s = 0$ 时最小值总是 0（空集），题目要“非空子集的最小值”，见 4.3 末尾。两个都是 $O(60)$。
 
 ### 4.2 规范化：每个主元位只留在一个数里
 
@@ -173,6 +152,8 @@ $n$ 个数的子集有 $2^n$ 个，分到 $2^r$ 个不同值上，平均每个�
     }
 ```
 
+`kth` 是 $O(60)$，前面的 `reduce()` 只做一次，$O(60^2)$。
+
 下图用一个 4 位的例子把 4.2 和 4.3 连起来：上面是规范化前后的 `b`，下面是 $k = 0, \dots, 7$ 选出的值。
 
 <a href="/images/algo/xor-basis-rref-kth.zh.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-rref-kth.zh.svg" alt="规范化和第 k 小：左边 b[3]=1101、b[2]=0111、b[0]=0001，主元列里多出来的 1 标红；经过 b[2]^=b[0]、b[3]^=b[2]、b[3]^=b[0] 三步，右边变成 1010、0110、0001，主元列 3、2、0 各只剩一个 1。下面 k 从 0 到 7，按 k 的二进制选 c0=b[0]、c1=b[2]、c2=b[3]，得到 0、1、6、7、10、11、12、13，值在主元位上的比特就是 k 的比特，所以按 k 递增。" style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
@@ -198,7 +179,7 @@ $$
 \text{段值线性无关} \iff S_{c_1}, S_{c_2}, \dots, S_{c_k} \text{ 线性无关}.
 $$
 
-问题变成从 $S_1, \dots, S_n$ 里选尽量多的线性无关的数，而且必须选上 $S_n$。$S_n = 0$ 时无解；否则 $\{S_n\}$ 本身线性无关，能扩充成 $S_1, \dots, S_n$ 的一组基，答案就是这 $n$ 个前缀异或的秩。**段和区间的异或先写成两个前缀异或的异或，再看前缀异或这组数的线性关系。**
+问题变成从 $S_1, \dots, S_n$ 里选尽量多的线性无关的数，而且必须选上 $S_n$。$S_n = 0$ 时无解；否则 $\{S_n\}$ 本身线性无关，能扩充成 $S_1, \dots, S_n$ 的一组基，答案就是这 $n$ 个前缀异或的秩，全部插一遍是 $O(60 n)$。**段和区间的异或先写成两个前缀异或的异或，再看前缀异或这组数的线性关系。**
 
 ### 5.2 带权选数：按权从大到小插
 
@@ -218,6 +199,8 @@ long long max_weight(vector<pair<long long, long long>> items) {
     return sum;
 }
 ```
+
+排序 $O(n \log n)$，插入 $O(60 n)$。
 
 **线性无关组有交换性质（小的一组总能从大的一组里借一个数扩充），所以按权从大到小贪心插入就是最优。** 这个结论下一节还会用到，权值换成位置。
 
@@ -251,7 +234,7 @@ struct PrefixBasis {
 };
 ```
 
-为什么只留 `pos[i]` $\ge l$ 的就对：这是 5.2 的贪心，权值取位置。按位置从大到小插 $a_r, a_{r-1}, \dots$，插完 $a_l$ 时，基已经能表示 $a_l, \dots, a_r$ 里的每个数；再往左插的数，只会填还空着的维度，不会挤掉已有的。所以“按位置从右往左贪心”得到的基里，位置 $\ge l$ 的那部分正好张成 $a_l, \dots, a_r$。交换插入是在线维护这个贪心的结果：新来的数位置最大，应该最先被选，碰到位置更小的就把它往下挤，被挤到消成 0 的是一组线性相关的数里最靠左的那个。**每个主元位留最靠右的数，询问 $[l, r]$ 只用位置 $\ge l$ 的部分。** 询问按 $r$ 离线排序，只维护一份基，每次询问 $O(60)$。
+为什么只留 `pos[i]` $\ge l$ 的就对：这是 5.2 的贪心，权值取位置。按位置从大到小插 $a_r, a_{r-1}, \dots$，插完 $a_l$ 时，基已经能表示 $a_l, \dots, a_r$ 里的每个数；再往左插的数，只会填还空着的维度，不会挤掉已有的。所以“按位置从右往左贪心”得到的基里，位置 $\ge l$ 的那部分正好张成 $a_l, \dots, a_r$。交换插入是在线维护这个贪心的结果：新来的数位置最大，应该最先被选，碰到位置更小的就把它往下挤，被挤到消成 0 的是一组线性相关的数里最靠左的那个。**每个主元位留最靠右的数，询问 $[l, r]$ 只用位置 $\ge l$ 的部分。** 询问按 $r$ 离线排序，只维护一份基，插入和每次询问都是 $O(60)$，加上排序总共 $O(q \log q + 60 (n + q))$。
 
 下图是数组 $5, 6, 3, 4$ 依次插入时每一步的基，以及右端点为 4 时的询问 $[3, 4]$：
 
@@ -259,7 +242,7 @@ struct PrefixBasis {
 
 ### 5.4 合并两组基
 
-两组基合并，就是把一组的每个非零数插进另一组，$O(60^2)$。“一段里所有数的线性基”可以放在线段树、倍增表的节点上，靠合并拼出任意区间或树上路径的基。线性基不支持删除；要删的题，离线成“每个数在哪段时间里存在”，再做线段树分治。
+两组基合并，就是把一组的每个非零数插进另一组，$O(60^2)$。“一段里所有数的线性基”可以放在线段树、倍增表的节点上，靠合并拼出任意区间或树上路径的基；线段树上一次区间询问合并 $O(\log n)$ 个节点，$O(60^2 \log n)$。线性基不支持删除；要删的题，离线成“每个数在哪段时间里存在”，再做线段树分治。
 
 ## 6. 从 0 写一道题：最大 XOR 和路径
 
@@ -293,21 +276,7 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
-struct XorBasis {
-    static const int B = 60;
-    long long b[B] = {};
-    void insert(long long x) {
-        for (int i = B - 1; i >= 0; i--) {
-            if (!(x >> i & 1)) continue;
-            if (!b[i]) { b[i] = x; return; }
-            x ^= b[i];
-        }
-    }
-    long long max_xor(long long v) const {
-        for (int i = B - 1; i >= 0; i--) v = max(v, v ^ b[i]);
-        return v;
-    }
-};
+// 套附录的 XorBasis（用到 insert 和 max_xor）
 
 int main() {
     ios::sync_with_stdio(false);
@@ -488,21 +457,14 @@ using namespace std;
 
 int n, m;
 
-bool insert(vector<int>& b, int x) {      // 2.1 的插入，b 有 m 个位置
-    for (int i = m - 1; i >= 0; i--) {
-        if (!(x >> i & 1)) continue;
-        if (!b[i]) { b[i] = x; return true; }
-        x ^= b[i];
-    }
-    return false;
-}
+// 套附录的 XorBasis
 
-vector<int> expand(const vector<int>& b) { // 列出 span(b) 的全部元素
+vector<int> expand(const XorBasis& lb) { // 列出 span(b) 的全部元素
     vector<int> all = {0};
-    for (int i = 0; i < m; i++)
-        if (b[i]) {
+    for (int i = 0; i < XorBasis::B; i++)
+        if (lb.b[i]) {
             int sz = all.size();
-            for (int j = 0; j < sz; j++) all.push_back(all[j] ^ b[i]);
+            for (int j = 0; j < sz; j++) all.push_back(all[j] ^ lb.b[i]);
         }
     return all;
 }
@@ -517,9 +479,9 @@ int main() {
         si.resize(k);
         for (int& x : si) { scanf("%d", &x); cnt[x]++; }
     }
-    vector<int> kb(m, 0);                  // K 的基，从 span(I) 开始
+    XorBasis kb;                           // K 的基，从 span(I) 开始
     for (int x = 0; x < (1 << m); x++)
-        if (cnt[x] == n) insert(kb, x);
+        if (cnt[x] == n) kb.insert(x);
     vector<char> inK(1 << m), inS(1 << m);
     while (true) {
         vector<int> K = expand(kb);
@@ -527,11 +489,10 @@ int main() {
         for (int x : K) inK[x] = 1;
         int forced = -1;                   // 每个合法解都必须包含的新数
         for (int i = 0; i < n && forced < 0; i++) {
-            vector<int> b = kb;
+            XorBasis b = kb;
             int common = 0;                // |S_i ∩ K|
-            for (int x : s[i]) { insert(b, x); common += inK[x]; }
-            int r = 0;
-            for (int i2 = 0; i2 < m; i2++) r += b[i2] != 0;
+            for (int x : s[i]) { b.insert(x); common += inK[x]; }
+            int r = b.r;
             long long uni = (long long)s[i].size() + K.size() - common;   // |S_i ∪ K|
             if (uni == (1LL << r)) continue;                              // 已经封闭
             for (int x : s[i]) inS[x] = 1;
@@ -540,7 +501,7 @@ int main() {
             for (int x : s[i]) inS[x] = 0;
         }
         if (forced < 0) break;
-        insert(kb, forced);
+        kb.insert(forced);
     }
     vector<int> ans;                       // K \ I
     for (int x : expand(kb))
@@ -582,6 +543,8 @@ int main() {
 
 | 要做的事 | 线性基 `XorBasis` | 增量高斯 `IncGauss` |
 | --- | --- | --- |
+| 一行是什么 | 一个数，没有右端 | 一条方程：系数 bitset + 右端 |
+| 按什么存 | `b[i]` 就是主元在第 $i$ 位的那一行 | 每行记它的主元列 `piv` |
 | 加一个数 / 一条方程 | `insert`，不清旧行，$O(60)$ | `add`，清旧行，始终是简化行阶梯形，$O(r \cdot \text{MX} / 64)$ |
 | 能否表示出来 | `contains`，$O(60)$ | `implied`，还给出推出的右端，$O(r \cdot \text{MX} / 64)$ |
 | 秩 | `r`，$O(1)$ | `rank()`，$O(1)$ |
@@ -590,11 +553,13 @@ int main() {
 | 第 $k$ 小 / 求排名 | `kth` / `index`，$O(60)$，之前要 `reduce()` 一次 | `kth` $O(r \log r + r \cdot \text{MX} / 64)$ / `index` $O(r \log r)$，不用先规范化 |
 | 合并 | `merge`，$O(60^2)$ | `merge`，另一组的 $r'$ 行逐条 `add`，$O(r' \cdot r \cdot \text{MX} / 64)$ |
 | 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | `PrefixGauss`：`add`、`implied`、`max_xor` $O(n \cdot \text{MX} / 64)$，`bad` $O(1)$，`rank` $O(n)$，`at` $O(n \cdot r \cdot \text{MX} / 64)$ |
-| 右端和矛盾 | 没有 | `add` 返回 $-1$，`bad` 记下 |
+| 消成 0 时 | 插入失败，这个数能被异或出来 | 看右端：是 0 就能由已有方程推出（返回 0），非 0 就矛盾（返回 $-1$，`bad` 记下） |
 | 一组解 / 全部解 | 没有 | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
 | 列数 | 不超过 60 | 不超过 `MX`，几千也行 |
 
 表里 $r$ 是当前的秩，$n$ 是未知数个数；`MX / 64` 是一行 bitset 占的机器字数，一次 bitset 异或就是这么多次整数异或。线性基的 60 也可以看成“秩不超过 60、一行一个字”，所以两边的复杂度是同一个式子：$\text{MX} = 64$ 时，增量高斯的 $O(r \cdot \text{MX}/64)$ 就是 $O(r)$，而 $r \le 60$。
+
+所以“这个数能不能被异或出来”和“这条方程是不是多余的”是同一个问题；带上右端，就多了“矛盾”这一种结局。
 
 ### 线性基
 
@@ -745,53 +710,7 @@ struct PrefixGauss {
 
 #### 实现：解方程
 
-```cpp
-void IncGauss::eliminate(bitset<MX>& v, int& b) const {
-    for (int i = 0; i < (int)row.size(); i++)
-        if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
-}
-
-int IncGauss::add(bitset<MX> v, int b) {
-    eliminate(v, b);
-    int p = v._Find_first();
-    if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
-    for (int i = 0; i < (int)row.size(); i++)
-        if (row[i][p]) row[i] ^= v, rhs[i] ^= b;     // 新主元列在旧行里清成 0
-    row.push_back(v), rhs.push_back(b), piv.push_back(p);
-    return 1;
-}
-
-int IncGauss::implied(bitset<MX> v) const {
-    int b = 0;
-    eliminate(v, b);
-    return v.none() ? b : -1;
-}
-
-bitset<MX> IncGauss::solve() const {
-    bitset<MX> x;
-    for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
-    return x;
-}
-
-vector<bitset<MX>> IncGauss::kernel() const {    // 全部解 = solve() 异或上这些向量的任意子集
-    vector<int> isp(n, -1);
-    for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-    vector<bitset<MX>> ks;
-    for (int f = 0; f < n; f++) {
-        if (isp[f] >= 0) continue;
-        bitset<MX> x;
-        x[f] = 1;                                // 这个自由元取 1，其余自由元取 0
-        for (int i = 0; i < (int)row.size(); i++)
-            if (row[i][f]) x[piv[i]] = 1;
-        ks.push_back(x);
-    }
-    return ks;
-}
-
-void IncGauss::merge(const IncGauss& o) {
-    for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
-}
-```
+`eliminate` 到 `merge` 这几个就是 [L2 第 5.2 节](/zh/algo/l2-gaussian-elimination/)的增量高斯板子，实现和每个操作的复杂度都在那里，这里不重复。
 
 #### 实现：和线性基对应的操作
 

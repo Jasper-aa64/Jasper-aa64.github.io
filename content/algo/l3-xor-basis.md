@@ -10,27 +10,6 @@ toc: true
 ---
 Given $n$ numbers, pick any subset and XOR it together: what is the largest result? With $n = 50$ there are $2^{50}$ subsets, too many to enumerate. But the subset XORs repeat a lot. With three numbers $a$, $b$, $a \oplus b$, the values you can reach are exactly the ones you reach with $a$ and $b$ alone; the third number is redundant. Remove redundant numbers one at a time and at most 60 remain (each number has 60 bits), yet not a single reachable value is lost. What remains is an **XOR basis** (线性基). To say precisely what "redundant" means, and why at most 60 remain, we put XOR into linear algebra.
 
-## Complexity at a Glance
-
-$B = 60$ is the number of bits (one `long long`), $n$ the number of values, $q$ the number of queries. In 7.1 $a_i < 2^{32}$, so $B$ is 32 there.
-
-| Operation | Complexity | See |
-| --- | --- | --- |
-| Insert a number / test whether it is representable | $O(B)$ | 2.1, 2.2 |
-| Insert all $n$ numbers | $O(nB)$ | 2.1 |
-| Max / min XOR | $O(B)$ | 4.1 |
-| Reduce, `reduce()` | $O(B^2)$ | 4.2 |
-| $k$-th smallest | $O(B)$, after one `reduce()` | 4.3 |
-| Rank of prefix XORs (CF 1101G) | $O(nB)$ | 5.1 |
-| Weighted selection | sort $O(n \log n)$ + inserts $O(nB)$ | 5.2 |
-| Prefix basis (CF 1100F) | insert and query both $O(B)$; offline sorting gives $O(q \log q + (n + q) B)$ in total | 5.3 |
-| Merge two bases | $O(B^2)$; a range query on a segment tree merges $O(\log n)$ nodes, $O(B^2 \log n)$ | 5.4 |
-| Maximum XOR path | $O((n + m) B)$, $m$ the number of edges | 6 |
-| Spirited Away | $O(32^2 n)$ | 7.1 |
-| All Closed ($m \le 20$ is the bit width) | at most $m$ rounds, each $O(m \sum \lvert S_i \rvert + 2^m)$ | 7.2 |
-
-The table in the appendix also lists the cost of every template function, and the matching incremental Gauss version.
-
 ## 1. XOR Is Addition Mod 2
 
 ### 1.1 A Number Is a Vector over GF(2)
@@ -142,7 +121,7 @@ The start need not be 0. For "the maximum of $s$ XOR any subset", start the gree
     }
 ```
 
-These are member functions of `XorBasis`; when `b[i]` is 0 the XOR leaves $v$ unchanged, so no special case is needed. With $s = 0$ the minimum is always 0 (the empty set); for "the minimum over nonempty subsets", see the end of 4.3.
+These are member functions of `XorBasis`; when `b[i]` is 0 the XOR leaves $v$ unchanged, so no special case is needed. With $s = 0$ the minimum is always 0 (the empty set); for "the minimum over nonempty subsets", see the end of 4.3. Both are $O(60)$.
 
 ### 4.2 Reduction: Each Pivot Bit Lives in One Number Only
 
@@ -173,6 +152,8 @@ Compare the results of two different choices. Let $t$ be the largest index on wh
     }
 ```
 
+`kth` is $O(60)$, and the `reduce()` before it runs once, $O(60^2)$.
+
 The figure below ties 4.2 and 4.3 together on a 4-bit example: the top shows `b` before and after reduction, the bottom shows the value chosen by each $k = 0, \dots, 7$.
 
 <a href="/images/algo/xor-basis-rref-kth.en.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-rref-kth.en.svg" alt="Reduction and k-th smallest: on the left b[3]=1101, b[2]=0111, b[0]=0001, with extra 1s in pivot columns in red; after b[2]^=b[0], b[3]^=b[2], b[3]^=b[0] the right side is 1010, 0110, 0001 and pivot columns 3, 2, 0 each hold one 1. Below, k from 0 to 7 picks c0=b[0], c1=b[2], c2=b[3] by its bits, giving 0, 1, 6, 7, 10, 11, 12, 13: the value bits at the pivots equal the bits of k, so values increase with k." style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
@@ -198,7 +179,7 @@ $$
 \text{segment values independent} \iff S_{c_1}, S_{c_2}, \dots, S_{c_k} \text{ independent}.
 $$
 
-The problem becomes: pick as many linearly independent numbers from $S_1, \dots, S_n$ as possible, and $S_n$ must be among them. If $S_n = 0$ there is no solution; otherwise $\{S_n\}$ alone is independent and extends to a basis of $S_1, \dots, S_n$, so the answer is the rank of these $n$ prefix XORs. **Write the XOR of a segment or range as the XOR of two prefix XORs, then look at the linear relations among the prefix XORs.**
+The problem becomes: pick as many linearly independent numbers from $S_1, \dots, S_n$ as possible, and $S_n$ must be among them. If $S_n = 0$ there is no solution; otherwise $\{S_n\}$ alone is independent and extends to a basis of $S_1, \dots, S_n$, so the answer is the rank of these $n$ prefix XORs, $O(60 n)$ to insert them all. **Write the XOR of a segment or range as the XOR of two prefix XORs, then look at the linear relations among the prefix XORs.**
 
 ### 5.2 Weighted Choice: Insert by Decreasing Weight
 
@@ -218,6 +199,8 @@ long long max_weight(vector<pair<long long, long long>> items) {
     return sum;
 }
 ```
+
+Sorting is $O(n \log n)$ and the inserts $O(60 n)$.
 
 **Independent sets have the exchange property (a smaller one can always borrow a number from a larger one to grow), so inserting greedily by decreasing weight is optimal.** The next section reuses this with position as the weight.
 
@@ -251,7 +234,7 @@ struct PrefixBasis {
 };
 ```
 
-Why keeping only `pos[i]` $\ge l$ is right: this is the greedy of 5.2 with position as the weight. Insert by decreasing position, $a_r, a_{r-1}, \dots$; once $a_l$ is in, the basis can already express every number in $a_l, \dots, a_r$, and numbers further left only fill dimensions that are still empty, never pushing out what is there. So in the basis built greedily from right to left, the part with position $\ge l$ spans exactly $a_l, \dots, a_r$. The swapping insertion maintains this greedy result online: the newcomer has the largest position and should be chosen first, so whenever it meets an older number it pushes that one down, and the number pushed all the way to 0 is the leftmost of a linearly dependent group. **Each pivot bit keeps the rightmost number, and a query $[l, r]$ uses only the part with position $\ge l$.** Sort the queries by $r$ offline and keep a single basis; each query costs $O(60)$.
+Why keeping only `pos[i]` $\ge l$ is right: this is the greedy of 5.2 with position as the weight. Insert by decreasing position, $a_r, a_{r-1}, \dots$; once $a_l$ is in, the basis can already express every number in $a_l, \dots, a_r$, and numbers further left only fill dimensions that are still empty, never pushing out what is there. So in the basis built greedily from right to left, the part with position $\ge l$ spans exactly $a_l, \dots, a_r$. The swapping insertion maintains this greedy result online: the newcomer has the largest position and should be chosen first, so whenever it meets an older number it pushes that one down, and the number pushed all the way to 0 is the leftmost of a linearly dependent group. **Each pivot bit keeps the rightmost number, and a query $[l, r]$ uses only the part with position $\ge l$.** Sort the queries by $r$ offline and keep a single basis; each insertion and each query costs $O(60)$, $O(q \log q + 60 (n + q))$ in total with the sort.
 
 The figure below shows the basis after each insertion of the array $5, 6, 3, 4$, and the query $[3, 4]$ at right end 4:
 
@@ -259,7 +242,7 @@ The figure below shows the basis after each insertion of the array $5, 6, 3, 4$,
 
 ### 5.4 Merging Two Bases
 
-To merge two bases, insert every nonzero number of one into the other, $O(60^2)$. "The basis of all numbers in a block" can sit on nodes of a segment tree or a binary-lifting table, and merging assembles the basis of any range or tree path. A basis does not support deletion; for problems with deletions, turn them offline into "the time interval during which each number exists" and use segment-tree divide and conquer over time.
+To merge two bases, insert every nonzero number of one into the other, $O(60^2)$. "The basis of all numbers in a block" can sit on nodes of a segment tree or a binary-lifting table, and merging assembles the basis of any range or tree path; a range query on a segment tree merges $O(\log n)$ nodes, $O(60^2 \log n)$. A basis does not support deletion; for problems with deletions, turn them offline into "the time interval during which each number exists" and use segment-tree divide and conquer over time.
 
 ## 6. Writing One from Scratch: Maximum XOR Path
 
@@ -293,21 +276,7 @@ The answer is the maximum XOR starting from $d_n$ ($d_n$ is the tree path $P$), 
 #include <bits/stdc++.h>
 using namespace std;
 
-struct XorBasis {
-    static const int B = 60;
-    long long b[B] = {};
-    void insert(long long x) {
-        for (int i = B - 1; i >= 0; i--) {
-            if (!(x >> i & 1)) continue;
-            if (!b[i]) { b[i] = x; return; }
-            x ^= b[i];
-        }
-    }
-    long long max_xor(long long v) const {
-        for (int i = B - 1; i >= 0; i--) v = max(v, v ^ b[i]);
-        return v;
-    }
-};
+// uses XorBasis from the appendix (insert and max_xor)
 
 int main() {
     ios::sync_with_stdio(false);
@@ -488,21 +457,14 @@ using namespace std;
 
 int n, m;
 
-bool insert(vector<int>& b, int x) {      // insertion of 2.1, b has m slots
-    for (int i = m - 1; i >= 0; i--) {
-        if (!(x >> i & 1)) continue;
-        if (!b[i]) { b[i] = x; return true; }
-        x ^= b[i];
-    }
-    return false;
-}
+// uses XorBasis from the appendix
 
-vector<int> expand(const vector<int>& b) { // list every element of span(b)
+vector<int> expand(const XorBasis& lb) { // list every element of span(b)
     vector<int> all = {0};
-    for (int i = 0; i < m; i++)
-        if (b[i]) {
+    for (int i = 0; i < XorBasis::B; i++)
+        if (lb.b[i]) {
             int sz = all.size();
-            for (int j = 0; j < sz; j++) all.push_back(all[j] ^ b[i]);
+            for (int j = 0; j < sz; j++) all.push_back(all[j] ^ lb.b[i]);
         }
     return all;
 }
@@ -517,9 +479,9 @@ int main() {
         si.resize(k);
         for (int& x : si) { scanf("%d", &x); cnt[x]++; }
     }
-    vector<int> kb(m, 0);                  // basis of K, starting from span(I)
+    XorBasis kb;                           // basis of K, starting from span(I)
     for (int x = 0; x < (1 << m); x++)
-        if (cnt[x] == n) insert(kb, x);
+        if (cnt[x] == n) kb.insert(x);
     vector<char> inK(1 << m), inS(1 << m);
     while (true) {
         vector<int> K = expand(kb);
@@ -527,11 +489,10 @@ int main() {
         for (int x : K) inK[x] = 1;
         int forced = -1;                   // a new number every valid solution must contain
         for (int i = 0; i < n && forced < 0; i++) {
-            vector<int> b = kb;
+            XorBasis b = kb;
             int common = 0;                // |S_i ∩ K|
-            for (int x : s[i]) { insert(b, x); common += inK[x]; }
-            int r = 0;
-            for (int i2 = 0; i2 < m; i2++) r += b[i2] != 0;
+            for (int x : s[i]) { b.insert(x); common += inK[x]; }
+            int r = b.r;
             long long uni = (long long)s[i].size() + K.size() - common;   // |S_i ∪ K|
             if (uni == (1LL << r)) continue;                              // already closed
             for (int x : s[i]) inS[x] = 1;
@@ -540,7 +501,7 @@ int main() {
             for (int x : s[i]) inS[x] = 0;
         }
         if (forced < 0) break;
-        insert(kb, forced);
+        kb.insert(forced);
     }
     vector<int> ans;                       // K \ I
     for (int x : expand(kb))
@@ -582,6 +543,8 @@ The two templates side by side. An XOR basis is incremental Gauss written for "a
 
 | Task | XOR basis `XorBasis` | Incremental Gauss `IncGauss` |
 | --- | --- | --- |
+| A row is | a number, no right-hand side | an equation: coefficient bitset + right-hand side |
+| Stored by | `b[i]` is the row whose pivot is bit $i$ | each row remembers its pivot column `piv` |
 | Add a number / an equation | `insert`, old rows untouched, $O(60)$ | `add`, clears old rows, always RREF, $O(r \cdot \text{MX} / 64)$ |
 | Can it be represented | `contains`, $O(60)$ | `implied`, which also gives the implied RHS, $O(r \cdot \text{MX} / 64)$ |
 | Rank | `r`, $O(1)$ | `rank()`, $O(1)$ |
@@ -590,11 +553,13 @@ The two templates side by side. An XOR basis is incremental Gauss written for "a
 | $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | `kth` $O(r \log r + r \cdot \text{MX} / 64)$ / `index` $O(r \log r)$, no reduction needed |
 | Merge | `merge`, $O(60^2)$ | `merge`, adding the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MX} / 64)$ |
 | Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | `PrefixGauss`: `add`, `implied`, `max_xor` $O(n \cdot \text{MX} / 64)$, `bad` $O(1)$, `rank` $O(n)$, `at` $O(n \cdot r \cdot \text{MX} / 64)$ |
-| Right-hand side and contradictions | none | `add` returns $-1$, `bad` remembers it |
+| Reduced to 0 | insertion fails: the number is reachable | check the right-hand side: 0 means implied by the rows (returns 0), nonzero means contradiction (returns $-1$, `bad` remembers it) |
 | One solution / all solutions | none | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
 | Columns | at most 60 | at most `MX`, thousands are fine |
 
 Here $r$ is the current rank and $n$ the number of unknowns; `MX / 64` is the number of machine words in one bitset row, so one bitset XOR costs that many integer XORs. The XOR basis's 60 is just "rank at most 60, one word per row", so both columns follow the same formula: with $\text{MX} = 64$, incremental Gauss's $O(r \cdot \text{MX}/64)$ is $O(r)$ with $r \le 60$.
+
+So "can this number be reached by XOR" and "is this equation redundant" are the same question; a right-hand side adds the third outcome, contradiction.
 
 ### XOR Basis
 
@@ -745,53 +710,7 @@ The functions that mirror the XOR basis look only at left sides and read each ro
 
 #### Implementation: Solving Equations
 
-```cpp
-void IncGauss::eliminate(bitset<MX>& v, int& b) const {
-    for (int i = 0; i < (int)row.size(); i++)
-        if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
-}
-
-int IncGauss::add(bitset<MX> v, int b) {
-    eliminate(v, b);
-    int p = v._Find_first();
-    if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
-    for (int i = 0; i < (int)row.size(); i++)
-        if (row[i][p]) row[i] ^= v, rhs[i] ^= b;     // clear the new pivot column in the old rows
-    row.push_back(v), rhs.push_back(b), piv.push_back(p);
-    return 1;
-}
-
-int IncGauss::implied(bitset<MX> v) const {
-    int b = 0;
-    eliminate(v, b);
-    return v.none() ? b : -1;
-}
-
-bitset<MX> IncGauss::solve() const {
-    bitset<MX> x;
-    for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
-    return x;
-}
-
-vector<bitset<MX>> IncGauss::kernel() const {    // all solutions = solve() XOR any subset of these
-    vector<int> isp(n, -1);
-    for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-    vector<bitset<MX>> ks;
-    for (int f = 0; f < n; f++) {
-        if (isp[f] >= 0) continue;
-        bitset<MX> x;
-        x[f] = 1;                                // this free variable 1, the others 0
-        for (int i = 0; i < (int)row.size(); i++)
-            if (row[i][f]) x[piv[i]] = 1;
-        ks.push_back(x);
-    }
-    return ks;
-}
-
-void IncGauss::merge(const IncGauss& o) {
-    for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
-}
-```
+`eliminate` through `merge` are the incremental Gauss template of [L2 section 5.2](/algo/l2-gaussian-elimination/); the implementation and the cost of each operation are there and are not repeated here.
 
 #### Implementation: Counterparts of the XOR Basis Operations
 
