@@ -120,7 +120,7 @@ Given $n$ numbers, pick any subset and XOR it together: what is the largest resu
 5. **Merging two bases**
    - **Insert the numbers of one into the other**: `merge`, $O(60^2)$. Kept on the nodes of a segment tree or a binary-lifting table, this assembles the basis of any range or tree path. See 2.6.
 
-Variations such as ranges, weights and range queries are in section 3. The template with every function together is in the appendix.
+Three variations, segment XORs, weights, and only numbers inside a range, are in section 3. The template with every function together is in the appendix.
 
 ### 2.1 Insert and Test Whether a Value Is Reachable
 
@@ -285,9 +285,19 @@ When a statement asks for the "$k$-th smallest", first decide what it ranks: dis
 - **On the nodes of a segment tree or a binary-lifting table, this assembles the basis of any range or tree path**: a range query on a segment tree merges $O(\log n)$ nodes, $O(60^2 \log n)$.
 - **An XOR basis does not support deletion**: for problems with deletions, go offline to "the time interval each number exists" and use segment-tree divide and conquer.
 
-## 3. Common Variations in Problems
+## 3. Three Common Variations
 
-The first two sections all answer "given some numbers, choose any subset". Contest problems rarely ask that directly; more often they translate some other structure into this question, or add one more requirement on top of it.
+**Section 2 answers "given some numbers, choose any subset". Contest problems often change one thing: the numbers to insert must be computed first, each number carries a weight, or only numbers inside a range may be used. Each subsection below covers one.**
+
+1. **The numbers inserted are not the originals but segment XORs (3.1)**
+   - **Switch to prefix XORs and insert those**: a segment's XOR is the XOR of two prefix XORs, so "these segments are independent" is the same as "the matching prefix XORs are independent".
+   - **Example**: CF 1101G, cut the array into as many segments as possible so that no nonempty choice of segments XORs to 0.
+2. **Each number has a weight; choose an independent set with the largest total weight (3.2)**
+   - **Insert by decreasing weight and take the ones that go in**: the same greedy as Kruskal for minimum spanning trees.
+   - **Example**: Luogu P4570 Elements, each ore has a number and a magic value; the chosen numbers must not XOR to 0, and the total magic is maximized.
+3. **Only numbers inside $[l, r]$ may be used, over many queries (3.3)**
+   - **Each pivot bit keeps the rightmost number, and a query uses only basis numbers at positions $\ge l$**: this is the greedy of 3.2 with position as the weight, called the prefix basis.
+   - **Example**: CF 1100F, many queries for the maximum subset XOR inside a range.
 
 ### 3.1 The Numbers in the Basis Are Segment XORs: Switch to Prefix XORs
 
