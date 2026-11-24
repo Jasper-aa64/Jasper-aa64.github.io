@@ -14,6 +14,8 @@ Given $n$ numbers, pick any subset and XOR it together: what is the largest resu
 - **The subset XORs repeat a lot**: $a$, $b$, $a \oplus b$ reach exactly the values $a$ and $b$ alone reach, so the third number is redundant.
 - **Dropping redundant numbers leaves at most 60**: each number has 60 bits, the remaining numbers reach every value the originals did, and this set is an **XOR basis**. Saying what "redundant" means and why at most 60 remain takes linear algebra.
 
+<style>.chroma .line.hl{background:rgba(56,139,253,.15)}</style>
+
 ## 1. What an XOR Basis Is
 
 ### 1.1 A Number Is a Vector over GF(2)
@@ -480,7 +482,7 @@ struct PrefixBasis {
 
    **Input**
 
-   ```text
+   ```text {hl_lines=["2-3","6-7","10-11"]}
    5
    3
    1 2 3
@@ -496,7 +498,7 @@ struct PrefixBasis {
 
    **Output**
 
-   ```text
+   ```text {hl_lines=[1,3,5]}
    4
    10
    12
