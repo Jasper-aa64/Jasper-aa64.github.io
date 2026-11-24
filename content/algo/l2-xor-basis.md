@@ -65,6 +65,11 @@ struct XorBasis {
 
 One insertion does at most 60 XORs, so inserting all $n$ numbers costs $O(60 n)$.
 
+The animation below walks through insertion bit by bit. It starts with 6, 3, 5, 1: 5 is cleared to 0 and fails, and the other three each take a pivot bit. You can type your own numbers.
+
+<iframe src="/maps/xor-basis-insert.en.html" title="XOR basis insertion, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:520px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<p style="text-align:center;font-size:.9em"><a href="/maps/xor-basis-insert.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
+
 ### 2.2 A Failed Insertion Means the Number Is Reachable
 
 During insertion $x$ is only ever XORed with numbers already in the basis, so at every moment $x_{\text{orig}} = x_{\text{now}} \oplus (\text{some } b_i)$. Insertion ends in one of two ways:
@@ -146,6 +151,10 @@ Compare the results of two different choices. Let $t$ be the largest index on wh
     }
 ```
 
+The figure below ties 4.2 and 4.3 together on a 4-bit example: the top shows `b` before and after reduction, the bottom shows the value chosen by each $k = 0, \dots, 7$.
+
+<a href="/images/algo/xor-basis-rref-kth.en.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-rref-kth.en.svg" alt="Reduction and k-th smallest: on the left b[3]=1101, b[2]=0111, b[0]=0001, with extra 1s in pivot columns in red; after b[2]^=b[0], b[3]^=b[2], b[3]^=b[0] the right side is 1010, 0110, 0001 and pivot columns 3, 2, 0 each hold one 1. Below, k from 0 to 7 picks c0=b[0], c1=b[2], c2=b[3] by its bits, giving 0, 1, 6, 7, 10, 11, 12, 13: the value bits at the pivots equal the bits of k, so values increase with k." style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
+
 A statement's "$k$-th smallest" ($k$ counted from 1) usually comes in one of two flavours, and both differ only in how 0 and repeated values count:
 
 - **Nonempty subsets, distinct values**: whether 0 is reachable by a nonempty subset depends on whether some insertion failed. When $r < n$ it is (choose a failed number together with the basis numbers that express it), so the distinct values of nonempty subsets are the same as with the empty set, and the answer is `kth(k - 1)`; when $r = n$ it is not, 0 must be skipped, and the answer is `kth(k)`. **Whether $r$ equals $n$ decides whether 0 counts, and this is where these problems most often go wrong.**
@@ -221,6 +230,10 @@ struct PrefixBasis {
 ```
 
 Why keeping only `pos[i]` $\ge l$ is right: this is the greedy of 5.2 with position as the weight. Insert by decreasing position, $a_r, a_{r-1}, \dots$; once $a_l$ is in, the basis can already express every number in $a_l, \dots, a_r$, and numbers further left only fill dimensions that are still empty, never pushing out what is there. So in the basis built greedily from right to left, the part with position $\ge l$ spans exactly $a_l, \dots, a_r$. The swapping insertion maintains this greedy result online: the newcomer has the largest position and should be chosen first, so whenever it meets an older number it pushes that one down, and the number pushed all the way to 0 is the leftmost of a linearly dependent group. **Each pivot bit keeps the rightmost number, and a query $[l, r]$ uses only the part with position $\ge l$.** Sort the queries by $r$ offline and keep a single basis; each query costs $O(60)$.
+
+The figure below shows the basis after each insertion of the array $5, 6, 3, 4$, and the query $[3, 4]$ at right end 4:
+
+<a href="/images/algo/xor-basis-prefix.en.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-prefix.en.svg" alt="Prefix XOR basis: array 101, 110, 011, 100. After a1: b[2]=101@1. After a2: 110@2 swaps out 101@1, which reduces to 011 and goes to b[1]. After a3: 011@3 swaps out 011@1, which reduces to 0 and is dropped. After a4: 100@4 takes b[2], 110@2 is pushed down, reduces to 001 and goes to b[0]. Query [3,4] uses only 100@4 and 011@3, max XOR 111=7." style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
 
 ### 5.4 Merging Two Bases
 

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XOR basis insertion, step by step</title>
+<link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
+<style>
+:root { --bg:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --card:#f6f8fa; --hl:#bf3989; --hlbg:#ffeff7;
+  --x:#0969da; --xbg:#ddf4ff; --ok:#1a7f37; --okbg:#dafbe1; --bad:#cf222e; --piv:#8250df; --pivbg:#fbefff; }
+.dark { --bg:#17161b; --fg:#e9e7ef; --muted:#a19caf; --line:#3a3945; --card:#1f1e25; --hl:#ff7bb0; --hlbg:#3a1f2d;
+  --x:#58a6ff; --xbg:#132a44; --ok:#3fb950; --okbg:#12301c; --bad:#ff7b72; --piv:#d2a8ff; --pivbg:#2e2148; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
+body { font: 15px/1.65 Segoe UI, Helvetica, Arial, sans-serif; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 12px 16px; box-sizing: border-box; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+input[type=text] { font: 14px Consolas, Menlo, monospace; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); min-width: 0; flex: 1 1 140px; }
+button { font: inherit; font-size: 14px; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+button:hover { border-color: var(--hl); color: var(--hl); }
+button:disabled { opacity: .4; cursor: default; border-color: var(--line); color: var(--fg); }
+.lab { color: var(--muted); font-size: 14px; }
+.err { color: var(--bad); font-size: 13.5px; }
+.queue { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.q { font: 13.5px Consolas, Menlo, monospace; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
+.q.cur { border-color: var(--x); color: var(--x); background: var(--xbg); font-weight: 700; }
+.q.ok { border-color: var(--ok); color: var(--ok); }
+.q.bad { border-color: var(--bad); color: var(--bad); text-decoration: line-through; }
+.gwrap { overflow-x: auto; }
+.grid { display: grid; gap: 4px; margin: 10px 0; align-items: center; justify-content: start; }
+.c { box-sizing: border-box; width: 32px; height: 30px; display: grid; place-items: center; border-radius: 5px; font: 15px Consolas, Menlo, monospace; border: 1px solid var(--line); background: var(--card); }
+.c.h { border: 0; background: none; color: var(--muted); font-size: 12.5px; }
+.c.h.col { color: var(--hl); font-weight: 700; }
+.c.col { background: var(--hlbg); border-color: var(--hl); }
+.c.piv { font-weight: 800; color: var(--piv); background: var(--pivbg); border-color: var(--piv); }
+.c.e { color: var(--muted); border-style: dashed; }
+.c.x { color: var(--x); background: var(--xbg); border-color: var(--x); font-weight: 700; }
+.c.x.col { box-shadow: 0 0 0 2px var(--hl); }
+.c.z { opacity: .35; }
+.rl { font: 13.5px Consolas, Menlo, monospace; color: var(--muted); padding-right: 6px; white-space: nowrap; }
+.rl.x { color: var(--x); font-weight: 700; }
+.rv { font: 13.5px Consolas, Menlo, monospace; color: var(--muted); padding-left: 8px; white-space: nowrap; }
+.rv.new { color: var(--ok); font-weight: 700; }
+.panel { box-sizing: border-box; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.panel .t { margin: 0; }
+.panel .t.ok { color: var(--ok); } .panel .t.bad { color: var(--bad); }
+.stat { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 14px; color: var(--muted); }
+.stat b { color: var(--fg); font-family: Consolas, Menlo, monospace; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.tips { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row"><span class="lab">Numbers to insert (space-separated, 0 to 255): </span><input type="text" id="inp" value="6 3 5 1" aria-label="Numbers to insert (space-separated, 0 to 255): "><button id="apply">Use these</button><span class="err" id="err"></span></div>
+  <div class="queue" id="queue"></div>
+  <div class="gwrap"><div class="grid" id="grid"></div></div>
+  <div class="panel" id="panel">
+    <p class="t" id="txt"></p>
+    <div class="stat"><span>rank r = <b id="rk">0</b></span><span>reachable values: <b id="sp"></b></span></div>
+  </div>
+  <div class="btns"><button id="prev">Back</button><button id="next">Next</button><button id="play">Play</button><button id="reset">Restart</button></div>
+  <p class="tips">Bits are scanned from high to low; the pink column is the bit being looked at, and the purple cell in each b[i] is its pivot (highest) bit.</p>
+</div>
+<script>
+(function () {
+  var L = {"start": "Start: b is empty, rank 0, and the only reachable value is 0. Press Next or the right arrow key.", "take": "Insert number {j}: {v} = {bin}. x starts as this number.", "zero": "Bit {i} is 0, skip to the next bit.", "xor": "Bit {i} is 1 and b[{i}] = {bv} is occupied: x ^= b[{i}], {xo} ⊕ {bb} = {xn}, clearing bit {i}. This is one row operation.", "store": "Bit {i} is 1 and b[{i}] is empty: store x = {xb} in b[{i}]. Its highest bit differs from every other basis vector, so it is independent; the rank becomes {r} and the reachable values double to {c}.", "dead": "x is cleared to 0: the original {v} is an XOR of basis vectors, already in the span. The insertion fails and the space is unchanged.", "done": "All inserted: rank {r}, {c} distinct reachable values. Each of the {f} failed numbers can be written with the basis."}, U = {"play": "Play", "pause": "Pause", "empty": "empty", "err": "Enter 1 to 12 integers between 0 and 255"};
+  var root = document.documentElement;
+  function theme() {
+    var t = null;
+    try { if (window.parent !== window) t = window.parent.document.documentElement.dataset.theme; } catch (e) {}
+    if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    root.classList.toggle('dark', t !== 'light');
+  }
+  theme();
+  try { if (window.parent !== window) new MutationObserver(theme).observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+  function fit() { try { if (window.frameElement) window.frameElement.style.height = document.body.scrollHeight + 'px'; } catch (e) {} }
+  function fmt(s, o) { return s.replace(/\{(\w+)\}/g, function (_, k) { return o[k]; }); }
+
+  var W = 3, nums = [], steps = [], k = 0, timer = null;
+  function bin(v) { var s = v.toString(2); while (s.length < W) s = '0' + s; return s; }
+  function build() {
+    W = Math.max(3, Math.max.apply(null, nums.concat([1])).toString(2).length);
+    var b = new Array(W).fill(0), fate = nums.map(function () { return ''; }), r = 0;
+    steps = [];
+    function push(o) { o.b = b.slice(); o.fate = fate.slice(); o.r = r; steps.push(o); }
+    push({ x: null, col: -1, j: -1, msg: L.start, cls: '' });
+    nums.forEach(function (v, j) {
+      var x = v, stored = false;
+      push({ x: x, col: -1, j: j, msg: fmt(L.take, { j: j + 1, v: v, bin: bin(v) }), cls: '' });
+      for (var i = W - 1; i >= 0 && x; i--) {
+        if (!(x >> i & 1)) { push({ x: x, col: i, j: j, msg: fmt(L.zero, { i: i }), cls: '' }); continue; }
+        if (!b[i]) {
+          b[i] = x; r++; fate[j] = 'ok'; stored = true;
+          push({ x: null, col: i, j: j, hi: i, msg: fmt(L.store, { i: i, xb: bin(x), r: r, c: 1 << r }), cls: 'ok' });
+          break;
+        }
+        var xo = x; x ^= b[i];
+        push({ x: x, col: i, j: j, msg: fmt(L.xor, { i: i, bv: bin(b[i]), xo: bin(xo), bb: bin(b[i]), xn: bin(x) }), cls: '' });
+      }
+      if (!stored) {
+        fate[j] = 'bad';
+        push({ x: 0, col: -1, j: j, msg: fmt(L.dead, { v: v }), cls: 'bad' });
+      }
+    });
+    push({ x: null, col: -1, j: -1, msg: fmt(L.done, { r: r, c: 1 << r, f: nums.length - r }), cls: 'ok' });
+  }
+  function spanOf(b) {
+    var vals = [0];
+    b.forEach(function (v) { if (v) vals = vals.concat(vals.map(function (u) { return u ^ v; })); });
+    vals.sort(function (a, c) { return a - c; });
+    return vals.length <= 16 ? '{' + vals.join(', ') + '}' : vals.length + '';
+  }
+  var grid = document.getElementById('grid'), queue = document.getElementById('queue');
+  function el(cls, txt) { var d = document.createElement('div'); d.className = cls; d.textContent = txt; return d; }
+  function render() {
+    var s = steps[k], c, i;
+    grid.style.gridTemplateColumns = 'auto repeat(' + W + ', 32px) auto';
+    grid.innerHTML = '';
+    grid.appendChild(el('rl', ''));
+    for (c = W - 1; c >= 0; c--) grid.appendChild(el('c h' + (c === s.col ? ' col' : ''), c));
+    grid.appendChild(el('rv', ''));
+    grid.appendChild(el('rl x', 'x'));
+    for (c = W - 1; c >= 0; c--) {
+      if (s.x === null) grid.appendChild(el('c e', ''));
+      else grid.appendChild(el('c x' + (c === s.col ? ' col' : '') + (s.col >= 0 && c > s.col ? ' z' : ''), s.x >> c & 1));
+    }
+    grid.appendChild(el('rv', s.x === null ? '' : '= ' + s.x));
+    for (i = W - 1; i >= 0; i--) {
+      grid.appendChild(el('rl', 'b[' + i + ']'));
+      var bv = s.b[i];
+      for (c = W - 1; c >= 0; c--) {
+        if (!bv) grid.appendChild(el('c e' + (c === s.col ? ' col' : ''), ''));
+        else grid.appendChild(el('c' + (c === i ? ' piv' : '') + (c === s.col ? ' col' : ''), bv >> c & 1));
+      }
+      grid.appendChild(el('rv' + (s.hi === i ? ' new' : ''), bv ? '= ' + bv : U.empty));
+    }
+    queue.innerHTML = '';
+    nums.forEach(function (v, j) {
+      var d = document.createElement('span');
+      d.className = 'q' + (j === s.j ? ' cur' : '') + (s.fate[j] ? ' ' + s.fate[j] : '');
+      d.textContent = v + ' = ' + bin(v);
+      queue.appendChild(d);
+    });
+    var t = document.getElementById('txt');
+    t.textContent = s.msg; t.className = 't ' + s.cls;
+    document.getElementById('rk').textContent = s.r;
+    document.getElementById('sp').textContent = spanOf(s.b);
+    document.getElementById('prev').disabled = k === 0;
+    document.getElementById('next').disabled = k === steps.length - 1;
+    fit();
+  }
+  function show(n) { k = Math.max(0, Math.min(steps.length - 1, n)); render(); }
+  var bPlay = document.getElementById('play');
+  function stop() { if (timer) { clearInterval(timer); timer = null; } bPlay.textContent = U.play; }
+  function play() {
+    if (timer) { stop(); return; }
+    if (k === steps.length - 1) show(0);
+    bPlay.textContent = U.pause;
+    timer = setInterval(function () { if (k >= steps.length - 1) stop(); else show(k + 1); }, 1800);
+  }
+  function load() {
+    var parts = document.getElementById('inp').value.trim().split(/[\s,，]+/).filter(Boolean).map(Number);
+    var ok = parts.length >= 1 && parts.length <= 12 && parts.every(function (v) { return Number.isInteger(v) && v >= 0 && v <= 255; });
+    document.getElementById('err').textContent = ok ? '' : U.err;
+    if (!ok) return;
+    stop(); nums = parts; build(); show(0);
+  }
+  document.getElementById('prev').onclick = function () { stop(); show(k - 1); };
+  document.getElementById('next').onclick = function () { stop(); show(k + 1); };
+  bPlay.onclick = play;
+  document.getElementById('reset').onclick = function () { stop(); show(0); };
+  document.getElementById('apply').onclick = load;
+  document.getElementById('inp').addEventListener('keydown', function (e) { if (e.key === 'Enter') load(); e.stopPropagation(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') { stop(); show(k + 1); }
+    if (e.key === 'ArrowLeft') { stop(); show(k - 1); }
+  });
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  load();
+})();
+</script>
+</body>
+</html>

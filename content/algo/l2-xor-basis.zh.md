@@ -65,6 +65,11 @@ struct XorBasis {
 
 一次插入最多做 60 次异或，$n$ 个数全插完是 $O(60 n)$。
 
+下面按位走一遍插入。默认插入 6、3、5、1：5 被消成 0，插入失败；其余三个各占一个主元位。可以换成自己的数。
+
+<iframe src="/maps/xor-basis-insert.zh.html" title="线性基插入：分步看" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:520px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<p style="text-align:center;font-size:.9em"><a href="/maps/xor-basis-insert.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
+
 ### 2.2 插入失败，说明它能被异或出来
 
 插入过程中 $x$ 每次异或上的都是基里的数，所以任何时刻都有 $x_{\text{原}} = x_{\text{当前}} \oplus (\text{若干个 } b_i)$。插入有两种结局：
@@ -146,6 +151,10 @@ $n$ 个数的子集有 $2^n$ 个，分到 $2^r$ 个不同值上，平均每个�
     }
 ```
 
+下图用一个 4 位的例子把 4.2 和 4.3 连起来：上面是规范化前后的 `b`，下面是 $k = 0, \dots, 7$ 选出的值。
+
+<a href="/images/algo/xor-basis-rref-kth.zh.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-rref-kth.zh.svg" alt="规范化和第 k 小：左边 b[3]=1101、b[2]=0111、b[0]=0001，主元列里多出来的 1 标红；经过 b[2]^=b[0]、b[3]^=b[2]、b[3]^=b[0] 三步，右边变成 1010、0110、0001，主元列 3、2、0 各只剩一个 1。下面 k 从 0 到 7，按 k 的二进制选 c0=b[0]、c1=b[2]、c2=b[3]，得到 0、1、6、7、10、11、12、13，值在主元位上的比特就是 k 的比特，所以按 k 递增。" style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
+
 题面里的“第 $k$ 小”（$k$ 从 1 数）常有两种算法，差别都在 0 和重复值上：
 
 - **只算非空子集、去重**：0 能不能由非空子集得到，看有没有插入失败的数。$r < n$ 时能（失败的数和表示它的那些基一起选），这时非空子集的不同值和含空集时一样，答案是 `kth(k - 1)`；$r = n$ 时不能，要跳过 0，答案是 `kth(k)`。**$r$ 是否等于 $n$ 决定 0 算不算，这是这类题最常错的地方。**
@@ -221,6 +230,10 @@ struct PrefixBasis {
 ```
 
 为什么只留 `pos[i]` $\ge l$ 的就对：这是 5.2 的贪心，权值取位置。按位置从大到小插 $a_r, a_{r-1}, \dots$，插完 $a_l$ 时，基已经能表示 $a_l, \dots, a_r$ 里的每个数；再往左插的数，只会填还空着的维度，不会挤掉已有的。所以“按位置从右往左贪心”得到的基里，位置 $\ge l$ 的那部分正好张成 $a_l, \dots, a_r$。交换插入是在线维护这个贪心的结果：新来的数位置最大，应该最先被选，碰到位置更小的就把它往下挤，被挤到消成 0 的是一组线性相关的数里最靠左的那个。**每个主元位留最靠右的数，询问 $[l, r]$ 只用位置 $\ge l$ 的部分。** 询问按 $r$ 离线排序，只维护一份基，每次询问 $O(60)$。
+
+下图是数组 $5, 6, 3, 4$ 依次插入时每一步的基，以及右端点为 4 时的询问 $[3, 4]$：
+
+<a href="/images/algo/xor-basis-prefix.zh.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-prefix.zh.svg" alt="区间线性基：数组 101、110、011、100。插完 a1：b[2]=101@1。插完 a2：110@2 换下 101@1，101 往下消成 011 存进 b[1]。插完 a3：011@3 换下 011@1，旧的消成 0 丢掉。插完 a4：100@4 进 b[2]，110@2 被挤下去，消成 001 存进 b[0]。询问 [3,4] 只用位置不小于 3 的 100@4 和 011@3，最大异或 111=7。" style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
 
 ### 5.4 合并两组基
 
