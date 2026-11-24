@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="%%lang%%">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%%title%%</title>
+<link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
+<style>
+%%UICSS%%
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+input[type=text] { font: 14px Consolas, Menlo, monospace; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); min-width: 0; flex: 1 1 140px; }
+input[type=text]:focus { outline: none; border-color: var(--pri); box-shadow: 0 0 0 3px var(--xbg); }
+.lab { color: var(--muted); font-size: 14px; }
+.err { color: var(--bad); font-size: 13.5px; }
+.queue { display: flex; flex-wrap: wrap; gap: 6px; }
+.q { font: 13.5px Consolas, Menlo, monospace; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--bg); }
+.q.cur { border-color: var(--x); color: var(--x); background: var(--xbg); font-weight: 700; }
+.q.ok { border-color: var(--ok); color: var(--ok); }
+.q.bad { border-color: var(--bad); color: var(--bad); text-decoration: line-through; }
+.grid { display: grid; gap: 5px; align-items: center; justify-content: center; }
+.c { box-sizing: border-box; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; font: 15.5px Consolas, Menlo, monospace; border: 1px solid var(--line); background: var(--bg); transition: background .25s, border-color .25s; }
+.c.h { border: 0; background: none; color: var(--muted); font-size: 12.5px; height: 20px; }
+.c.h.col { color: var(--hl); font-weight: 700; }
+.c.col { background: var(--hlbg); border-color: var(--hl); }
+.c.piv { font-weight: 800; color: var(--piv); background: var(--pivbg); border-color: var(--piv); }
+.c.e { border-style: dashed; background: none; }
+.c.x { color: var(--x); background: var(--xbg); border-color: var(--x); font-weight: 700; }
+.c.x.col { box-shadow: 0 0 0 2px var(--hl); }
+.c.z { opacity: .35; }
+.rl { font: 13.5px Consolas, Menlo, monospace; color: var(--muted); padding-right: 6px; white-space: nowrap; text-align: right; }
+.rl.x { color: var(--x); font-weight: 700; }
+.rv { font: 13.5px Consolas, Menlo, monospace; color: var(--muted); padding-left: 8px; white-space: nowrap; min-width: 56px; }
+.rv.new { color: var(--ok); font-weight: 700; }
+.sep { grid-column: 1 / -1; height: 1px; background: var(--line); margin: 2px 0; }
+.stat { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 14px; color: var(--muted); }
+.stat b { color: var(--fg); font-family: Consolas, Menlo, monospace; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row"><span class="lab">%%input%%</span><input type="text" id="inp" value="6 3 5 1" aria-label="%%input%%"><button class="ib" id="apply">%%apply%%</button><span class="err" id="err"></span></div>
+  <div class="queue" id="queue"></div>
+  <div class="stage"><div class="grid" id="grid"></div></div>
+  <div class="panel" id="panel">
+    <div class="ph"><span class="badge" id="badge"></span><span id="head"></span></div>
+    <p class="t" id="txt"></p>
+    <div class="stat"><span>%%rank%% = <b id="rk">0</b></span><span>%%span%%: <b id="sp"></b></span></div>
+  </div>
+  %%CONTROLS%%
+  %%LEGEND%%
+</div>
+<script>
+(function () {
+  var L = %%JSON%%, UI = %%UI%%;
+%%UIJS%%
+  function fmt(s, o) { return s.replace(/\{(\w+)\}/g, function (_, k) { return o[k]; }); }
+
+  var W = 3, nums = [], steps = [], k = 0, timer = null;
+  function bin(v) { var s = v.toString(2); while (s.length < W) s = '0' + s; return s; }
+  function build() {
+    W = Math.max(3, Math.max.apply(null, nums.concat([1])).toString(2).length);
+    var b = new Array(W).fill(0), fate = nums.map(function () { return ''; }), r = 0;
+    steps = [];
+    function push(o) { o.b = b.slice(); o.fate = fate.slice(); o.r = r; steps.push(o); }
+    push({ x: null, col: -1, j: -1, head: L.h0, msg: L.start, cls: '' });
+    nums.forEach(function (v, j) {
+      var x = v, stored = false, head = fmt(L.hnum, { j: j + 1, v: v });
+      push({ x: x, col: -1, j: j, head: head, msg: fmt(L.take, { j: j + 1, v: v, bin: bin(v) }), cls: '' });
+      for (var i = W - 1; i >= 0 && x; i--) {
+        if (!(x >> i & 1)) { push({ x: x, col: i, j: j, head: head, msg: fmt(L.zero, { i: i }), cls: '' }); continue; }
+        if (!b[i]) {
+          b[i] = x; r++; fate[j] = 'ok'; stored = true;
+          push({ x: null, col: i, j: j, hi: i, head: head, msg: fmt(L.store, { i: i, xb: bin(x), r: r, c: 1 << r }), cls: 'ok' });
+          break;
+        }
+        var xo = x; x ^= b[i];
+        push({ x: x, col: i, j: j, head: head, msg: fmt(L.xor, { i: i, bv: bin(b[i]), xo: bin(xo), bb: bin(b[i]), xn: bin(x) }), cls: '' });
+      }
+      if (!stored) {
+        fate[j] = 'bad';
+        push({ x: 0, col: -1, j: j, head: head, msg: fmt(L.dead, { v: v }), cls: 'bad' });
+      }
+    });
+    push({ x: null, col: -1, j: -1, head: L.hend, msg: fmt(L.done, { r: r, c: 1 << r, f: nums.length - r }), cls: 'ok' });
+  }
+  function spanOf(b) {
+    var vals = [0];
+    b.forEach(function (v) { if (v) vals = vals.concat(vals.map(function (u) { return u ^ v; })); });
+    vals.sort(function (a, c) { return a - c; });
+    return vals.length <= 16 ? '{' + vals.join(', ') + '}' : fmt(L.many, { c: vals.length });
+  }
+  var grid = document.getElementById('grid'), queue = document.getElementById('queue'), panel = document.getElementById('panel');
+  function el(cls, txt) { var d = document.createElement('div'); d.className = cls; d.textContent = txt; return d; }
+  function render(quiet) {
+    var s = steps[k], c, i;
+    grid.style.gridTemplateColumns = 'auto repeat(' + W + ', 34px) auto';
+    grid.innerHTML = '';
+    grid.appendChild(el('rl', ''));
+    for (c = W - 1; c >= 0; c--) grid.appendChild(el('c h' + (c === s.col ? ' col' : ''), c));
+    grid.appendChild(el('rv', ''));
+    grid.appendChild(el('rl x', 'x'));
+    for (c = W - 1; c >= 0; c--) {
+      if (s.x === null) grid.appendChild(el('c e', ''));
+      else grid.appendChild(el('c x' + (c === s.col ? ' col' : '') + (s.col >= 0 && c > s.col ? ' z' : ''), s.x >> c & 1));
+    }
+    grid.appendChild(el('rv', s.x === null ? '' : '= ' + s.x));
+    grid.appendChild(el('sep', ''));
+    for (i = W - 1; i >= 0; i--) {
+      grid.appendChild(el('rl', 'b[' + i + ']'));
+      var bv = s.b[i];
+      for (c = W - 1; c >= 0; c--) {
+        if (!bv) grid.appendChild(el('c e' + (c === s.col ? ' col' : ''), ''));
+        else grid.appendChild(el('c' + (c === i ? ' piv' : '') + (c === s.col ? ' col' : ''), bv >> c & 1));
+      }
+      grid.appendChild(el('rv' + (s.hi === i ? ' new' : ''), bv ? '= ' + bv : L.empty));
+    }
+    queue.innerHTML = '';
+    nums.forEach(function (v, j) {
+      var d = document.createElement('span');
+      d.className = 'q' + (j === s.j ? ' cur' : '') + (s.fate[j] ? ' ' + s.fate[j] : '');
+      d.textContent = v + ' = ' + bin(v);
+      queue.appendChild(d);
+    });
+    document.getElementById('badge').textContent = k + 1;
+    document.getElementById('head').textContent = s.head;
+    document.getElementById('txt').textContent = s.msg;
+    panel.className = 'panel ' + s.cls;
+    document.getElementById('rk').textContent = s.r;
+    document.getElementById('sp').textContent = spanOf(s.b);
+    progress(k, steps.length);
+    if (!quiet) fit();
+  }
+  function show(n) { k = Math.max(0, Math.min(steps.length - 1, n)); render(); }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } playBtn(false); }
+  function play() {
+    if (timer) { stop(); return; }
+    if (k === steps.length - 1) show(0);
+    playBtn(true);
+    timer = setInterval(function () { if (k >= steps.length - 1) stop(); else show(k + 1); }, 1800);
+  }
+  function lock() {
+    var save = k;
+    lockHeights([panel, queue], function (measure) { for (k = 0; k < steps.length; k++) { render(true); measure(); } });
+    k = save; render();
+  }
+  function load() {
+    var parts = document.getElementById('inp').value.trim().split(/[\s,，]+/).filter(Boolean).map(Number);
+    var ok = parts.length >= 1 && parts.length <= 12 && parts.every(function (v) { return Number.isInteger(v) && v >= 0 && v <= 255; });
+    document.getElementById('err').textContent = ok ? '' : L.err;
+    if (!ok) return;
+    stop(); nums = parts; build(); k = 0; lock();
+  }
+  document.getElementById('prev').onclick = function () { stop(); show(k - 1); };
+  document.getElementById('next').onclick = function () { stop(); show(k + 1); };
+  document.getElementById('play').onclick = play;
+  document.getElementById('reset').onclick = function () { stop(); show(0); };
+  document.getElementById('apply').onclick = load;
+  document.getElementById('inp').addEventListener('keydown', function (e) { if (e.key === 'Enter') load(); e.stopPropagation(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') { stop(); show(k + 1); }
+    if (e.key === 'ArrowLeft') { stop(); show(k - 1); }
+  });
+  var rz = null;
+  window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(lock, 120); });
+  window.addEventListener('load', lock);
+  load();
+})();
+</script>
+</body>
+</html>
