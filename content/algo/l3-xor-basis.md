@@ -289,9 +289,9 @@ When a statement asks for the "$k$-th smallest", first decide what it ranks: dis
 
 The first two sections all answer "given some numbers, choose any subset". Contest problems rarely ask that directly; more often they translate some other structure into this question, or add one more requirement on top of it.
 
-### 3.1 XOR of Ranges: Switch to Prefix XORs
+### 3.1 The Numbers in the Basis Are Segment XORs: Switch to Prefix XORs
 
-**Write the XOR of a segment or range as the XOR of two prefix XORs, and the problem becomes the linear relations among the prefix XORs.**
+**Write the XOR of a segment as the XOR of two prefix XORs, and the problem becomes the linear relations among the prefix XORs.**
 
 1. **Example: CF 1101G**
    - **Task**: cut an array into as many segments as possible so that no choice of one or more segments has XOR 0.
@@ -326,12 +326,13 @@ long long max_weight(vector<pair<long long, long long>> items) {
 }
 ```
 
-### 3.3 Range Queries: The Prefix Basis, Each Pivot Bit Keeps the Rightmost Number
+### 3.3 Only Numbers Inside a Range May Be Used: The Prefix Basis, Each Pivot Bit Keeps the Rightmost Number
 
 **Insert from left to right, letting each pivot bit keep the rightmost number; a query $[l, r]$ uses only the basis numbers at positions $\ge l$.**
 
 1. **Example: CF 1100F**
    - **Task**: an array and many queries asking for the maximum subset XOR inside $[l, r]$. Rebuilding a basis per query costs $O(60 \cdot \text{length})$, too slow.
+   - **How this differs from 3.1**: in 3.1 the numbers put into the basis are themselves segment XORs; here they are still single $a_i$, and the range only limits which of them may be used.
 2. **The method: insertion with swaps, called the prefix basis**
    - **Next to each `b[i]` keep a position `pos[i]`**: when inserting the $p$-th number, if the `b[i]` met has a smaller position than $p$, swap them; the newcomer stays in `b[i]`, and the old number carries its position further down.
    - **After inserting the $r$-th number, answer the queries with right end $r$**: run the greedy using only the `b[i]` with `pos[i]` $\ge l$; sort the queries by $r$ offline and keep a single basis.
