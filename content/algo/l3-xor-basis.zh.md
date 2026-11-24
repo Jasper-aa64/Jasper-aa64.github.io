@@ -538,7 +538,7 @@ int main() {
 | 最大 / 最小异或 | `max_xor` / `min_xor`，$O(60)$ | 板子没写；把列按位从高到低排，做法一样 |
 | 第 $k$ 小 / 求排名 | `kth` / `index`，$O(60)$，之前要 `reduce()` 一次 | 板子没写，同上 |
 | 合并 | `merge`，$O(60^2)$ | 把另一组的 $r'$ 行逐条 `add`，$O(r' \cdot r \cdot \text{MX} / 64)$ |
-| 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | 板子没写；给每行记位置，做法同 5.3 |
+| 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | `PrefixGauss`：`add`、`implied` $O(n \cdot \text{MX} / 64)$，`bad` $O(1)$，`rank` $O(n)$，`at` $O(n \cdot r \cdot \text{MX} / 64)$ |
 | 右端和矛盾 | 没有 | `add` 返回 $-1$，`bad` 记下 |
 | 一组解 / 全部解 | 没有 | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
 | 列数 | 不超过 60 | 不超过 `MX`，几千也行 |
@@ -690,8 +690,51 @@ struct IncGauss {
         return ks;
     }
 };
+
+// 前缀增量高斯（模 2）：方程从左往右加，每个主元列留位置最靠右的那条；右端当作第 n 列一起消
+struct PrefixGauss {
+    int n;
+    vector<bitset<MX>> row;                      // row[c]：第一个 1 在第 c 列的方程，c = n 那行是 0 = 1
+    vector<int> pos;                             // row[c] 的位置（从 1 数），0 表示空
+    PrefixGauss(int n) : n(n), row(n + 1), pos(n + 1, 0) {}
+
+    void add(bitset<MX> v, int b, int p) {       // 加入第 p 条方程，要求 MX > n
+        v[n] = b;
+        while (v.any()) {
+            int c = v._Find_first();
+            if (!pos[c]) { row[c] = v; pos[c] = p; return; }
+            if (pos[c] < p) { swap(row[c], v); swap(pos[c], p); }
+            v ^= row[c];
+        }
+    }
+    bool bad(int l) const { return pos[n] >= l; }  // 第 l 条到当前这条方程是否矛盾（l 从 1 数）
+    int rank(int l) const {                      // 第 l 条到当前这条方程的秩
+        int r = 0;
+        for (int c = 0; c < n; c++) r += pos[c] >= l;
+        return r;
+    }
+    int implied(bitset<MX> v, int l) const {     // 只用第 l 条到当前这条：能推出就返回右端，不能返回 -1
+        v[n] = 0;
+        for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
+            if (pos[c] < l) return -1;
+            v ^= row[c];
+        }
+        return v[n];
+    }
+    IncGauss at(int l) const {                   // 第 l 条到当前这条方程，交给 IncGauss 求解
+        IncGauss g(n);
+        for (int c = 0; c <= n; c++)
+            if (pos[c] >= l) {
+                bitset<MX> w = row[c];
+                int b = w[n];
+                w[n] = 0;
+                g.add(w, b);
+            }
+        return g;
+    }
+};
 ```
 
-第 $j$ 个未知数对应 bitset 的第 $j$ 位。`bad` 为真时方程组无解，`solve()` 和 `kernel()` 没有意义；否则解有 $2^{n - \text{rank}}$ 个，就是 [L1 线性代数](/zh/algo/l1-linear-algebra/) 4.5 节的图景：全部解是零空间整体平移一个解。
+第 $j$ 个未知数对应 bitset 的第 $j$ 位。`PrefixGauss` 就是 5.3 的交换插入，只是一行换成 bitset、主元取最低的那个 1；右端当作第 $n$ 列一起消，消出来的 `0 = 1` 那行留的是最靠右的位置 $q$，第 $l$ 条到当前这条矛盾当且仅当 $l \le q$，所以 `bad(l)` 比一下就行。`bad` 为真时方程组无解，`solve()` 和 `kernel()` 没有意义；否则解有 $2^{n - \text{rank}}$ 个，就是 [L1 线性代数](/zh/algo/l1-linear-algebra/) 4.5 节的图景：全部解是零空间整体平移一个解。
 
 **选哪份：题目问一组数的子集异或能得到什么，用线性基；题目要解方程、判矛盾，或者未知数超过 60 个，用增量高斯。**

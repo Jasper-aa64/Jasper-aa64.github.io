@@ -538,7 +538,7 @@ The two templates side by side. An XOR basis is incremental Gauss written for "a
 | Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | not in the template; order columns from high bit to low and it works the same |
 | $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | not in the template, same as above |
 | Merge | `merge`, $O(60^2)$ | `add` the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MX} / 64)$ |
-| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | not in the template; record a position per row, as in 5.3 |
+| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | `PrefixGauss`: `add`, `implied` $O(n \cdot \text{MX} / 64)$, `bad` $O(1)$, `rank` $O(n)$, `at` $O(n \cdot r \cdot \text{MX} / 64)$ |
 | Right-hand side and contradictions | none | `add` returns $-1$, `bad` remembers it |
 | One solution / all solutions | none | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
 | Columns | at most 60 | at most `MX`, thousands are fine |
@@ -690,8 +690,51 @@ struct IncGauss {
         return ks;
     }
 };
+
+// prefix incremental Gauss (mod 2): equations come left to right, each pivot column keeps the rightmost one; the RHS is column n and is eliminated too
+struct PrefixGauss {
+    int n;
+    vector<bitset<MX>> row;                      // row[c]: the equation whose first 1 is in column c; the row for c = n is 0 = 1
+    vector<int> pos;                             // position of row[c] (1-based), 0 if empty
+    PrefixGauss(int n) : n(n), row(n + 1), pos(n + 1, 0) {}
+
+    void add(bitset<MX> v, int b, int p) {       // add the p-th equation; needs MX > n
+        v[n] = b;
+        while (v.any()) {
+            int c = v._Find_first();
+            if (!pos[c]) { row[c] = v; pos[c] = p; return; }
+            if (pos[c] < p) { swap(row[c], v); swap(pos[c], p); }
+            v ^= row[c];
+        }
+    }
+    bool bad(int l) const { return pos[n] >= l; }  // are equations l..current contradictory (l is 1-based)
+    int rank(int l) const {                      // rank of equations l..current
+        int r = 0;
+        for (int c = 0; c < n; c++) r += pos[c] >= l;
+        return r;
+    }
+    int implied(bitset<MX> v, int l) const {     // using only equations l..current: the implied RHS, or -1 if not implied
+        v[n] = 0;
+        for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
+            if (pos[c] < l) return -1;
+            v ^= row[c];
+        }
+        return v[n];
+    }
+    IncGauss at(int l) const {                   // equations l..current as an IncGauss, to solve them
+        IncGauss g(n);
+        for (int c = 0; c <= n; c++)
+            if (pos[c] >= l) {
+                bitset<MX> w = row[c];
+                int b = w[n];
+                w[n] = 0;
+                g.add(w, b);
+            }
+        return g;
+    }
+};
 ```
 
-Unknown $j$ is bit $j$ of the bitset. When `bad` is true the system has no solution and `solve()` and `kernel()` mean nothing; otherwise there are $2^{n - \text{rank}}$ solutions, which is [L1 linear algebra](/algo/l1-linear-algebra/) section 4.5's picture: all solutions are the null space translated by one solution.
+Unknown $j$ is bit $j$ of the bitset. `PrefixGauss` is the swap insertion of 5.3 with bitset rows and the lowest 1 as the pivot; the RHS is column $n$ and is eliminated too, so the row `0 = 1` keeps the rightmost position $q$, and equations $l$ through the current one contradict each other exactly when $l \le q$, which is all `bad(l)` checks. When `bad` is true the system has no solution and `solve()` and `kernel()` mean nothing; otherwise there are $2^{n - \text{rank}}$ solutions, which is [L1 linear algebra](/algo/l1-linear-algebra/) section 4.5's picture: all solutions are the null space translated by one solution.
 
 **Which one: if the problem asks what XORs of subsets of some numbers can give, use the XOR basis; if it asks to solve equations, detect contradictions, or has more than 60 unknowns, use incremental Gauss.**
