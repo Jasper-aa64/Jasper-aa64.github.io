@@ -563,19 +563,19 @@ int main() {
 | --- | --- | --- |
 | 一行是什么 | 一个数，没有右端 | 一条方程：系数 bitset + 右端 |
 | 按什么存 | `b[i]` 就是主元在第 $i$ 位的那一行 | 每行记它的主元列 `piv` |
-| 加一个数 / 一条方程 | `insert`，不清旧行，$O(60)$ | `add`，清旧行，始终是简化行阶梯形，$O(r \cdot \text{MAX\_VARS} / 64)$ |
-| 能否表示出来 | `contains`，$O(60)$ | `implied`，还给出推出的右端，$O(r \cdot \text{MAX\_VARS} / 64)$ |
+| 加一个数 / 一条方程 | `insert`，不清旧行，$O(60)$ | `add`，清旧行，始终是简化行阶梯形，$O(r \cdot \text{MV} / 64)$ |
+| 能否表示出来 | `contains`，$O(60)$ | `implied`，还给出推出的右端，$O(r \cdot \text{MV} / 64)$ |
 | 秩 | `r`，$O(1)$ | `rank()`，$O(1)$ |
 | 规范化 | `reduce()`，要用时再调，$O(60^2)$ | 一直是规范的，不用额外做 |
-| 最大 / 最小异或 | `max_xor` / `min_xor`，$O(60)$ | `max_xor` / `min_xor`，$O(r \cdot \text{MAX\_VARS} / 64)$ |
-| 第 $k$ 小 / 求排名 | `kth` / `index`，$O(60)$，之前要 `reduce()` 一次 | `kth` $O(r \log r + r \cdot \text{MAX\_VARS} / 64)$ / `index` $O(r \log r)$，不用先规范化 |
-| 合并 | `merge`，$O(60^2)$ | `merge`，另一组的 $r'$ 行逐条 `add`，$O(r' \cdot r \cdot \text{MAX\_VARS} / 64)$ |
-| 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | `PrefixGauss`：`add`、`implied`、`max_xor` $O(n \cdot \text{MAX\_VARS} / 64)$，`bad` $O(1)$，`rank` $O(n)$，`at` $O(n \cdot r \cdot \text{MAX\_VARS} / 64)$ |
+| 最大 / 最小异或 | `max_xor` / `min_xor`，$O(60)$ | `max_xor` / `min_xor`，$O(r \cdot \text{MV} / 64)$ |
+| 第 $k$ 小 / 求排名 | `kth` / `index`，$O(60)$，之前要 `reduce()` 一次 | `kth` $O(r \log r + r \cdot \text{MV} / 64)$ / `index` $O(r \log r)$，不用先规范化 |
+| 合并 | `merge`，$O(60^2)$ | `merge`，另一组的 $r'$ 行逐条 `add`，$O(r' \cdot r \cdot \text{MV} / 64)$ |
+| 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | `PrefixGauss`：`add`、`implied`、`max_xor` $O(n \cdot \text{MV} / 64)$，`bad` $O(1)$，`rank` $O(n)$，`at` $O(n \cdot r \cdot \text{MV} / 64)$ |
 | 消成 0 时 | 插入失败，这个数能被异或出来 | 看右端：是 0 就能由已有方程推出（返回 0），非 0 就矛盾（返回 $-1$，`bad` 记下） |
-| 一组解 / 全部解 | 没有 | `solve()` $O(r + \text{MAX\_VARS} / 64)$ / `kernel()` $O((n - r)(r + \text{MAX\_VARS} / 64))$ |
-| 列数 | 不超过 60 | 不超过 `MAX_VARS`，几千也行 |
+| 一组解 / 全部解 | 没有 | `solve()` $O(r + \text{MV} / 64)$ / `kernel()` $O((n - r)(r + \text{MV} / 64))$ |
+| 列数 | 不超过 60 | 不超过 `MV`，几千也行 |
 
-表里 $r$ 是当前的秩，$n$ 是未知数个数；`MAX_VARS / 64` 是一行 bitset 占的机器字数，一次 bitset 异或就是这么多次整数异或。线性基的 60 也可以看成“秩不超过 60、一行一个字”，所以两边的复杂度是同一个式子：$\text{MAX\_VARS} = 64$ 时，增量高斯的 $O(r \cdot \text{MAX\_VARS}/64)$ 就是 $O(r)$，而 $r \le 60$。
+表里 $r$ 是当前的秩，$n$ 是未知数个数；`MV / 64` 是一行 bitset 占的机器字数，一次 bitset 异或就是这么多次整数异或。线性基的 60 也可以看成“秩不超过 60、一行一个字”，所以两边的复杂度是同一个式子：$\text{MV} = 64$ 时，增量高斯的 $O(r \cdot \text{MV}/64)$ 就是 $O(r)$，而 $r \le 60$。
 
 所以“这个数能不能被异或出来”和“这条方程是不是多余的”是同一个问题；带上右端，就多了“矛盾”这一种结局。
 
@@ -677,22 +677,22 @@ struct PrefixBasis {
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MAX_VARS = 1024;                       // 未知数个数的上限；bitset 的长度要在编译时定下，所以是常量
+const int MV = 1024;                             // MV = max variables，未知数个数的上限；bitset 的长度要在编译时定下，所以是常量
 
 // 增量高斯（模 2）：一条一条加方程，始终保持简化行阶梯形
 struct IncGauss {
     int n;                                       // 未知数个数
-    vector<bitset<MAX_VARS>> row;
+    vector<bitset<MV>> row;
     vector<int> rhs, piv;                        // 每行的右端、主元列；右端可以把若干位打包一起异或
     bool bad = false;                            // 出现过矛盾
     IncGauss(int n) : n(n) {}
 
     // 解方程
-    void eliminate(bitset<MAX_VARS>& v, int& b) const {  // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
+    void eliminate(bitset<MV>& v, int& b) const {        // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
         for (int i = 0; i < (int)row.size(); i++)
             if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
     }
-    int add(bitset<MAX_VARS> v, int b) {         // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+    int add(bitset<MV> v, int b) {               // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
         eliminate(v, b);
         int p = v._Find_first();
         if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
@@ -702,23 +702,23 @@ struct IncGauss {
         return 1;
     }
     int rank() const { return row.size(); }
-    int implied(bitset<MAX_VARS> v) const {      // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
+    int implied(bitset<MV> v) const {            // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
         int b = 0;
         eliminate(v, b);
         return v.none() ? b : -1;
     }
-    bitset<MAX_VARS> solve() const {             // !bad 时的一组解：自由元取 0，主元等于右端
-        bitset<MAX_VARS> x;
+    bitset<MV> solve() const {                   // !bad 时的一组解：自由元取 0，主元等于右端
+        bitset<MV> x;
         for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
         return x;
     }
-    vector<bitset<MAX_VARS>> kernel() const {    // 齐次方程组解空间的基，n - rank() 个
+    vector<bitset<MV>> kernel() const {          // 齐次方程组解空间的基，n - rank() 个
         vector<int> isp(n, -1);
         for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-        vector<bitset<MAX_VARS>> ks;
+        vector<bitset<MV>> ks;
         for (int f = 0; f < n; f++) {
             if (isp[f] >= 0) continue;
-            bitset<MAX_VARS> x;
+            bitset<MV> x;
             x[f] = 1;                            // 这个自由元取 1，其余自由元取 0
             for (int i = 0; i < (int)row.size(); i++)
                 if (row[i][f]) x[piv[i]] = 1;
@@ -731,21 +731,21 @@ struct IncGauss {
     }
 
     // 和线性基对应的操作：只看左边（行空间），不管右端；比大小时第 0 列是最高位
-    bitset<MAX_VARS> max_xor(bitset<MAX_VARS> v) const;  // v 异或上任意几行的最大值
-    bitset<MAX_VARS> min_xor(bitset<MAX_VARS> v) const;  // v 异或上任意几行的最小值
-    bitset<MAX_VARS> kth(unsigned long long k) const;  // 行空间里第 k 小（从 0 数，第 0 个是全 0），要求 k < 2^rank()
-    unsigned long long index(const bitset<MAX_VARS>& x) const;  // x 在行空间里时，它是第几小（从 0 数）
+    bitset<MV> max_xor(bitset<MV> v) const;      // v 异或上任意几行的最大值
+    bitset<MV> min_xor(bitset<MV> v) const;      // v 异或上任意几行的最小值
+    bitset<MV> kth(unsigned long long k) const;  // 行空间里第 k 小（从 0 数，第 0 个是全 0），要求 k < 2^rank()
+    unsigned long long index(const bitset<MV>& x) const;        // x 在行空间里时，它是第几小（从 0 数）
     vector<int> low_to_high() const;             // 行号按主元从低位到高位排（主元列从大到小）
 };
 
 // 前缀增量高斯（模 2）：方程从左往右加，每个主元列留位置最靠右的那条；右端当作第 n 列一起消
 struct PrefixGauss {
     int n;
-    vector<bitset<MAX_VARS>> row;                // row[c]：第一个 1 在第 c 列的方程，c = n 那行是 0 = 1
+    vector<bitset<MV>> row;                      // row[c]：第一个 1 在第 c 列的方程，c = n 那行是 0 = 1
     vector<int> pos;                             // row[c] 的位置（从 1 数），0 表示空
     PrefixGauss(int n) : n(n), row(n + 1), pos(n + 1, 0) {}
 
-    void add(bitset<MAX_VARS> v, int b, int p) {  // 加入第 p 条方程，要求 MAX_VARS > n
+    void add(bitset<MV> v, int b, int p) {       // 加入第 p 条方程，要求 MV > n
         v[n] = b;
         while (v.any()) {
             int c = v._Find_first();
@@ -760,7 +760,7 @@ struct PrefixGauss {
         for (int c = 0; c < n; c++) r += pos[c] >= l;
         return r;
     }
-    int implied(bitset<MAX_VARS> v, int l) const {  // 只用第 l 条到当前这条：能推出就返回右端，不能返回 -1
+    int implied(bitset<MV> v, int l) const {     // 只用第 l 条到当前这条：能推出就返回右端，不能返回 -1
         v[n] = 0;
         for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
             if (pos[c] < l) return -1;
@@ -768,12 +768,12 @@ struct PrefixGauss {
         }
         return v[n];
     }
-    bitset<MAX_VARS> max_xor(bitset<MAX_VARS> v, int l) const;  // 只用第 l 条到当前这条的左边，v 异或上它们的最大值
+    bitset<MV> max_xor(bitset<MV> v, int l) const;              // 只用第 l 条到当前这条的左边，v 异或上它们的最大值
     IncGauss at(int l) const {                   // 第 l 条到当前这条方程，交给 IncGauss
         IncGauss g(n);
         for (int c = 0; c <= n; c++)
             if (pos[c] >= l) {
-                bitset<MAX_VARS> w = row[c];
+                bitset<MV> w = row[c];
                 int b = w[n];
                 w[n] = 0;
                 g.add(w, b);
@@ -794,13 +794,13 @@ struct PrefixGauss {
 ```cpp
 // 简化行阶梯形里每个主元列只有自己那行是 1，所以结果在主元列上的值就是“那行选没选”，
 // 而两种选法的结果第一次不同一定落在某个主元列上：贪心只要决定每个主元列是 0 还是 1
-bitset<MAX_VARS> IncGauss::max_xor(bitset<MAX_VARS> v) const {
+bitset<MV> IncGauss::max_xor(bitset<MV> v) const {
     for (int i = 0; i < (int)row.size(); i++)
         if (!v[piv[i]]) v ^= row[i];
     return v;
 }
 
-bitset<MAX_VARS> IncGauss::min_xor(bitset<MAX_VARS> v) const {
+bitset<MV> IncGauss::min_xor(bitset<MV> v) const {
     for (int i = 0; i < (int)row.size(); i++)
         if (v[piv[i]]) v ^= row[i];
     return v;
@@ -813,15 +813,15 @@ vector<int> IncGauss::low_to_high() const {
     return id;
 }
 
-bitset<MAX_VARS> IncGauss::kth(unsigned long long k) const {  // k 的第 t 位：选不选从低位数第 t 个主元的那行
-    bitset<MAX_VARS> v;
+bitset<MV> IncGauss::kth(unsigned long long k) const {        // k 的第 t 位：选不选从低位数第 t 个主元的那行
+    bitset<MV> v;
     vector<int> id = low_to_high();
     for (int t = 0; t < (int)id.size() && t < 64; t++)
         if (k >> t & 1) v ^= row[id[t]];
     return v;
 }
 
-unsigned long long IncGauss::index(const bitset<MAX_VARS>& x) const {
+unsigned long long IncGauss::index(const bitset<MV>& x) const {
     unsigned long long k = 0;
     vector<int> id = low_to_high();
     for (int t = 0; t < (int)id.size() && t < 64; t++)
@@ -829,7 +829,7 @@ unsigned long long IncGauss::index(const bitset<MAX_VARS>& x) const {
     return k;
 }
 
-bitset<MAX_VARS> PrefixGauss::max_xor(bitset<MAX_VARS> v, int l) const {  // 行阶梯形：row[c] 只改第 c 列及以后，从高位往低位贪心
+bitset<MV> PrefixGauss::max_xor(bitset<MV> v, int l) const {              // 行阶梯形：row[c] 只改第 c 列及以后，从高位往低位贪心
     for (int c = 0; c < n; c++)
         if (pos[c] >= l && !v[c]) v ^= row[c];
     v[n] = 0;                                    // 第 n 列是右端，不算
