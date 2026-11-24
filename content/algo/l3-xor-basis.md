@@ -653,11 +653,45 @@ struct PrefixBasis {
 
 ### 5.2 2026 ICPC Online Contest II A (All Closed): What Every Solution Must Contain
 
-[QOJ 4113](https://qoj.ac/contest/4113)
+[QOJ 20236](https://qoj.ac/contest/4113/problem/20236), 2026 ICPC Online Contest II A, time limit 1 s
 
 1. **Statement**
 
-   There are $n$ nonempty sets $S_1, \dots, S_n$ with elements in $[0, 2^m)$, $m \le 20$. One operation picks a number $x$ and adds it to all sets at once. Using as few operations as possible, make every set closed under XOR, and output the numbers added.
+   You are given $n$ sets $S_1, \dots, S_n$, each holding distinct integers in $[0, 2^m)$. One operation picks an integer $x$ ($0 \le x < 2^m$) and inserts it into every set (where it is not already present). A set $S$ is XOR-closed if $x \oplus y \in S$ for all $x, y \in S$. Find the minimum number of operations that makes every $S_i$ XOR-closed, and give one way to do it.
+
+   - **Input**: the first line holds $n$ ($1 \le n \le 2 \cdot 10^5$) and $m$ ($1 \le m \le 20$); the $i$-th of the next $n$ lines holds $c_i$ ($c_i \ge 1$) followed by $c_i$ distinct integers $a_{i,1}, \dots, a_{i,c_i}$ ($0 \le a_{i,j} < 2^m$), the elements of $S_i$; $\sum c_i \le 10^6$.
+   - **Output**: the minimum number of operations $k$ on the first line, and on the second the $k$ chosen values of $x$ in order; any optimal solution is accepted.
+
+   **Sample 1 input**
+
+   ```text
+   3 3
+   1 1
+   3 0 1 7
+   6 1 2 3 4 5 7
+   ```
+
+   **Sample 1 output**
+
+   ```text
+   3
+   0 7 6
+   ```
+
+   **Sample 2 input**
+
+   ```text
+   1 4
+   4 11 5 14 0
+   ```
+
+   **Sample 2 output**
+
+   ```text
+   0
+   ```
+
+   The statement's note: after the operations in sample 1, $S_1$ and $S_2$ become $\{0, 1, 6, 7\}$ and $S_3$ becomes $\{0, 1, \dots, 7\}$; fewer than 3 operations cannot work. In sample 2 the only set is already closed, so no operation is needed.
 2. **Idea**
    1. **From "fewest operations" to "smallest space"**: a nonempty set closed under XOR contains $a \oplus a = 0$, so it is a space. Let the added numbers form $T$; the common part of all final sets
 
@@ -690,14 +724,16 @@ struct PrefixBasis {
    }
 
    int main() {
-       scanf("%d %d", &n, &m);
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       cin >> n >> m;
        vector<vector<int>> s(n);
        vector<int> cnt(1 << m, 0);            // cnt[x]: how many sets contain x
        for (auto& si : s) {
            int k;
-           scanf("%d", &k);
+           cin >> k;
            si.resize(k);
-           for (int& x : si) { scanf("%d", &x); cnt[x]++; }
+           for (int& x : si) { cin >> x; cnt[x]++; }
        }
        XorBasis kb;                           // basis of K, starting from span(I)
        for (int x = 0; x < (1 << m); x++)
@@ -727,13 +763,13 @@ struct PrefixBasis {
        for (int x : expand(kb))
            if (cnt[x] < n) ans.push_back(x);
        sort(ans.begin(), ans.end());
-       printf("%d\n", (int)ans.size());
-       for (int x : ans) printf("%d ", x);
-       printf("\n");
+       cout << ans.size() << '\n';
+       for (int x : ans) cout << x << ' ';
+       cout << '\n';
    }
    ```
 
-3. **Cost and key point**
+3. **Cost and pitfalls**
    - **Cost**: at most $m$ rounds; checking all sets in one round is $O(m \sum \lvert S_i \rvert)$, plus $O(2^m)$ for the listing.
    - **To find the smallest valid solution, start from what every valid solution must contain**: keep adding forced numbers until the solution is valid; where it stops is the smallest.
 

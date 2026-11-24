@@ -653,11 +653,45 @@ struct PrefixBasis {
 
 ### 5.2 2026 ICPC 网络赛第二场 A（All Closed）：所有解都必须包含的数
 
-[QOJ 4113](https://qoj.ac/contest/4113)
+[QOJ 20236](https://qoj.ac/contest/4113/problem/20236)，2026 ICPC 网络赛第二场 A，时限 1 秒
 
 1. **题面**
 
-   有 $n$ 个非空集合 $S_1, \dots, S_n$，元素都在 $[0, 2^m)$ 里，$m \le 20$。一次操作选一个数 $x$，把它同时加进所有集合。用最少的操作让每个集合都对异或封闭，输出要加的那些数。
+   给 $n$ 个集合 $S_1, \dots, S_n$，每个集合里是互不相同的整数，都在 $[0, 2^m)$ 里。一次操作选一个整数 $x$（$0 \le x < 2^m$），把它加进每个集合（已经有的就不加）。集合 $S$ 叫异或封闭，是指对任意 $x, y \in S$ 都有 $x \oplus y \in S$。求让所有 $S_i$ 都异或封闭的最少操作次数，并给出一种做法。
+
+   - **输入**：第一行 $n$（$1 \le n \le 2 \cdot 10^5$）和 $m$（$1 \le m \le 20$）；接下来第 $i$ 行先是 $c_i$（$c_i \ge 1$），再是 $c_i$ 个互不相同的整数 $a_{i,1}, \dots, a_{i,c_i}$（$0 \le a_{i,j} < 2^m$），表示 $S_i$；保证 $\sum c_i \le 10^6$。
+   - **输出**：第一行最少操作次数 $k$，第二行 $k$ 个整数，依次是每次选的 $x$；有多种最优解时输出任意一种。
+
+   **样例 1 输入**
+
+   ```text
+   3 3
+   1 1
+   3 0 1 7
+   6 1 2 3 4 5 7
+   ```
+
+   **样例 1 输出**
+
+   ```text
+   3
+   0 7 6
+   ```
+
+   **样例 2 输入**
+
+   ```text
+   1 4
+   4 11 5 14 0
+   ```
+
+   **样例 2 输出**
+
+   ```text
+   0
+   ```
+
+   题面的样例说明：样例 1 操作之后 $S_1, S_2$ 变成 $\{0, 1, 6, 7\}$，$S_3$ 变成 $\{0, 1, \dots, 7\}$，少于 3 次做不到。样例 2 唯一的集合本来就封闭，不用操作。
 2. **思路**
    1. **把“最少操作”换成“最小的空间”**：对异或封闭的非空集合包含 $a \oplus a = 0$，所以就是空间。设加进去的数组成集合 $T$，所有最终集合的公共部分
 
@@ -690,14 +724,16 @@ struct PrefixBasis {
    }
 
    int main() {
-       scanf("%d %d", &n, &m);
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       cin >> n >> m;
        vector<vector<int>> s(n);
        vector<int> cnt(1 << m, 0);            // cnt[x]：x 在几个集合里
        for (auto& si : s) {
            int k;
-           scanf("%d", &k);
+           cin >> k;
            si.resize(k);
-           for (int& x : si) { scanf("%d", &x); cnt[x]++; }
+           for (int& x : si) { cin >> x; cnt[x]++; }
        }
        XorBasis kb;                           // K 的基，从 span(I) 开始
        for (int x = 0; x < (1 << m); x++)
@@ -727,13 +763,13 @@ struct PrefixBasis {
        for (int x : expand(kb))
            if (cnt[x] < n) ans.push_back(x);
        sort(ans.begin(), ans.end());
-       printf("%d\n", (int)ans.size());
-       for (int x : ans) printf("%d ", x);
-       printf("\n");
+       cout << ans.size() << '\n';
+       for (int x : ans) cout << x << ' ';
+       cout << '\n';
    }
    ```
 
-3. **复杂度和要点**
+3. **复杂度和坑**
    - **复杂度**：至多 $m$ 轮，每轮检查所有集合是 $O(m \sum \lvert S_i \rvert)$，再加 $O(2^m)$ 的列举。
    - **求最小的合法解，从“每个合法解都必须包含什么”出发**：一直加必须包含的数，加到合法为止，停下时就是最小解。
 
