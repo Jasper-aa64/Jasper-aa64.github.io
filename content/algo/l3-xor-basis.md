@@ -48,15 +48,33 @@ Stack the $n$ numbers into an $n \times 60$ 0/1 matrix, and insertion is Gaussia
 
 ### 1.3 Counting: $2^r$ Values, $2^{n-r}$ Subsets Each
 
-Each of the $r$ basis numbers is either chosen or not, giving $2^r$ XOR values, and they are pairwise distinct. If two different choices gave the same value, XORing the two results would give 0, and that is the XOR of the symmetric difference of the two choices; the symmetric difference is nonempty, contradicting independence. The basis also reaches every value in the space, so **any-subset XORs take exactly $2^r$ distinct values, including the 0 of the empty set**.
+**$n$ numbers have $2^n$ subsets; their XORs take only $2^r$ distinct values, and every value is reached by exactly $2^{n-r}$ subsets.**
 
-$n$ numbers have $2^n$ subsets, spread over $2^r$ distinct values, so on average each value gets $2^{n-r}$ of them. In fact every value gets exactly that many.
-
-The $r$ original numbers whose insertion succeeded form a basis (each cannot be expressed by the successes before it, so they are independent; every failed number can be expressed by them). To reach a value $v$: choose any subset of the $n - r$ failed numbers, with XOR $u$; the successful basis has exactly one choice reaching $v \oplus u$ (representation in a basis is unique, see the previous paragraph), and together they give $v$. The failed numbers can be chosen freely and each choice has exactly one completion, $2^{n-r}$ in total.
-
-In linear-algebra terms: write a choice as $x \in \{0, 1\}^n$; the XOR $f(x) = x_1 a_1 \oplus \cdots \oplus x_n a_n$ is a linear map whose image has dimension $r$, so by rank–nullity the kernel (choices reaching 0) has dimension $n - r$; the choices reaching $v$ are a shifted copy of the kernel, the same size.
-
-**Every reachable value is reached by exactly $2^{n-r}$ subsets; the number of nonempty subsets with XOR 0 is $2^{n-r} - 1$.** When a problem asks about "the XORs of all $2^n$ subsets, sorted", first view it as $2^r$ distinct values, each repeated $2^{n-r}$ times.
+1. **Walk through $a = (6, 3, 5)$ first**
+   - **The rank after insertion is 2**: in binary `110`, `011`, `101`. 6 goes into `b[2]`, 3 into `b[1]`; 5 XORs with 6 to get `011`, then with 3 to get 0, so its insertion fails. So $r = 2$ and $n - r = 1$.
+   - **The 8 subsets give only 4 values**: grouped by XOR as follows.
+     - **XOR 0**: $\{\}$, $\{6, 3, 5\}$.
+     - **XOR 3**: $\{3\}$, $\{6, 5\}$.
+     - **XOR 5**: $\{5\}$, $\{6, 3\}$.
+     - **XOR 6**: $\{6\}$, $\{3, 5\}$.
+   - **Every value gets exactly 2 subsets**: 4 values is $2^r$, 2 each is $2^{n-r}$, and no value gets more than another.
+2. **Why there are exactly $2^r$ distinct values**
+   - **The $2^r$ choices from the basis give $2^r$ results**: each of the $r$ basis numbers is chosen or not.
+   - **These results are pairwise distinct**: if two different choices gave the same value, XORing the two results would give 0, which is exactly the XOR of the symmetric difference of the two choices; the symmetric difference is nonempty, contradicting independence.
+   - **Every value in the space comes from the basis**: so there are exactly $2^r$ distinct values, including the 0 of the empty set.
+   - **Example**: the basis is 6 and 3, and its four choices give 0, 6, 3, 5.
+3. **Why every value gets exactly $2^{n-r}$ subsets**
+   - **An average does not show every value gets the same**: $2^n$ subsets over $2^r$ values average $2^{n-r}$ each; the split still has to be shown to be even.
+   - **Split the $n$ numbers into successes and failures**: the $r$ original numbers whose insertion succeeded form a basis (each cannot be expressed by the successes before it, so they are independent); each of the $n - r$ whose insertion failed is reachable from that basis.
+   - **The failed part can be chosen freely**: to reach a reachable value $v$, first choose any subset of the $n - r$ failed numbers, $2^{n-r}$ ways, and call the XOR of this part $u$.
+   - **The successful part has only one completion**: the remaining $v \oplus u$ is also in the space, and representation in a basis is unique, so exactly 1 choice makes it up.
+   - **Subsets reaching $v$ correspond one to one with choices on the failed part**: so there are exactly $2^{n-r}$ of them, whatever $v$ is.
+   - **Example**: the failed number is 5. To reach 6: without 5, take 6 from the basis, giving $\{6\}$; with 5, the rest must be $6 \oplus 5 = 3$, so take 3, giving $\{3, 5\}$.
+   - **In linear algebra this is rank–nullity**: write a choice as $x \in \{0, 1\}^n$; the XOR $f(x) = x_1 a_1 \oplus \cdots \oplus x_n a_n$ is a linear map whose image has dimension $r$, so the kernel (choices reaching 0) has dimension $n - r$; the choices reaching $v$ are the kernel shifted as a whole, the same size.
+4. **How problems use this result**
+   - **Counting subsets with XOR $t$**: $2^{n-r}$ if $t$ is reachable (`contains(t)`), otherwise 0. Code in 2.2.
+   - **Counting nonempty subsets with XOR 0**: 0 is always reachable, by $2^{n-r}$ subsets; removing the empty set leaves $2^{n-r} - 1$.
+   - **Sorting the XORs of all $2^n$ subsets**: with repeats, view them as $2^r$ distinct values, each repeated $2^{n-r}$ times in a row. See the end of 2.5.
 
 ### 1.4 Reduction: Each Pivot Bit in One Number, and Values Sort Like the Choice in Binary
 
