@@ -386,31 +386,65 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // 异
    - **复杂度**：$n$ 次插入，$O(60 n)$。
    - **先判 $S_n = 0$**：哪怕别的前缀异或的秩很大，$S_n = 0$ 也是无解，因为所有段合起来异或就是 0。
 
-### 3.2 带权选数：按权从大到小插
+### 3.2 每个数带权，按权从大到小插：洛谷 P4570
 
-**按权值从大到小插入，插入成功的就选上，选出的就是权值和最大的线性无关组。**
+[洛谷 P4570 [BJWC2011] 元素](https://www.luogu.com.cn/problem/P4570)，时限 1 秒
 
-1. **为什么贪心对**
-   - **线性无关组有交换性质**：小的一组总能从大的一组里借一个数扩充。
-   - **贪心选出的第 $t$ 个，不比任何一组的第 $t$ 个轻**：两组都按权值从大到小排，贪心的是 $g_1, \dots, g_r$，任取的一组是 $o_1, \dots, o_m$（$m \le r$）。假如 $w(o_t) > w(g_t)$：$o_1, \dots, o_t$ 线性无关，而 $g_1, \dots, g_{t-1}$ 只张成 $t - 1$ 维，所以有个 $o_j$（$j \le t$）不能被它们表示；它比 $g_t$ 重，贪心先处理过它，当时它应该插入成功，矛盾。逐项不小，加起来就是最优。
-   - **下一节还会用到这个结论**：权值换成位置。
+1. **题面**
 
-#### 复杂度
+   有 $N$ 种矿石，第 $i$ 种有元素序号 $\mathit{Number}_i$ 和魔力值 $\mathit{Magic}_i$。从中选一些矿石炼一根法杖，每种最多用一块。如果选中的矿石里存在一个非空子集，它们的元素序号异或起来为 0，就会发生“魔法抵消”，炼不出法杖。法杖的魔力是选中矿石的魔力值之和，求能炼出的法杖的最大魔力。
 
-排序 $O(n \log n)$，插入 $O(60 n)$。
+   - **输入**：第一行 $N$（$1 \le N \le 1000$），接下来 $N$ 行每行两个正整数 $\mathit{Number}_i$、$\mathit{Magic}_i$（$1 \le \mathit{Number}_i \le 10^{18}$，$1 \le \mathit{Magic}_i \le 10^4$）。
+   - **输出**：一个整数，最大魔力值。
 
-```cpp
-// items：(数, 权值)，权值非负。返回线性无关组的最大权值和
-long long max_weight(vector<pair<long long, long long>> items) {
-    sort(items.begin(), items.end(),
-         [](const auto& p, const auto& q) { return p.second > q.second; });
-    XorBasis lb;
-    long long sum = 0;
-    for (auto [x, w] : items)
-        if (lb.insert(x)) sum += w;
-    return sum;
-}
-```
+   **样例 1 输入**
+
+   ```text
+   3
+   1 10
+   2 20
+   3 30
+   ```
+
+   **样例 1 输出**
+
+   ```text
+   50
+   ```
+
+   题面的样例说明：三种都用时 $1 \oplus 2 \oplus 3 = 0$，会发生魔法抵消；最优是选后两种，$20 + 30 = 50$。
+2. **思路**
+   1. **不会魔法抵消，就是选出的元素序号线性无关**：“没有非空子集异或为 0”正是线性无关的定义（1.1）。问题变成：从 $N$ 个数里挑一组线性无关的，让它们的权（魔力值）之和最大。
+   2. **按权从大到小插进线性基，插入成功的就选上**：插入成功说明它和已经选上的数线性无关，选出的始终是一组线性无关的数。比如样例按魔力 30、20、10 依次插 3、2、1：3 和 2 成功，1 = 3 ⊕ 2 失败，答案 $30 + 20 = 50$。
+   3. **贪心选出的第 $t$ 个，不比任何一组线性无关的数的第 $t$ 个轻**：两组都按权从大到小排，贪心的是 $g_1, \dots, g_r$，任取的一组是 $o_1, \dots, o_m$，$m \le r$。假如 $w(o_t) > w(g_t)$：$o_1, \dots, o_t$ 线性无关，张成 $t$ 维，而 $g_1, \dots, g_{t-1}$ 只张成 $t - 1$ 维，所以有某个 $o_j$（$j \le t$）不能被 $g_1, \dots, g_{t-1}$ 表示。它比 $g_t$ 重，贪心在插 $g_t$ 之前处理过它，那时基里只有比它重的 $g$，插它应该成功，矛盾。逐项都不轻，加起来就是最大。3.3 会再用这个结论，把权换成位置。
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // 套附录的 XorBasis（用到 insert）
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int n;
+       cin >> n;
+       vector<pair<long long, long long>> items(n);   // (元素序号, 魔力值)
+       for (auto& [x, w] : items) cin >> x >> w;
+       sort(items.begin(), items.end(),
+            [](const auto& p, const auto& q) { return p.second > q.second; });
+       XorBasis lb;
+       long long sum = 0;
+       for (auto [x, w] : items)
+           if (lb.insert(x)) sum += w;                // 插入成功：和已选的线性无关
+       cout << sum << '\n';
+   }
+   ```
+
+3. **复杂度和坑**
+   - **复杂度**：排序 $O(N \log N)$，插入 $O(60 N)$。
+   - **要先按权排序再插**：按输入顺序插，样例会先插进 1 和 2，3 插入失败，只得到 $10 + 20 = 30$。
+   - **元素序号到 $10^{18}$**：用 `long long`，$10^{18} < 2^{60}$，附录的线性基开 60 位够用。
 
 ### 3.3 只许用区间里的数：前缀线性基，每个主元位留最靠右的
 

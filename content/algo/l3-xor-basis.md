@@ -386,31 +386,65 @@ When a statement asks for the "$k$-th smallest", first decide what it ranks: dis
    - **Cost**: $n$ insertions, $O(60 n)$.
    - **Check $S_n = 0$ first**: however large the rank of the other prefix XORs, $S_n = 0$ means no solution, because all segments together XOR to 0.
 
-### 3.2 Weighted Choice: Insert by Decreasing Weight
+### 3.2 Each Number Has a Weight, Insert by Decreasing Weight: Luogu P4570
 
-**Insert by decreasing weight and keep each number whose insertion succeeds; the kept numbers are an independent set of maximum total weight.**
+[Luogu P4570 [BJWC2011] 元素 (Element)](https://www.luogu.com.cn/problem/P4570), time limit 1 s
 
-1. **Why the greedy works**
-   - **Independent sets have the exchange property**: a smaller one can always borrow a number from a larger one to grow.
-   - **The greedy's $t$-th number is never lighter than any set's $t$-th**: sort both by decreasing weight, the greedy as $g_1, \dots, g_r$ and any independent set as $o_1, \dots, o_m$ ($m \le r$). Suppose $w(o_t) > w(g_t)$: $o_1, \dots, o_t$ are independent while $g_1, \dots, g_{t-1}$ span only $t - 1$ dimensions, so some $o_j$ ($j \le t$) is not expressible by them; it is heavier than $g_t$, so the greedy handled it earlier and it should have been inserted, a contradiction. Not smaller term by term means optimal in total.
-   - **The next section reuses this**: with position as the weight.
+1. **Statement**
 
-#### Cost
+   There are $N$ kinds of ore; kind $i$ has an element number $\mathit{Number}_i$ and a magic value $\mathit{Magic}_i$. Choose some ores to forge a staff, at most one piece of each kind. If the chosen ores contain a nonempty subset whose element numbers XOR to 0, "magic cancellation" happens and no staff can be made. The staff's magic is the sum of the chosen ores' magic values; find the largest magic a staff can have.
 
-Sorting is $O(n \log n)$ and the inserts $O(60 n)$.
+   - **Input**: the first line holds $N$ ($1 \le N \le 1000$); each of the next $N$ lines holds two positive integers $\mathit{Number}_i$ and $\mathit{Magic}_i$ ($1 \le \mathit{Number}_i \le 10^{18}$, $1 \le \mathit{Magic}_i \le 10^4$).
+   - **Output**: one integer, the largest magic.
 
-```cpp
-// items: (number, weight), weights nonnegative. Returns the max total weight of an independent set
-long long max_weight(vector<pair<long long, long long>> items) {
-    sort(items.begin(), items.end(),
-         [](const auto& p, const auto& q) { return p.second > q.second; });
-    XorBasis lb;
-    long long sum = 0;
-    for (auto [x, w] : items)
-        if (lb.insert(x)) sum += w;
-    return sum;
-}
-```
+   **Sample 1 input**
+
+   ```text
+   3
+   1 10
+   2 20
+   3 30
+   ```
+
+   **Sample 1 output**
+
+   ```text
+   50
+   ```
+
+   The statement's note: using all three kinds gives $1 \oplus 2 \oplus 3 = 0$, so the magic cancels; the best choice is the last two kinds, $20 + 30 = 50$.
+2. **Idea**
+   1. **No cancellation means the chosen element numbers are independent**: "no nonempty subset XORs to 0" is exactly the definition of independence (1.1). The task becomes: pick an independent set from $N$ numbers with the largest total weight (magic value).
+   2. **Insert by decreasing weight and keep each number whose insertion succeeds**: a successful insertion means the number is independent of those already kept, so the kept numbers are always an independent set. In the sample, insert 3, 2, 1 in the order of magic 30, 20, 10: 3 and 2 succeed, 1 = 3 ⊕ 2 fails, and the answer is $30 + 20 = 50$.
+   3. **The greedy's $t$-th number is never lighter than the $t$-th of any independent set**: sort both by decreasing weight, the greedy as $g_1, \dots, g_r$ and any independent set as $o_1, \dots, o_m$, $m \le r$. Suppose $w(o_t) > w(g_t)$: $o_1, \dots, o_t$ are independent and span $t$ dimensions while $g_1, \dots, g_{t-1}$ span only $t - 1$, so some $o_j$ ($j \le t$) is not expressible by $g_1, \dots, g_{t-1}$. It is heavier than $g_t$, so the greedy handled it before inserting $g_t$, when the basis held only $g$'s heavier than it; its insertion should have succeeded, a contradiction. Never lighter term by term means the largest total. Section 3.3 reuses this with position as the weight.
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // use the XorBasis from the appendix (insert)
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int n;
+       cin >> n;
+       vector<pair<long long, long long>> items(n);   // (element number, magic value)
+       for (auto& [x, w] : items) cin >> x >> w;
+       sort(items.begin(), items.end(),
+            [](const auto& p, const auto& q) { return p.second > q.second; });
+       XorBasis lb;
+       long long sum = 0;
+       for (auto [x, w] : items)
+           if (lb.insert(x)) sum += w;                // success: independent of those kept
+       cout << sum << '\n';
+   }
+   ```
+
+3. **Cost and pitfalls**
+   - **Cost**: sorting is $O(N \log N)$ and the inserts $O(60 N)$.
+   - **Sort by weight before inserting**: inserting in input order puts 1 and 2 in first, 3 then fails, and the sample gives only $10 + 20 = 30$.
+   - **Element numbers reach $10^{18}$**: use `long long`; $10^{18} < 2^{60}$, so the appendix's 60-bit basis suffices.
 
 ### 3.3 Only Numbers Inside a Range May Be Used: The Prefix Basis, Each Pivot Bit Keeps the Rightmost Number
 
