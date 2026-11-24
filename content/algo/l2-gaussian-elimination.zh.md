@@ -423,11 +423,21 @@ int main() {
 2. 消完系数全 0：右端是 0，说明新方程能由已有方程推出，返回 0；右端非 0，矛盾，返回 $-1$；
 3. 否则取它第一个非零的列作新主元，再用它把已有各行这一列清成 0，保持“每个主元列只有一个 1”，然后加进来，返回 1。
 
-模 2 下一次加入是 $O(\text{秩} \cdot m / 64)$。模 $p$ 下一样，第 3 步先把新行乘主元的逆元。
+#### 复杂度
 
-### 5.2 模板：增量高斯（模 2）
+| 操作 | 复杂度 |
+| --- | --- |
+| `eliminate`、`add`、`implied` | $O(r \cdot \text{MX} / 64)$ |
+| `rank` | $O(1)$ |
+| `solve` | $O(r + \text{MX} / 64)$ |
+| `kernel` | $O((n - r)(r + \text{MX} / 64))$ |
+| `merge` | $O(r' \cdot r \cdot \text{MX} / 64)$，$r'$ 是另一组的秩 |
 
-5.1 写成板子。第 $j$ 个未知数对应 bitset 的第 $j$ 位，`MX` 开到比未知数个数大就行。右端是一个 `int`，几组系数相同的方程组可以把右端按位打包一起消，5.3 就是 30 组一起消。先列接口和每个操作的复杂度，实现在后面。
+$r$ 是当前的秩，$n$ 是未知数个数，$\text{MX} / 64$ 是一行 bitset 占的机器字数，一次整行异或就是这么多次整数异或。依次加 $k$ 条方程，总共 $O(k \cdot r \cdot \text{MX} / 64)$。模 $p$ 下一行是 `vector<long long>`，异或换成减去若干倍，第 3 步先把新行乘主元的逆元，加一条是 $O(r \cdot n + \log p)$。
+
+#### 模板（模 2）
+
+第 $j$ 个未知数对应 bitset 的第 $j$ 位，`MX` 开到比未知数个数大就行。右端是一个 `int`，几组系数相同的方程组可以把右端按位打包一起消，5.2 就是 30 组一起消。
 
 ```cpp
 #include <bits/stdc++.h>
@@ -443,87 +453,61 @@ struct IncGauss {
     bool bad = false;                            // 出现过矛盾
     IncGauss(int n) : n(n) {}
 
-    void eliminate(bitset<MX>& v, int& b) const;   // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
-    int add(bitset<MX> v, int b);                // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+    void eliminate(bitset<MX>& v, int& b) const {  // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
+        for (int i = 0; i < (int)row.size(); i++)
+            if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
+    }
+    int add(bitset<MX> v, int b) {               // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+        eliminate(v, b);
+        int p = v._Find_first();
+        if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
+        for (int i = 0; i < (int)row.size(); i++)
+            if (row[i][p]) row[i] ^= v, rhs[i] ^= b;  // 新主元列在旧行里清成 0
+        row.push_back(v), rhs.push_back(b), piv.push_back(p);
+        return 1;
+    }
     int rank() const { return row.size(); }
-    int implied(bitset<MX> v) const;             // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
-    bitset<MX> solve() const;                    // !bad 时的一组解：自由元取 0，主元等于右端
-    vector<bitset<MX>> kernel() const;           // 齐次方程组解空间的基，n - rank() 个
-    void merge(const IncGauss& o);               // 把另一组的方程逐条加进来
+    int implied(bitset<MX> v) const {            // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
+        int b = 0;
+        eliminate(v, b);
+        return v.none() ? b : -1;
+    }
+    bitset<MX> solve() const {                   // !bad 时的一组解：自由元取 0，主元等于右端
+        bitset<MX> x;
+        for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
+        return x;
+    }
+    vector<bitset<MX>> kernel() const {          // 齐次方程组解空间的基，n - rank() 个
+        vector<int> isp(n, -1);
+        for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
+        vector<bitset<MX>> ks;
+        for (int f = 0; f < n; f++) {
+            if (isp[f] >= 0) continue;
+            bitset<MX> x;
+            x[f] = 1;                            // 这个自由元取 1，其余自由元取 0
+            for (int i = 0; i < (int)row.size(); i++)
+                if (row[i][f]) x[piv[i]] = 1;
+            ks.push_back(x);
+        }
+        return ks;
+    }
+    void merge(const IncGauss& o) {              // 把另一组的方程逐条加进来
+        for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
+    }
 };
 ```
 
-| 操作 | 复杂度 |
-| --- | --- |
-| `eliminate`、`add`、`implied` | $O(r \cdot \text{MX} / 64)$ |
-| `rank` | $O(1)$ |
-| `solve` | $O(r + \text{MX} / 64)$ |
-| `kernel` | $O((n - r)(r + \text{MX} / 64))$ |
-| `merge` | $O(r' \cdot r \cdot \text{MX} / 64)$，$r'$ 是另一组的秩 |
-
-$r$ 是当前的秩，$n$ 是未知数个数，$\text{MX} / 64$ 是一行 bitset 占的机器字数，一次整行异或就是这么多次整数异或。依次加 $k$ 条方程，总共 $O(k \cdot r \cdot \text{MX} / 64)$。
-
 `bad` 为真时方程组无解。否则解有 $2^{n - r}$ 个：`solve()` 给出一个，再异或上 `kernel()` 里任意几个向量，就是 [L1 第 4.5 节](/zh/algo/l1-linear-algebra/)说的“全部解是零空间整体平移一个解”。
 
-```cpp
-void IncGauss::eliminate(bitset<MX>& v, int& b) const {
-    for (int i = 0; i < (int)row.size(); i++)
-        if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
-}
+线性基是这份模板在列数不超过 60、没有右端时的写法；两者逐项对照，以及第 $k$ 小这类线性基常用的操作，在 [L3 线性基](/zh/algo/l3-xor-basis/)的附录。
 
-int IncGauss::add(bitset<MX> v, int b) {
-    eliminate(v, b);
-    int p = v._Find_first();
-    if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
-    for (int i = 0; i < (int)row.size(); i++)
-        if (row[i][p]) row[i] ^= v, rhs[i] ^= b;     // 新主元列在旧行里清成 0
-    row.push_back(v), rhs.push_back(b), piv.push_back(p);
-    return 1;
-}
-
-int IncGauss::implied(bitset<MX> v) const {
-    int b = 0;
-    eliminate(v, b);
-    return v.none() ? b : -1;
-}
-
-bitset<MX> IncGauss::solve() const {
-    bitset<MX> x;
-    for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
-    return x;
-}
-
-vector<bitset<MX>> IncGauss::kernel() const {    // 全部解 = solve() 异或上这些向量的任意子集
-    vector<int> isp(n, -1);
-    for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-    vector<bitset<MX>> ks;
-    for (int f = 0; f < n; f++) {
-        if (isp[f] >= 0) continue;
-        bitset<MX> x;
-        x[f] = 1;                                // 这个自由元取 1，其余自由元取 0
-        for (int i = 0; i < (int)row.size(); i++)
-            if (row[i][f]) x[piv[i]] = 1;
-        ks.push_back(x);
-    }
-    return ks;
-}
-
-void IncGauss::merge(const IncGauss& o) {
-    for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
-}
-```
-
-模 $p$ 的版本：bitset 换成 `vector<long long>`，异或换成减去若干倍，第 3 步先把新行乘主元的逆元，加一条是 $O(r \cdot n + \log p)$。
-
-线性基是这份板子在列数不超过 60、没有右端时的写法；两者逐项对照，以及第 $k$ 小这类线性基常用的操作，在 [L3 线性基](/zh/algo/l3-xor-basis/)的附录。
-
-### 5.3 例：2024 ICPC 昆明 E Extracting Weights，挑出独立的询问
+### 5.2 例：2024 ICPC 昆明 E Extracting Weights，挑出独立的询问
 
 题（[2024 ICPC 昆明区域赛 E](https://codeforces.com/gym/105588/problem/E)，交互）：一棵 $n \le 250$ 个点的树，点有未知权值 $w_i < 2^{30}$，已知 $w_1 = 0$。给定 $k$，你可以问至多 $n$ 次“从 $u$ 到 $v$ 的简单路径上所有点权的异或和”，但只有路径恰好 $k$ 条边时才回答。所有询问必须一次性发出，再一起收回答。先判断能不能用至多 $n$ 次询问确定所有权值：不能就输出 `NO`；能就输出 `YES`，发出询问，最后输出 $w_2, \dots, w_n$。
 
 **每次询问是一条方程。** 未知数是 $w_1, \dots, w_n$。询问 $(u, v)$ 的回答是路径上的点的权值异或和，系数就是“点在不在路径上”的 0/1 向量。$w$ 有 30 位，但每一位的方程组系数都一样，右端用一个 `int` 存，异或时 30 个方程组一起做。
 
-**能不能确定，看秩。** 所有 $k$ 条边的路径对应的方程，加上 $w_1 = 0$，秩为 $n$ 才能唯一确定全部权值。从中挑出 $n$ 条线性无关的方程，就是 5.2 的板子：枚举所有距离为 $k$ 的点对，能让秩加 1 的就留下。
+**能不能确定，看秩。** 所有 $k$ 条边的路径对应的方程，加上 $w_1 = 0$，秩为 $n$ 才能唯一确定全部权值。从中挑出 $n$ 条线性无关的方程，就是 5.1 的模板：枚举所有距离为 $k$ 的点对，能让秩加 1 的就留下。
 
 **$w_1 = 0$ 要先放进去。** 它也是一条方程，不占询问次数。先插它，询问只需要补齐剩下的 $n - 1$ 维，最多问 $n - 1$ 次。如果先挑 $n - 1$ 条询问、最后再加它，这 $n - 1$ 条的组合可能恰好推出 $w_1 = 0$，它就加不进去，秩停在 $n - 1$；其实换一条询问或多问一条就够，却误判成 `NO`。
 
@@ -533,7 +517,7 @@ void IncGauss::merge(const IncGauss& o) {
 #include <bits/stdc++.h>
 using namespace std;
 
-// 套 5.2 的 IncGauss
+// 套 5.1 的 IncGauss
 
 int main() {
     ios::sync_with_stdio(false);
@@ -620,6 +604,6 @@ int main() {
 ## 和其他文章的连接
 
 - [L1 线性代数](/zh/algo/l1-linear-algebra/)：第 3 节“求基就是消元”，第 6 节解的结构（像和核），第 4.4 节模 2 消元和线性基是同一个矩阵的行和列。
-- [L3 线性基](/zh/algo/l3-xor-basis/)：插入是 5.2 增量高斯在列数不超过 60 时的特例（两者对照在它的附录），3.2 的计数就是 4.4。
+- [L3 线性基](/zh/algo/l3-xor-basis/)：插入是 5.1 增量高斯在列数不超过 60 时的特例（两者对照在它的附录），3.2 的计数就是 4.4。
 - [C0 赛场数学总览](/zh/algo/c0-contest-math-overview/)：4.4 列出了落到线性方程组的三类题面信号，4.6 是行列式的模板和计数用法。
 - 英文模板合集 [Matrix #2: Gaussian Elimination](/posts/matrix-2-gaussian-elimination/)：实数、模 $p$、模 2 的求解、行列式、求逆、求秩全套模板，以及模 $p$ 的增量版本。
