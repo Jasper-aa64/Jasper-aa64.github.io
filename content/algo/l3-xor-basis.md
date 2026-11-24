@@ -565,10 +565,10 @@ The two templates side by side. An XOR basis is incremental Gauss written for "a
 | Can it be represented | `contains`, $O(60)$ | `implied`, which also gives the implied RHS, $O(r \cdot \text{MX} / 64)$ |
 | Rank | `r`, $O(1)$ | `rank()`, $O(1)$ |
 | Reduced form | `reduce()`, called when needed, $O(60^2)$ | always reduced, no extra work |
-| Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | not in the template; order columns from high bit to low and it works the same |
-| $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | not in the template, same as above |
-| Merge | `merge`, $O(60^2)$ | `add` the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MX} / 64)$ |
-| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | `PrefixGauss`: `add`, `implied` $O(n \cdot \text{MX} / 64)$, `bad` $O(1)$, `rank` $O(n)$, `at` $O(n \cdot r \cdot \text{MX} / 64)$ |
+| Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | `max_xor` / `min_xor`, $O(r \cdot \text{MX} / 64)$ |
+| $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | `kth` $O(r \log r + r \cdot \text{MX} / 64)$ / `index` $O(r \log r)$, no reduction needed |
+| Merge | `merge`, $O(60^2)$ | `merge`, adding the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MX} / 64)$ |
+| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | `PrefixGauss`: `add`, `implied`, `max_xor` $O(n \cdot \text{MX} / 64)$, `bad` $O(1)$, `rank` $O(n)$, `at` $O(n \cdot r \cdot \text{MX} / 64)$ |
 | Right-hand side and contradictions | none | `add` returns $-1$, `bad` remembers it |
 | One solution / all solutions | none | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
 | Columns | at most 60 | at most `MX`, thousands are fine |
@@ -667,6 +667,8 @@ struct PrefixBasis {
 
 ### Incremental Gauss (mod 2)
 
+The interface first; the implementations follow.
+
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
@@ -681,44 +683,21 @@ struct IncGauss {
     bool bad = false;                            // a contradiction has appeared
     IncGauss(int n) : n(n) {}
 
-    void eliminate(bitset<MX>& v, int& b) const {  // clear v on every pivot column using the rows; the RHS follows
-        for (int i = 0; i < (int)row.size(); i++)
-            if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
-    }
-    int add(bitset<MX> v, int b) {               // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
-        eliminate(v, b);
-        int p = v._Find_first();
-        if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
-        for (int i = 0; i < (int)row.size(); i++)
-            if (row[i][p]) row[i] ^= v, rhs[i] ^= b;   // clear the new pivot column in the old rows
-        row.push_back(v), rhs.push_back(b), piv.push_back(p);
-        return 1;
-    }
+    // solving equations
+    void eliminate(bitset<MX>& v, int& b) const;   // clear v on every pivot column using the rows; the RHS follows
+    int add(bitset<MX> v, int b);                // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
     int rank() const { return row.size(); }
-    int implied(bitset<MX> v) const {            // is the left side v implied? return its RHS if so, else -1
-        int b = 0;
-        eliminate(v, b);
-        return v.none() ? b : -1;
-    }
-    bitset<MX> solve() const {                   // one solution when !bad: free variables 0, each pivot equals its RHS
-        bitset<MX> x;
-        for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
-        return x;
-    }
-    vector<bitset<MX>> kernel() const {          // basis of the homogeneous solution space, n - rank() vectors; all solutions = solve() XOR any subset of them
-        vector<int> isp(n, -1);
-        for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-        vector<bitset<MX>> ks;
-        for (int f = 0; f < n; f++) {
-            if (isp[f] >= 0) continue;
-            bitset<MX> x;
-            x[f] = 1;                            // this free variable 1, the others 0
-            for (int i = 0; i < (int)row.size(); i++)
-                if (row[i][f]) x[piv[i]] = 1;
-            ks.push_back(x);
-        }
-        return ks;
-    }
+    int implied(bitset<MX> v) const;             // is the left side v implied? return its RHS if so, else -1
+    bitset<MX> solve() const;                    // one solution when !bad: free variables 0, each pivot equals its RHS
+    vector<bitset<MX>> kernel() const;           // basis of the homogeneous solution space, n - rank() vectors
+    void merge(const IncGauss& o);               // add the other side's equations one by one
+
+    // counterparts of the XOR basis operations: left sides only (row space), RHS ignored; column 0 is the most significant bit
+    bitset<MX> max_xor(bitset<MX> v) const;      // max of v XOR any rows
+    bitset<MX> min_xor(bitset<MX> v) const;      // min of v XOR any rows
+    bitset<MX> kth(unsigned long long k) const;  // k-th smallest in the row space (0-based, the 0th is all zeros); needs k < 2^rank()
+    unsigned long long index(const bitset<MX>& x) const;  // rank of x among the row space when x is in it (0-based)
+    vector<int> low_to_high() const;             // row ids ordered by pivot from low bit to high bit (pivot column descending)
 };
 
 // prefix incremental Gauss (mod 2): equations come left to right, each pivot column keeps the rightmost one; the RHS is column n and is eliminated too
@@ -728,43 +707,158 @@ struct PrefixGauss {
     vector<int> pos;                             // position of row[c] (1-based), 0 if empty
     PrefixGauss(int n) : n(n), row(n + 1), pos(n + 1, 0) {}
 
-    void add(bitset<MX> v, int b, int p) {       // add the p-th equation; needs MX > n
-        v[n] = b;
-        while (v.any()) {
-            int c = v._Find_first();
-            if (!pos[c]) { row[c] = v; pos[c] = p; return; }
-            if (pos[c] < p) { swap(row[c], v); swap(pos[c], p); }
-            v ^= row[c];
-        }
-    }
+    void add(bitset<MX> v, int b, int p);        // add the p-th equation; needs MX > n
     bool bad(int l) const { return pos[n] >= l; }  // are equations l..current contradictory (l is 1-based)
-    int rank(int l) const {                      // rank of equations l..current
-        int r = 0;
-        for (int c = 0; c < n; c++) r += pos[c] >= l;
-        return r;
-    }
-    int implied(bitset<MX> v, int l) const {     // using only equations l..current: the implied RHS, or -1 if not implied
-        v[n] = 0;
-        for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
-            if (pos[c] < l) return -1;
-            v ^= row[c];
-        }
-        return v[n];
-    }
-    IncGauss at(int l) const {                   // equations l..current as an IncGauss, to solve them
-        IncGauss g(n);
-        for (int c = 0; c <= n; c++)
-            if (pos[c] >= l) {
-                bitset<MX> w = row[c];
-                int b = w[n];
-                w[n] = 0;
-                g.add(w, b);
-            }
-        return g;
-    }
+    int rank(int l) const;                       // rank of equations l..current
+    int implied(bitset<MX> v, int l) const;      // using only equations l..current: the implied RHS, or -1 if not implied
+    bitset<MX> max_xor(bitset<MX> v, int l) const;  // max of v XOR left sides of equations l..current
+    IncGauss at(int l) const;                    // equations l..current as an IncGauss
 };
 ```
 
-Unknown $j$ is bit $j$ of the bitset. `PrefixGauss` is the swap insertion of 5.3 with bitset rows and the lowest 1 as the pivot; the RHS is column $n$ and is eliminated too, so the row `0 = 1` keeps the rightmost position $q$, and equations $l$ through the current one contradict each other exactly when $l \le q$, which is all `bad(l)` checks. When `bad` is true the system has no solution and `solve()` and `kernel()` mean nothing; otherwise there are $2^{n - \text{rank}}$ solutions, which is [L1 linear algebra](/algo/l1-linear-algebra/) section 4.5's picture: all solutions are the null space translated by one solution.
+Unknown $j$ is bit $j$ of the bitset. When `bad` is true the system has no solution and `solve()` and `kernel()` mean nothing; otherwise there are $2^{n - \text{rank}}$ solutions, which is [L1 linear algebra](/algo/l1-linear-algebra/) section 4.5's picture: all solutions are the null space translated by one solution.
+
+The functions that mirror the XOR basis look only at left sides and read each row as an $n$-bit number with **column 0 as the most significant bit**. The pivot is the first 1 in a row, so "earlier pivot, larger number" is the same as the basis's "higher top bit, larger number". To match integers, put bit $W - 1 - j$ of an integer $x$ into column $j$ ($W$ is the bit width). The rows are always in RREF, so `kth` needs no `reduce()` first.
+
+`PrefixGauss` is the swap insertion of 5.3 with bitset rows and the first 1 as the pivot; the RHS is column $n$ and is eliminated too, so the row `0 = 1` keeps the rightmost position $q$, and equations $l$ through the current one contradict each other exactly when $l \le q$, which is all `bad(l)` checks. It keeps only an echelon form without clearing old rows, so `max_xor` scans the columns front to back greedily.
+
+#### Implementation: Solving Equations
+
+```cpp
+void IncGauss::eliminate(bitset<MX>& v, int& b) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
+}
+
+int IncGauss::add(bitset<MX> v, int b) {
+    eliminate(v, b);
+    int p = v._Find_first();
+    if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
+    for (int i = 0; i < (int)row.size(); i++)
+        if (row[i][p]) row[i] ^= v, rhs[i] ^= b;     // clear the new pivot column in the old rows
+    row.push_back(v), rhs.push_back(b), piv.push_back(p);
+    return 1;
+}
+
+int IncGauss::implied(bitset<MX> v) const {
+    int b = 0;
+    eliminate(v, b);
+    return v.none() ? b : -1;
+}
+
+bitset<MX> IncGauss::solve() const {
+    bitset<MX> x;
+    for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
+    return x;
+}
+
+vector<bitset<MX>> IncGauss::kernel() const {    // all solutions = solve() XOR any subset of these
+    vector<int> isp(n, -1);
+    for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
+    vector<bitset<MX>> ks;
+    for (int f = 0; f < n; f++) {
+        if (isp[f] >= 0) continue;
+        bitset<MX> x;
+        x[f] = 1;                                // this free variable 1, the others 0
+        for (int i = 0; i < (int)row.size(); i++)
+            if (row[i][f]) x[piv[i]] = 1;
+        ks.push_back(x);
+    }
+    return ks;
+}
+
+void IncGauss::merge(const IncGauss& o) {
+    for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
+}
+```
+
+#### Implementation: Counterparts of the XOR Basis Operations
+
+```cpp
+// in RREF each pivot column is 1 only in its own row, so the result on a pivot column says whether that row was chosen,
+// and two choices first differ on some pivot column: the greedy only decides 0 or 1 on each pivot column
+bitset<MX> IncGauss::max_xor(bitset<MX> v) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (!v[piv[i]]) v ^= row[i];
+    return v;
+}
+
+bitset<MX> IncGauss::min_xor(bitset<MX> v) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (v[piv[i]]) v ^= row[i];
+    return v;
+}
+
+vector<int> IncGauss::low_to_high() const {
+    vector<int> id(row.size());
+    iota(id.begin(), id.end(), 0);
+    sort(id.begin(), id.end(), [&](int a, int b) { return piv[a] > piv[b]; });
+    return id;
+}
+
+bitset<MX> IncGauss::kth(unsigned long long k) const {   // bit t of k: whether to take the row of the t-th pivot counted from the low end
+    bitset<MX> v;
+    vector<int> id = low_to_high();
+    for (int t = 0; t < (int)id.size() && t < 64; t++)
+        if (k >> t & 1) v ^= row[id[t]];
+    return v;
+}
+
+unsigned long long IncGauss::index(const bitset<MX>& x) const {
+    unsigned long long k = 0;
+    vector<int> id = low_to_high();
+    for (int t = 0; t < (int)id.size() && t < 64; t++)
+        if (x[piv[id[t]]]) k |= 1ULL << t;
+    return k;
+}
+```
+
+#### Implementation: Prefix Incremental Gauss
+
+```cpp
+void PrefixGauss::add(bitset<MX> v, int b, int p) {
+    v[n] = b;
+    while (v.any()) {
+        int c = v._Find_first();
+        if (!pos[c]) { row[c] = v; pos[c] = p; return; }
+        if (pos[c] < p) { swap(row[c], v); swap(pos[c], p); }
+        v ^= row[c];
+    }
+}
+
+int PrefixGauss::rank(int l) const {
+    int r = 0;
+    for (int c = 0; c < n; c++) r += pos[c] >= l;
+    return r;
+}
+
+int PrefixGauss::implied(bitset<MX> v, int l) const {
+    v[n] = 0;
+    for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
+        if (pos[c] < l) return -1;
+        v ^= row[c];
+    }
+    return v[n];
+}
+
+bitset<MX> PrefixGauss::max_xor(bitset<MX> v, int l) const {   // echelon form: row[c] only touches columns c and later, so greedy from the high end
+    for (int c = 0; c < n; c++)
+        if (pos[c] >= l && !v[c]) v ^= row[c];
+    v[n] = 0;                                    // column n is the RHS, drop it
+    return v;
+}
+
+IncGauss PrefixGauss::at(int l) const {
+    IncGauss g(n);
+    for (int c = 0; c <= n; c++)
+        if (pos[c] >= l) {
+            bitset<MX> w = row[c];
+            int b = w[n];
+            w[n] = 0;
+            g.add(w, b);
+        }
+    return g;
+}
+```
 
 **Which one: if the problem asks what XORs of subsets of some numbers can give, use the XOR basis; if it asks to solve equations, detect contradictions, or has more than 60 unknowns, use incremental Gauss.**

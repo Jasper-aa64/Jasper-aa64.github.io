@@ -565,10 +565,10 @@ int main() {
 | 能否表示出来 | `contains`，$O(60)$ | `implied`，还给出推出的右端，$O(r \cdot \text{MX} / 64)$ |
 | 秩 | `r`，$O(1)$ | `rank()`，$O(1)$ |
 | 规范化 | `reduce()`，要用时再调，$O(60^2)$ | 一直是规范的，不用额外做 |
-| 最大 / 最小异或 | `max_xor` / `min_xor`，$O(60)$ | 板子没写；把列按位从高到低排，做法一样 |
-| 第 $k$ 小 / 求排名 | `kth` / `index`，$O(60)$，之前要 `reduce()` 一次 | 板子没写，同上 |
-| 合并 | `merge`，$O(60^2)$ | 把另一组的 $r'$ 行逐条 `add`，$O(r' \cdot r \cdot \text{MX} / 64)$ |
-| 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | `PrefixGauss`：`add`、`implied` $O(n \cdot \text{MX} / 64)$，`bad` $O(1)$，`rank` $O(n)$，`at` $O(n \cdot r \cdot \text{MX} / 64)$ |
+| 最大 / 最小异或 | `max_xor` / `min_xor`，$O(60)$ | `max_xor` / `min_xor`，$O(r \cdot \text{MX} / 64)$ |
+| 第 $k$ 小 / 求排名 | `kth` / `index`，$O(60)$，之前要 `reduce()` 一次 | `kth` $O(r \log r + r \cdot \text{MX} / 64)$ / `index` $O(r \log r)$，不用先规范化 |
+| 合并 | `merge`，$O(60^2)$ | `merge`，另一组的 $r'$ 行逐条 `add`，$O(r' \cdot r \cdot \text{MX} / 64)$ |
+| 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | `PrefixGauss`：`add`、`implied`、`max_xor` $O(n \cdot \text{MX} / 64)$，`bad` $O(1)$，`rank` $O(n)$，`at` $O(n \cdot r \cdot \text{MX} / 64)$ |
 | 右端和矛盾 | 没有 | `add` 返回 $-1$，`bad` 记下 |
 | 一组解 / 全部解 | 没有 | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
 | 列数 | 不超过 60 | 不超过 `MX`，几千也行 |
@@ -667,6 +667,8 @@ struct PrefixBasis {
 
 ### 增量高斯（模 2）
 
+先列接口，实现放在后面。
+
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
@@ -681,44 +683,21 @@ struct IncGauss {
     bool bad = false;                            // 出现过矛盾
     IncGauss(int n) : n(n) {}
 
-    void eliminate(bitset<MX>& v, int& b) const {  // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
-        for (int i = 0; i < (int)row.size(); i++)
-            if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
-    }
-    int add(bitset<MX> v, int b) {               // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
-        eliminate(v, b);
-        int p = v._Find_first();
-        if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
-        for (int i = 0; i < (int)row.size(); i++)
-            if (row[i][p]) row[i] ^= v, rhs[i] ^= b;   // 新主元列在旧行里清成 0
-        row.push_back(v), rhs.push_back(b), piv.push_back(p);
-        return 1;
-    }
+    // 解方程
+    void eliminate(bitset<MX>& v, int& b) const;   // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
+    int add(bitset<MX> v, int b);                // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
     int rank() const { return row.size(); }
-    int implied(bitset<MX> v) const {            // 左边为 v 的方程能否由已有方程推出：能就返回它的右端，不能返回 -1
-        int b = 0;
-        eliminate(v, b);
-        return v.none() ? b : -1;
-    }
-    bitset<MX> solve() const {                   // !bad 时的一组解：自由元取 0，主元等于右端
-        bitset<MX> x;
-        for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
-        return x;
-    }
-    vector<bitset<MX>> kernel() const {          // 齐次方程组解空间的基，共 n - rank() 个；全部解 = solve() 异或上它们的任意子集
-        vector<int> isp(n, -1);
-        for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-        vector<bitset<MX>> ks;
-        for (int f = 0; f < n; f++) {
-            if (isp[f] >= 0) continue;
-            bitset<MX> x;
-            x[f] = 1;                            // 这个自由元取 1，其余自由元取 0
-            for (int i = 0; i < (int)row.size(); i++)
-                if (row[i][f]) x[piv[i]] = 1;
-            ks.push_back(x);
-        }
-        return ks;
-    }
+    int implied(bitset<MX> v) const;             // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
+    bitset<MX> solve() const;                    // !bad 时的一组解：自由元取 0，主元等于右端
+    vector<bitset<MX>> kernel() const;           // 齐次方程组解空间的基，n - rank() 个
+    void merge(const IncGauss& o);               // 把另一组的方程逐条加进来
+
+    // 和线性基对应的操作：只看左边（行空间），不管右端；比大小时第 0 列是最高位
+    bitset<MX> max_xor(bitset<MX> v) const;      // v 异或上任意几行的最大值
+    bitset<MX> min_xor(bitset<MX> v) const;      // v 异或上任意几行的最小值
+    bitset<MX> kth(unsigned long long k) const;  // 行空间里第 k 小（从 0 数，第 0 个是全 0），要求 k < 2^rank()
+    unsigned long long index(const bitset<MX>& x) const;  // x 在行空间里时，它是第几小（从 0 数）
+    vector<int> low_to_high() const;             // 行号按主元从低位到高位排（主元列从大到小）
 };
 
 // 前缀增量高斯（模 2）：方程从左往右加，每个主元列留位置最靠右的那条；右端当作第 n 列一起消
@@ -728,43 +707,158 @@ struct PrefixGauss {
     vector<int> pos;                             // row[c] 的位置（从 1 数），0 表示空
     PrefixGauss(int n) : n(n), row(n + 1), pos(n + 1, 0) {}
 
-    void add(bitset<MX> v, int b, int p) {       // 加入第 p 条方程，要求 MX > n
-        v[n] = b;
-        while (v.any()) {
-            int c = v._Find_first();
-            if (!pos[c]) { row[c] = v; pos[c] = p; return; }
-            if (pos[c] < p) { swap(row[c], v); swap(pos[c], p); }
-            v ^= row[c];
-        }
-    }
+    void add(bitset<MX> v, int b, int p);        // 加入第 p 条方程，要求 MX > n
     bool bad(int l) const { return pos[n] >= l; }  // 第 l 条到当前这条方程是否矛盾（l 从 1 数）
-    int rank(int l) const {                      // 第 l 条到当前这条方程的秩
-        int r = 0;
-        for (int c = 0; c < n; c++) r += pos[c] >= l;
-        return r;
-    }
-    int implied(bitset<MX> v, int l) const {     // 只用第 l 条到当前这条：能推出就返回右端，不能返回 -1
-        v[n] = 0;
-        for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
-            if (pos[c] < l) return -1;
-            v ^= row[c];
-        }
-        return v[n];
-    }
-    IncGauss at(int l) const {                   // 第 l 条到当前这条方程，交给 IncGauss 求解
-        IncGauss g(n);
-        for (int c = 0; c <= n; c++)
-            if (pos[c] >= l) {
-                bitset<MX> w = row[c];
-                int b = w[n];
-                w[n] = 0;
-                g.add(w, b);
-            }
-        return g;
-    }
+    int rank(int l) const;                       // 第 l 条到当前这条方程的秩
+    int implied(bitset<MX> v, int l) const;      // 只用第 l 条到当前这条：能推出就返回右端，不能返回 -1
+    bitset<MX> max_xor(bitset<MX> v, int l) const;  // 只用第 l 条到当前这条的左边，v 异或上它们的最大值
+    IncGauss at(int l) const;                    // 第 l 条到当前这条方程，交给 IncGauss
 };
 ```
 
-第 $j$ 个未知数对应 bitset 的第 $j$ 位。`PrefixGauss` 就是 5.3 的交换插入，只是一行换成 bitset、主元取最低的那个 1；右端当作第 $n$ 列一起消，消出来的 `0 = 1` 那行留的是最靠右的位置 $q$，第 $l$ 条到当前这条矛盾当且仅当 $l \le q$，所以 `bad(l)` 比一下就行。`bad` 为真时方程组无解，`solve()` 和 `kernel()` 没有意义；否则解有 $2^{n - \text{rank}}$ 个，就是 [L1 线性代数](/zh/algo/l1-linear-algebra/) 4.5 节的图景：全部解是零空间整体平移一个解。
+第 $j$ 个未知数对应 bitset 的第 $j$ 位。`bad` 为真时方程组无解，`solve()` 和 `kernel()` 没有意义；否则解有 $2^{n - \text{rank}}$ 个，就是 [L1 线性代数](/zh/algo/l1-linear-algebra/) 4.5 节的图景：全部解是零空间整体平移一个解。
+
+和线性基对应的那几个函数只看左边，把每一行当成一个 $n$ 位的数，**第 0 列是最高位**。主元是一行里最靠前的 1，所以“主元越靠前，数越大”，和线性基里“最高位越高，数越大”是同一回事。要和整数对上，就把整数 $x$ 的第 $W - 1 - j$ 位放进第 $j$ 列（$W$ 是位数）。简化行阶梯形一直保持着，所以 `kth` 前面不用 `reduce()`。
+
+`PrefixGauss` 就是 5.3 的交换插入，只是一行换成 bitset、主元取最靠前的那个 1；右端当作第 $n$ 列一起消，消出来的 `0 = 1` 那行留的是最靠右的位置 $q$，第 $l$ 条到当前这条矛盾当且仅当 $l \le q$，所以 `bad(l)` 比一下就行。它只保持行阶梯形，不清旧行，所以 `max_xor` 要按列从前往后贪心。
+
+#### 实现：解方程
+
+```cpp
+void IncGauss::eliminate(bitset<MX>& v, int& b) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
+}
+
+int IncGauss::add(bitset<MX> v, int b) {
+    eliminate(v, b);
+    int p = v._Find_first();
+    if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
+    for (int i = 0; i < (int)row.size(); i++)
+        if (row[i][p]) row[i] ^= v, rhs[i] ^= b;     // 新主元列在旧行里清成 0
+    row.push_back(v), rhs.push_back(b), piv.push_back(p);
+    return 1;
+}
+
+int IncGauss::implied(bitset<MX> v) const {
+    int b = 0;
+    eliminate(v, b);
+    return v.none() ? b : -1;
+}
+
+bitset<MX> IncGauss::solve() const {
+    bitset<MX> x;
+    for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
+    return x;
+}
+
+vector<bitset<MX>> IncGauss::kernel() const {    // 全部解 = solve() 异或上这些向量的任意子集
+    vector<int> isp(n, -1);
+    for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
+    vector<bitset<MX>> ks;
+    for (int f = 0; f < n; f++) {
+        if (isp[f] >= 0) continue;
+        bitset<MX> x;
+        x[f] = 1;                                // 这个自由元取 1，其余自由元取 0
+        for (int i = 0; i < (int)row.size(); i++)
+            if (row[i][f]) x[piv[i]] = 1;
+        ks.push_back(x);
+    }
+    return ks;
+}
+
+void IncGauss::merge(const IncGauss& o) {
+    for (int i = 0; i < (int)o.row.size(); i++) add(o.row[i], o.rhs[i]);
+}
+```
+
+#### 实现：和线性基对应的操作
+
+```cpp
+// 简化行阶梯形里每个主元列只有自己那行是 1，所以结果在主元列上的值就是“那行选没选”，
+// 而两种选法的结果第一次不同一定落在某个主元列上：贪心只要决定每个主元列是 0 还是 1
+bitset<MX> IncGauss::max_xor(bitset<MX> v) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (!v[piv[i]]) v ^= row[i];
+    return v;
+}
+
+bitset<MX> IncGauss::min_xor(bitset<MX> v) const {
+    for (int i = 0; i < (int)row.size(); i++)
+        if (v[piv[i]]) v ^= row[i];
+    return v;
+}
+
+vector<int> IncGauss::low_to_high() const {
+    vector<int> id(row.size());
+    iota(id.begin(), id.end(), 0);
+    sort(id.begin(), id.end(), [&](int a, int b) { return piv[a] > piv[b]; });
+    return id;
+}
+
+bitset<MX> IncGauss::kth(unsigned long long k) const {   // k 的第 t 位：选不选从低位数第 t 个主元的那行
+    bitset<MX> v;
+    vector<int> id = low_to_high();
+    for (int t = 0; t < (int)id.size() && t < 64; t++)
+        if (k >> t & 1) v ^= row[id[t]];
+    return v;
+}
+
+unsigned long long IncGauss::index(const bitset<MX>& x) const {
+    unsigned long long k = 0;
+    vector<int> id = low_to_high();
+    for (int t = 0; t < (int)id.size() && t < 64; t++)
+        if (x[piv[id[t]]]) k |= 1ULL << t;
+    return k;
+}
+```
+
+#### 实现：前缀增量高斯
+
+```cpp
+void PrefixGauss::add(bitset<MX> v, int b, int p) {
+    v[n] = b;
+    while (v.any()) {
+        int c = v._Find_first();
+        if (!pos[c]) { row[c] = v; pos[c] = p; return; }
+        if (pos[c] < p) { swap(row[c], v); swap(pos[c], p); }
+        v ^= row[c];
+    }
+}
+
+int PrefixGauss::rank(int l) const {
+    int r = 0;
+    for (int c = 0; c < n; c++) r += pos[c] >= l;
+    return r;
+}
+
+int PrefixGauss::implied(bitset<MX> v, int l) const {
+    v[n] = 0;
+    for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
+        if (pos[c] < l) return -1;
+        v ^= row[c];
+    }
+    return v[n];
+}
+
+bitset<MX> PrefixGauss::max_xor(bitset<MX> v, int l) const {   // 行阶梯形：row[c] 只改第 c 列及以后，从高位往低位贪心
+    for (int c = 0; c < n; c++)
+        if (pos[c] >= l && !v[c]) v ^= row[c];
+    v[n] = 0;                                    // 第 n 列是右端，不算
+    return v;
+}
+
+IncGauss PrefixGauss::at(int l) const {
+    IncGauss g(n);
+    for (int c = 0; c <= n; c++)
+        if (pos[c] >= l) {
+            bitset<MX> w = row[c];
+            int b = w[n];
+            w[n] = 0;
+            g.add(w, b);
+        }
+    return g;
+}
+```
 
 **选哪份：题目问一组数的子集异或能得到什么，用线性基；题目要解方程、判矛盾，或者未知数超过 60 个，用增量高斯。**
