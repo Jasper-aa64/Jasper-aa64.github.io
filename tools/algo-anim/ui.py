@@ -32,9 +32,9 @@ body { font: 15px/1.65 %%font%%; }
 .panel { box-sizing: border-box; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--hl); border-radius: 10px; }
 .panel .ph { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .panel .badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--hl); color: #fff; font-size: 12.5px; font-weight: 700; }
-.panel .t { margin: 6px 0 0; }
-.panel.ok { border-left-color: var(--ok); } .panel.ok .badge { background: var(--ok); } .panel.ok .t { color: var(--ok); }
-.panel.bad { border-left-color: var(--bad); } .panel.bad .badge { background: var(--bad); } .panel.bad .t { color: var(--bad); }
+.panel .ptxt { margin: 6px 0 0; }
+.panel.ok { border-left-color: var(--ok); } .panel.ok .badge { background: var(--ok); } .panel.ok .ptxt { color: var(--ok); }
+.panel.bad { border-left-color: var(--bad); } .panel.bad .badge { background: var(--bad); } .panel.bad .ptxt { color: var(--bad); }
 .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ib { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; line-height: 1; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; box-shadow: var(--shadow); }
 .ib svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
@@ -101,7 +101,7 @@ JS = r"""
   function lockHeights(els, visitAll) {
     els.forEach(function (el) { el.style.minHeight = ''; });
     var h = els.map(function () { return 0; });
-    visitAll(function () { els.forEach(function (el, i) { h[i] = Math.max(h[i], el.offsetHeight); }); });
+    visitAll(function () { els.forEach(function (el, i) { h[i] = Math.max(h[i], Math.ceil(el.getBoundingClientRect().height)); }); });
     els.forEach(function (el, i) { el.style.minHeight = h[i] + 'px'; });
   }
 """

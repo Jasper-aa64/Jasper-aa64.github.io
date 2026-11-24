@@ -229,7 +229,7 @@ x86 硬件保证读和读不乱序，所以在 x86 上，invalidate queue 造不
 
 把这两个缓冲放回整块芯片上，一次写要走过的路径如下，按步骤点下去看。invalidate 请求经片上互连，只发给缓存里有这一行的核，谁有由 L3 旁的 snoop filter 记着；新值不会被推过去，读方要用时自己来取。最后一步，读方已经看到了新的 `ready`，读 `data` 却拿到旧值，这就是读和读的乱序。
 
-<iframe src="/maps/store-path.zh.html" title="写的路径：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<iframe src="/maps/store-path.zh.html" title="写的路径：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:806px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/store-path.zh.html" target="_blank" rel="noopener">在新窗口打开</a> · <a href="/images/ref/store-path.zh.svg" target="_blank" rel="noopener">静态全图</a></p>
 
 ### 1.3 四种乱序：x86 只允许 StoreLoad {#four-reorderings}
@@ -371,7 +371,7 @@ auto try_consume(SPSCFlag &f) noexcept -> std::optional<int> {
 
 回到 1.2 动画里的那个例子，给写 `ready` 加上 release、读 `ready` 加上 acquire，再走一遍：硬件还是那两个缓冲，**多出来的只有第 2 步和第 6 步这两个顺序约束**，一个管写方，一个管读方。
 
-<iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:760px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<iframe src="/maps/release-acquire.zh.html" title="release / acquire：分步动画" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:806px;overflow:hidden;margin:2.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/release-acquire.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
 
 #### 2.3.2 画成图分析代码 {#mo-edges}
