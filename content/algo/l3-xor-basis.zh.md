@@ -93,7 +93,7 @@ toc: true
 <a href="/images/algo/xor-basis-rref-kth.zh.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-rref-kth.zh.svg" alt="规范化和第 k 小：左边 b[3]=1101、b[2]=0111、b[0]=0001，主元列里多出来的 1 标红；经过 b[2]^=b[0]、b[3]^=b[2]、b[3]^=b[0] 三步，右边变成 1010、0110、0001，主元列 3、2、0 各只剩一个 1。下面 k 从 0 到 7，按 k 的二进制选 c0=b[0]、c1=b[2]、c2=b[3]，得到 0、1、6、7、10、11、12、13，值在主元位上的比特就是 k 的比特，所以按 k 递增。" style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
 
 4. **规范化后的基由空间唯一决定**
-   - **两个空间相同，当且仅当规范化后的基相同**：证明和用法见 5.1.2。
+   - **两个空间相同，当且仅当规范化后的基相同**：证明和用法见 5.1 的思路第 2 点。
 
 ### 1.5 前提：要的集合对异或封闭
 
@@ -461,233 +461,195 @@ int main() {
 
 [QOJ / Universal Cup 3727 L](https://contest.ucup.ac/contest/3727/problem/18012)，时限 4 秒
 
-给一个非负整数序列 $a_1, \dots, a_n$。对区间 $[l, r]$，从 $a_l, \dots, a_r$ 里任选若干个异或起来（可以一个都不选，结果是 0），所有可能的结果组成集合 $B(l, r)$。对所有 $1 \le l \le r \le n$，问一共有多少个不同的集合 $B(l, r)$。
+1. **题面**
 
-- **输入**：第一行 $T$，表示数据组数。每组第一行 $n$（$1 \le n \le 10^5$），第二行 $n$ 个整数 $a_i$（$0 \le a_i < 2^{32}$）。所有组的 $n$ 之和不超过 $10^5$。
-- **输出**：每组一行，不同集合 $B(l, r)$ 的个数。
+   给一个非负整数序列 $a_1, \dots, a_n$。对区间 $[l, r]$，从 $a_l, \dots, a_r$ 里任选若干个异或起来（可以一个都不选，结果是 0），所有可能的结果组成集合 $B(l, r)$。对所有 $1 \le l \le r \le n$，问一共有多少个不同的集合 $B(l, r)$。
 
-**输入**
+   - **输入**：第一行 $T$，表示数据组数。每组第一行 $n$（$1 \le n \le 10^5$），第二行 $n$ 个整数 $a_i$（$0 \le a_i < 2^{32}$）。所有组的 $n$ 之和不超过 $10^5$。
+   - **输出**：每组一行，不同集合 $B(l, r)$ 的个数。
 
-```text
-5
-3
-1 2 3
-4
-10 12 17 33
-6
-1 0 9 8 7 3
-8
-9012 91829 9819 78 237 862 7672 2
-10
-0 1 2 4 8 16 32 64 128 256
-```
+   **输入**
 
-**输出**
+   ```text
+   5
+   3
+   1 2 3
+   4
+   10 12 17 33
+   6
+   1 0 9 8 7 3
+   8
+   9012 91829 9819 78 237 862 7672 2
+   10
+   0 1 2 4 8 16 32 64 128 256
+   ```
 
-```text
-4
-10
-12
-36
-46
-```
+   **输出**
 
-第一组 $a = (1, 2, 3)$：$B(1, 1) = \{0, 1\}$，$B(2, 2) = \{0, 2\}$，$B(3, 3) = \{0, 3\}$，其余三个区间都是 $\{0, 1, 2, 3\}$，所以答案是 4。
+   ```text
+   4
+   10
+   12
+   36
+   46
+   ```
 
-#### 5.1.1 不同的区间只有 $O(32 n)$ 种
+   第一组 $a = (1, 2, 3)$：$B(1, 1) = \{0, 1\}$，$B(2, 2) = \{0, 2\}$，$B(3, 3) = \{0, 3\}$，其余三个区间都是 $\{0, 1, 2, 3\}$，所以答案是 4。
+2. **思路**
+   1. **不同的区间只有 $O(32 n)$ 种**：固定右端点 $r$，左端点往左走，空间只会变大，每变一次维数加 1，所以至多变 32 次。变化点就是 3.3 前缀线性基里的位置：插完 $a_r$ 后把基按 `pos` 从大到小排成 $v_1, \dots, v_k$，位置 $p_1 > p_2 > \cdots > p_k$，记 $p_{k+1} = 0$，那么
 
-**固定右端点，左端点往左只经过至多 32 个跳变点，所有区间的空间加起来只有 $O(32 n)$ 个。**
+      $$B(l, r) = \operatorname{span}(v_1, \dots, v_j), \qquad p_{j+1} < l \le p_j .$$
 
-$$
-B(l, r) = \operatorname{span}(v_1, \dots, v_j), \qquad p_{j+1} < l \le p_j .
-$$
+      这是 3.3 那句“位置 $\ge l$ 的部分正好张成 $a_l, \dots, a_r$”换了个说法。所以只要对每个 $r$ 枚举这至多 32 个空间。
+   2. **两个空间相同，当且仅当规范化后的基相同**：空间里每个非零数的最高位都是主元位，所以主元位的集合由空间决定；规范化后主元位 $p$ 上的基，是空间里“主元位中只有第 $p$ 位是 1”的那个数，按 1.4 这样的数只有一个，也由空间决定。于是把规范化后的基哈希成一个 64 位数，数不同的哈希值就是数不同的空间。
+   3. **一边插入一边保持规范化**：每插一个数就 `reduce()` 再整体哈希，每个 $r$ 要 $O(32^3)$，太慢。改成插入时就保持规范化：先用已有的基消掉新数 $y$ 的所有主元位，$y$ 剩下的最高位 $t$ 是新主元位；再把已有的基里第 $t$ 位是 1 的都异或上 $y$。哈希取各个基打散之后的和，改动一个基就减去旧的、加上新的。
 
-1. **左端点往左，空间只会变大**
-   - **每变一次维数加 1，最多变 32 次**：变化点就是 3.3 前缀线性基里的那些位置。
-2. **跳变点由前缀线性基给出**
-   - **按 `pos` 从大到小排**：插完 $a_r$ 后的基排成 $v_1, \dots, v_k$，位置 $p_1 > p_2 > \cdots > p_k$，记 $p_{k+1} = 0$，就是上式。这是 3.3 那句“位置 $\ge l$ 的部分正好张成 $a_l, \dots, a_r$”换了个说法。
-   - **$a_r = 0$ 时单独算**：$l = r$ 给出 $\{0\}$，这时 $p_1 < r$。
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+   using u32 = uint32_t;
+   using u64 = uint64_t;
 
-#### 5.1.2 两个空间相同，当且仅当规范化后的基相同
+   u64 mix(u64 x) {                          // splitmix64：把一个数打散成随机的 64 位
+       x += 0x9e3779b97f4a7c15ULL;
+       x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+       x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+       return x ^ (x >> 31);
+   }
 
-**规范化后的基由空间唯一决定，所以把它哈希成一个 64 位数，数不同的哈希值就是数不同的空间。**
+   int main() {
+       int T;
+       scanf("%d", &T);
+       while (T--) {
+           int n;
+           scanf("%d", &n);
+           u32 b[32] = {};                   // 3.3 的前缀线性基
+           int pos[32] = {};
+           vector<u64> hs;                   // 每个 (r, j) 对应空间的哈希
+           for (int r = 1; r <= n; r++) {
+               u32 x;
+               scanf("%u", &x);
+               int p = r;
+               for (int i = 31; i >= 0; i--) {
+                   if (!(x >> i & 1)) continue;
+                   if (!b[i]) { b[i] = x; pos[i] = p; break; }
+                   if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
+                   x ^= b[i];
+               }
+               vector<pair<int, u32>> v;     // (位置, 基)，按位置从大到小
+               for (int i = 0; i < 32; i++)
+                   if (b[i]) v.push_back({pos[i], b[i]});
+               sort(v.rbegin(), v.rend());
+               if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0：B(r, r) = {0}
+               u32 c[32] = {};               // 规范化的基，一个一个往里插
+               u64 h = 0;
+               for (auto [q, y] : v) {
+                   for (int i = 31; i >= 0; i--)
+                       if ((y >> i & 1) && c[i]) y ^= c[i];          // 消掉 y 上已有的主元位
+                   int t = 31 - __builtin_clz(y);                    // 新的主元位
+                   for (int i = t + 1; i < 32; i++)
+                       if (c[i] >> t & 1) { h -= mix(c[i]); c[i] ^= y; h += mix(c[i]); }
+                   c[t] = y;
+                   h += mix(y);
+                   hs.push_back(h);          // l 落在 (下一个位置, q] 时的 B(l, r)
+               }
+           }
+           sort(hs.begin(), hs.end());
+           printf("%d\n", (int)(unique(hs.begin(), hs.end()) - hs.begin()));
+       }
+   }
+   ```
 
-1. **主元位的集合由空间决定**
-   - **空间里每个非零数的最高位都是主元位**：任何组合的最高位，就是参与组合的基里最高的那个主元位，理由和 1.2 的线性无关证明一样。
-2. **每个主元位上的基也由空间决定**
-   - **规范化后，主元位 $p$ 上的基是空间里“主元位中只有第 $p$ 位是 1”的数**：1.4 说空间里的数由它在主元位上的取值唯一决定，这样的数只有一个。
-
-#### 5.1.3 一边插入一边保持规范化
-
-**插入时就保持规范化，每插一个数是 $O(32)$，哈希跟着增量更新，总复杂度 $O(32^2 n)$。**
-
-1. **每次插完再 `reduce()` 太慢**
-   - **每个 $r$ 要 $O(32^3)$**：规范化加整体哈希一次是 $O(32^2)$，每个 $r$ 最多插 32 次。
-2. **插入时保持规范化**
-   - **先用旧的基消新数，再用新数消旧的基**：用已有的基把新数 $y$ 的主元位全部消掉，$y$ 剩下的最高位 $t$ 是新主元位；再把已有的基里第 $t$ 位是 1 的都异或上 $y$。每插一个 $O(32)$。
-   - **哈希取各个基打散之后的和**：改动一个基就减去旧的、加上新的。$n = 10^5$ 时总共约 $10^8$ 次简单操作。
-
-```cpp
-#include <bits/stdc++.h>
-using namespace std;
-using u32 = uint32_t;
-using u64 = uint64_t;
-
-u64 mix(u64 x) {                          // splitmix64：把一个数打散成随机的 64 位
-    x += 0x9e3779b97f4a7c15ULL;
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
-    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
-    return x ^ (x >> 31);
-}
-
-int main() {
-    int T;
-    scanf("%d", &T);
-    while (T--) {
-        int n;
-        scanf("%d", &n);
-        u32 b[32] = {};                   // 3.3 的前缀线性基
-        int pos[32] = {};
-        vector<u64> hs;                   // 每个 (r, j) 对应空间的哈希
-        for (int r = 1; r <= n; r++) {
-            u32 x;
-            scanf("%u", &x);
-            int p = r;
-            for (int i = 31; i >= 0; i--) {
-                if (!(x >> i & 1)) continue;
-                if (!b[i]) { b[i] = x; pos[i] = p; break; }
-                if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
-                x ^= b[i];
-            }
-            vector<pair<int, u32>> v;     // (位置, 基)，按位置从大到小
-            for (int i = 0; i < 32; i++)
-                if (b[i]) v.push_back({pos[i], b[i]});
-            sort(v.rbegin(), v.rend());
-            if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0：B(r, r) = {0}
-            u32 c[32] = {};               // 规范化的基，一个一个往里插
-            u64 h = 0;
-            for (auto [q, y] : v) {
-                for (int i = 31; i >= 0; i--)
-                    if ((y >> i & 1) && c[i]) y ^= c[i];          // 消掉 y 上已有的主元位
-                int t = 31 - __builtin_clz(y);                    // 新的主元位
-                for (int i = t + 1; i < 32; i++)
-                    if (c[i] >> t & 1) { h -= mix(c[i]); c[i] ^= y; h += mix(c[i]); }
-                c[t] = y;
-                h += mix(y);
-                hs.push_back(h);          // l 落在 (下一个位置, q] 时的 B(l, r)
-            }
-        }
-        sort(hs.begin(), hs.end());
-        printf("%d\n", (int)(unique(hs.begin(), hs.end()) - hs.begin()));
-    }
-}
-```
-
-- **碰撞可以忽略**：$O(32 n)$ 个 64 位哈希值里出现碰撞的概率约是 $(3 \times 10^6)^2 / 2^{65}$。
+3. **复杂度和坑**
+   - **复杂度**：每插一个数 $O(32)$，每个右端点至多改 32 个基，总共 $O(32^2 n)$，$n = 10^5$ 时约 $10^8$ 次简单操作。
+   - **$a_r = 0$ 时要单独算 $\{0\}$**：这时 $a_r$ 插不进去，$p_1 < r$，左端点在 $(p_1, r]$ 的区间给出 $\{0\}$，上面的式子没有覆盖。
+   - **哈希碰撞可以忽略**：$O(32 n)$ 个 64 位哈希值里出现碰撞的概率约是 $(3 \times 10^6)^2 / 2^{65}$。
 
 ### 5.2 2026 ICPC 网络赛第二场 A（All Closed）：所有解都必须包含的数
 
-题（[QOJ 4113](https://qoj.ac/contest/4113)）：有 $n$ 个非空集合 $S_1, \dots, S_n$，元素都在 $[0, 2^m)$ 里，$m \le 20$。一次操作选一个数 $x$，把它同时加进所有集合。用最少的操作让每个集合都对异或封闭，输出要加的那些数。
+[QOJ 4113](https://qoj.ac/contest/4113)
 
-#### 5.2.1 把“最少操作”换成“最小的空间”
+1. **题面**
 
-**操作最少等价于 $K$ 最小：求最小的空间 $K \supseteq I$，使每个 $S_i \cup K$ 都是空间，答案是 $K \setminus I$。**
+   有 $n$ 个非空集合 $S_1, \dots, S_n$，元素都在 $[0, 2^m)$ 里，$m \le 20$。一次操作选一个数 $x$，把它同时加进所有集合。用最少的操作让每个集合都对异或封闭，输出要加的那些数。
+2. **思路**
+   1. **把“最少操作”换成“最小的空间”**：对异或封闭的非空集合包含 $a \oplus a = 0$，所以就是空间。设加进去的数组成集合 $T$，所有最终集合的公共部分
 
-$$
-K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i .
-$$
+      $$K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i$$
 
-1. **对异或封闭的非空集合就是空间**
-   - **它包含 $a \oplus a = 0$，又对异或封闭**：所以每个最终集合都是空间。
-2. **所有最终集合的公共部分 $K$ 也是空间**
-   - **若干个空间的交还是空间**：设加进去的数组成集合 $T$，最后第 $i$ 个集合是 $S_i \cup T$，公共部分 $K$ 是上式，最终集合可以写成 $S_i \cup K$。
-   - **$T$ 里不必放 $I$ 中的数**：它们本来就在每个集合里，所以 $|T| = |K| - |I|$。
+      是若干个空间的交，也是空间，最终集合可以写成 $S_i \cup K$。$T$ 里不必放 $I$ 中的数，它们本来就在每个集合里，所以 $|T| = |K| - |I|$。于是操作最少就是求最小的空间 $K \supseteq I$，使每个 $S_i \cup K$ 都是空间，答案是 $K \setminus I$。
+   2. **每一步加的数都是逼出来的**：从 $K = \operatorname{span}(I)$ 开始。某个 $S_i \cup K$ 不封闭时，取一个在 $\operatorname{span}(S_i \cup K)$ 里、却既不在 $S_i$ 也不在 $K$ 里的 $x$。任取一个包含当前 $K$ 的合法解 $K^*$，$S_i \cup K^*$ 是空间，又包含 $S_i \cup K$，所以包含 $x$；$x$ 不在 $S_i$ 里，只能在 $K^*$ 里。令 $K \leftarrow \operatorname{span}(K \cup \{x\})$，它仍被每个合法解包含，秩加 1。至多 $m$ 步后所有集合都封闭，这时 $K$ 合法，又被每个合法解包含，所以是最小解，答案也唯一。
+   3. **判断封闭只要数元素个数**：$S_i \cup K$ 总在它张成的空间里，那个空间正好有 $2^r$ 个元素（1.3），$r$ 是 $S_i \cup K$ 的秩，个数相等就说明两者是同一个集合：
 
-#### 5.2.2 每一步加的数都是逼出来的
+      $$S_i \cup K \text{ 封闭} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .$$
 
-**从 $\operatorname{span}(I)$ 开始，每次加一个所有合法解都必须包含的数，停下时得到的就是最小解。**
+      不封闭时把 $\operatorname{span}(S_i \cup K)$ 列出来，至多 $2^m$ 个，找一个既不在 $S_i$ 也不在 $K$ 里的数，就是要加的 $x$。
 
-1. **找到的 $x$，每个合法解都必须包含**
-   - **$x$ 在 $\operatorname{span}(S_i \cup K)$ 里，却既不在 $S_i$ 也不在 $K$ 里**：任取一个包含当前 $K$ 的合法解 $K^*$，$S_i \cup K^*$ 是空间，又包含 $S_i \cup K$，所以包含 $x$；$x$ 不在 $S_i$ 里，只能在 $K^*$ 里。于是令 $K \leftarrow \operatorname{span}(K \cup \{x\})$，它仍被每个合法解包含。
-2. **至多 $m$ 步停下，得到的就是最小解**
-   - **每加一个 $x$，$K$ 的秩加 1**：至多 $m$ 次后所有 $S_i \cup K$ 都封闭；这时 $K$ 合法，又包含于每个合法解，所以是最小的，答案也唯一。
-   - **求最小的合法解，可以从“每个合法解都必须包含什么”出发，一直加到合法为止。**
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
 
-#### 5.2.3 判断封闭：数元素个数
+   int n, m;
 
-**$S_i \cup K$ 封闭，当且仅当它的元素个数等于它张成的空间的大小 $2^r$。**
+   // 套附录的 XorBasis
 
-$$
-S_i \cup K \text{ 封闭} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .
-$$
+   vector<int> expand(const XorBasis& lb) { // 列出 span(b) 的全部元素
+       vector<int> all = {0};
+       for (int i = 0; i < XorBasis::B; i++)
+           if (lb.b[i]) {
+               int sz = all.size();
+               for (int j = 0; j < sz; j++) all.push_back(all[j] ^ lb.b[i]);
+           }
+       return all;
+   }
 
-1. **为什么数个数就够**
-   - **$S_i \cup K$ 总在它张成的空间里**：那个空间正好有 $2^r$ 个元素（1.3），$r$ 是 $S_i \cup K$ 的秩；个数相等就说明两者是同一个集合。
-2. **不封闭时找出要加的 $x$**
-   - **把 $\operatorname{span}(S_i \cup K)$ 列出来**：至多 $2^m$ 个，找一个既不在 $S_i$ 也不在 $K$ 里的数。
-   - **复杂度**：每轮检查所有集合是 $O(m \sum \lvert S_i \rvert)$，至多 $m$ 轮，每轮再加 $O(2^m)$ 的列举。
+   int main() {
+       scanf("%d %d", &n, &m);
+       vector<vector<int>> s(n);
+       vector<int> cnt(1 << m, 0);            // cnt[x]：x 在几个集合里
+       for (auto& si : s) {
+           int k;
+           scanf("%d", &k);
+           si.resize(k);
+           for (int& x : si) { scanf("%d", &x); cnt[x]++; }
+       }
+       XorBasis kb;                           // K 的基，从 span(I) 开始
+       for (int x = 0; x < (1 << m); x++)
+           if (cnt[x] == n) kb.insert(x);
+       vector<char> inK(1 << m), inS(1 << m);
+       while (true) {
+           vector<int> K = expand(kb);
+           fill(inK.begin(), inK.end(), 0);
+           for (int x : K) inK[x] = 1;
+           int forced = -1;                   // 每个合法解都必须包含的新数
+           for (int i = 0; i < n && forced < 0; i++) {
+               XorBasis b = kb;
+               int common = 0;                // |S_i ∩ K|
+               for (int x : s[i]) { b.insert(x); common += inK[x]; }
+               int r = b.r;
+               long long uni = (long long)s[i].size() + K.size() - common;   // |S_i ∪ K|
+               if (uni == (1LL << r)) continue;                              // 已经封闭
+               for (int x : s[i]) inS[x] = 1;
+               for (int x : expand(b))
+                   if (!inK[x] && !inS[x]) { forced = x; break; }
+               for (int x : s[i]) inS[x] = 0;
+           }
+           if (forced < 0) break;
+           kb.insert(forced);
+       }
+       vector<int> ans;                       // K \ I
+       for (int x : expand(kb))
+           if (cnt[x] < n) ans.push_back(x);
+       sort(ans.begin(), ans.end());
+       printf("%d\n", (int)ans.size());
+       for (int x : ans) printf("%d ", x);
+       printf("\n");
+   }
+   ```
 
-```cpp
-#include <bits/stdc++.h>
-using namespace std;
-
-int n, m;
-
-// 套附录的 XorBasis
-
-vector<int> expand(const XorBasis& lb) { // 列出 span(b) 的全部元素
-    vector<int> all = {0};
-    for (int i = 0; i < XorBasis::B; i++)
-        if (lb.b[i]) {
-            int sz = all.size();
-            for (int j = 0; j < sz; j++) all.push_back(all[j] ^ lb.b[i]);
-        }
-    return all;
-}
-
-int main() {
-    scanf("%d %d", &n, &m);
-    vector<vector<int>> s(n);
-    vector<int> cnt(1 << m, 0);            // cnt[x]：x 在几个集合里
-    for (auto& si : s) {
-        int k;
-        scanf("%d", &k);
-        si.resize(k);
-        for (int& x : si) { scanf("%d", &x); cnt[x]++; }
-    }
-    XorBasis kb;                           // K 的基，从 span(I) 开始
-    for (int x = 0; x < (1 << m); x++)
-        if (cnt[x] == n) kb.insert(x);
-    vector<char> inK(1 << m), inS(1 << m);
-    while (true) {
-        vector<int> K = expand(kb);
-        fill(inK.begin(), inK.end(), 0);
-        for (int x : K) inK[x] = 1;
-        int forced = -1;                   // 每个合法解都必须包含的新数
-        for (int i = 0; i < n && forced < 0; i++) {
-            XorBasis b = kb;
-            int common = 0;                // |S_i ∩ K|
-            for (int x : s[i]) { b.insert(x); common += inK[x]; }
-            int r = b.r;
-            long long uni = (long long)s[i].size() + K.size() - common;   // |S_i ∪ K|
-            if (uni == (1LL << r)) continue;                              // 已经封闭
-            for (int x : s[i]) inS[x] = 1;
-            for (int x : expand(b))
-                if (!inK[x] && !inS[x]) { forced = x; break; }
-            for (int x : s[i]) inS[x] = 0;
-        }
-        if (forced < 0) break;
-        kb.insert(forced);
-    }
-    vector<int> ans;                       // K \ I
-    for (int x : expand(kb))
-        if (cnt[x] < n) ans.push_back(x);
-    sort(ans.begin(), ans.end());
-    printf("%d\n", (int)ans.size());
-    for (int x : ans) printf("%d ", x);
-    printf("\n");
-}
-```
+3. **复杂度和要点**
+   - **复杂度**：至多 $m$ 轮，每轮检查所有集合是 $O(m \sum \lvert S_i \rvert)$，再加 $O(2^m)$ 的列举。
+   - **求最小的合法解，从“每个合法解都必须包含什么”出发**：一直加必须包含的数，加到合法为止，停下时就是最小解。
 
 ## 练习
 
