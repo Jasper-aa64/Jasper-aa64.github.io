@@ -78,6 +78,8 @@ Stack the $n$ numbers into an $n \times 60$ 0/1 matrix, and insertion is Gaussia
 
 ### 1.4 Reduction: Each Pivot Bit in One Number, and Values Sort Like the Choice in Binary
 
+> The essence of reduction: it rewrites the basis into the standard form unique to its space, so the $k$-th smallest reads straight off the binary digits and two spaces can be compared by comparing their bases.
+
 The maximum only cares about making each bit 1 when possible. The $k$-th smallest needs the full order of all $2^r$ values, and `b` as it stands does not show that order: ones that a higher basis number has in lower bits interfere with the comparison of those lower bits. So tidy it first. Call the highest bit $i$ of each nonzero `b[i]` a **pivot bit**. **Reduction** makes every pivot bit appear only in its own number: whenever `b[i]` has a 1 in a lower pivot bit $j$, XOR `b[j]` in to clear it.
 
 After reduction, number the $r$ basis elements by pivot bit from low to high as $c_0, c_1, \dots, c_{r-1}$, and write $p_t$ for the pivot bit of $c_t$. For any choice, bit $p_t$ of the result is exactly "was $c_t$ chosen", because every other basis number has a 0 there.
