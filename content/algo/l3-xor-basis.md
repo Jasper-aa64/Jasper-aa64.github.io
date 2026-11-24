@@ -10,6 +10,27 @@ toc: true
 ---
 Given $n$ numbers, pick any subset and XOR it together: what is the largest result? With $n = 50$ there are $2^{50}$ subsets, too many to enumerate. But the subset XORs repeat a lot. With three numbers $a$, $b$, $a \oplus b$, the values you can reach are exactly the ones you reach with $a$ and $b$ alone; the third number is redundant. Remove redundant numbers one at a time and at most 60 remain (each number has 60 bits), yet not a single reachable value is lost. What remains is an **XOR basis** (线性基). To say precisely what "redundant" means, and why at most 60 remain, we put XOR into linear algebra.
 
+## Complexity at a Glance
+
+$B = 60$ is the number of bits (one `long long`), $n$ the number of values, $q$ the number of queries. In 7.1 $a_i < 2^{32}$, so $B$ is 32 there.
+
+| Operation | Complexity | See |
+| --- | --- | --- |
+| Insert a number / test whether it is representable | $O(B)$ | 2.1, 2.2 |
+| Insert all $n$ numbers | $O(nB)$ | 2.1 |
+| Max / min XOR | $O(B)$ | 4.1 |
+| Reduce, `reduce()` | $O(B^2)$ | 4.2 |
+| $k$-th smallest | $O(B)$, after one `reduce()` | 4.3 |
+| Rank of prefix XORs (CF 1101G) | $O(nB)$ | 5.1 |
+| Weighted selection | sort $O(n \log n)$ + inserts $O(nB)$ | 5.2 |
+| Prefix basis (CF 1100F) | insert and query both $O(B)$; offline sorting gives $O(q \log q + (n + q) B)$ in total | 5.3 |
+| Merge two bases | $O(B^2)$; a range query on a segment tree merges $O(\log n)$ nodes, $O(B^2 \log n)$ | 5.4 |
+| Maximum XOR path | $O((n + m) B)$, $m$ the number of edges | 6 |
+| Spirited Away | $O(32^2 n)$ | 7.1 |
+| All Closed ($m \le 20$ is the bit width) | at most $m$ rounds, each $O(m \sum \lvert S_i \rvert + 2^m)$ | 7.2 |
+
+The table in the appendix also lists the cost of every template function, and the matching incremental Gauss version.
+
 ## 1. XOR Is Addition Mod 2
 
 ### 1.1 A Number Is a Vector over GF(2)

@@ -12,6 +12,23 @@ toc: true
 
 Expectations with cycles, Lights Out, XOR constraints, matrix inverses and determinants all become linear systems, and all use one algorithm with different arithmetic. [L1](/algo/l1-linear-algebra/) explains where the facts about solutions come from (image and kernel); this post covers how to eliminate and where it shows up in problems: the elimination itself (section 1), which lines change for each field (sections 2 to 4), and the incremental version that adds one equation at a time (section 5). Each section ends with a problem.
 
+## Complexity at a Glance
+
+$n$ equations in $m$ unknowns, $n = m$ for a square system; $r$ is the rank and $p$ the modulus. Sizes assume about $10^8$ simple operations per second.
+
+| Method | Complexity | Feasible up to | See |
+| --- | --- | --- | --- |
+| Real elimination (largest pivot) | $O(n \cdot m \cdot (m + 1))$, $O(n^3)$ when square | $n \approx 500$ | 1.2, 2.1 |
+| Elimination mod a prime | $O(n^3 + n \log p)$: one extra inverse per column | $n \approx 500$ | 3.1 |
+| Matrix inverse | eliminate the $n \times 2n$ matrix, about $2 n^3$ multiplications | $n = 400$ | 3.2 |
+| Determinant | clear only below, about $n^3 / 3$ multiplications plus $O(n \log p)$ for inverses | $n \approx 500$ | 3.3 |
+| Mod 2, one row per bitset | $O(n \cdot m \cdot (m + 1) / 64)$, $O(n^3 / 64)$ when square | $n \approx 2000$ | 4.1 |
+| Incremental Gauss, add one (mod 2) | $O(r \cdot m / 64)$; adding $k$ costs $O(k \cdot r \cdot m / 64)$ | | 5.1 |
+| Incremental Gauss, add one (mod $p$) | $O(r \cdot m + \log p)$ | | 5.1 |
+| XOR basis, insert one number | $O(60)$: incremental Gauss with $m \le 60$, one word per row | | 5.2 |
+
+Examples: P2455 has $n \le 50$, $O(n^3)$; P3232 eliminates over $n - 1 \le 499$ vertices in $O(n^3)$, then sorts $m$ edges in $O(m \log m)$; P4783 is $2 \cdot 400^3 \approx 1.3 \times 10^8$; POJ 1222 is only $30 \times 30$; CF 1344F is $2000^3 / 64 \approx 1.3 \times 10^8$; Kunming E is about $O(n^3)$.
+
 ## 1. What Elimination Does
 
 ### 1.1 Three Row Operations Keep the Solution Set
