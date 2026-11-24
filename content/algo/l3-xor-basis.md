@@ -253,10 +253,18 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // sub
 - **`kth` counts $k$ from 0, and the 0-th value is 0**: when $k \ge 2^r$ there is none and it returns $-1$.
 - **`index` is `kth` backwards**: for a reachable value, its bits at the pivot positions, read together, are its 0-based rank.
 
-1. **For a statement's "$k$-th smallest" ($k$ from 1), first decide whether 0 counts**
-   - **With nonempty subsets and distinct values, whether $r = n$ decides whether 0 counts**: when $r < n$ some insertion failed, and that number together with the basis numbers expressing it XORs to 0, so the answer is `kth(k - 1)`; when $r = n$ only the empty set gives 0, so skip it and answer `kth(k)`. This is the most common mistake in these problems.
-   - **Over all $2^n$ subsets with repeats, each value repeats $2^{n-r}$ times**: the $k$-th is the $\lfloor (k - 1) / 2^{n-r} \rfloor$-th distinct value counting from 0 (1.3).
-2. **The minimum over nonempty subsets**
+When a statement asks for the "$k$-th smallest", first decide what it ranks: distinct values, or the XORs of all subsets (a value reached by several subsets is listed that many times). The two give different answers.
+
+1. **`kth` ranks distinct values**
+   - **`kth` ranks only the $2^r$ distinct values of the space, one position per value**: however many subsets reach a value, it appears once in `kth`; $k$ counts from 0, and the 0-th is 0.
+   - **Example**: $a = \{6, 3, 5\}$, the basis is 6 and 3, $r = 2$. The 8 subsets XOR to 0, 6, 3, 5, 5, 3, 6, 0; the distinct values in order are 0, 3, 5, 6, which are `kth(0)` to `kth(3)`.
+2. **The problem wants distinct values: use `kth` directly; only whether 0 counts differs**
+   - **With $k$ from 1 and nonempty subsets only, whether $r = n$ decides whether 0 counts**: when $r < n$ some insertion failed, and that number together with the basis numbers expressing it XORs to 0, so 0 counts and the answer is `kth(k - 1)`; when $r = n$ only the empty set gives 0, so skip it and answer `kth(k)`. This is the most common mistake in these problems.
+   - **Example**: in $\{6, 3, 5\}$, $r = 2 < 3$ and $6 \oplus 3 \oplus 5 = 0$, so the 1st smallest is `kth(0)` = 0 and the 2nd is `kth(1)` = 3; for $\{6, 3\}$, $r = n = 2$, only the empty set gives 0, so the 1st smallest is `kth(1)` = 3.
+3. **The problem keeps repeats: each value is listed $2^{n-r}$ times in a row**
+   - **Sorted, the XORs of all $2^n$ subsets are the $2^r$ distinct values, each repeated $2^{n-r}$ times (1.3)**: the $k$-th ($k$ from 1) falls in run $\lfloor (k - 1) / 2^{n-r} \rfloor$ counting from 0, so the answer is `kth((k - 1) >> (n - r))`. Without the empty set, the missing entry is one 0 at the very front, so use $k + 1$ in place of $k$.
+   - **Example**: $\{6, 3, 5\}$ sorted is 0, 0, 3, 3, 5, 5, 6, 6, each value $2^{3-2} = 2$ times; the 5th is `kth(4 >> 1)` = `kth(2)` = 5.
+4. **The minimum over nonempty subsets**
    - **It is 0 when $r < n$, otherwise `kth(1)`**: the reduced basis number with the lowest pivot bit.
 
 ### 2.6 Merging Two Bases
