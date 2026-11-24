@@ -229,7 +229,7 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // sub
 
 ### 2.5 The $k$-th Smallest and the Rank of a Value
 
-**After reduction, choosing basis numbers by the binary digits of $k$ gives the $k$-th smallest; conversely, reading a value's bits at the pivot positions gives its rank. Why: see 1.4.**
+**The subsets of the original array XOR to $2^r$ distinct values (including 0 from the empty set). Sort them: after reduction, the $k$-th ($k$ from 0) is obtained by choosing basis numbers by the binary digits of $k$; conversely, reading a value's bits at the pivot positions gives its rank. Why: see 1.4.**
 
 #### Cost
 
@@ -256,7 +256,7 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // sub
 When a statement asks for the "$k$-th smallest", first decide what it ranks: distinct values, or the XORs of all subsets (a value reached by several subsets is listed that many times). The two give different answers.
 
 1. **`kth` ranks distinct values**
-   - **`kth` ranks only the $2^r$ distinct values of the space, one position per value**: however many subsets reach a value, it appears once in `kth`; $k$ counts from 0, and the 0-th is 0.
+   - **`kth` counts choices from the basis, not subsets of the original array, so repeats never arise**: the $2^r$ choices from the basis match the $2^r$ distinct values one to one (1.3), so each value has one choice and is ranked once; the numbers whose insertion failed are never chosen, so the repeats they cause never appear.
    - **Example**: $a = \{6, 3, 5\}$, the basis is 6 and 3, $r = 2$. The 8 subsets XOR to 0, 6, 3, 5, 5, 3, 6, 0; the distinct values in order are 0, 3, 5, 6, which are `kth(0)` to `kth(3)`.
 2. **The problem wants distinct values: use `kth` directly; only whether 0 counts differs**
    - **With $k$ from 1 and nonempty subsets only, whether $r = n$ decides whether 0 counts**: when $r < n$ some insertion failed, and that number together with the basis numbers expressing it XORs to 0, so 0 counts and the answer is `kth(k - 1)`; when $r = n$ only the empty set gives 0, so skip it and answer `kth(k)`. This is the most common mistake in these problems.
