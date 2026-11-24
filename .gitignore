@@ -34,3 +34,4 @@ assets/js/dist
 
 # Hugo build output (publishDir override; built fresh by CI, not committed)
 docs
+__pycache__/
