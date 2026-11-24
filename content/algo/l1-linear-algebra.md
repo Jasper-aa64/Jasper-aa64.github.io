@@ -2,7 +2,7 @@
 title: "L1: Linear Algebra"
 date: 2026-11-23
 slug: "l1-linear-algebra"
-description: "A mental model of linear algebra: a linear space is a set closed under addition and scaling, a basis is a set of vectors that cannot be thinned further, and finding one is Gaussian elimination; the same 0/1 vectors can have different ranks over the reals and over GF(2) because the arithmetic differs; a matrix is a linear map, and everything about solving equations comes from its image and kernel (rank–nullity); the determinant tells whether the map flattens space. Ends with how the tools of C0 section 4 and the L2 XOR basis fit the model."
+description: "A mental model of linear algebra: a linear space is a set closed under addition and scaling, a basis is a set of vectors that cannot be thinned further, and finding one is Gaussian elimination; the same 0/1 vectors can have different ranks over the reals and over GF(2) because the arithmetic differs; a matrix is a linear map, and everything about solving equations comes from its image and kernel (rank–nullity); the determinant tells whether the map flattens space. Ends with how the tools of C0 section 4 and the L3 XOR basis fit the model."
 weight: 15
 math: true
 toc: true
@@ -112,7 +112,7 @@ Example: insert $3 = 011_2$, $5 = 101_2$, $6 = 110_2$ in order.
 - Insert 5: the highest bit is bit 2, `b[2]` is empty, store it, `b[2] = 101`.
 - Insert 6: bit 2 is 1, XOR with `b[2]` gives $110 \oplus 101 = 011$; bit 1 is 1, XOR with `b[1]` gives $011 \oplus 011 = 000$. It is cleared to 0, so $6 = 3 \oplus 5$ is redundant.
 
-The basis is $\{3, 5\}$ with rank 2, and it reaches $2^2 = 4$ values $\{0, 3, 5, 6\}$: the linear space from section 1. Code, counting and maxima are in [L2 XOR Basis](/algo/l2-xor-basis/).
+The basis is $\{3, 5\}$ with rank 2, and it reaches $2^2 = 4$ values $\{0, 3, 5, 6\}$: the linear space from section 1. Code, counting and maxima are in [L3 XOR Basis](/algo/l3-xor-basis/).
 
 ### 4.4 Gaussian Elimination Mod 2 and the XOR Basis: the Same Thing, Matrix Turned Sideways
 
@@ -242,13 +242,13 @@ The tools of [C0 section 4](/algo/c0-contest-math-overview/), and the question e
 | Matrix power | the result of applying the same linear map $n$ times: $v_n = M^{n-1} v_1$ |
 | (min, +) matrices | leave linear spaces, keep only associativity and distributivity, and fast exponentiation still works |
 | BM | the sequence produced by repeatedly applying a fixed linear map satisfies a linear recurrence of order at most the dimension |
-| Gaussian elimination | find the rank, decide whether $b$ is in the image, count the dimension of the kernel (the free variables); code and problems in [L3](/algo/l3-gaussian-elimination/) |
+| Gaussian elimination | find the rank, decide whether $b$ is in the image, count the dimension of the kernel (the free variables); code and problems in [L2](/algo/l2-gaussian-elimination/) |
 | XOR basis | build a basis of the span over GF(2), one insertion at a time |
 | Determinant | whether the map is invertible, and counting through a signed sum over permutations |
 
-The concepts behind each section of [L2 XOR Basis](/algo/l2-xor-basis/):
+The concepts behind each section of [L3 XOR Basis](/algo/l3-xor-basis/):
 
-| Ordinary linear algebra | In an XOR basis | Section of L2 |
+| Ordinary linear algebra | In an XOR basis | Section of L3 |
 | --- | --- | --- |
 | Linear space | all values reachable by XOR-ing any subset | 1.1, 1.2 |
 | Basis, rank | the non-zero numbers in `b`, $r \le 60$ of them | 2.1 |

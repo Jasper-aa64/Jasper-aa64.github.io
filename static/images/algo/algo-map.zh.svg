@@ -358,6 +358,7 @@
   <text x="1092" y="990" class="t">高斯消元</text>
   <text x="1092" y="1008" class="s">实数 · 模 p · 异或方程组</text>
   <text x="1092" y="1026" class="tag"><a href="/posts/matrix-2-gaussian-elimination/" target="_blank" rel="noopener"><tspan>M #2 Gaussian elimination</tspan></a></text>
+  <text x="1092" y="1044" class="tag"><a href="/zh/algo/l2-gaussian-elimination/" target="_blank" rel="noopener"><tspan>L2 第 1 节</tspan></a></text>
   </g>
   <g id="c_det">
   <rect x="1080" y="1084" width="235" height="92" rx="6" class="data"/>
@@ -386,7 +387,7 @@
   <text x="1339" y="990" class="t">线性基</text>
   <text x="1339" y="1008" class="s">最大异或；第 k 小异或</text>
   <text x="1339" y="1026" class="tag"><a href="/posts/matrix-3-linear-basis/" target="_blank" rel="noopener"><tspan>M #3 linear basis</tspan></a></text>
-  <text x="1339" y="1044" class="tag"><a href="/zh/algo/l2-xor-basis/" target="_blank" rel="noopener"><tspan>L2 第 1 节</tspan></a></text>
+  <text x="1339" y="1044" class="tag"><a href="/zh/algo/l3-xor-basis/" target="_blank" rel="noopener"><tspan>L3 第 1 节</tspan></a></text>
   </g>
   <path d="M76,822 L76,846" class="line edge" id="e_c_pow_c_inv" marker-end="url(#arr)"/>
   <path d="M76,940 L76,964" class="line edge" id="e_c_inv_c_sieve" marker-end="url(#arr)"/>

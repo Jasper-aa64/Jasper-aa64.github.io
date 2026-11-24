@@ -1,9 +1,10 @@
 ---
-title: "L3: Gaussian Elimination"
+title: "L2: Gaussian Elimination"
 date: 2026-11-24
-slug: "l3-gaussian-elimination"
+slug: "l2-gaussian-elimination"
+aliases: ["/algo/l3-gaussian-elimination/"]
 description: "Gaussian elimination uses row operations that keep the solution set to bring a system into reduced row echelon form, then reads off no solution, a unique solution or free variables. Over the reals pick the largest pivot (P2455 classification, P3232 expectations with cycles); modulo a prime replace division by a modular inverse (P4783 matrix inverse, determinants); mod 2 addition and subtraction are XOR and a row is a bitset (POJ 1222 Lights Out, CF 1344F colors as GF(2) vectors); incremental elimination adds one equation at a time, and an XOR basis is a special case (2024 Kunming E, interactive). With a step-by-step animation and 6 practice problems."
-weight: 17
+weight: 16
 math: true
 toc: true
 ---
@@ -408,7 +409,7 @@ int main() {
 
 ### 4.4 Counting Solutions Is the XOR Basis Count
 
-When the mod-2 system $Ax = b$ is solvable it has $2^{m - r}$ solutions: one particular solution XOR any element of the kernel (the "translate" of [L1 section 4.5](/algo/l1-linear-algebra/)). "Each value is reached by $2^{n-r}$ subsets" in [L2 section 3.2](/algo/l2-xor-basis/) is the same statement: take the $n$ numbers as the $n$ columns of $A$, the choice of numbers is $x$, and the numbers whose insertion fails are the free variables.
+When the mod-2 system $Ax = b$ is solvable it has $2^{m - r}$ solutions: one particular solution XOR any element of the kernel (the "translate" of [L1 section 4.5](/algo/l1-linear-algebra/)). "Each value is reached by $2^{n-r}$ subsets" in [L3 section 3.2](/algo/l3-xor-basis/) is the same statement: take the $n$ numbers as the $n$ columns of $A$, the choice of numbers is $x$, and the numbers whose insertion fails are the free variables.
 
 ## 5. Incremental Elimination: One Equation at a Time
 
@@ -424,7 +425,7 @@ Mod 2, one addition costs $O(\text{rank} \cdot m / 64)$. Mod $p$ is the same, wi
 
 ### 5.2 An XOR Basis Is a Special Case
 
-Insertion in the [L2 XOR basis](/algo/l2-xor-basis/) is incremental elimination mod 2 with a few things left out:
+Insertion in the [L3 XOR basis](/algo/l3-xor-basis/) is incremental elimination mod 2 with a few things left out:
 
 | | Incremental elimination (mod 2) | XOR basis |
 | --- | --- | --- |
@@ -558,6 +559,6 @@ Each problem lists the section it uses.
 ## Connections to Other Posts
 
 - [L1 Linear Algebra](/algo/l1-linear-algebra/): section 3 "finding a basis is elimination", section 6 the structure of solutions (image and kernel), section 4.4 mod-2 elimination and the XOR basis as rows and columns of one matrix.
-- [L2 XOR Basis](/algo/l2-xor-basis/): insertion is the special case of 5.2, and the count in 3.2 is 4.4.
+- [L3 XOR Basis](/algo/l3-xor-basis/): insertion is the special case of 5.2, and the count in 3.2 is 4.4.
 - [C0 Contest Math Overview](/algo/c0-contest-math-overview/): 4.4 lists the three kinds of statements that turn into linear systems, and 4.6 has the determinant template and counting uses.
 - The template collection [Matrix #2: Gaussian Elimination](/posts/matrix-2-gaussian-elimination/): full templates for solving, determinants, inverses and rank over the reals, mod $p$ and mod 2, and the incremental version mod $p$.

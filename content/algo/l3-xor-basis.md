@@ -1,9 +1,10 @@
 ---
-title: "L2: XOR Basis"
+title: "L3: XOR Basis"
 date: 2026-11-02
-slug: "l2-xor-basis"
+slug: "l3-xor-basis"
+aliases: ["/algo/l2-xor-basis/"]
 description: "XOR is addition over GF(2), so all subset XORs form a linear space, and an XOR basis is a basis of it with at most 60 numbers: insertion by highest bit, 2^r values each reached by 2^(n-r) subsets, greedy maximum, k-th smallest after reduction; prefix XORs, weighted greedy, range queries that keep the rightmost number; maximum XOR path written from scratch; two recent contest problems: CCPC Final 2025 L counts distinct range spans, 2026 ICPC Online II A finds the smallest common space. With 8 practice problems."
-weight: 16
+weight: 17
 math: true
 toc: true
 ---
@@ -520,6 +521,6 @@ Each problem lists the section it uses.
 
 ## Connections to Other Boxes on the Map
 
-- The elimination of 2.3 is Gaussian elimination mod 2, and insertion is a special case of incremental elimination in [L3 Gaussian Elimination](/algo/l3-gaussian-elimination/) section 5.2. The number of solutions of an XOR system ($2^{\text{free variables}}$) is the same number as the $2^{n-r}$ of 3.2: the free variables are exactly the numbers whose insertion failed.
+- The elimination of 2.3 is Gaussian elimination mod 2, and insertion is a special case of incremental elimination in [L2 Gaussian Elimination](/algo/l2-gaussian-elimination/) section 5.2. The number of solutions of an XOR system ($2^{\text{free variables}}$) is the same number as the $2^{n-r}$ of 3.2: the free variables are exactly the numbers whose insertion failed.
 - The 0/1 trie of A6 also finds a maximum XOR, but of "$x$ with one number of the set": only a single number may be chosen; a basis answers "any subset". A statement that says "pick two numbers" wants a trie; one that says "pick some numbers" wants a basis.
 - The greedy of 5.2 is greedy on a matroid, the same structure as Kruskal's minimum spanning tree (acyclic edge sets in place of independent sets).
