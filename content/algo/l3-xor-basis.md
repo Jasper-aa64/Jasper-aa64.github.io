@@ -531,18 +531,19 @@ The two templates side by side. An XOR basis is incremental Gauss written for "a
 
 | Task | XOR basis `XorBasis` | Incremental Gauss `IncGauss` |
 | --- | --- | --- |
-| Add a number / an equation | `insert`, old rows untouched | `add`, clears old rows, always RREF |
-| Can it be represented | `contains` | `implied`, which also gives the implied RHS |
-| Rank | `r` | `rank()` |
-| Reduced form | `reduce()`, called when needed | always reduced |
-| Max / min XOR | `max_xor` / `min_xor` | not in the template; order columns from high bit to low and it works the same |
-| $k$-th smallest / rank of a value | `kth` / `index` (after `reduce()`) | not in the template, same as above |
-| Merge | `merge` | `add` the other side's rows one by one |
-| Range queries | `PrefixBasis` | not in the template; record a position per row, as in 5.3 |
+| Add a number / an equation | `insert`, old rows untouched, $O(60)$ | `add`, clears old rows, always RREF, $O(r \cdot \text{MX} / 64)$ |
+| Can it be represented | `contains`, $O(60)$ | `implied`, which also gives the implied RHS, $O(r \cdot \text{MX} / 64)$ |
+| Rank | `r`, $O(1)$ | `rank()`, $O(1)$ |
+| Reduced form | `reduce()`, called when needed, $O(60^2)$ | always reduced, no extra work |
+| Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | not in the template; order columns from high bit to low and it works the same |
+| $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | not in the template, same as above |
+| Merge | `merge`, $O(60^2)$ | `add` the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MX} / 64)$ |
+| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | not in the template; record a position per row, as in 5.3 |
 | Right-hand side and contradictions | none | `add` returns $-1$, `bad` remembers it |
-| One solution / all solutions | none | `solve()` / `kernel()` |
+| One solution / all solutions | none | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
 | Columns | at most 60 | at most `MX`, thousands are fine |
-| One insertion | $O(60)$ | $O(\text{rank} \cdot \text{MX} / 64)$ |
+
+Here $r$ is the current rank and $n$ the number of unknowns; `MX / 64` is the number of machine words in one bitset row, so one bitset XOR costs that many integer XORs. The XOR basis's 60 is just "rank at most 60, one word per row", so both columns follow the same formula: with $\text{MX} = 64$, incremental Gauss's $O(r \cdot \text{MX}/64)$ is $O(r)$ with $r \le 60$.
 
 ### XOR Basis
 
