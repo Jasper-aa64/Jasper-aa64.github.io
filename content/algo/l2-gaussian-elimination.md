@@ -10,7 +10,7 @@ toc: true
 ---
 > The essence of Gaussian elimination: use row operations that keep the solution set to turn a system into a shape whose solution can be read at a glance.
 
-Expectations with cycles, Lights Out, XOR constraints, matrix inverses and determinants all become linear systems, and all use one algorithm with different arithmetic. [L1](/algo/l1-linear-algebra/) explains where the facts about solutions come from (image and kernel); this post covers how to eliminate and where it shows up in problems: the elimination itself (section 1), which lines change for each field (sections 2 to 4), and the incremental version that adds one equation at a time (section 5). Each section ends with a problem.
+Expectations with cycles, Lights Out, XOR constraints, matrix inverses and determinants all become linear systems, and all use one algorithm with different arithmetic. [L1](/algo/l1-linear-algebra/) explains where the facts about solutions come from (image and kernel); this post covers how to eliminate and where it shows up in problems: the elimination itself (section 1), what it can solve (section 2), which lines change for each field (sections 3 to 5), and the incremental version that adds one equation at a time (section 6). Each section ends with a problem.
 
 ## 1. What Elimination Does
 
@@ -50,9 +50,27 @@ The animation below goes step by step through three systems: a unique solution, 
 <iframe src="/maps/gauss-steps.en.html" title="Gaussian elimination, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:500px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/gauss-steps.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
 
-## 2. Reals: Pick the Pivot of Largest Absolute Value
+## 2. What It Can Solve
 
-### 2.1 A Tiny Pivot Magnifies the Error
+Each problem below becomes a linear system or a matrix, and one elimination answers it. Each row says what to build, what to read after eliminating, and where it is covered.
+
+| Problem | Build | Read after eliminating | See |
+| --- | --- | --- | --- |
+| Solve a linear system: unique, infinitely many, or none | the $n \times (m + 1)$ augmented matrix | check rows $0 = $ nonzero first (no solution), then free variables | 1.2, 3.2 |
+| Expectations or probabilities whose states depend on each other (cycles) | one unknown per state, each transition an equation | the value of every state | 3.3 |
+| Solve a system modulo a prime | the augmented matrix with coefficients mod $p$ | as above, with division replaced by multiplying by the inverse | 4.1 |
+| Matrix inverse | $[A \mid I]$ | when the left half becomes $I$, the right half is $A^{-1}$; if it cannot, $A$ is singular | 4.2 |
+| Determinant | the square matrix $A$ | clear only below, multiply the diagonal, flip the sign per swap | 4.3 |
+| Lights Out, XOR constraints | one 0/1 unknown per switch or per bit; XOR is addition mod 2 | one solution; there are $2^{\text{free}}$ of them | 5.2, 5.3, 5.4 |
+| Rank, linear independence, whether an equation follows from others | the vectors as rows of a matrix | the number of pivots is the rank | 1.2, 6.1 |
+| Equations arriving one at a time: when everything is determined, or picking an independent set | incremental Gauss | after each one, whether the rank grew and whether a contradiction appeared | 6.1, 6.2 |
+| Which values XORs of subsets can reach | one row per number, at most 60 columns | this is the XOR basis | [L3](/algo/l3-xor-basis/) |
+
+An equation that is not linear has to be made linear first. Sphere equations, for example, are quadratic; subtracting neighbouring pairs cancels the quadratic terms and leaves a linear system (practice problem 2).
+
+## 3. Reals: Pick the Pivot of Largest Absolute Value
+
+### 3.1 A Tiny Pivot Magnifies the Error
 
 Real numbers on a computer carry rounding error. With a tiny pivot, dividing by it in step 2 scales the row up enormously, and the errors of the other numbers grow with it.
 
@@ -102,7 +120,7 @@ int gauss(vector<vector<double>>& a, int m, vector<int>& where) {
 
 Check the return value for $-1$ (no solution) first, then whether the rank is $m$ (unique solution). This is the reading order of 1.2: a system can have free variables and a contradictory row at the same time, and then the answer is no solution.
 
-### 2.2 Example: Luogu P2455, Telling No Solution from Infinitely Many
+### 3.2 Example: Luogu P2455, Telling No Solution from Infinitely Many
 
 Problem ([Luogu P2455](https://www.luogu.com.cn/problem/P2455), SDOI2006): a linear system in $n \le 50$ unknowns with integer coefficients. Print each $x_i$ with 2 decimals if the solution is unique, $-1$ if there is no solution, and $0$ if there are infinitely many.
 
@@ -112,7 +130,7 @@ This is exactly the reading step of 1.2, and the trap is the order: when a colum
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 2.1 (reals)
+// uses gauss from 3.1 (reals)
 
 int main() {
     ios::sync_with_stdio(false);
@@ -136,7 +154,7 @@ int main() {
 
 `a[i][c]` changes inside the inner loop, so `j` runs from right to left and column `c` is updated last; every earlier update still sees the old value. Values with tiny absolute value are printed as 0, avoiding `-0.00`. Cost $O(n^3)$ with $n \le 50$.
 
-### 2.3 Example: Luogu P3232, an Expectation with Cycles
+### 3.3 Example: Luogu P3232, an Expectation with Cycles
 
 Problem ([Luogu P3232](https://www.luogu.com.cn/problem/P3232), HNOI2013): a connected undirected graph with $n \le 500$ vertices and $m \le 125000$ edges. Start at vertex 1; each step takes a uniformly random incident edge; stop at vertex $n$. The score is the sum of the numbers of the edges walked (counted each time). Number the edges $1 \dots m$ to minimise the expected score, and print it with 3 decimals.
 
@@ -156,7 +174,7 @@ Edge $(u, v)$ is walked $\dfrac{f_u}{\deg u} + \dfrac{f_v}{\deg v}$ times in exp
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 2.1 (reals)
+// uses gauss from 3.1 (reals)
 
 int main() {
     ios::sync_with_stdio(false);
@@ -198,9 +216,9 @@ int main() {
 
 Here the solution is always unique (the expected visit counts from vertex 1 are determined), so the code skips the checks for no solution and free variables. Cost: eliminating over $n - 1$ vertices is $O(n^3)$, about $1.25 \times 10^8$ at $n = 500$; sorting the $m$ edges adds $O(m \log m)$.
 
-## 3. Modulo a Prime: Replace Division by an Inverse
+## 4. Modulo a Prime: Replace Division by an Inverse
 
-### 3.1 Only Two Changes
+### 4.1 Only Two Changes
 
 Modulo a prime $p$ numbers are exact, with no rounding, and the elimination is the same apart from two changes:
 
@@ -255,7 +273,7 @@ int gauss(vector<vector<ll>>& a, int m, vector<int>& where) {
 }
 ```
 
-### 3.2 Example: Luogu P4783, Matrix Inverse
+### 4.2 Example: Luogu P4783, Matrix Inverse
 
 Problem ([Luogu P4783](https://www.luogu.com.cn/problem/P4783)): invert an $N \times N$ matrix modulo $10^9 + 7$ with $N \le 400$, or print `No Solution` if it is singular.
 
@@ -266,7 +284,7 @@ Why: each row operation is a left multiplication by an invertible matrix, so the
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
-// uses gauss from 3.1 (mod a prime; P and qp come with it)
+// uses gauss from 4.1 (mod a prime; P and qp come with it)
 
 int main() {
     ios::sync_with_stdio(false);
@@ -287,13 +305,13 @@ int main() {
 
 Eliminating the $n \times 2n$ matrix takes about $2 n^3$ multiplications, about $1.3 \times 10^8$ at $n = 400$.
 
-### 3.3 Determinant: Clear Only Below, Multiply the Diagonal
+### 4.3 Determinant: Clear Only Below, Multiply the Diagonal
 
 How the three row operations affect the determinant: swapping two rows flips the sign; multiplying a row by $k$ multiplies it by $k$; adding a multiple of another row leaves it unchanged. So use only the third operation (plus swaps) to reach an upper triangle; the determinant is the product of the diagonal, with one sign flip per swap. No need to scale pivots to 1 or to clear rows above. The mod-prime code, the matrix-tree theorem and the LGV lemma are in [C0 section 4.6](/algo/c0-contest-math-overview/). Clearing only below takes about $n^3 / 3$ multiplications, plus the inverses, $O(n^3 + n \log p)$ in total.
 
-## 4. Mod 2: Addition and Subtraction Are XOR
+## 5. Mod 2: Addition and Subtraction Are XOR
 
-### 4.1 Store Each Row as a Bitset
+### 5.1 Store Each Row as a Bitset
 
 GF(2) has only 0 and 1 with $1 + 1 = 0$, so addition and subtraction are both XOR; the pivot is always 1, so there is no division. Step 3, "subtract a multiple of row $r$ from row $i$", has only one case left: if row $i$ has a 1 in this column, XOR the whole of row $r$ into it.
 
@@ -329,7 +347,7 @@ int gauss(vector<bitset<MV + 1>>& a, int m, vector<int>& where) {
 }
 ```
 
-### 4.2 Example: POJ 1222, Lights Out
+### 5.2 Example: POJ 1222, Lights Out
 
 Problem ([POJ 1222](http://poj.org/problem?id=1222) EXTENDED LIGHTS OUT): a 5 by 6 grid of lights, each with a switch; pressing it flips that light and its up, down, left and right neighbours. Given which lights are on, find which switches to press to turn everything off, printed as a 5 by 6 table of 0/1. A solution is guaranteed.
 
@@ -347,7 +365,7 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 4.1 (mod 2)
+// uses gauss from 5.1 (mod 2)
 
 const int R = 5, C = 6, V = R * C;
 
@@ -387,11 +405,11 @@ int main() {
 
 The statement says every initial state can be turned off; for a square matrix that is the same as full rank, so the solution is unique and the code does not check for no solution. Other sizes (5 by 5, say) need not be full rank: with free variables there are $2^{\text{free}}$ solutions, and some initial states have none.
 
-### 4.3 Example: CF 1344F Piet's Palette, Colors as Vectors
+### 5.3 Example: CF 1344F Piet's Palette, Colors as Vectors
 
 Problem ([CF 1344F](https://codeforces.com/problemset/problem/1344/F)): a palette has $n \le 1000$ cells, each red R, yellow Y, blue B or empty. Mixing a sequence: look at the first two colors; equal ones are both removed, different ones are replaced by the missing third color; one color left is the result, nothing left is white W. There are $k \le 1000$ operations in order: `mix` mixes some cells in a given order and reports the result; `RY`, `RB`, `YB` swap two colors in some cells. Find any initial palette, or report that none exists.
 
-All the difficulty is in the model; once it is set up, it is the elimination of 4.1.
+All the difficulty is in the model; once it is set up, it is the elimination of 5.1.
 
 **Mixing is XOR.** Encode W, R, Y, B as the GF(2) vectors $(0, 0)$, $(1, 0)$, $(0, 1)$, $(1, 1)$. Against the rule: two equal colors XOR to $(0, 0)$, "both removed"; R XOR Y is $(1, 1)$, i.e. B, "replaced by the missing color", and the other two pairs work the same; an empty cell is $(0, 0)$ and has no effect. XOR is commutative and associative, so **the result of a mix is the XOR of the cells' color vectors**, independent of order; the given order is never used.
 
@@ -409,7 +427,7 @@ which splits into two equations mod 2, one per component. There are $2n \le 2000
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 4.1 (mod 2)
+// uses gauss from 5.1 (mod 2)
 
 int main() {
     ios::sync_with_stdio(false);
@@ -464,13 +482,13 @@ int main() {
 }
 ```
 
-### 4.4 Counting Solutions Is the XOR Basis Count
+### 5.4 Counting Solutions Is the XOR Basis Count
 
-When the mod-2 system $Ax = b$ is solvable it has $2^{m - r}$ solutions: one particular solution XOR any element of the kernel (the "translate" of [L1 section 4.5](/algo/l1-linear-algebra/)). "Each value is reached by $2^{n-r}$ subsets" in [L3 section 3.2](/algo/l3-xor-basis/) is the same statement: take the $n$ numbers as the $n$ columns of $A$, the choice of numbers is $x$, and the numbers whose insertion fails are the free variables.
+When the mod-2 system $Ax = b$ is solvable it has $2^{m - r}$ solutions: one particular solution XOR any element of the kernel (the "translate" of [L1 section 4.5](/algo/l1-linear-algebra/)). "Each value is reached by $2^{n-r}$ subsets" in [L3 section 1.3](/algo/l3-xor-basis/) is the same statement: take the $n$ numbers as the $n$ columns of $A$, the choice of numbers is $x$, and the numbers whose insertion fails are the free variables.
 
-## 5. Incremental Elimination: One Equation at a Time
+## 6. Incremental Elimination: One Equation at a Time
 
-### 5.1 Eliminate Each Equation as It Arrives
+### 6.1 Eliminate Each Equation as It Arrives
 
 Some problems feed equations one by one: you want the first moment all unknowns are determined, or you need to pick an independent set out of many candidate equations. Re-eliminating each time is too slow; instead keep a reduced row echelon form and eliminate each new equation as it comes:
 
@@ -492,7 +510,7 @@ $r$ is the current rank, $n$ the number of unknowns, and $\text{MV} / 64$ the nu
 
 #### Template (mod 2)
 
-Unknown $j$ is bit $j$ of the bitset; `MV` just has to exceed the number of unknowns. The right-hand side is an `int`, so several systems with the same coefficients can pack their right-hand sides bit by bit and be eliminated together; 5.2 does 30 at once.
+Unknown $j$ is bit $j$ of the bitset; `MV` just has to exceed the number of unknowns. The right-hand side is an `int`, so several systems with the same coefficients can pack their right-hand sides bit by bit and be eliminated together; 6.2 does 30 at once.
 
 ```cpp
 #include <bits/stdc++.h>
@@ -556,13 +574,13 @@ If `bad` is true the system has no solution. Otherwise it has $2^{n - r}$ soluti
 
 The XOR basis is this template with at most 60 columns and no right-hand side; a side-by-side comparison, and the operations the XOR basis is usually used for such as the $k$-th smallest, are in the appendix of [L3 XOR Basis](/algo/l3-xor-basis/).
 
-### 5.2 Example: 2024 ICPC Kunming E Extracting Weights, Picking Independent Queries
+### 6.2 Example: 2024 ICPC Kunming E Extracting Weights, Picking Independent Queries
 
 Problem ([2024 ICPC Kunming Regional E](https://codeforces.com/gym/105588/problem/E), interactive): a tree with $n \le 250$ vertices has unknown weights $w_i < 2^{30}$, with $w_1 = 0$ known. Given $k$, you may ask at most $n$ times for "the XOR of the weights of all vertices on the path from $u$ to $v$", answered only if the path has exactly $k$ edges. All questions are sent at once and answered together. First decide whether at most $n$ queries can determine every weight: if not, print `NO`; otherwise print `YES`, ask, and finally print $w_2, \dots, w_n$.
 
 **Each query is an equation.** The unknowns are $w_1, \dots, w_n$. The answer to $(u, v)$ is the XOR of the weights on the path, so the coefficients are the 0/1 vector "is the vertex on the path". $w$ has 30 bits, but the systems for the 30 bits share the same coefficients, so the right-hand side is one `int` and XOR handles all 30 systems at once.
 
-**Whether it is possible is a question of rank.** The equations of all paths with $k$ edges, plus $w_1 = 0$, must have rank $n$ to pin down every weight. Picking $n$ independent ones among them is exactly the template of 5.1: enumerate every pair at distance $k$ and keep it when it raises the rank.
+**Whether it is possible is a question of rank.** The equations of all paths with $k$ edges, plus $w_1 = 0$, must have rank $n$ to pin down every weight. Picking $n$ independent ones among them is exactly the template of 6.1: enumerate every pair at distance $k$ and keep it when it raises the rank.
 
 **Insert $w_1 = 0$ first.** It is an equation too and costs no query. With it inserted first, the queries only need to fill the other $n - 1$ dimensions, so at most $n - 1$ are asked. If you pick $n - 1$ queries first and add it at the end, those $n - 1$ might already imply $w_1 = 0$; then it does not go in, the rank stops at $n - 1$, and you answer `NO` although a different or one more query would have been enough.
 
@@ -572,7 +590,7 @@ Problem ([2024 ICPC Kunming Regional E](https://codeforces.com/gym/105588/proble
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses IncGauss from 5.1
+// uses IncGauss from 6.1
 
 int main() {
     ios::sync_with_stdio(false);
@@ -646,19 +664,19 @@ Each problem lists the section it uses.
 
 **Required**
 
-1. [Luogu P3389 Gaussian elimination (template)](https://www.luogu.com.cn/problem/P3389): 2.2, unique solution only.
-2. [Luogu P4035 Sphere generator](https://www.luogu.com.cn/problem/P4035): sphere equations are quadratic; subtract neighbouring pairs to cancel the quadratic terms and get a linear system. Section 2.
-3. [Luogu P2973 Driving Out the Piggies](https://www.luogu.com.cn/problem/P2973): an expectation with cycles, equations on vertices as in 2.3.
-4. [Luogu P2447 Alien centipedes](https://www.luogu.com.cn/problem/P2447): mod 2, and also print how many equations are needed before everything is determined. Sections 4 and 5.
+1. [Luogu P3389 Gaussian elimination (template)](https://www.luogu.com.cn/problem/P3389): 3.2, unique solution only.
+2. [Luogu P4035 Sphere generator](https://www.luogu.com.cn/problem/P4035): sphere equations are quadratic; subtract neighbouring pairs to cancel the quadratic terms and get a linear system. Section 3.
+3. [Luogu P2973 Driving Out the Piggies](https://www.luogu.com.cn/problem/P2973): an expectation with cycles, equations on vertices as in 3.3.
+4. [Luogu P2447 Alien centipedes](https://www.luogu.com.cn/problem/P2447): mod 2, and also print how many equations are needed before everything is determined. Sections 5 and 6.
 
 **Optional**
 
-5. [Luogu P3164 Harmonious matrix](https://www.luogu.com.cn/problem/P3164): the same model as Lights Out but a nonzero solution is required, so set free variables to 1. 4.2.
-6. [Luogu P4111 Little Z's rooms](https://www.luogu.com.cn/problem/P4111): a determinant by the matrix-tree theorem modulo $10^9$, which is not prime, so there are no inverses; eliminate by Euclid-style subtraction between two rows. 3.1, 3.3.
+5. [Luogu P3164 Harmonious matrix](https://www.luogu.com.cn/problem/P3164): the same model as Lights Out but a nonzero solution is required, so set free variables to 1. 5.2.
+6. [Luogu P4111 Little Z's rooms](https://www.luogu.com.cn/problem/P4111): a determinant by the matrix-tree theorem modulo $10^9$, which is not prime, so there are no inverses; eliminate by Euclid-style subtraction between two rows. 4.1, 4.3.
 
 ## Connections to Other Posts
 
 - [L1 Linear Algebra](/algo/l1-linear-algebra/): section 3 "finding a basis is elimination", section 6 the structure of solutions (image and kernel), section 4.4 mod-2 elimination and the XOR basis as rows and columns of one matrix.
-- [L3 XOR Basis](/algo/l3-xor-basis/): insertion is the incremental Gauss of 5.1 with at most 60 columns (its appendix compares the two), and the count in 3.2 is 4.4.
+- [L3 XOR Basis](/algo/l3-xor-basis/): insertion is the incremental Gauss of 6.1 with at most 60 columns (its appendix compares the two), and the count in 1.3 is 5.4.
 - [C0 Contest Math Overview](/algo/c0-contest-math-overview/): 4.4 lists the three kinds of statements that turn into linear systems, and 4.6 has the determinant template and counting uses.
 - The template collection [Matrix #2: Gaussian Elimination](/posts/matrix-2-gaussian-elimination/): full templates for solving, determinants, inverses and rank over the reals, mod $p$ and mod 2, and the incremental version mod $p$.
