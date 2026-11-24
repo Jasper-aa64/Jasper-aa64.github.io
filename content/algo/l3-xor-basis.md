@@ -563,19 +563,19 @@ The two templates side by side. An XOR basis is incremental Gauss written for "a
 | --- | --- | --- |
 | A row is | a number, no right-hand side | an equation: coefficient bitset + right-hand side |
 | Stored by | `b[i]` is the row whose pivot is bit $i$ | each row remembers its pivot column `piv` |
-| Add a number / an equation | `insert`, old rows untouched, $O(60)$ | `add`, clears old rows, always RREF, $O(r \cdot \text{MX} / 64)$ |
-| Can it be represented | `contains`, $O(60)$ | `implied`, which also gives the implied RHS, $O(r \cdot \text{MX} / 64)$ |
+| Add a number / an equation | `insert`, old rows untouched, $O(60)$ | `add`, clears old rows, always RREF, $O(r \cdot \text{MAX\_VARS} / 64)$ |
+| Can it be represented | `contains`, $O(60)$ | `implied`, which also gives the implied RHS, $O(r \cdot \text{MAX\_VARS} / 64)$ |
 | Rank | `r`, $O(1)$ | `rank()`, $O(1)$ |
 | Reduced form | `reduce()`, called when needed, $O(60^2)$ | always reduced, no extra work |
-| Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | `max_xor` / `min_xor`, $O(r \cdot \text{MX} / 64)$ |
-| $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | `kth` $O(r \log r + r \cdot \text{MX} / 64)$ / `index` $O(r \log r)$, no reduction needed |
-| Merge | `merge`, $O(60^2)$ | `merge`, adding the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MX} / 64)$ |
-| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | `PrefixGauss`: `add`, `implied`, `max_xor` $O(n \cdot \text{MX} / 64)$, `bad` $O(1)$, `rank` $O(n)$, `at` $O(n \cdot r \cdot \text{MX} / 64)$ |
+| Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | `max_xor` / `min_xor`, $O(r \cdot \text{MAX\_VARS} / 64)$ |
+| $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | `kth` $O(r \log r + r \cdot \text{MAX\_VARS} / 64)$ / `index` $O(r \log r)$, no reduction needed |
+| Merge | `merge`, $O(60^2)$ | `merge`, adding the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MAX\_VARS} / 64)$ |
+| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | `PrefixGauss`: `add`, `implied`, `max_xor` $O(n \cdot \text{MAX\_VARS} / 64)$, `bad` $O(1)$, `rank` $O(n)$, `at` $O(n \cdot r \cdot \text{MAX\_VARS} / 64)$ |
 | Reduced to 0 | insertion fails: the number is reachable | check the right-hand side: 0 means implied by the rows (returns 0), nonzero means contradiction (returns $-1$, `bad` remembers it) |
-| One solution / all solutions | none | `solve()` $O(r + \text{MX} / 64)$ / `kernel()` $O((n - r)(r + \text{MX} / 64))$ |
-| Columns | at most 60 | at most `MX`, thousands are fine |
+| One solution / all solutions | none | `solve()` $O(r + \text{MAX\_VARS} / 64)$ / `kernel()` $O((n - r)(r + \text{MAX\_VARS} / 64))$ |
+| Columns | at most 60 | at most `MAX_VARS`, thousands are fine |
 
-Here $r$ is the current rank and $n$ the number of unknowns; `MX / 64` is the number of machine words in one bitset row, so one bitset XOR costs that many integer XORs. The XOR basis's 60 is just "rank at most 60, one word per row", so both columns follow the same formula: with $\text{MX} = 64$, incremental Gauss's $O(r \cdot \text{MX}/64)$ is $O(r)$ with $r \le 60$.
+Here $r$ is the current rank and $n$ the number of unknowns; `MAX_VARS / 64` is the number of machine words in one bitset row, so one bitset XOR costs that many integer XORs. The XOR basis's 60 is just "rank at most 60, one word per row", so both columns follow the same formula: with $\text{MAX\_VARS} = 64$, incremental Gauss's $O(r \cdot \text{MAX\_VARS}/64)$ is $O(r)$ with $r \le 60$.
 
 So "can this number be reached by XOR" and "is this equation redundant" are the same question; a right-hand side adds the third outcome, contradiction.
 
@@ -677,22 +677,22 @@ The equation-solving functions are the template of [L2 section 5.1](/algo/l2-gau
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 1024;                             // max number of columns (unknowns)
+const int MAX_VARS = 1024;                       // max number of unknowns; a bitset length must be fixed at compile time
 
 // incremental Gauss (mod 2): add equations one at a time, always in RREF
 struct IncGauss {
     int n;                                       // number of unknowns
-    vector<bitset<MX>> row;
+    vector<bitset<MAX_VARS>> row;
     vector<int> rhs, piv;                        // right-hand side and pivot column of each row; several RHS bits can be packed and XORed together
     bool bad = false;                            // a contradiction has appeared
     IncGauss(int n) : n(n) {}
 
     // solving equations
-    void eliminate(bitset<MX>& v, int& b) const {  // clear v on every pivot column using the rows; the RHS follows
+    void eliminate(bitset<MAX_VARS>& v, int& b) const {  // clear v on every pivot column using the rows; the RHS follows
         for (int i = 0; i < (int)row.size(); i++)
             if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
     }
-    int add(bitset<MX> v, int b) {               // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
+    int add(bitset<MAX_VARS> v, int b) {         // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
         eliminate(v, b);
         int p = v._Find_first();
         if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
@@ -702,23 +702,23 @@ struct IncGauss {
         return 1;
     }
     int rank() const { return row.size(); }
-    int implied(bitset<MX> v) const {            // is the left side v implied? return its RHS if so, else -1
+    int implied(bitset<MAX_VARS> v) const {      // is the left side v implied? return its RHS if so, else -1
         int b = 0;
         eliminate(v, b);
         return v.none() ? b : -1;
     }
-    bitset<MX> solve() const {                   // one solution when !bad: free variables 0, each pivot equals its RHS
-        bitset<MX> x;
+    bitset<MAX_VARS> solve() const {             // one solution when !bad: free variables 0, each pivot equals its RHS
+        bitset<MAX_VARS> x;
         for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
         return x;
     }
-    vector<bitset<MX>> kernel() const {          // basis of the homogeneous solution space, n - rank() vectors
+    vector<bitset<MAX_VARS>> kernel() const {    // basis of the homogeneous solution space, n - rank() vectors
         vector<int> isp(n, -1);
         for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-        vector<bitset<MX>> ks;
+        vector<bitset<MAX_VARS>> ks;
         for (int f = 0; f < n; f++) {
             if (isp[f] >= 0) continue;
-            bitset<MX> x;
+            bitset<MAX_VARS> x;
             x[f] = 1;                            // this free variable 1, the others 0
             for (int i = 0; i < (int)row.size(); i++)
                 if (row[i][f]) x[piv[i]] = 1;
@@ -731,21 +731,21 @@ struct IncGauss {
     }
 
     // counterparts of the XOR basis operations: left sides only (row space), RHS ignored; column 0 is the most significant bit
-    bitset<MX> max_xor(bitset<MX> v) const;      // max of v XOR any rows
-    bitset<MX> min_xor(bitset<MX> v) const;      // min of v XOR any rows
-    bitset<MX> kth(unsigned long long k) const;  // k-th smallest in the row space (0-based, the 0th is all zeros); needs k < 2^rank()
-    unsigned long long index(const bitset<MX>& x) const;  // rank of x among the row space when x is in it (0-based)
+    bitset<MAX_VARS> max_xor(bitset<MAX_VARS> v) const;  // max of v XOR any rows
+    bitset<MAX_VARS> min_xor(bitset<MAX_VARS> v) const;  // min of v XOR any rows
+    bitset<MAX_VARS> kth(unsigned long long k) const;  // k-th smallest in the row space (0-based, the 0th is all zeros); needs k < 2^rank()
+    unsigned long long index(const bitset<MAX_VARS>& x) const;  // rank of x among the row space when x is in it (0-based)
     vector<int> low_to_high() const;             // row ids ordered by pivot from low bit to high bit (pivot column descending)
 };
 
 // prefix incremental Gauss (mod 2): equations come left to right, each pivot column keeps the rightmost one; the RHS is column n and is eliminated too
 struct PrefixGauss {
     int n;
-    vector<bitset<MX>> row;                      // row[c]: the equation whose first 1 is in column c; the row for c = n is 0 = 1
+    vector<bitset<MAX_VARS>> row;                // row[c]: the equation whose first 1 is in column c; the row for c = n is 0 = 1
     vector<int> pos;                             // position of row[c] (1-based), 0 if empty
     PrefixGauss(int n) : n(n), row(n + 1), pos(n + 1, 0) {}
 
-    void add(bitset<MX> v, int b, int p) {       // add the p-th equation; needs MX > n
+    void add(bitset<MAX_VARS> v, int b, int p) {  // add the p-th equation; needs MAX_VARS > n
         v[n] = b;
         while (v.any()) {
             int c = v._Find_first();
@@ -760,7 +760,7 @@ struct PrefixGauss {
         for (int c = 0; c < n; c++) r += pos[c] >= l;
         return r;
     }
-    int implied(bitset<MX> v, int l) const {     // using only equations l..current: the implied RHS, or -1 if not implied
+    int implied(bitset<MAX_VARS> v, int l) const {  // using only equations l..current: the implied RHS, or -1 if not implied
         v[n] = 0;
         for (int c = v._Find_first(); c < n; c = v._Find_next(c)) {
             if (pos[c] < l) return -1;
@@ -768,12 +768,12 @@ struct PrefixGauss {
         }
         return v[n];
     }
-    bitset<MX> max_xor(bitset<MX> v, int l) const;  // max of v XOR left sides of equations l..current
+    bitset<MAX_VARS> max_xor(bitset<MAX_VARS> v, int l) const;  // max of v XOR left sides of equations l..current
     IncGauss at(int l) const {                   // equations l..current as an IncGauss
         IncGauss g(n);
         for (int c = 0; c <= n; c++)
             if (pos[c] >= l) {
-                bitset<MX> w = row[c];
+                bitset<MAX_VARS> w = row[c];
                 int b = w[n];
                 w[n] = 0;
                 g.add(w, b);
@@ -794,13 +794,13 @@ The functions that mirror the XOR basis look only at left sides and read each ro
 ```cpp
 // in RREF each pivot column is 1 only in its own row, so the result on a pivot column says whether that row was chosen,
 // and two choices first differ on some pivot column: the greedy only decides 0 or 1 on each pivot column
-bitset<MX> IncGauss::max_xor(bitset<MX> v) const {
+bitset<MAX_VARS> IncGauss::max_xor(bitset<MAX_VARS> v) const {
     for (int i = 0; i < (int)row.size(); i++)
         if (!v[piv[i]]) v ^= row[i];
     return v;
 }
 
-bitset<MX> IncGauss::min_xor(bitset<MX> v) const {
+bitset<MAX_VARS> IncGauss::min_xor(bitset<MAX_VARS> v) const {
     for (int i = 0; i < (int)row.size(); i++)
         if (v[piv[i]]) v ^= row[i];
     return v;
@@ -813,15 +813,15 @@ vector<int> IncGauss::low_to_high() const {
     return id;
 }
 
-bitset<MX> IncGauss::kth(unsigned long long k) const {   // bit t of k: whether to take the row of the t-th pivot counted from the low end
-    bitset<MX> v;
+bitset<MAX_VARS> IncGauss::kth(unsigned long long k) const {  // bit t of k: whether to take the row of the t-th pivot counted from the low end
+    bitset<MAX_VARS> v;
     vector<int> id = low_to_high();
     for (int t = 0; t < (int)id.size() && t < 64; t++)
         if (k >> t & 1) v ^= row[id[t]];
     return v;
 }
 
-unsigned long long IncGauss::index(const bitset<MX>& x) const {
+unsigned long long IncGauss::index(const bitset<MAX_VARS>& x) const {
     unsigned long long k = 0;
     vector<int> id = low_to_high();
     for (int t = 0; t < (int)id.size() && t < 64; t++)
@@ -829,7 +829,7 @@ unsigned long long IncGauss::index(const bitset<MX>& x) const {
     return k;
 }
 
-bitset<MX> PrefixGauss::max_xor(bitset<MX> v, int l) const {   // echelon form: row[c] only touches columns c and later, so greedy from the high end
+bitset<MAX_VARS> PrefixGauss::max_xor(bitset<MAX_VARS> v, int l) const {  // echelon form: row[c] only touches columns c and later, so greedy from the high end
     for (int c = 0; c < n; c++)
         if (pos[c] >= l && !v[c]) v ^= row[c];
     v[n] = 0;                                    // column n is the RHS, drop it

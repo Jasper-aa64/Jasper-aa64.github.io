@@ -307,11 +307,11 @@ $O(n \cdot m \cdot (m + 1) / 64)$, $O(n^3 / 64)$ for a square system, fast enoug
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 2000;                                     // max number of unknowns
+const int MAX_VARS = 2000;                               // max number of unknowns; a bitset length must be fixed at compile time
 
 // Gauss-Jordan mod 2: each row is a bitset, bits 0..m-1 are coefficients, bit m is the RHS
 // return value and where as in the real version: -1 for no solution, otherwise the rank; when solvable x_c = a[where[c]][m]
-int gauss(vector<bitset<MX + 1>>& a, int m, vector<int>& where) {
+int gauss(vector<bitset<MAX_VARS + 1>>& a, int m, vector<int>& where) {
     int n = a.size(), r = 0;
     where.assign(m, -1);
     for (int c = 0; c < m && r < n; c++) {
@@ -359,7 +359,7 @@ int main() {
     for (int t = 1; t <= T; t++) {
         // equation r: number of flips of light r ≡ its initial state (mod 2)
         // column c: which lights switch c flips; column V is the right-hand side
-        vector<bitset<MX + 1>> a(V);
+        vector<bitset<MAX_VARS + 1>> a(V);
         for (int i = 0; i < R; i++)
             for (int j = 0; j < C; j++) {
                 int s;
@@ -419,7 +419,7 @@ int main() {
     // a color is a vector in GF(2)^2: W = 00, R = (1,0), Y = (0,1), B = (1,1); mixing is XOR
     // color of cell j now = T_j * x_j, x_j = (x_{2j}, x_{2j+1}) is the initial color, T_j starts as I
     vector<array<int, 4>> T(n, {1, 0, 0, 1});            // {t00, t01, t10, t11}
-    vector<bitset<MX + 1>> eq;
+    vector<bitset<MAX_VARS + 1>> eq;
     int V = 2 * n;
     for (int t = 0; t < k; t++) {
         string op;
@@ -430,7 +430,7 @@ int main() {
         if (op == "mix") {
             char ch;
             cin >> ch;
-            bitset<MX + 1> e0, e1;                        // one equation for each bit of the result color
+            bitset<MAX_VARS + 1> e0, e1;                  // one equation for each bit of the result color
             for (int j : id) {
                 e0[2 * j] = T[j][0], e0[2 * j + 1] = T[j][1];
                 e1[2 * j] = T[j][2], e1[2 * j + 1] = T[j][3];
@@ -482,37 +482,37 @@ Some problems feed equations one by one: you want the first moment all unknowns 
 
 | Operation | Cost |
 | --- | --- |
-| `eliminate`, `add`, `implied` | $O(r \cdot \text{MX} / 64)$ |
+| `eliminate`, `add`, `implied` | $O(r \cdot \text{MAX\_VARS} / 64)$ |
 | `rank` | $O(1)$ |
-| `solve` | $O(r + \text{MX} / 64)$ |
-| `kernel` | $O((n - r)(r + \text{MX} / 64))$ |
-| `merge` | $O(r' \cdot r \cdot \text{MX} / 64)$, $r'$ the other side's rank |
+| `solve` | $O(r + \text{MAX\_VARS} / 64)$ |
+| `kernel` | $O((n - r)(r + \text{MAX\_VARS} / 64))$ |
+| `merge` | $O(r' \cdot r \cdot \text{MAX\_VARS} / 64)$, $r'$ the other side's rank |
 
-$r$ is the current rank, $n$ the number of unknowns, and $\text{MX} / 64$ the number of machine words in one bitset row, so XOR-ing a whole row costs that many integer XORs. Adding $k$ equations one after another costs $O(k \cdot r \cdot \text{MX} / 64)$ in total. Mod $p$ a row is a `vector<long long>`, XOR becomes subtracting a multiple, and step 3 first multiplies the new row by the inverse of its pivot; adding one equation costs $O(r \cdot n + \log p)$.
+$r$ is the current rank, $n$ the number of unknowns, and $\text{MAX\_VARS} / 64$ the number of machine words in one bitset row, so XOR-ing a whole row costs that many integer XORs. Adding $k$ equations one after another costs $O(k \cdot r \cdot \text{MAX\_VARS} / 64)$ in total. Mod $p$ a row is a `vector<long long>`, XOR becomes subtracting a multiple, and step 3 first multiplies the new row by the inverse of its pivot; adding one equation costs $O(r \cdot n + \log p)$.
 
 #### Template (mod 2)
 
-Unknown $j$ is bit $j$ of the bitset; `MX` just has to exceed the number of unknowns. The right-hand side is an `int`, so several systems with the same coefficients can pack their right-hand sides bit by bit and be eliminated together; 5.2 does 30 at once.
+Unknown $j$ is bit $j$ of the bitset; `MAX_VARS` just has to exceed the number of unknowns. The right-hand side is an `int`, so several systems with the same coefficients can pack their right-hand sides bit by bit and be eliminated together; 5.2 does 30 at once.
 
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 1024;                             // max number of columns (unknowns)
+const int MAX_VARS = 1024;                       // max number of unknowns; a bitset length must be fixed at compile time
 
 // incremental Gauss (mod 2): add equations one at a time, always in RREF
 struct IncGauss {
     int n;                                       // number of unknowns
-    vector<bitset<MX>> row;
+    vector<bitset<MAX_VARS>> row;
     vector<int> rhs, piv;                        // right-hand side and pivot column of each row; several RHS bits can be packed and XORed together
     bool bad = false;                            // a contradiction has appeared
     IncGauss(int n) : n(n) {}
 
-    void eliminate(bitset<MX>& v, int& b) const {  // clear v on every pivot column using the rows; the RHS follows
+    void eliminate(bitset<MAX_VARS>& v, int& b) const {  // clear v on every pivot column using the rows; the RHS follows
         for (int i = 0; i < (int)row.size(); i++)
             if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
     }
-    int add(bitset<MX> v, int b) {               // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
+    int add(bitset<MAX_VARS> v, int b) {         // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
         eliminate(v, b);
         int p = v._Find_first();
         if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
@@ -522,23 +522,23 @@ struct IncGauss {
         return 1;
     }
     int rank() const { return row.size(); }
-    int implied(bitset<MX> v) const {            // is the left side v implied? return its RHS if so, else -1
+    int implied(bitset<MAX_VARS> v) const {      // is the left side v implied? return its RHS if so, else -1
         int b = 0;
         eliminate(v, b);
         return v.none() ? b : -1;
     }
-    bitset<MX> solve() const {                   // one solution when !bad: free variables 0, each pivot equals its RHS
-        bitset<MX> x;
+    bitset<MAX_VARS> solve() const {             // one solution when !bad: free variables 0, each pivot equals its RHS
+        bitset<MAX_VARS> x;
         for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
         return x;
     }
-    vector<bitset<MX>> kernel() const {          // basis of the homogeneous solution space, n - rank() vectors
+    vector<bitset<MAX_VARS>> kernel() const {    // basis of the homogeneous solution space, n - rank() vectors
         vector<int> isp(n, -1);
         for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-        vector<bitset<MX>> ks;
+        vector<bitset<MAX_VARS>> ks;
         for (int f = 0; f < n; f++) {
             if (isp[f] >= 0) continue;
-            bitset<MX> x;
+            bitset<MAX_VARS> x;
             x[f] = 1;                            // this free variable 1, the others 0
             for (int i = 0; i < (int)row.size(); i++)
                 if (row[i][f]) x[piv[i]] = 1;
@@ -591,7 +591,7 @@ int main() {
             if (v != par[ord[i]]) par[v] = ord[i], dep[v] = dep[ord[i]] + 1, ord.push_back(v);
 
     auto path = [&](int u, int v) {             // vertices on the path u..v, bit i-1 is vertex i
-        bitset<MX> s;
+        bitset<MAX_VARS> s;
         while (u != v) {
             if (dep[u] < dep[v]) swap(u, v);
             s[u - 1] = 1, u = par[u];
@@ -609,7 +609,7 @@ int main() {
     };
 
     IncGauss G(n);
-    bitset<MX> e1;
+    bitset<MAX_VARS> e1;
     e1[0] = 1;
     G.add(e1, 0);                                // w_1 = 0 is an equation too, eliminated with the queries
     vector<pair<int, int>> ask;

@@ -307,11 +307,11 @@ $O(n \cdot m \cdot (m + 1) / 64)$，方阵就是 $O(n^3 / 64)$，$n$ 到 2000 �
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 2000;                                     // 未知数个数的上限
+const int MAX_VARS = 2000;                               // 未知数个数的上限；bitset 的长度要在编译时定下，所以是常量
 
 // 高斯–约当消元（模 2）：每行是一个 bitset，前 m 位是系数，第 m 位是右端
 // 返回值和 where 的含义同实数版：-1 无解，否则返回秩；有解时 x_c = a[where[c]][m]
-int gauss(vector<bitset<MX + 1>>& a, int m, vector<int>& where) {
+int gauss(vector<bitset<MAX_VARS + 1>>& a, int m, vector<int>& where) {
     int n = a.size(), r = 0;
     where.assign(m, -1);
     for (int c = 0; c < m && r < n; c++) {
@@ -359,7 +359,7 @@ int main() {
     for (int t = 1; t <= T; t++) {
         // 第 r 行方程：灯 r 被翻转的次数之和 ≡ 它一开始亮不亮 (mod 2)
         // 第 c 列：按开关 c 会翻转哪些灯；第 V 列是右端
-        vector<bitset<MX + 1>> a(V);
+        vector<bitset<MAX_VARS + 1>> a(V);
         for (int i = 0; i < R; i++)
             for (int j = 0; j < C; j++) {
                 int s;
@@ -419,7 +419,7 @@ int main() {
     // 颜色 = GF(2)^2 的向量：W = 00，R = (1,0)，Y = (0,1)，B = (1,1)；混色就是异或
     // 格子 j 现在的颜色 = T_j * x_j，x_j = (x_{2j}, x_{2j+1}) 是初始颜色，T_j 一开始是单位阵
     vector<array<int, 4>> T(n, {1, 0, 0, 1});            // {t00, t01, t10, t11}
-    vector<bitset<MX + 1>> eq;
+    vector<bitset<MAX_VARS + 1>> eq;
     int V = 2 * n;
     for (int t = 0; t < k; t++) {
         string op;
@@ -430,7 +430,7 @@ int main() {
         if (op == "mix") {
             char ch;
             cin >> ch;
-            bitset<MX + 1> e0, e1;                        // 结果颜色的第 0 位、第 1 位各一个方程
+            bitset<MAX_VARS + 1> e0, e1;                  // 结果颜色的第 0 位、第 1 位各一个方程
             for (int j : id) {
                 e0[2 * j] = T[j][0], e0[2 * j + 1] = T[j][1];
                 e1[2 * j] = T[j][2], e1[2 * j + 1] = T[j][3];
@@ -482,37 +482,37 @@ int main() {
 
 | 操作 | 复杂度 |
 | --- | --- |
-| `eliminate`、`add`、`implied` | $O(r \cdot \text{MX} / 64)$ |
+| `eliminate`、`add`、`implied` | $O(r \cdot \text{MAX\_VARS} / 64)$ |
 | `rank` | $O(1)$ |
-| `solve` | $O(r + \text{MX} / 64)$ |
-| `kernel` | $O((n - r)(r + \text{MX} / 64))$ |
-| `merge` | $O(r' \cdot r \cdot \text{MX} / 64)$，$r'$ 是另一组的秩 |
+| `solve` | $O(r + \text{MAX\_VARS} / 64)$ |
+| `kernel` | $O((n - r)(r + \text{MAX\_VARS} / 64))$ |
+| `merge` | $O(r' \cdot r \cdot \text{MAX\_VARS} / 64)$，$r'$ 是另一组的秩 |
 
-$r$ 是当前的秩，$n$ 是未知数个数，$\text{MX} / 64$ 是一行 bitset 占的机器字数，一次整行异或就是这么多次整数异或。依次加 $k$ 条方程，总共 $O(k \cdot r \cdot \text{MX} / 64)$。模 $p$ 下一行是 `vector<long long>`，异或换成减去若干倍，第 3 步先把新行乘主元的逆元，加一条是 $O(r \cdot n + \log p)$。
+$r$ 是当前的秩，$n$ 是未知数个数，$\text{MAX\_VARS} / 64$ 是一行 bitset 占的机器字数，一次整行异或就是这么多次整数异或。依次加 $k$ 条方程，总共 $O(k \cdot r \cdot \text{MAX\_VARS} / 64)$。模 $p$ 下一行是 `vector<long long>`，异或换成减去若干倍，第 3 步先把新行乘主元的逆元，加一条是 $O(r \cdot n + \log p)$。
 
 #### 模板（模 2）
 
-第 $j$ 个未知数对应 bitset 的第 $j$ 位，`MX` 开到比未知数个数大就行。右端是一个 `int`，几组系数相同的方程组可以把右端按位打包一起消，5.2 就是 30 组一起消。
+第 $j$ 个未知数对应 bitset 的第 $j$ 位，`MAX_VARS` 开到比未知数个数大就行。右端是一个 `int`，几组系数相同的方程组可以把右端按位打包一起消，5.2 就是 30 组一起消。
 
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
 
-const int MX = 1024;                             // 列数（未知数个数）的上限
+const int MAX_VARS = 1024;                       // 未知数个数的上限；bitset 的长度要在编译时定下，所以是常量
 
 // 增量高斯（模 2）：一条一条加方程，始终保持简化行阶梯形
 struct IncGauss {
     int n;                                       // 未知数个数
-    vector<bitset<MX>> row;
+    vector<bitset<MAX_VARS>> row;
     vector<int> rhs, piv;                        // 每行的右端、主元列；右端可以把若干位打包一起异或
     bool bad = false;                            // 出现过矛盾
     IncGauss(int n) : n(n) {}
 
-    void eliminate(bitset<MX>& v, int& b) const {  // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
+    void eliminate(bitset<MAX_VARS>& v, int& b) const {  // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
         for (int i = 0; i < (int)row.size(); i++)
             if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
     }
-    int add(bitset<MX> v, int b) {               // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+    int add(bitset<MAX_VARS> v, int b) {         // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
         eliminate(v, b);
         int p = v._Find_first();
         if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
@@ -522,23 +522,23 @@ struct IncGauss {
         return 1;
     }
     int rank() const { return row.size(); }
-    int implied(bitset<MX> v) const {            // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
+    int implied(bitset<MAX_VARS> v) const {      // 左边为 v 的方程能否推出：能就返回右端，不能返回 -1
         int b = 0;
         eliminate(v, b);
         return v.none() ? b : -1;
     }
-    bitset<MX> solve() const {                   // !bad 时的一组解：自由元取 0，主元等于右端
-        bitset<MX> x;
+    bitset<MAX_VARS> solve() const {             // !bad 时的一组解：自由元取 0，主元等于右端
+        bitset<MAX_VARS> x;
         for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
         return x;
     }
-    vector<bitset<MX>> kernel() const {          // 齐次方程组解空间的基，n - rank() 个
+    vector<bitset<MAX_VARS>> kernel() const {    // 齐次方程组解空间的基，n - rank() 个
         vector<int> isp(n, -1);
         for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
-        vector<bitset<MX>> ks;
+        vector<bitset<MAX_VARS>> ks;
         for (int f = 0; f < n; f++) {
             if (isp[f] >= 0) continue;
-            bitset<MX> x;
+            bitset<MAX_VARS> x;
             x[f] = 1;                            // 这个自由元取 1，其余自由元取 0
             for (int i = 0; i < (int)row.size(); i++)
                 if (row[i][f]) x[piv[i]] = 1;
@@ -591,7 +591,7 @@ int main() {
             if (v != par[ord[i]]) par[v] = ord[i], dep[v] = dep[ord[i]] + 1, ord.push_back(v);
 
     auto path = [&](int u, int v) {             // u 到 v 路径上的点，第 i-1 位表示点 i
-        bitset<MX> s;
+        bitset<MAX_VARS> s;
         while (u != v) {
             if (dep[u] < dep[v]) swap(u, v);
             s[u - 1] = 1, u = par[u];
@@ -609,7 +609,7 @@ int main() {
     };
 
     IncGauss G(n);
-    bitset<MX> e1;
+    bitset<MAX_VARS> e1;
     e1[0] = 1;
     G.add(e1, 0);                                // w_1 = 0 也是一条方程，和询问一起消
     vector<pair<int, int>> ask;
