@@ -301,16 +301,90 @@ When a statement asks for the "$k$-th smallest", first decide what it ranks: dis
    - **Each pivot bit keeps the rightmost number, and a query uses only basis numbers at positions $\ge l$**: this is the greedy of 3.2 with position as the weight, called the prefix basis.
    - **Example**: CF 1100F, many queries for the maximum subset XOR inside a range.
 
-### 3.1 The Numbers in the Basis Are Segment XORs: Switch to Prefix XORs
+### 3.1 The Numbers in the Basis Are Segment XORs: CF 1101G
 
-**Write the XOR of a segment as the XOR of two prefix XORs, and the problem becomes the linear relations among the prefix XORs.**
+[CF 1101G (Zero XOR Subset)-less](https://codeforces.com/problemset/problem/1101/G), time limit 2 s
 
-1. **Example: CF 1101G**
-   - **Task**: cut an array into as many segments as possible so that no choice of one or more segments has XOR 0.
-2. **Segment values are independent exactly when the prefix XORs at the cut points are**
-   - **Segment values and prefix values express each other**: let $S_i = a_1 \oplus \cdots \oplus a_i$ with $S_0 = 0$ and cut points $0 = c_0 < c_1 < \cdots < c_k = n$. Segment $j$ has XOR $S_{c_j} \oplus S_{c_{j-1}}$, and $S_{c_j}$ is the XOR of the first $j$ segments. Two sets of $k$ numbers that express each other span the same space, so one is independent exactly when the other is.
-3. **The answer is the rank of the prefix XORs**
-   - **$S_n$ must be chosen**: if $S_n = 0$ there is no solution; otherwise $\{S_n\}$ extends to a basis of $S_1, \dots, S_n$, and the answer is the rank of these $n$ prefix XORs, $O(60 n)$ to insert them all.
+1. **Statement**
+
+   Given an array $a_1, \dots, a_n$, cut it into as many segments as possible: each element lies in exactly one segment, each segment has at least one element, and there is no nonempty set of segments whose numbers all XOR to 0. Print the maximum number of segments, or $-1$ if no valid division exists.
+
+   - **Input**: the first line holds $n$ ($1 \le n \le 2 \cdot 10^5$); the second holds $n$ integers $a_i$ ($0 \le a_i \le 10^9$).
+   - **Output**: the maximum number of segments, or $-1$.
+
+   **Sample 1 input**
+
+   ```text
+   4
+   5 5 7 2
+   ```
+
+   **Sample 1 output**
+
+   ```text
+   2
+   ```
+
+   **Sample 2 input**
+
+   ```text
+   3
+   1 2 3
+   ```
+
+   **Sample 2 output**
+
+   ```text
+   -1
+   ```
+
+   **Sample 3 input**
+
+   ```text
+   3
+   3 1 10
+   ```
+
+   **Sample 3 output**
+
+   ```text
+   3
+   ```
+
+   The statement's note: sample 1 can be cut as $[5, 5, 7], [2]$; no cut into 3 segments works, for example in $[5], [5, 7], [2]$ the segments $[5, 7]$ and $[2]$ XOR to 0. Sample 2 has no valid division. In sample 3 every number is its own segment.
+2. **Idea**
+   1. **A segment's XOR is the XOR of two prefix XORs**: let $S_i = a_1 \oplus \cdots \oplus a_i$, $S_0 = 0$, and the cut points be $0 = c_0 < c_1 < \cdots < c_k = n$; the $j$-th segment XORs to $S_{c_j} \oplus S_{c_{j-1}}$. "No set of segments XORs to 0" means these $k$ segment values are independent.
+   2. **The segment values are independent exactly when the prefix XORs at the cuts, $S_{c_1}, \dots, S_{c_k}$, are**: a segment value is the XOR of two neighbouring $S$, and conversely $S_{c_j}$ is the XOR of the first $j$ segments. Each group of $k$ numbers expresses the other, so they span the same space, and one group is independent exactly when the other is. The problem becomes: choose as many independent numbers as possible from $S_1, \dots, S_n$, and $S_n$ must be chosen (the last cut is always $n$).
+   3. **The answer is the rank of $S_1, \dots, S_n$, with no solution when $S_n = 0$**: if $S_n = 0$ it alone XORs to 0, so print $-1$. Otherwise insert $S_n$ first and then the other prefix XORs, giving a basis that contains $S_n$, of size equal to the rank $r$; the $k$ values $S$ of any valid division are independent, so $k \le r$. So insert every prefix XOR into the basis, and the answer is the rank.
+
+      For instance, in sample 1 the prefix XORs are $5, 0, 7, 5$ with rank 2; choosing $S_3 = 7$ and $S_4 = 5$ gives the division $[5, 5, 7], [2]$.
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // use the XorBasis from the appendix (insert and r)
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int n;
+       cin >> n;
+       XorBasis lb;
+       long long s = 0;                         // prefix XOR S_i
+       for (int i = 0; i < n; i++) {
+           long long a;
+           cin >> a;
+           s ^= a;
+           lb.insert(s);
+       }
+       cout << (s == 0 ? -1 : lb.r) << '\n';    // S_n = 0: no solution; otherwise the rank of the prefix XORs
+   }
+   ```
+
+3. **Cost and pitfalls**
+   - **Cost**: $n$ insertions, $O(60 n)$.
+   - **Check $S_n = 0$ first**: however large the rank of the other prefix XORs, $S_n = 0$ means no solution, because all segments together XOR to 0.
 
 ### 3.2 Weighted Choice: Insert by Decreasing Weight
 
