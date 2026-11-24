@@ -449,16 +449,16 @@ int main() {
 
 ### 5.1 CCPC Final 2025 L (Spirited Away): Counting Distinct Range Spans
 
-Problem ([QOJ / Universal Cup 3727 L](https://contest.ucup.ac/contest/3727/problem/18012), 4 s): you are given a sequence of non-negative integers $a_1, \dots, a_n$. For a range $[l, r]$, XOR together any subset of $a_l, \dots, a_r$ (the empty subset gives 0); the set of all possible results is $B(l, r)$, the span of $a_l, \dots, a_r$. Over all $1 \le l \le r \le n$, how many distinct sets $B(l, r)$ are there?
+[QOJ / Universal Cup 3727 L](https://contest.ucup.ac/contest/3727/problem/18012), time limit 4 s
 
-**Input**: the first line holds $T$, the number of test cases. Each test case has $n$ ($1 \le n \le 10^5$) on one line and $n$ integers $a_i$ ($0 \le a_i < 2^{32}$) on the next. The sum of $n$ over all test cases is at most $10^5$.
+You are given a sequence of non-negative integers $a_1, \dots, a_n$. For a range $[l, r]$, XOR together any subset of $a_l, \dots, a_r$ (the empty subset gives 0); the set of all possible results is $B(l, r)$. Over all $1 \le l \le r \le n$, how many distinct sets $B(l, r)$ are there?
 
-**Output**: for each test case, one line with the number of distinct sets $B(l, r)$.
+- **Input**: the first line holds $T$, the number of test cases. Each test case has $n$ ($1 \le n \le 10^5$) on one line and $n$ integers $a_i$ ($0 \le a_i < 2^{32}$) on the next. The sum of $n$ over all test cases is at most $10^5$.
+- **Output**: for each test case, one line with the number of distinct sets $B(l, r)$.
 
-**Sample**
+**Input**
 
 ```text
-Input
 5
 3
 1 2 3
@@ -470,8 +470,11 @@ Input
 9012 91829 9819 78 237 862 7672 2
 10
 0 1 2 4 8 16 32 64 128 256
+```
 
-Output
+**Output**
+
+```text
 4
 10
 12
