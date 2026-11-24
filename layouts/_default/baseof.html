@@ -125,6 +125,24 @@
           e.clipboardData.setData('text/plain', text);
           e.preventDefault();
         });
+        // MathJax glyphs are ::before content, which the browser never paints as selected, so a formula inside the
+        // selection looked unselected although copying included it. Mark such formulas with mjx-sel (site.css colours it).
+        let marked = [], pending = 0;
+        document.addEventListener('selectionchange', () => {
+          cancelAnimationFrame(pending);
+          pending = requestAnimationFrame(() => {
+            marked.forEach(m => m.classList.remove('mjx-sel'));
+            marked = [];
+            const sel = getSelection();
+            if (!sel.rangeCount || sel.isCollapsed) return;
+            const r = sel.getRangeAt(0);
+            const anc = r.commonAncestorContainer;
+            const root = anc.nodeType === 1 ? anc : anc.parentElement;
+            const inside = root.closest('mjx-container[data-tex]');
+            const cands = inside ? [inside] : root.querySelectorAll('mjx-container[data-tex]');
+            cands.forEach(m => { if (r.intersectsNode(m)) { m.classList.add('mjx-sel'); marked.push(m); } });
+          });
+        });
       </script>
     {{ end }}
     {{ if .Params.mermaid }}

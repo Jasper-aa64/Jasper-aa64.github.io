@@ -1882,6 +1882,17 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   overflow-y: hidden;
   padding: 4px 0;
 }
+/* MathJax draws its glyphs as ::before content, which the browser never paints as selected; the copy script in
+   baseof.html marks formulas inside the selection with mjx-sel, and they get the ::selection colour by hand. */
+.prose mjx-container.mjx-sel:not([display="true"]),
+.prose mjx-container.mjx-sel[display="true"] > mjx-math {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 2px;
+}
+:root[data-theme="dark"] .prose mjx-container.mjx-sel:not([display="true"]),
+:root[data-theme="dark"] .prose mjx-container.mjx-sel[display="true"] > mjx-math,
+:root[data-theme="black"] .prose mjx-container.mjx-sel:not([display="true"]),
+:root[data-theme="black"] .prose mjx-container.mjx-sel[display="true"] > mjx-math { background: rgba(224, 120, 130, .5); }
 .prose .mermaid { margin: 2em 0; text-align: center; }
 
 /* Post footer */
