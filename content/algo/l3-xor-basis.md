@@ -8,43 +8,51 @@ weight: 17
 math: true
 toc: true
 ---
-Given $n$ numbers, pick any subset and XOR it together: what is the largest result? With $n = 50$ there are $2^{50}$ subsets, too many to enumerate. But the subset XORs repeat a lot. With three numbers $a$, $b$, $a \oplus b$, the values you can reach are exactly the ones you reach with $a$ and $b$ alone; the third number is redundant. Remove redundant numbers one at a time and at most 60 remain (each number has 60 bits), yet not a single reachable value is lost. What remains is an **XOR basis** (线性基). To say precisely what "redundant" means, and why at most 60 remain, we put XOR into linear algebra.
+Given $n$ numbers, pick any subset and XOR it together: what is the largest result?
+
+- **There are too many subsets to enumerate**: with $n = 50$ there are $2^{50}$.
+- **The subset XORs repeat a lot**: $a$, $b$, $a \oplus b$ reach exactly the values $a$ and $b$ alone reach, so the third number is redundant.
+- **Dropping redundant numbers leaves at most 60**: each number has 60 bits, the remaining numbers reach every value the originals did, and this set is an **XOR basis**. Saying what "redundant" means and why at most 60 remain takes linear algebra.
 
 ## 1. What an XOR Basis Is
 
 ### 1.1 A Number Is a Vector over GF(2)
 
-Write a number below $2^{60}$ as 60 binary digits, each 0 or 1, and it becomes a 60-dimensional vector. XOR of two numbers adds digit by digit mod 2: $1 \oplus 1 = 0$ is exactly $1 + 1 \equiv 0 \pmod 2$. The field with two elements 0 and 1, where addition and multiplication are taken mod 2, is written **GF(2)** (also $\mathbb{F}_2$), so **XOR is vector addition over GF(2)**.
+**Read a number as a 0/1 vector: XOR is vector addition and a subset XOR is a linear combination.**
 
-Over GF(2) the coefficients are only 0 and 1, so a linear combination $x_1 a_1 + x_2 a_2 + \cdots + x_n a_n$ ($x_i \in \{0, 1\}$) means "XOR together the numbers with $x_i = 1$". A subset XOR and a linear combination are the same thing, so a few notions carry over from linear algebra directly:
-
-- **Span**: the set of all subset XORs, written $\operatorname{span}(a_1, \dots, a_n)$.
-- **Linear independence**: no nonempty subset XORs to 0. When a statement says "no nonempty subset has XOR 0", it is asking for linear independence.
-- **Basis and rank**: a linearly independent set of numbers that can XOR to every value in the space is a basis of the space; its size is the dimension of the space, also called the **rank** of the original numbers, written $r$. A 60-dimensional space holds at most 60 linearly independent numbers, so $r \le 60$.
-
-These notions are the same ones as over the reals; [L1 Linear Algebra](/algo/l1-linear-algebra/) sets up the model in ordinary linear algebra and shows why the same 0/1 vectors can have different ranks over the reals and over GF(2).
-
-The "redundant" number from the opening is one that the others can XOR to; removing it leaves the span unchanged. When nothing more can be removed, the remaining numbers are linearly independent, i.e. a basis. **After switching to the basis, the reachable values are the same, while the count of numbers drops from $n$ to $r \le 60$**; every problem below is solved on those at most 60 numbers.
+1. **XOR is vector addition mod 2**
+   - **A number is a 60-dimensional 0/1 vector**: write a number below $2^{60}$ in 60 binary digits, one coordinate per bit.
+   - **XOR adds bit by bit mod 2**: $1 \oplus 1 = 0$ is exactly $1 + 1 \equiv 0 \pmod 2$. The field with only 0 and 1 and arithmetic mod 2 is **GF(2)** (also $\mathbb{F}_2$).
+2. **A subset XOR is a linear combination with coefficients 0 or 1**
+   - **$x_1 a_1 + \cdots + x_n a_n$ ($x_i \in \{0, 1\}$) is the XOR of the numbers with $x_i = 1$**: so the notions of linear algebra carry over directly.
+     - **Span**: the set of all subset XORs, written $\operatorname{span}(a_1, \dots, a_n)$.
+     - **Linear independence**: no nonempty subset XORs to 0. A statement saying "no nonempty subset has XOR 0" means exactly this.
+     - **Basis and rank**: an independent set that reaches every value of the space is a basis; its size is the rank $r$, and $r \le 60$ in a 60-dimensional space.
+   - **The same notions over the reals are in L1**: [L1 Linear Algebra](/algo/l1-linear-algebra/) covers the general model and why the same 0/1 vectors can have different ranks over the reals and over GF(2).
+3. **The XOR basis is what remains after dropping redundant numbers**
+   - **"Redundant" means reachable from the others**: dropping it keeps the span; when nothing more can be dropped, the rest is independent, a basis.
+   - **With the basis, $n$ numbers shrink to $r \le 60$**: the reachable values stay the same, and every later question works on these at most 60 numbers.
 
 ### 1.2 Stored by Highest Bit: Insertion Eliminates as It Goes
 
-The basis is an array `b[0..59]` with one rule: **`b[i]` is either 0 or a number whose highest bit is exactly bit $i$**. To insert $x$, scan from the high bits down: if bit $i$ is 1 and `b[i]` is empty, store $x$ in `b[i]`; if `b[i]` is taken, set $x \leftarrow x \oplus b_i$, which clears bit $i$, and continue with the lower bits.
+**`b[i]` only holds a number whose highest bit is $i$; insertion goes from high bits down, clearing the 1s of $x$ with the basis, stores $x$ at the first empty slot, and a result of 0 means $x$ was already reachable.**
 
-The animation below walks through insertion bit by bit. It starts with 6, 3, 5, 1: 5 is cleared to 0 and fails, and the other three each take a pivot bit. You can type your own numbers.
+1. **How it is stored and inserted**
+   - **`b[i]` is either 0 or a number whose highest bit is exactly $i$**: 60 slots in all.
+   - **Inserting $x$ scans from bit 59 down**: if bit $i$ is 1 and `b[i]` is empty, store $x$ in `b[i]`; if `b[i]` is occupied, set $x \leftarrow x \oplus b_i$ to clear that bit and keep going lower.
+   - **Example**: the animation below inserts 6, 3, 5, 1 bit by bit. 5 is cleared to 0 and fails; the other three each take a slot. You can try your own numbers.
 
 <iframe src="/maps/xor-basis-insert.en.html" title="XOR basis insertion, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:545px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/xor-basis-insert.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
 
-During insertion $x$ is only ever XORed with numbers already in the basis, so at every moment $x_{\text{orig}} = x_{\text{now}} \oplus (\text{some } b_i)$. Insertion ends in one of two ways:
-
-- $x$ is reduced to 0: $x_{\text{orig}}$ equals the XOR of some $b_i$, so it is already in the span; `insert` returns `false` and the basis is unchanged.
-- $x$ stops at an empty slot `b[i]`: what is stored is $x_{\text{orig}}$ XOR some existing basis numbers, which spans the same space as storing $x_{\text{orig}}$ itself, and the rank grows by 1.
-
-Why the stored numbers are linearly independent: their highest bits are pairwise different. Take any nonempty subset of them and XOR it. The number with the highest top bit has a 1 in that bit, and every other number in the subset has a 0 there (their top bits are lower), so the XOR has a 1 in that bit and cannot be 0.
-
-So after inserting all $n$ numbers, the nonzero entries of `b` are a basis of $\operatorname{span}(a_1, \dots, a_n)$, and their count is the rank $r$. **Whether a number is reachable is decided by running the elimination of an insertion on it and checking whether 0 is left**; that is `contains`.
-
-Stack the $n$ numbers into an $n \times 60$ 0/1 matrix, and insertion is Gaussian elimination mod 2: each `b[i]` is a row with its pivot in column $i$, and "clear bit $i$ of $x$ with `b[i]`" is a row operation. The difference is the order. Gaussian elimination takes the whole matrix and clears column by column; **a basis clears one row as it arrives, so it supports online insertion**. Sorted by $i$ from high to low, `b` is in row echelon form; the reduction in Section 1.4 turns it into reduced row echelon form.
+2. **A failed insertion means the number is reachable**
+   - **Every step XORs in a basis number**: so $x_{\text{orig}} = x_{\text{now}} \oplus (\text{some } b_i)$ at all times. Ending at 0 means $x_{\text{orig}}$ is an XOR of basis numbers and the basis stays the same; stopping at an empty slot stores a number with the same span contribution as $x_{\text{orig}}$, and the rank grows by 1.
+   - **This is `contains`**: to test whether a number is reachable, run the same elimination on it and see whether 0 remains.
+3. **The stored numbers are always independent**
+   - **Their highest bits are pairwise different**: in any nonempty subset, the number with the highest top bit has a 1 there and the others have 0, so the XOR cannot be 0. After inserting, the nonzero entries of `b` are a basis, and their count is the rank $r$.
+4. **Insertion is Gaussian elimination mod 2, one row at a time**
+   - **So an XOR basis can insert online**: write the $n$ numbers as an $n \times 60$ 0/1 matrix; `b[i]` is the row with pivot in column $i$, and "clear bit $i$ with `b[i]`" is a row operation. Gaussian elimination takes the whole matrix and sweeps column by column; the XOR basis eliminates each number as it arrives.
+   - **`b` is in row echelon form**: ordered by decreasing $i$ it is row echelon form, and the reduction of 1.4 turns it into reduced row echelon form.
 
 ### 1.3 Counting: $2^r$ Values, $2^{n-r}$ Subsets Each
 
@@ -73,40 +81,50 @@ Stack the $n$ numbers into an $n \times 60$ 0/1 matrix, and insertion is Gaussia
 
 > The essence of reduction: it rewrites the basis into the standard form unique to its space, so the $k$-th smallest reads straight off the binary digits and two spaces can be compared by comparing their bases.
 
-The maximum only cares about making each bit 1 when possible. The $k$-th smallest needs the full order of all $2^r$ values, and `b` as it stands does not show that order: ones that a higher basis number has in lower bits interfere with the comparison of those lower bits. So tidy it first. Call the highest bit $i$ of each nonzero `b[i]` a **pivot bit**. **Reduction** makes every pivot bit appear only in its own number: whenever `b[i]` has a 1 in a lower pivot bit $j$, XOR `b[j]` in to clear it.
-
-After reduction, number the $r$ basis elements by pivot bit from low to high as $c_0, c_1, \dots, c_{r-1}$, and write $p_t$ for the pivot bit of $c_t$. For any choice, bit $p_t$ of the result is exactly "was $c_t$ chosen", because every other basis number has a 0 there.
-
-Compare the results of two different choices. Let $t$ be the largest index on which they differ. Bits above $p_t$ are affected only by basis numbers with index above $t$ (those with index at most $t$ have top bit at most $p_t$), and both sides choose those identically, so all bits above $p_t$ agree; in bit $p_t$, the side that chose $c_t$ has a 1 and the other a 0. Therefore **writing a choice as the binary number $\sum_{t \text{ chosen}} 2^t$, the order of results matches the order of these binary numbers**: the $k$-th value from the smallest ($k$ counted from 0, value 0 being the 0-th) is obtained by choosing basis numbers according to the binary digits of $k$.
-
-The figure below ties reduction and the $k$-th smallest together on a 4-bit example: the top shows `b` before and after reduction, the bottom shows the value chosen by each $k = 0, \dots, 7$.
+1. **Why reduce**
+   - **The $k$-th smallest needs the order of all $2^r$ values, and the raw `b` does not show it**: 1s that high basis numbers carry in lower bits disturb the comparison of the lower bits.
+2. **What reduction does**
+   - **Each pivot bit appears only in its own number**: the highest bit $i$ of a nonzero `b[i]` is its **pivot bit**. If `b[i]` has a 1 at a lower pivot bit $j$, XOR in `b[j]` to clear it. Code in 2.4.
+3. **After reduction, values sort like the choice written in binary**
+   - **The bits of the result at the pivot positions are the choice itself**: number the basis by pivot from low to high as $c_0, \dots, c_{r-1}$, with $c_t$'s pivot at $p_t$. Every other basis number has 0 at bit $p_t$, so bit $p_t$ of the result says whether $c_t$ was chosen.
+   - **Comparing two choices depends only on the highest index where they differ**: call it $t$. Bits above $p_t$ depend only on indices above $t$, chosen the same on both sides; at bit $p_t$ the side that chose $c_t$ has a 1. So writing a choice as the binary number $\sum_{t \text{ chosen}} 2^t$, results sort the same way: the $k$-th smallest (0-based) chooses basis numbers by the binary digits of $k$.
+   - **Example**: the figure below is a 4-bit example; the top shows `b` before and after reduction, the bottom the value chosen by each $k = 0, \dots, 7$.
 
 <a href="/images/algo/xor-basis-rref-kth.en.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-rref-kth.en.svg" alt="Reduction and k-th smallest: on the left b[3]=1101, b[2]=0111, b[0]=0001, with extra 1s in pivot columns in red; after b[2]^=b[0], b[3]^=b[2], b[3]^=b[0] the right side is 1010, 0110, 0001 and pivot columns 3, 2, 0 each hold one 1. Below, k from 0 to 7 picks c0=b[0], c1=b[2], c2=b[3] by its bits, giving 0, 1, 6, 7, 10, 11, 12, 13: the value bits at the pivots equal the bits of k, so values increase with k." style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
 
+4. **The reduced basis is determined by the space alone**
+   - **Two spaces are equal exactly when their reduced bases are equal**: the proof and its use are in 5.1.2.
+
 ### 1.5 The Precondition: The Set Must Be Closed under XOR
 
-Replacing the numbers by a basis only works when the problem wants all values reachable by "any subset". That set is closed under XOR: XOR two subset XORs together and you get the XOR of the symmetric difference of the two subsets, again a subset XOR. Once the problem restricts which subsets may be chosen, closure can break.
+**An XOR basis answers "all values reachable by any subset"; to use it, the set the problem asks about must be closed under XOR.**
 
-Take $a = (1, 2, 4)$ and forbid choosing two neighbours. The legal choices are nothing, any single number, or the first and the third, with XORs $0, 1, 2, 4, 5$; the maximum is 5. Insert these values into a basis and ask for the maximum, and you get $1 \oplus 2 \oplus 4 = 7$, which needs all three numbers and breaks the rule. The basis treated XORs between legal values as reachable: $1 \oplus 2 = 3$ corresponds to choosing the first and the second, which is itself illegal. **First make sure the wanted values form a set closed under XOR (any subset, one path plus any cycles, and so on), and only then use a basis; with a restriction on the choice, find a way to remove the restriction, and if you cannot, switch to search or DP.**
+1. **XORs of arbitrary subsets are closed under XOR**
+   - **XORing two subset XORs gives the XOR of their symmetric difference**: still a subset XOR, so the basis can stand in for the original numbers.
+2. **A restriction on which subsets are allowed often breaks closure**
+   - **Example**: $a = (1, 2, 4)$, no two adjacent numbers may both be chosen. The allowed XORs are $0, 1, 2, 4, 5$, so the maximum is 5; inserting into a basis and taking the maximum gives $1 \oplus 2 \oplus 4 = 7$, which needs all three numbers and breaks the rule. The mistake is counting XORs of allowed values as reachable.
+   - **Check closure first, then use a basis**: any subset, or one path plus any cycles, is fine; with a restriction, first try to remove it, and otherwise switch to search or DP.
 
 ## 2. What an XOR Basis Can Do
 
-Every question an XOR basis answers is about "XOR any subset of these numbers". The kinds of questions are laid out below: for each, what is asked, how to do it, how fast, and which subsection covers it. Each subsection then gives the cost first and the code after; section 1 explains why each one works. Below, $n$ is the number of inserted values and $r$ the rank.
+**An XOR basis answers five kinds of questions about "XOR any subset": whether a value is reachable, how many, maximum and minimum, ranking, and merging.** Below, $n$ is the number of inserted values and $r$ the rank.
 
-1. **Whether a number is reachable.** Run the elimination of insertion on it; it is reachable when it ends at 0 (`contains`), $O(60)$. Insertion itself is $O(60)$, and inserting all $n$ numbers is $O(60 n)$. See 2.1.
-2. **Counting.** These use only the rank; see 2.2:
-   - How many distinct values are reachable: $2^r$, including the 0 of the empty set.
-   - How many subsets have XOR $t$: $2^{n-r}$ if $t$ is reachable, otherwise 0. This needs `contains(t)` first, $O(60)$.
-   - How many nonempty subsets have XOR 0: $2^{n-r} - 1$, removing the empty set.
-3. **Maximum and minimum.** The maximum of "$s$ XOR any subset" is greedy from the high bits down: whenever a bit can become 1, XOR in the basis number for it (`max_xor`); the minimum is the reverse (`min_xor`). Both are $O(60)$; see 2.3. For the minimum over nonempty subsets, whether 0 counts depends on whether $r = n$; see the end of 2.5.
-4. **Ranking.** The $k$-th smallest, or the rank of a value: reduce once (`reduce()`, $O(60^2)$, see 2.4); then choosing basis numbers by the binary digits of $k$ gives the $k$-th smallest (`kth`), and reading the pivot bits back gives the rank (`index`), each $O(60)$. See 2.5.
-5. **Merging.** Insert every number of one basis into the other (`merge`), $O(60^2)$. Kept on the nodes of a segment tree or a binary-lifting table, this assembles the basis of any range or tree path. See 2.6.
+1. **Whether a number is reachable**
+   - **Run the elimination of insertion on it; it is reachable when 0 remains**: `contains`, $O(60)$. Insertion is also $O(60)$, and inserting all $n$ numbers is $O(60 n)$. See 2.1.
+2. **Counting**
+   - **Only the rank is needed**: there are $2^r$ distinct values (including 0); subsets with XOR $t$ number $2^{n-r}$ if $t$ is reachable, else 0; nonempty subsets with XOR 0 number $2^{n-r} - 1$. See 2.2.
+3. **Maximum and minimum of $s$ XOR any subset**
+   - **Greedy from the high bits down**: whenever a bit can become 1, XOR in the basis number for it (`max_xor`); the minimum is the reverse (`min_xor`). Both $O(60)$. See 2.3.
+4. **The $k$-th smallest, or the rank of a value**
+   - **Reduce once, then choose basis numbers by the binary digits of $k$**: `reduce()` once in $O(60^2)$, then `kth` and `index` in $O(60)$ each. See 2.4 and 2.5.
+5. **Merging two bases**
+   - **Insert the numbers of one into the other**: `merge`, $O(60^2)$. Kept on the nodes of a segment tree or a binary-lifting table, this assembles the basis of any range or tree path. See 2.6.
 
 Variations such as ranges, weights and range queries are in section 3. The template with every function together is in the appendix.
 
 ### 2.1 Insert and Test Whether a Value Is Reachable
 
-How insertion works, and why a failed insertion means the number is reachable, is in 1.2.
+**Insertion and the test both sweep from high bits down; why it works is in 1.2.**
 
 #### Cost
 
@@ -138,9 +156,12 @@ struct XorBasis {
 };
 ```
 
+- **`insert` returns whether it succeeded**: success means the rank grew by 1; `false` means $x$ was already reachable and the basis is unchanged.
+- **`contains` runs the same elimination without storing**: hitting an empty slot it needs means the number cannot be cleared, so it returns `false`.
+
 ### 2.2 Counting
 
-There are $2^r$ distinct reachable values (including the 0 of the empty set); the subsets with XOR $t$ number $2^{n-r}$ when $t$ is reachable and none otherwise; the nonempty subsets with XOR 0 number $2^{n-r} - 1$. Why these numbers: see 1.3.
+**The number of values depends only on the rank; counting subsets needs a reachability test first. Why: see 1.3.**
 
 #### Cost
 
@@ -154,13 +175,20 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // sub
 }
 ```
 
-"Nonempty subsets with XOR 0" is `ways(lb, n, 0) - 1`, removing the empty set.
+- **`kinds` is $2^r$**: including the 0 of the empty set.
+- **`ways` first checks whether $t$ is reachable**: if so the answer is $2^{n-r}$, otherwise 0. Nonempty subsets with XOR 0 are `ways(lb, n, 0) - 1`, removing the empty set.
+- **Take the modulus when $n - r$ is large**: when the answer is modulo something, replace `1LL <<` with fast power.
 
 ### 2.3 Maximum XOR: Greedy from the High Bits Down
 
-Numbers are compared by their highest bit first, so to make the result as large as possible, make the highest bit 1 if possible. Let the current result be $v$ and go from $i = 59$ down: if bit $i$ of $v$ is 0 and `b[i]` is nonzero, XOR `b[i]` in. This step does not touch higher bits, because the highest bit of `b[i]` is $i$; and bit $i$ is never changed back later, because every later `b[j]` ($j < i$) has a 0 in bit $i$. **Taking the bits from high to low and turning each one into 1 whenever possible gives the maximum.** In code this is `v = max(v, v ^ b[i])`: when bit $i$ is 0 the XOR makes $v$ larger, when it is 1 the XOR makes it smaller.
+**Going from high bits down, XOR in the basis number whenever that bit can become 1; the result is the maximum.**
 
-The start need not be 0. For "the maximum of $s$ XOR any subset", start the greedy at $v = s$; the path problem in Section 4 needs this. The minimum is the mirror image: XOR whenever it makes $v$ smaller, which gives the minimum of $s$ XOR any subset.
+1. **Why the greedy works**
+   - **Comparison starts at the high bits, and no step disturbs the bits already fixed**: with the current result $v$, going down from $i = 59$, if bit $i$ of $v$ is 0 and `b[i]` is nonzero, XOR in `b[i]`. Its highest bit is $i$, so higher bits are untouched; the later `b[j]` ($j < i$) all have 0 at bit $i$, so this bit is never changed back.
+   - **In code this is `v = max(v, v ^ b[i])`**: when bit $i$ is 0 the XOR makes $v$ larger, when it is 1 smaller.
+2. **The starting value and the minimum**
+   - **The start need not be 0**: "the maximum of $s$ XOR any subset" starts the greedy from $v = s$, which the path problem of section 4 needs.
+   - **The minimum is the reverse**: XOR whenever it makes $v$ smaller.
 
 #### Cost
 
@@ -177,11 +205,12 @@ The start need not be 0. For "the maximum of $s$ XOR any subset", start the gree
     }
 ```
 
-These are member functions of `XorBasis`; when `b[i]` is 0 the XOR leaves $v$ unchanged, so no special case is needed. With $s = 0$ the minimum is always 0 (the empty set); for "the minimum over nonempty subsets", see the end of 2.5.
+- **Both are member functions of `XorBasis`**: when `b[i]` is 0 the XOR leaves $v$ unchanged, so no special case is needed.
+- **With $s = 0$ the minimum is always 0**: that comes from the empty set; for the minimum over nonempty subsets, see the end of 2.5.
 
 ### 2.4 Reduction
 
-Why reduce, and what the reduced basis looks like, is in 1.4.
+**From low bits to high, use the lower pivots to clear each number's 1s at the other pivot bits; what it is for is in 1.4.**
 
 #### Cost
 
@@ -195,15 +224,16 @@ Why reduce, and what the reduced basis looks like, is in 1.4.
     }
 ```
 
-`i` goes upward, so when `b[i]` is processed all lower `b[j]` are already reduced and contain no pivot bit other than bit $j$; XORing one in only clears bit $j$ of `b[i]` and cannot turn another pivot bit back to 1. XORing in basis numbers changes neither the span nor the highest bit of `b[i]`, so after reduction we still have a basis of the same space that still obeys the rule of 1.2.
+- **`i` goes upward**: when `b[i]` is processed, every lower `b[j]` is already reduced and has no pivot bit other than bit $j$, so XORing it in only clears bit $j$ of `b[i]` and never turns another pivot bit back to 1.
+- **The result is still a basis of the same space**: XORing in basis numbers keeps the span and the highest bit of `b[i]`, so the rule of 1.2 still holds.
 
 ### 2.5 The $k$-th Smallest and the Rank of a Value
 
-Why choosing basis numbers by the binary digits of $k$ gives the $k$-th smallest is in 1.4. `index` goes the other way: for a reachable value, its bits on the pivot positions, read together, are its 0-based rank.
+**After reduction, choosing basis numbers by the binary digits of $k$ gives the $k$-th smallest; conversely, reading a value's bits at the pivot positions gives its rank. Why: see 1.4.**
 
 #### Cost
 
-`kth` and `index` are both $O(60)$; the `reduce()` before it is needed only once, $O(60^2)$.
+`kth` and `index` are both $O(60)$; the `reduce()` before them is needed only once, $O(60^2)$.
 
 ```cpp
     long long kth(unsigned long long k) const {  // call reduce() first; k from 0, the 0-th is 0
@@ -220,14 +250,18 @@ Why choosing basis numbers by the binary digits of $k$ gives the $k$-th smallest
     }
 ```
 
-A statement's "$k$-th smallest" ($k$ counted from 1) usually comes in one of two flavours, and both differ only in how 0 and repeated values count:
+- **`kth` counts $k$ from 0, and the 0-th value is 0**: when $k \ge 2^r$ there is none and it returns $-1$.
+- **`index` is `kth` backwards**: for a reachable value, its bits at the pivot positions, read together, are its 0-based rank.
 
-- **Nonempty subsets, distinct values**: whether 0 is reachable by a nonempty subset depends on whether some insertion failed. When $r < n$ it is (choose a failed number together with the basis numbers that express it), so the distinct values of nonempty subsets are the same as with the empty set, and the answer is `kth(k - 1)`; when $r = n$ it is not, 0 must be skipped, and the answer is `kth(k)`. **Whether $r$ equals $n$ decides whether 0 counts, and this is where these problems most often go wrong.**
-- **All $2^n$ subsets, with repetition**: every value repeats $2^{n-r}$ times (1.3), so the $k$-th is the distinct value with 0-based index $\lfloor (k - 1) / 2^{n-r} \rfloor$.
-
-The minimum over nonempty subsets follows: 0 when $r < n$, otherwise `kth(1)`, the reduced basis number with the lowest pivot bit.
+1. **For a statement's "$k$-th smallest" ($k$ from 1), first decide whether 0 counts**
+   - **With nonempty subsets and distinct values, whether $r = n$ decides whether 0 counts**: when $r < n$ some insertion failed, and that number together with the basis numbers expressing it XORs to 0, so the answer is `kth(k - 1)`; when $r = n$ only the empty set gives 0, so skip it and answer `kth(k)`. This is the most common mistake in these problems.
+   - **Over all $2^n$ subsets with repeats, each value repeats $2^{n-r}$ times**: the $k$-th is the $\lfloor (k - 1) / 2^{n-r} \rfloor$-th distinct value counting from 0 (1.3).
+2. **The minimum over nonempty subsets**
+   - **It is 0 when $r < n$, otherwise `kth(1)`**: the reduced basis number with the lowest pivot bit.
 
 ### 2.6 Merging Two Bases
+
+**Insert the nonzero numbers of one basis into the other one by one to get the basis of both sets together.**
 
 #### Cost
 
@@ -240,7 +274,8 @@ The minimum over nonempty subsets follows: 0 when $r < n$, otherwise `kth(1)`, t
     }
 ```
 
-"The basis of all numbers in a block" can sit on nodes of a segment tree or a binary-lifting table, and merging assembles the basis of any range or tree path; a range query on a segment tree merges $O(\log n)$ nodes, $O(60^2 \log n)$. A basis does not support deletion; for problems with deletions, turn them offline into "the time interval during which each number exists" and use segment-tree divide and conquer over time.
+- **On the nodes of a segment tree or a binary-lifting table, this assembles the basis of any range or tree path**: a range query on a segment tree merges $O(\log n)$ nodes, $O(60^2 \log n)$.
+- **An XOR basis does not support deletion**: for problems with deletions, go offline to "the time interval each number exists" and use segment-tree divide and conquer.
 
 ## 3. Common Variations in Problems
 
@@ -248,21 +283,23 @@ The first two sections all answer "given some numbers, choose any subset". Conte
 
 ### 3.1 XOR of Ranges: Switch to Prefix XORs
 
-Example (CF 1101G): cut an array into as many segments as possible so that no choice of one or more segments has XOR 0.
+**Write the XOR of a segment or range as the XOR of two prefix XORs, and the problem becomes the linear relations among the prefix XORs.**
 
-Let the prefix XOR be $S_i = a_1 \oplus \cdots \oplus a_i$ with $S_0 = 0$. With cut points $0 = c_0 < c_1 < \cdots < c_k = n$, segment $j$ has XOR $S_{c_j} \oplus S_{c_{j-1}}$, and the condition is that these $k$ segment values are linearly independent. Segment values and prefix values express each other: $S_{c_j}$ is the XOR of the first $j$ segments. Two sets of $k$ numbers that express each other span the same space, and $k$ numbers are independent exactly when they span $k$ dimensions, so
-
-$$
-\text{segment values independent} \iff S_{c_1}, S_{c_2}, \dots, S_{c_k} \text{ independent}.
-$$
-
-The problem becomes: pick as many linearly independent numbers from $S_1, \dots, S_n$ as possible, and $S_n$ must be among them. If $S_n = 0$ there is no solution; otherwise $\{S_n\}$ alone is independent and extends to a basis of $S_1, \dots, S_n$, so the answer is the rank of these $n$ prefix XORs, $O(60 n)$ to insert them all. **Write the XOR of a segment or range as the XOR of two prefix XORs, then look at the linear relations among the prefix XORs.**
+1. **Example: CF 1101G**
+   - **Task**: cut an array into as many segments as possible so that no choice of one or more segments has XOR 0.
+2. **Segment values are independent exactly when the prefix XORs at the cut points are**
+   - **Segment values and prefix values express each other**: let $S_i = a_1 \oplus \cdots \oplus a_i$ with $S_0 = 0$ and cut points $0 = c_0 < c_1 < \cdots < c_k = n$. Segment $j$ has XOR $S_{c_j} \oplus S_{c_{j-1}}$, and $S_{c_j}$ is the XOR of the first $j$ segments. Two sets of $k$ numbers that express each other span the same space, so one is independent exactly when the other is.
+3. **The answer is the rank of the prefix XORs**
+   - **$S_n$ must be chosen**: if $S_n = 0$ there is no solution; otherwise $\{S_n\}$ extends to a basis of $S_1, \dots, S_n$, and the answer is the rank of these $n$ prefix XORs, $O(60 n)$ to insert them all.
 
 ### 3.2 Weighted Choice: Insert by Decreasing Weight
 
-Each number carries a nonnegative weight, and we want a linearly independent set with maximum total weight. Sort by weight from high to low, insert in that order, and take every number whose insertion succeeds.
+**Insert by decreasing weight and keep each number whose insertion succeeds; the kept numbers are an independent set of maximum total weight.**
 
-Why the greedy is right. Let the greedy picks, sorted by weight, be $g_1, \dots, g_r$ with nonincreasing weights; take any linearly independent set, also sorted, $o_1, \dots, o_m$. First, $m \le r$: the greedy picks are a basis of all the numbers, and no independent set exceeds the rank. Next we show $w(g_t) \ge w(o_t)$ for every $t$; summing gives optimality. Suppose $w(o_t) > w(g_t)$ for some $t$. $o_1, \dots, o_t$ are $t$ independent numbers, while $g_1, \dots, g_{t-1}$ span only $t - 1$ dimensions, so some $o_j$ ($j \le t$) cannot be expressed by $g_1, \dots, g_{t-1}$. Its weight is $w(o_j) \ge w(o_t) > w(g_t)$, so the greedy processed it before $g_t$; at that time all picks so far were among $g_1, \dots, g_{t-1}$ and could not express $o_j$, so $o_j$ should have been inserted and become some $g_s$ ($s < t$), contradicting that $g_1, \dots, g_{t-1}$ cannot express it.
+1. **Why the greedy works**
+   - **Independent sets have the exchange property**: a smaller one can always borrow a number from a larger one to grow.
+   - **The greedy's $t$-th number is never lighter than any set's $t$-th**: sort both by decreasing weight, the greedy as $g_1, \dots, g_r$ and any independent set as $o_1, \dots, o_m$ ($m \le r$). Suppose $w(o_t) > w(g_t)$: $o_1, \dots, o_t$ are independent while $g_1, \dots, g_{t-1}$ span only $t - 1$ dimensions, so some $o_j$ ($j \le t$) is not expressible by them; it is heavier than $g_t$, so the greedy handled it earlier and it should have been inserted, a contradiction. Not smaller term by term means optimal in total.
+   - **The next section reuses this**: with position as the weight.
 
 #### Cost
 
@@ -281,13 +318,15 @@ long long max_weight(vector<pair<long long, long long>> items) {
 }
 ```
 
-**Independent sets have the exchange property (a smaller one can always borrow a number from a larger one to grow), so inserting greedily by decreasing weight is optimal.** The next section reuses this with position as the weight.
-
 ### 3.3 Range Queries: The Prefix Basis, Each Pivot Bit Keeps the Rightmost Number
 
-Example (CF 1100F): an array and many queries asking for the maximum subset XOR inside $[l, r]$. Rebuilding a basis per query costs $O(60 \cdot \text{length})$, too slow.
+**Insert from left to right, letting each pivot bit keep the rightmost number; a query $[l, r]$ uses only the basis numbers at positions $\ge l$.**
 
-The technique is called the **prefix basis**: insert from left to right and keep a position `pos[i]` next to each `b[i]`. When inserting the $p$-th number, if the `b[i]` it meets has a position smaller than $p$, swap them: the newcomer stays in `b[i]` and the old number carries its position further down to the lower bits. The basis after inserting the $r$-th number answers every query with right end $r$: run the greedy using only the `b[i]` with `pos[i]` $\ge l$.
+1. **Example: CF 1100F**
+   - **Task**: an array and many queries asking for the maximum subset XOR inside $[l, r]$. Rebuilding a basis per query costs $O(60 \cdot \text{length})$, too slow.
+2. **The method: insertion with swaps, called the prefix basis**
+   - **Next to each `b[i]` keep a position `pos[i]`**: when inserting the $p$-th number, if the `b[i]` met has a smaller position than $p$, swap them; the newcomer stays in `b[i]`, and the old number carries its position further down.
+   - **After inserting the $r$-th number, answer the queries with right end $r$**: run the greedy using only the `b[i]` with `pos[i]` $\ge l$; sort the queries by $r$ offline and keep a single basis.
 
 #### Cost
 
@@ -317,9 +356,9 @@ struct PrefixBasis {
 };
 ```
 
-Why keeping only `pos[i]` $\ge l$ is right: this is the greedy of 3.2 with position as the weight. Insert by decreasing position, $a_r, a_{r-1}, \dots$; once $a_l$ is in, the basis can already express every number in $a_l, \dots, a_r$, and numbers further left only fill dimensions that are still empty, never pushing out what is there. So in the basis built greedily from right to left, the part with position $\ge l$ spans exactly $a_l, \dots, a_r$. The swapping insertion maintains this greedy result online: the newcomer has the largest position and should be chosen first, so whenever it meets an older number it pushes that one down, and the number pushed all the way to 0 is the leftmost of a linearly dependent group. **Each pivot bit keeps the rightmost number, and a query $[l, r]$ uses only the part with position $\ge l$.** Sort the queries by $r$ offline and keep a single basis.
-
-The figure below shows the basis after each insertion of the array $5, 6, 3, 4$, and the query $[3, 4]$ at right end 4:
+- **Using only positions $\ge l$ is right because this is the greedy of 3.2 with position as the weight**: inserting by decreasing position $a_r, a_{r-1}, \dots$, once $a_l$ is in the basis already expresses all of $a_l, \dots, a_r$; numbers further left only fill empty dimensions, so the part with position $\ge l$ spans exactly $a_l, \dots, a_r$.
+- **Insertion with swaps maintains this greedy online**: the newcomer has the largest position and should be chosen first; the number pushed down until it vanishes is the leftmost one in a dependent set.
+- **Example**: the figure below shows the basis after each insertion of the array $5, 6, 3, 4$, and the query $[3, 4]$ at right end 4.
 
 <a href="/images/algo/xor-basis-prefix.en.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-prefix.en.svg" alt="Prefix XOR basis: array 101, 110, 011, 100. After a1: b[2]=101@1. After a2: 110@2 swaps out 101@1, which reduces to 011 and goes to b[1]. After a3: 011@3 swaps out 011@1, which reduces to 0 and is dropped. After a4: 100@4 takes b[2], 110@2 is pushed down, reduces to 001 and goes to b[0]. Query [3,4] uses only 100@4 and 011@3, max XOR 111=7." style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
 
@@ -329,25 +368,33 @@ Problem (Luogu P4151, WC2011): a connected undirected graph with $n \le 5 \times
 
 ### 4.1 What Set Do the Path XORs Form
 
-Before a basis can help, check whether the wanted set is "one value XOR a space". The path may go back and forth, and an edge used twice cancels out. Let $P$ be a fixed path from 1 to $n$ and $Q$ any other. Going out along $P$ and back along $Q$ is a closed walk $C$, so the XOR of $Q$ equals $P \oplus C$. Conversely, for any closed walk $C$, start at vertex 1, walk to $C$, go around it once, walk back to 1 the same way, then follow $P$; the out-and-back part cancels and the XOR is $P \oplus C$. So
+**The XORs of all paths from 1 to $n$ are one fixed path $P$ XOR any value of the cycle space, so the answer is `max_xor(P)`.**
 
 $$
-\{\text{XORs of all paths from 1 to } n\} = \{\, P \oplus C \mid C \text{ is the XOR of a closed walk} \,\},
+\{\text{XORs of all paths from 1 to } n\} = \{\, P \oplus C \mid C \text{ is a cycle XOR} \,\}
 $$
 
-and closed-walk XORs are closed under XOR (two closed walks joined are again a closed walk, the connecting part cancels), so they form a space. **The answer is `max_xor(P)`; all that is left is a basis of the closed-walk space.**
+1. **Every path equals $P$ XOR a cycle**
+   - **Paths may backtrack, and an edge used twice cancels**: going along $P$ and back along another path $Q$ is a cycle $C$, so the XOR of $Q$ is $P \oplus C$.
+   - **Conversely $P \oplus C$ is the XOR of a path**: walk from 1 onto $C$, go around, come back the same way to 1, then follow $P$; the back-and-forth part cancels.
+2. **Cycle XORs form a space**
+   - **Two cycles joined are still a cycle**: the connecting back-and-forth part cancels, so cycle XORs are closed under XOR and a basis applies. What is left is finding a basis of the cycle space.
 
 ### 4.2 A Basis of the Cycle Space: One Cycle per Edge
 
-Run a BFS (or DFS) from 1 to get a spanning tree, and let $d_u$ be the XOR along tree edges from 1 to $u$. For each step $u \to v$ of a closed walk (weight $w$), write
+**Build a spanning tree and insert $d_u \oplus d_v \oplus w$ for every edge; the result is a basis of the cycle space.**
 
 $$
-w = d_u \oplus d_v \oplus \underbrace{(d_u \oplus d_v \oplus w)}_{0 \text{ on tree edges}}.
+w = d_u \oplus d_v \oplus \underbrace{(d_u \oplus d_v \oplus w)}_{0 \text{ on tree edges}}
 $$
 
-Expand every step of a closed walk this way and XOR them all: the $d$ terms chain end to end and cancel in pairs, leaving only the bracketed terms, which are nonzero only on non-tree edges. So the XOR of any closed walk is an XOR of some values $d_u \oplus d_v \oplus w$; conversely each $d_u \oplus d_v \oplus w$ is itself a closed walk (tree path from $u$ to $v$, then this edge back). **Inserting $d_u \oplus d_v \oplus w$ for every edge gives a basis of the cycle space**: tree edges insert 0, which does nothing, and self-loops and multi-edges need no special case.
-
-The answer is the maximum XOR starting from $d_n$ ($d_n$ is the tree path $P$), in $O((n + m) \cdot 60)$.
+1. **Split every step into a tree part and a cycle**
+   - **$d_u$ is the XOR along tree edges from 1 to $u$**: a BFS (or DFS) from 1 gives a spanning tree, and every step $u \to v$ (weight $w$) of a cycle is written as above.
+2. **Every cycle is an XOR of these cycles**
+   - **Writing out every step of a cycle and XORing them all, the $d$ parts cancel in pairs**: only the bracketed terms remain, nonzero only on non-tree edges; conversely each $d_u \oplus d_v \oplus w$ is itself a cycle.
+   - **Tree edges, self-loops and multi-edges need no special case**: a tree edge inserts 0, which changes nothing.
+3. **The answer is the maximum XOR starting from $d_n$**
+   - **$d_n$ is the tree path $P$**: the cost is $O((n + m) \cdot 60)$.
 
 ### 4.3 The Full Program
 
@@ -386,7 +433,8 @@ int main() {
 }
 ```
 
-Once it is written, compare it against brute force. With weights below 16, the state "which vertex, which current XOR" has only $16 n$ possibilities; BFS from $(1, 0)$ over all reachable states, and the XORs of states at vertex $n$ are exactly the XORs of all paths; take the maximum and compare. **For path problems that allow revisits, the state (vertex, XOR) is finite under small weights, which is a ready-made brute force.**
+- **Check against brute force first**: with edge weights below 16, "which vertex and which current XOR" has only $16 n$ states; BFS from $(1, 0)$ and take the largest XOR among states at vertex $n$, then compare with the program.
+- **For path problems that allow revisiting, the state (vertex, XOR) is finite for small weights, a ready-made brute force.**
 
 ## 5. Two Recent Contest Problems
 
@@ -426,21 +474,36 @@ In the first test case $a = (1, 2, 3)$: $B(1, 1) = \{0, 1\}$, $B(2, 2) = \{0, 2\
 
 #### 5.1.1 Only $O(32 n)$ Ranges Are Really Different
 
-There are $O(n^2)$ ranges, so first shrink that to something enumerable. Fix the right end $r$. As the left end $l$ moves left the space only grows, each change adds one dimension, so it changes at most 32 times. The change points are exactly the positions in the prefix basis of 3.3: sort the basis after inserting $a_r$ by `pos` from high to low as $v_1, \dots, v_k$, with positions $p_1 > p_2 > \cdots > p_k$, and set $p_{k+1} = 0$; then
+**With the right end fixed, the left end passes at most 32 jump points, so all ranges together give only $O(32 n)$ spaces.**
 
 $$
 B(l, r) = \operatorname{span}(v_1, \dots, v_j), \qquad p_{j+1} < l \le p_j .
 $$
 
-This is the sentence of 3.3, "the part with position $\ge l$ spans exactly $a_l, \dots, a_r$", said another way. In addition, when $a_r = 0$, $l = r$ gives $\{0\}$ (then $p_1 < r$). **With the right end fixed, the left end passes at most 32 change points, so all ranges together produce only $O(32 n)$ spaces.**
+1. **Moving the left end left only enlarges the space**
+   - **Each change adds one dimension, so there are at most 32 changes**: the change points are exactly the positions in the prefix basis of 3.3.
+2. **The prefix basis gives the jump points**
+   - **Sort by `pos` decreasing**: after inserting $a_r$, list the basis as $v_1, \dots, v_k$ with positions $p_1 > p_2 > \cdots > p_k$ and $p_{k+1} = 0$; that is the formula above. It restates 3.3: "the part with position $\ge l$ spans exactly $a_l, \dots, a_r$".
+   - **$a_r = 0$ is a separate case**: $l = r$ gives $\{0\}$, and then $p_1 < r$.
 
 #### 5.1.2 Two Spaces Are Equal Exactly When Their Reduced Bases Are
 
-One space has many bases, so comparing bases directly does not work; we need a form determined by the space alone. The reduced basis is one. The highest bit of every nonzero element of the space is a pivot bit (same reason as the independence proof in 1.2: the highest bit of any combination is the highest pivot bit among the basis numbers used), so the set of pivot bits is determined by the space. Now take the basis number $c_p$ on pivot bit $p$: after reduction it is the element of the space whose pivot bits contain only bit $p$, and 1.4 says an element of the space is determined uniquely by its values on the pivot bits, so there is only one such element. Therefore **the reduced basis is determined by the space, and two spaces are equal exactly when their reduced bases are equal**. Hash the reduced basis into a 64-bit number and count the distinct hashes at the end.
+**The reduced basis is determined by the space alone, so hash it to a 64-bit number; counting distinct hashes counts distinct spaces.**
+
+1. **The set of pivot bits is determined by the space**
+   - **The highest bit of every nonzero value in the space is a pivot bit**: the highest bit of a combination is the highest pivot among the basis numbers in it, as in the independence argument of 1.2.
+2. **The basis number at each pivot bit is determined too**
+   - **After reduction, the basis number at pivot $p$ is the value in the space whose only 1 among the pivot bits is at $p$**: by 1.4 a value of the space is determined by its bits at the pivot positions, so there is exactly one such value.
 
 #### 5.1.3 Keeping the Basis Reduced While Inserting
 
-For each $r$, insert $v_1, v_2, \dots$ in that order into an empty basis and record the hash of the current space after each insertion. Calling `reduce()` from 2.4 after every insertion and hashing everything costs $O(32^2)$ each time, $O(32^3)$ per $r$, too slow. Instead keep the basis reduced during insertion: first clear all pivot bits of the new number $y$ with the existing basis, so the highest remaining bit $t$ of $y$ is a new pivot bit; then XOR $y$ into every existing basis number that has a 1 in bit $t$. Each insertion is then $O(32)$. The hash is the sum of the scrambled basis numbers, so changing one basis number subtracts the old term and adds the new one. In total $O(32^2 n)$, about $10^8$ simple operations for $n = 10^5$.
+**Keep the basis reduced during insertion: each insertion is $O(32)$, the hash is updated incrementally, and the total is $O(32^2 n)$.**
+
+1. **Calling `reduce()` after every insertion is too slow**
+   - **Each $r$ would cost $O(32^3)$**: reducing and rehashing is $O(32^2)$ each time, and each $r$ inserts up to 32 numbers.
+2. **Stay reduced during insertion**
+   - **Clear the new number with the old basis, then clear the old basis with the new number**: eliminate every pivot bit of the new number $y$ using the existing basis; the highest remaining bit $t$ of $y$ is a new pivot; then XOR $y$ into every existing basis number with a 1 at bit $t$. Each insertion is $O(32)$.
+   - **The hash is the sum of the scrambled basis numbers**: changing one basis number subtracts the old term and adds the new. At $n = 10^5$ that is about $10^8$ simple operations in total.
 
 ```cpp
 #include <bits/stdc++.h>
@@ -498,7 +561,7 @@ int main() {
 }
 ```
 
-Among $O(32 n)$ 64-bit hashes the chance of a collision is about $(3 \times 10^6)^2 / 2^{65}$, negligible.
+- **Collisions are negligible**: among $O(32 n)$ 64-bit hashes the chance of a collision is about $(3 \times 10^6)^2 / 2^{65}$.
 
 ### 5.2 2026 ICPC Online Contest II A (All Closed): What Every Solution Must Contain
 
@@ -506,29 +569,41 @@ Problem ([QOJ 4113](https://qoj.ac/contest/4113)): there are $n$ nonempty sets $
 
 #### 5.2.1 From "Fewest Operations" to "Smallest Space"
 
-Let the added numbers form a set $T$, so set $i$ ends up as $S_i \cup T$. A nonempty set closed under XOR contains $a \oplus a = 0$ and is closed under addition, so it is a space. Look at the part common to all final sets:
+**Fewest operations is the same as smallest $K$: find the smallest space $K \supseteq I$ such that every $S_i \cup K$ is a space; the answer is $K \setminus I$.**
 
 $$
 K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i .
 $$
 
-An intersection of spaces is a space, so $K$ is a space containing $I$, and the final sets can be written as $S_i \cup K$. $T$ never needs numbers from $I$ (they are already in every set), so $|T| = |K| - |I|$, and **fewest operations means smallest $K$: find the smallest space $K \supseteq I$ such that every $S_i \cup K$ is a space; the answer is $K \setminus I$.**
+1. **A nonempty set closed under XOR is a space**
+   - **It contains $a \oplus a = 0$ and is closed under XOR**: so every final set is a space.
+2. **The common part $K$ of all final sets is also a space**
+   - **An intersection of spaces is a space**: let the added numbers form $T$, so the final $i$-th set is $S_i \cup T$; the common part $K$ is the formula above, and the final sets can be written $S_i \cup K$.
+   - **$T$ need not contain numbers of $I$**: they are already in every set, so $|T| = |K| - |I|$.
 
 #### 5.2.2 Every Added Number Is Forced
 
-Start from $K = \operatorname{span}(I)$: every valid $K$ contains $I$ and is a space, so it contains $\operatorname{span}(I)$. If some $S_i \cup K$ is not closed, there is a number $x$ in $\operatorname{span}(S_i \cup K)$ that is in neither $S_i$ nor $K$. Take any valid solution $K^*$ containing the current $K$: $S_i \cup K^*$ is a space containing $S_i \cup K$, so it contains $x$; $x$ is not in $S_i$, so it must be in $K^*$. Hence every valid solution contains $x$; set $K \leftarrow \operatorname{span}(K \cup \{x\})$, which is still contained in every valid solution.
+**Start from $\operatorname{span}(I)$ and keep adding a number every valid solution must contain; where it stops is the smallest solution.**
 
-Each added $x$ raises the rank of $K$ by 1, so after at most $m$ steps every $S_i \cup K$ is closed. At that point $K$ itself is valid and is contained in every valid solution, so it is the smallest one, which also makes the answer unique. **To find the smallest valid solution, start from what every valid solution must contain and keep adding until it is valid; where you stop is the smallest solution.**
+1. **The $x$ found must be in every valid solution**
+   - **$x$ lies in $\operatorname{span}(S_i \cup K)$ but in neither $S_i$ nor $K$**: take any valid solution $K^*$ containing the current $K$; $S_i \cup K^*$ is a space containing $S_i \cup K$, so it contains $x$; since $x \notin S_i$, $x \in K^*$. So set $K \leftarrow \operatorname{span}(K \cup \{x\})$, still contained in every valid solution.
+2. **It stops within $m$ steps at the smallest solution**
+   - **Each added $x$ raises the rank of $K$ by 1**: within $m$ steps every $S_i \cup K$ is closed; then $K$ is valid and contained in every valid solution, so it is the smallest, and the answer is unique.
+   - **To find the smallest valid solution, start from what every valid solution must contain and keep adding until it is valid.**
 
 #### 5.2.3 Testing Closure by Counting Elements
 
-$S_i \cup K \subseteq \operatorname{span}(S_i \cup K)$, and the latter has exactly $2^r$ elements (1.3), where $r$ is the rank of $S_i \cup K$. So
+**$S_i \cup K$ is closed exactly when its number of elements equals the size $2^r$ of the space it spans.**
 
 $$
 S_i \cup K \text{ closed} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .
 $$
 
-When it is not closed, list $\operatorname{span}(S_i \cup K)$ (at most $2^m$ elements) and find a number in neither $S_i$ nor $K$: that is the $x$ to add. Checking all sets in one round costs $O(m \sum \lvert S_i \rvert)$, there are at most $m$ rounds, plus $O(2^m)$ for the listing in each round.
+1. **Why counting suffices**
+   - **$S_i \cup K$ always lies inside the space it spans**: that space has exactly $2^r$ elements (1.3), where $r$ is the rank of $S_i \cup K$; equal sizes mean the two are the same set.
+2. **When it is not closed, find the $x$ to add**
+   - **List $\operatorname{span}(S_i \cup K)$**: at most $2^m$ elements; find one in neither $S_i$ nor $K$.
+   - **Cost**: checking all sets in one round is $O(m \sum \lvert S_i \rvert)$, there are at most $m$ rounds, plus $O(2^m)$ for the listing in each round.
 
 ```cpp
 #include <bits/stdc++.h>
