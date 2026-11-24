@@ -68,7 +68,7 @@ struct XorBasis {
 
 下面按位走一遍插入。默认插入 6、3、5、1：5 被消成 0，插入失败；其余三个各占一个主元位。可以换成自己的数。
 
-<iframe src="/maps/xor-basis-insert.zh.html" title="线性基插入：分步看" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:520px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<iframe src="/maps/xor-basis-insert.zh.html" title="线性基插入：分步看" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:545px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/xor-basis-insert.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
 
 ### 2.2 插入失败，说明它能被异或出来

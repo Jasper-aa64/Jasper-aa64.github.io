@@ -68,7 +68,7 @@ One insertion does at most 60 XORs, so inserting all $n$ numbers costs $O(60 n)$
 
 The animation below walks through insertion bit by bit. It starts with 6, 3, 5, 1: 5 is cleared to 0 and fails, and the other three each take a pivot bit. You can type your own numbers.
 
-<iframe src="/maps/xor-basis-insert.en.html" title="XOR basis insertion, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:520px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<iframe src="/maps/xor-basis-insert.en.html" title="XOR basis insertion, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:545px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/xor-basis-insert.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
 
 ### 2.2 A Failed Insertion Means the Number Is Reachable

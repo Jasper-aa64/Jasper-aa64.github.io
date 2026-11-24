@@ -47,7 +47,7 @@ $n$ 个方程、$m$ 个未知数，写成 $n$ 行 $m + 1$ 列的**增广矩阵**
 
 下面的动画分步走一遍，有三组方程：唯一解、有自由元、无解。每一步标出当前列、主元和被消的行。
 
-<iframe src="/maps/gauss-steps.zh.html" title="高斯消元：分步看" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:560px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<iframe src="/maps/gauss-steps.zh.html" title="高斯消元：分步看" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:500px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/gauss-steps.zh.html" target="_blank" rel="noopener">在新窗口打开</a></p>
 
 复杂度：每列消一遍整个矩阵，$O(n \cdot m \cdot (m + 1))$，方阵就是 $O(n^3)$，$n = 500$ 左右是上限。

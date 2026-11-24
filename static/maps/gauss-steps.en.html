@@ -6,54 +6,78 @@
 <title>Gaussian elimination, step by step</title>
 <link rel="icon" href="/images/logo.svg?v=20261008-rounded-brain-1">
 <style>
+
 :root { --bg:#ffffff; --fg:#1f2328; --muted:#57606a; --line:#d0d7de; --card:#f6f8fa; --hl:#bf3989; --hlbg:#ffeff7;
-  --x:#0969da; --xbg:#ddf4ff; --ok:#1a7f37; --okbg:#dafbe1; --bad:#cf222e; --badbg:#ffebe9; --piv:#8250df; --pivbg:#fbefff; --free:#eaeef2; }
+  --x:#0969da; --xbg:#ddf4ff; --ok:#1a7f37; --okbg:#dafbe1; --bad:#cf222e; --badbg:#ffebe9; --piv:#8250df; --pivbg:#fbefff;
+  --free:#eaeef2; --pri:#0969da; --prifg:#ffffff; --shadow:0 1px 2px rgba(31,35,40,.06); }
 .dark { --bg:#17161b; --fg:#e9e7ef; --muted:#a19caf; --line:#3a3945; --card:#1f1e25; --hl:#ff7bb0; --hlbg:#3a1f2d;
-  --x:#58a6ff; --xbg:#132a44; --ok:#3fb950; --okbg:#12301c; --bad:#ff7b72; --badbg:#4a1d22; --piv:#d2a8ff; --pivbg:#2e2148; --free:#2a2932; }
+  --x:#58a6ff; --xbg:#132a44; --ok:#3fb950; --okbg:#12301c; --bad:#ff7b72; --badbg:#4a1d22; --piv:#d2a8ff; --pivbg:#2e2148;
+  --free:#2a2932; --pri:#58a6ff; --prifg:#0d1117; --shadow:none; }
 html, body { margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
 body { font: 15px/1.65 Segoe UI, Helvetica, Arial, sans-serif; }
-.wrap { max-width: 860px; margin: 0 auto; padding: 12px 16px; box-sizing: border-box; }
-.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
-button { font: inherit; font-size: 14px; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
-button:hover { border-color: var(--hl); color: var(--hl); }
-button.on { border-color: var(--x); color: var(--x); background: var(--xbg); font-weight: 700; }
-button:disabled { opacity: .4; cursor: default; border-color: var(--line); color: var(--fg); }
-.eqs { margin: 10px 0 0; font: 14px Consolas, Menlo, monospace; color: var(--muted); }
-.gwrap { overflow-x: auto; }
-table { border-collapse: separate; border-spacing: 4px; margin: 8px 0; }
-th { font: 600 13px Consolas, Menlo, monospace; color: var(--muted); padding: 0 4px; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 14px 16px 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
+.stage { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); overflow-x: auto; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; color: var(--muted); padding: 4px 14px; border-radius: 8px; font: inherit; font-size: 14px; cursor: pointer; }
+.seg button:hover { color: var(--fg); }
+.seg button.on { background: var(--bg); color: var(--fg); font-weight: 700; box-shadow: 0 0 0 1px var(--line), var(--shadow); }
+.panel { box-sizing: border-box; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--hl); border-radius: 10px; }
+.panel .ph { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.panel .badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--hl); color: #fff; font-size: 12.5px; font-weight: 700; }
+.panel .t { margin: 6px 0 0; }
+.panel.ok { border-left-color: var(--ok); } .panel.ok .badge { background: var(--ok); } .panel.ok .t { color: var(--ok); }
+.panel.bad { border-left-color: var(--bad); } .panel.bad .badge { background: var(--bad); } .panel.bad .t { color: var(--bad); }
+.ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ib { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; line-height: 1; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; box-shadow: var(--shadow); }
+.ib svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ib svg .fill { fill: currentColor; stroke: none; }
+.ib:hover { border-color: var(--pri); color: var(--pri); }
+.ib.pri { background: var(--pri); border-color: var(--pri); color: var(--prifg); font-weight: 700; }
+.ib.pri:hover { filter: brightness(1.08); color: var(--prifg); }
+.ib:disabled { opacity: .38; cursor: default; filter: none; }
+.ib:disabled:hover { border-color: var(--line); color: var(--fg); }
+.ib.pri:disabled:hover { border-color: var(--pri); color: var(--prifg); }
+.prog { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font: 13px Consolas, Menlo, monospace; white-space: nowrap; }
+.prog .bar { width: 120px; height: 6px; border-radius: 999px; background: var(--free); overflow: hidden; }
+.prog .bar i { display: block; height: 100%; width: 0; background: var(--pri); border-radius: 999px; transition: width .25s; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid; box-sizing: border-box; display: inline-block; }
+.legend .kbd { margin-left: auto; }
+kbd { font: 12px Consolas, Menlo, monospace; padding: 0 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--card); color: var(--fg); }
+@media (max-width: 560px) { .prog { margin-left: 0; width: 100%; } .prog .bar { flex: 1; } .ib { padding: 7px 11px; } .legend .kbd { display: none; } }
+
+.eqs { font: 14px Consolas, Menlo, monospace; color: var(--muted); }
+table { border-collapse: separate; border-spacing: 5px; margin: 0 auto; }
+th { font: 600 13px Consolas, Menlo, monospace; color: var(--muted); padding: 0 4px 2px; }
 th.col { color: var(--hl); }
-th.free { color: var(--muted); text-decoration: line-through; }
-td { box-sizing: border-box; min-width: 54px; height: 34px; text-align: center; font: 15px Consolas, Menlo, monospace; border: 1px solid var(--line); background: var(--card); border-radius: 6px; padding: 0 6px; transition: background .25s; }
-td.rl { border: 0; background: none; color: var(--muted); font-size: 13px; min-width: 0; text-align: right; }
-td.bar { border: 0; background: none; min-width: 0; width: 2px; padding: 0; border-left: 2px solid var(--line); }
+th.free { text-decoration: line-through; }
+th small { display: block; font-weight: 400; font-size: 11px; text-decoration: none; }
+td { box-sizing: border-box; min-width: 60px; height: 38px; text-align: center; font: 15.5px Consolas, Menlo, monospace; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 0 8px; transition: background .25s, border-color .25s; }
+td.rl { border: 0; background: none; color: var(--muted); font-size: 13px; min-width: 0; text-align: right; padding-right: 4px; white-space: nowrap; }
+@media (max-width: 560px) { table { border-spacing: 3px; } td { min-width: 44px; height: 34px; padding: 0 3px; font-size: 13.5px; } td.rl { font-size: 12px; } }
+td.bar { border: 0; background: none; min-width: 0; width: 2px; padding: 0; border-left: 2px solid var(--line); border-radius: 0; }
 td.col { background: var(--hlbg); border-color: var(--hl); }
-td.piv { background: var(--pivbg); border-color: var(--piv); color: var(--piv); font-weight: 800; }
 td.cand { box-shadow: 0 0 0 2px var(--x) inset; }
+td.piv { background: var(--pivbg); border-color: var(--piv); color: var(--piv); font-weight: 800; }
 td.chg { background: var(--okbg); border-color: var(--ok); }
 td.src { border-color: var(--piv); border-style: dashed; }
 td.bad { background: var(--badbg); border-color: var(--bad); color: var(--bad); font-weight: 700; }
-td.done { color: var(--muted); }
-.panel { box-sizing: border-box; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
-.panel .h { font-weight: 700; color: var(--hl); }
-.panel .t { margin: 4px 0 0; }
-.panel .t.ok { color: var(--ok); } .panel .t.bad { color: var(--bad); }
-.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.tips { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="tabs" id="tabs"></div>
+  <div><div class="seg" id="tabs" role="tablist"></div></div>
   <div class="eqs" id="eqs"></div>
-  <div class="gwrap"><table id="tb"></table></div>
-  <div class="panel" id="panel"><div class="h" id="head"></div><p class="t" id="txt"></p></div>
-  <div class="btns"><button id="prev">Back</button><button id="next">Next</button><button id="play">Play</button><button id="reset">Restart</button></div>
-  <p class="tips">Pink is the column being processed (current row and below), purple is the pivot, green is the row changed in this step, and the dashed cell marks the pivot row used to clear others. Fractions are exact.</p>
+  <div class="stage"><table id="tb"></table></div>
+  <div class="panel" id="panel"><div class="ph"><span class="badge" id="badge"></span><span id="head"></span></div><p class="t" id="txt"></p></div>
+  <div class="ctl"><button class="ib" id="reset" title="Restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.7-6.4"/><path d="M3 4v5h5"/></svg><span>Restart</span></button><button class="ib" id="prev" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>Back</span></button><button class="ib" id="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M7 4.5v15l12.5-7.5z"/></svg><span>Play</span></button><button class="ib pri" id="next" title="Next"><span>Next</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button><div class="prog"><div class="bar"><i id="bar"></i></div><span id="cnt"></span></div></div>
+  <div class="legend"><span><i style="background:var(--hlbg);border-color:var(--hl)"></i>current column</span><span><i style="border-color:var(--x)"></i>pivot candidate</span><span><i style="background:var(--pivbg);border-color:var(--piv)"></i>pivot</span><span><i style="background:var(--okbg);border-color:var(--ok)"></i>row changed in this step</span><span><i style="border-color:var(--piv);border-style:dashed"></i>pivot row used to clear</span><span class="kbd"><kbd>←</kbd> <kbd>→</kbd> also step</span></div>
 </div>
 <script>
 (function () {
-  var L = {"p1": "Unique solution", "p2": "Free variable", "p3": "No solution", "play": "Play", "pause": "Pause", "row": "row {i}", "h0": "Before we start", "hcol": "Column {c}", "hend": "Read the result", "start": "Three equations in three unknowns, written as an augmented matrix; right of the bar is the right-hand side b. Start at column 1 with the current row at row 1. Press Next or the right arrow key.", "pick": "Among row {r} and below, the entry of largest absolute value in column {c} is {v} in row {p}; it becomes the pivot.", "nofree": "Column {c} is all 0 from row {r} down, so there is no pivot: x{c} is a free variable. The current row stays at row {r}; move to the next column.", "swap": "Swap rows {p} and {r} to bring the pivot to the current row. Swapping does not change the solutions.", "norm": "Divide row {r} by the pivot {v}, so the pivot becomes 1.", "elim": "Subtract {f} times row {r} from row {i}, clearing column {c}. Rows above are cleared too, so no back-substitution is needed.", "one": "Every column has a pivot and there is no free variable: the unique solution is {s}.", "many": "No row reads 0 = nonzero and {f} is free, so there are infinitely many solutions: {s} (free variables arbitrary).", "none": "Row {i} has all-zero coefficients and right-hand side {v}, i.e. 0 = {v}: no solution.", "noneFree": "There is also a free variable, but the contradiction is checked first, so the answer is no solution."};
+  var L = {"sep": "; ", "p1": "Unique solution", "p2": "Free variable", "p3": "No solution", "play": "Play", "pause": "Pause", "row": "row {i}", "h0": "Before we start", "hcol": "Column {c}", "hend": "Read the result", "start": "Three equations in three unknowns, written as an augmented matrix; right of the bar is the right-hand side b. Start at column 1 with the current row at row 1. Press Next or the right arrow key.", "pick": "Among row {r} and below, the entry of largest absolute value in column {c} is {v} in row {p}; it becomes the pivot.", "nofree": "Column {c} is all 0 from row {r} down, so there is no pivot: x{c} is a free variable. The current row stays at row {r}; move to the next column.", "swap": "Swap rows {p} and {r} to bring the pivot to the current row. Swapping does not change the solutions.", "norm": "Divide row {r} by the pivot {v}, so the pivot becomes 1.", "elim": "Subtract {f} times row {r} from row {i}, clearing column {c}. Rows above are cleared too, so no back-substitution is needed.", "one": "Every column has a pivot and there is no free variable: the unique solution is {s}.", "many": "No row reads 0 = nonzero and {f} is free, so there are infinitely many solutions: {s} (free variables arbitrary).", "none": "Row {i} has all-zero coefficients and right-hand side {v}, i.e. 0 = {v}: no solution.", "noneFree": "There is also a free variable, but the contradiction is checked first, so the answer is no solution."}, UI = { play: L.play, pause: L.pause };
+
   var root = document.documentElement;
   function theme() {
     var t = null;
@@ -64,10 +88,30 @@ td.done { color: var(--muted); }
   theme();
   try { if (window.parent !== window) new MutationObserver(theme).observe(window.parent.document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
-  function fit() { try { if (window.frameElement) window.frameElement.style.height = document.body.scrollHeight + 'px'; } catch (e) {} }
-  function fmt(s, o) { return s.replace(/\{(\w+)\}/g, function (_, k) { return o[k]; }); }
+  function fit() {
+    try {
+      var f = window.frameElement; if (!f) return;
+      var h = Math.ceil(document.querySelector('.wrap').getBoundingClientRect().height) + (f.offsetHeight - f.clientHeight);
+      if (Math.abs(parseFloat(f.style.height || 0) - h) > 0.5) f.style.height = h + 'px';
+    } catch (e) {}
+  }
+  var ICON_PLAY = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path class=\"fill\" d=\"M7 4.5v15l12.5-7.5z\"/></svg>", ICON_PAUSE = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect class=\"fill\" x=\"6\" y=\"5\" width=\"4\" height=\"14\" rx=\"1\"/><rect class=\"fill\" x=\"14\" y=\"5\" width=\"4\" height=\"14\" rx=\"1\"/></svg>";
+  function playBtn(on) { document.getElementById('play').innerHTML = (on ? ICON_PAUSE : ICON_PLAY) + '<span>' + (on ? UI.pause : UI.play) + '</span>'; }
+  function progress(k, n) {
+    document.getElementById('cnt').textContent = (k + 1) + ' / ' + n;
+    document.getElementById('bar').style.width = (n > 1 ? 100 * k / (n - 1) : 100) + '%';
+    document.getElementById('prev').disabled = k === 0;
+    document.getElementById('next').disabled = k === n - 1;
+  }
+  // give each element a min-height equal to its tallest state; measure(fn) must visit every state
+  function lockHeights(els, visitAll) {
+    els.forEach(function (el) { el.style.minHeight = ''; });
+    var h = els.map(function () { return 0; });
+    visitAll(function () { els.forEach(function (el, i) { h[i] = Math.max(h[i], el.offsetHeight); }); });
+    els.forEach(function (el, i) { el.style.minHeight = h[i] + 'px'; });
+  }
 
-  // exact fractions [num, den], den > 0
+  function fmt(s, o) { return s.replace(/\{(\w+)\}/g, function (_, k) { return o[k]; }); }
   function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = a % b; a = b; b = t; } return a || 1; }
   function F(n, d) { d = d || 1; if (d < 0) { n = -n; d = -d; } var g = gcd(n, d); return [n / g, d / g]; }
   function sub(a, b) { return F(a[0] * b[1] - b[0] * a[1], a[1] * b[1]); }
@@ -86,13 +130,13 @@ td.done { color: var(--muted); }
 
   function build(pm) {
     var a = pm.map(function (row) { return row.map(function (v) { return F(v); }); });
-    var where = [-1, -1, -1], free = [], r = 0;
+    var where = [-1, -1, -1], free = [], r = 0, i, c;
     steps = [];
     function push(o) { o.a = a.map(function (row) { return row.slice(); }); o.where = where.slice(); o.free = free.slice(); o.r = r; steps.push(o); }
     push({ col: -1, head: L.h0, msg: L.start, cls: '' });
-    for (var c = 0; c < M; c++) {
+    for (c = 0; c < M; c++) {
       var p = -1;
-      for (var i = r; i < N; i++) if (!zero(a[i][c]) && (p < 0 || abs(a[i][c]) > abs(a[p][c]))) p = i;
+      for (i = r; i < N; i++) if (!zero(a[i][c]) && (p < 0 || abs(a[i][c]) > abs(a[p][c]))) p = i;
       if (p < 0) {
         free.push(c);
         push({ col: c, head: fmt(L.hcol, { c: c + 1 }), msg: fmt(L.nofree, { c: c + 1, r: r + 1 }), cls: '' });
@@ -126,18 +170,21 @@ td.done { color: var(--muted); }
         free.forEach(function (fc) { var co = a[where[c]][fc]; if (!zero(co)) s += ' − (' + str(co) + ')·x' + (fc + 1); });
         parts.push(s);
       }
-      push({ col: -1, head: L.hend, msg: fmt(L.many, { f: free.map(function (x) { return 'x' + (x + 1); }).join(', '), s: parts.join('；') }), cls: 'ok' });
+      push({ col: -1, head: L.hend, msg: fmt(L.many, { f: free.map(function (x) { return 'x' + (x + 1); }).join(', '), s: parts.join(L.sep) }), cls: 'ok' });
     } else {
-      push({ col: -1, head: L.hend, msg: fmt(L.one, { s: [0, 1, 2].map(function (c) { return 'x' + (c + 1) + ' = ' + str(a[where[c]][M]); }).join('，') }), cls: 'ok' });
+      push({ col: -1, head: L.hend, msg: fmt(L.one, { s: [0, 1, 2].map(function (c) { return 'x' + (c + 1) + ' = ' + str(a[where[c]][M]); }).join(L.sep) }), cls: 'ok' });
     }
   }
 
-  var tb = document.getElementById('tb');
-  function render() {
-    var s = steps[k], html = '<tr><th></th>';
-    for (var c = 0; c < M; c++) html += '<th class="' + (c === s.col ? 'col' : '') + (s.free.indexOf(c) >= 0 ? ' free' : '') + '">x' + (c + 1) + '</th>';
+  var tb = document.getElementById('tb'), panel = document.getElementById('panel'), eqs = document.getElementById('eqs');
+  function render(quiet) {
+    var s = steps[k], html = '<tr><th></th>', c, i;
+    for (c = 0; c < M; c++) {
+      var isFree = s.free.indexOf(c) >= 0;
+      html += '<th class="' + (c === s.col ? 'col' : '') + (isFree ? ' free' : '') + '">x' + (c + 1) + '</th>';
+    }
     html += '<th></th><th>b</th></tr>';
-    for (var i = 0; i < N; i++) {
+    for (i = 0; i < N; i++) {
       html += '<tr><td class="rl">' + fmt(L.row, { i: i + 1 }) + '</td>';
       for (c = 0; c <= M; c++) {
         if (c === M) html += '<td class="bar"></td>';
@@ -153,19 +200,19 @@ td.done { color: var(--muted); }
       html += '</tr>';
     }
     tb.innerHTML = html;
+    document.getElementById('badge').textContent = k + 1;
     document.getElementById('head').textContent = s.head;
-    var t = document.getElementById('txt'); t.textContent = s.msg; t.className = 't ' + s.cls;
-    document.getElementById('prev').disabled = k === 0;
-    document.getElementById('next').disabled = k === steps.length - 1;
-    fit();
+    document.getElementById('txt').textContent = s.msg;
+    panel.className = 'panel ' + s.cls;
+    progress(k, steps.length);
+    if (!quiet) fit();
   }
   function show(n) { k = Math.max(0, Math.min(steps.length - 1, n)); render(); }
-  var bPlay = document.getElementById('play');
-  function stop() { if (timer) { clearInterval(timer); timer = null; } bPlay.textContent = L.play; }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } playBtn(false); }
   function play() {
     if (timer) { stop(); return; }
     if (k === steps.length - 1) show(0);
-    bPlay.textContent = L.pause;
+    playBtn(true);
     timer = setInterval(function () { if (k >= steps.length - 1) stop(); else show(k + 1); }, 2000);
   }
   function eqText(m) {
@@ -177,29 +224,40 @@ td.done { color: var(--muted); }
         s += s ? (v < 0 ? ' − ' : ' + ') + term : (v < 0 ? '−' : '') + term;
       }
       return s + ' = ' + row[M];
-    }).join('；  ');
+    }).join(L.sep + ' ');
   }
-  function choose(i) {
-    stop(); cur = i;
-    var tabs = document.getElementById('tabs'); tabs.innerHTML = '';
+  function tabs() {
+    var el = document.getElementById('tabs'); el.innerHTML = '';
     PRESETS.forEach(function (p, j) {
-      var b = document.createElement('button'); b.textContent = p.name; if (j === i) b.className = 'on';
-      b.onclick = function () { choose(j); }; tabs.appendChild(b);
+      var b = document.createElement('button'); b.textContent = p.name; b.setAttribute('role', 'tab');
+      if (j === cur) b.className = 'on';
+      b.onclick = function () { choose(j); }; el.appendChild(b);
     });
-    document.getElementById('eqs').textContent = eqText(PRESETS[i].m);
-    build(PRESETS[i].m); show(0);
+  }
+  function choose(i) { stop(); cur = i; tabs(); eqs.textContent = eqText(PRESETS[i].m); build(PRESETS[i].m); show(0); }
+  function lock() {
+    var saveCur = cur, saveK = k;
+    lockHeights([eqs, panel, tb.parentNode], function (measure) {
+      PRESETS.forEach(function (p) {
+        eqs.textContent = eqText(p.m); build(p.m);
+        for (k = 0; k < steps.length; k++) { render(true); measure(); }
+      });
+    });
+    cur = saveCur; eqs.textContent = eqText(PRESETS[cur].m); build(PRESETS[cur].m); k = saveK; render();
   }
   document.getElementById('prev').onclick = function () { stop(); show(k - 1); };
   document.getElementById('next').onclick = function () { stop(); show(k + 1); };
-  bPlay.onclick = play;
+  document.getElementById('play').onclick = play;
   document.getElementById('reset').onclick = function () { stop(); show(0); };
   document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowRight') { stop(); show(k + 1); }
     if (e.key === 'ArrowLeft') { stop(); show(k - 1); }
   });
-  window.addEventListener('resize', fit);
-  window.addEventListener('load', fit);
+  var rz = null;
+  window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(lock, 120); });
+  window.addEventListener('load', lock);
   choose(0);
+  lock();
 })();
 </script>
 </body>

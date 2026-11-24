@@ -47,7 +47,7 @@ After elimination, every row from row $r$ down has all-zero coefficients. Read t
 
 The animation below goes step by step through three systems: a unique solution, a free variable, and no solution. Each step marks the current column, the pivot and the row being cleared.
 
-<iframe src="/maps/gauss-steps.en.html" title="Gaussian elimination, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:560px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
+<iframe src="/maps/gauss-steps.en.html" title="Gaussian elimination, step by step" loading="lazy" scrolling="no" style="display:block;width:min(100%,860px);height:500px;overflow:hidden;margin:1.2em auto 0;border:1px solid var(--rule);border-radius:12px;background:transparent"></iframe>
 <p style="text-align:center;font-size:.9em"><a href="/maps/gauss-steps.en.html" target="_blank" rel="noopener">Open in a new window</a></p>
 
 Cost: each column sweeps the whole matrix, $O(n \cdot m \cdot (m + 1))$, which is $O(n^3)$ for a square system; $n$ around 500 is the limit.
