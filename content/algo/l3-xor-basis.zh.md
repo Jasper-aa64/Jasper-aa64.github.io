@@ -524,3 +524,173 @@ int main() {
 - 2.3 的消元就是模 2 的高斯消元，插入是 [L2 高斯消元](/zh/algo/l2-gaussian-elimination/)第 5.2 节增量高斯的特例；异或方程组的解数（$2^{\text{自由元数}}$）和 3.2 的 $2^{n-r}$ 是同一个数：自由元就是插入失败的那些数。
 - A6 的 01-Trie 也求最大异或，它求的是“$x$ 和集合里某一个数异或的最大值”，集合里的数只能选一个；线性基求的是任选子集。题面说“选两个数”用 Trie，说“选若干个数”用线性基。
 - 5.2 的贪心是拟阵上的贪心，最小生成树的 Kruskal 是同一个结构（图的无环边集代替线性无关组）。
+
+## 附：线性基和增量高斯的板子
+
+两份板子放在一起对照。线性基是增量高斯在“列数不超过 60、没有右端”时的写法，所以每个操作基本都能在两边找到对应；右端、矛盾、解向量只有增量高斯有。两份都和暴力枚举对拍过。
+
+| 要做的事 | 线性基 `XorBasis` | 增量高斯 `IncGauss` |
+| --- | --- | --- |
+| 加一个数 / 一条方程 | `insert`，不清旧行 | `add`，清旧行，始终是简化行阶梯形 |
+| 能否表示出来 | `contains` | `implied`，还给出推出的右端 |
+| 秩 | `r` | `rank()` |
+| 规范化 | `reduce()`，要用时再调 | 一直是规范的 |
+| 最大 / 最小异或 | `max_xor` / `min_xor` | 板子没写；把列按位从高到低排，做法一样 |
+| 第 $k$ 小 / 求排名 | `kth` / `index`（先 `reduce()`） | 板子没写，同上 |
+| 合并 | `merge` | 把另一组的行逐条 `add` |
+| 区间询问 | `PrefixBasis` | 板子没写；给每行记位置，做法同 5.3 |
+| 右端和矛盾 | 没有 | `add` 返回 $-1$，`bad` 记下 |
+| 一组解 / 全部解 | 没有 | `solve()` / `kernel()` |
+| 列数 | 不超过 60 | 不超过 `MX`，几千也行 |
+| 一次插入 | $O(60)$ | $O(\text{秩} \cdot \text{MX} / 64)$ |
+
+### 线性基
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+// 线性基：值小于 2^60，b[i] 要么是 0，要么是最高位恰好为 i 的数
+struct XorBasis {
+    static const int B = 60;
+    long long b[B] = {};
+    int r = 0;                                   // 秩；能异或出 2^r 个值，插过 n 个数时每个值有 2^(n-r) 种选法
+
+    bool insert(long long x) {                   // 成功（秩加 1）返回 true，失败说明 x 已能被异或出来
+        for (int i = B - 1; i >= 0; i--) {
+            if (!(x >> i & 1)) continue;
+            if (!b[i]) { b[i] = x; r++; return true; }
+            x ^= b[i];
+        }
+        return false;
+    }
+    bool contains(long long x) const {           // x 能否被异或出来
+        for (int i = B - 1; i >= 0; i--)
+            if (x >> i & 1) {
+                if (!b[i]) return false;
+                x ^= b[i];
+            }
+        return true;
+    }
+    long long max_xor(long long v = 0) const {   // v 异或上任意子集的最大值
+        for (int i = B - 1; i >= 0; i--) v = max(v, v ^ b[i]);
+        return v;
+    }
+    long long min_xor(long long v) const {       // v 异或上任意子集的最小值
+        for (int i = B - 1; i >= 0; i--) v = min(v, v ^ b[i]);
+        return v;
+    }
+    void reduce() {                              // 规范化：每个主元位只留在自己那个数里
+        for (int i = 0; i < B; i++)
+            for (int j = i - 1; j >= 0; j--)
+                if (b[j] && (b[i] >> j & 1)) b[i] ^= b[j];
+    }
+    long long kth(unsigned long long k) const {  // 先 reduce()；第 k 小（k 从 0 数，第 0 个是 0），不存在返回 -1
+        long long v = 0;
+        for (int i = 0; i < B; i++)
+            if (b[i]) { if (k & 1) v ^= b[i]; k >>= 1; }
+        return k ? -1 : v;
+    }
+    unsigned long long index(long long x) const {  // 先 reduce()；x 能被异或出来时，它是第几小（从 0 数）
+        unsigned long long k = 0;
+        for (int i = 0, t = 0; i < B; i++)
+            if (b[i]) { if (x >> i & 1) k |= 1ULL << t; t++; }
+        return k;
+    }
+    void merge(const XorBasis& o) {              // 把另一组基并进来，O(60^2)；之后要第 k 小得重新 reduce()
+        for (int i = 0; i < B; i++)
+            if (o.b[i]) insert(o.b[i]);
+    }
+};
+
+// 前缀线性基：从左往右插，每个主元位留位置最靠右的数
+struct PrefixBasis {
+    static const int B = 60;
+    long long b[B] = {};
+    int pos[B] = {};                             // b[i] 的位置（从 1 数）
+
+    void insert(long long x, int p) {            // 插入第 p 个数
+        for (int i = B - 1; i >= 0; i--) {
+            if (!(x >> i & 1)) continue;
+            if (!b[i]) { b[i] = x; pos[i] = p; return; }
+            if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
+            x ^= b[i];
+        }
+    }
+    long long max_xor(int l) const {             // 区间 [l, 当前右端点] 的最大异或
+        long long v = 0;
+        for (int i = B - 1; i >= 0; i--)
+            if (pos[i] >= l) v = max(v, v ^ b[i]);
+        return v;
+    }
+    XorBasis at(int l) const {                   // 区间 [l, 当前右端点] 的一组基，可以接着用上面的全部操作
+        XorBasis s;
+        for (int i = 0; i < B; i++)
+            if (b[i] && pos[i] >= l) s.b[i] = b[i], s.r++;
+        return s;
+    }
+};
+```
+
+`kth` 的 $k$ 从 0 数，包含 0；题面的“第 $k$ 小”0 算不算，按 4.3 末尾看 $r$ 是否等于 $n$。
+
+### 增量高斯（模 2）
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MX = 1024;                             // 列数（未知数个数）的上限
+
+// 增量高斯（模 2）：一条一条加方程，始终保持简化行阶梯形
+struct IncGauss {
+    int n;                                       // 未知数个数
+    vector<bitset<MX>> row;
+    vector<int> rhs, piv;                        // 每行的右端、主元列；右端可以把若干位打包一起异或
+    bool bad = false;                            // 出现过矛盾
+    IncGauss(int n) : n(n) {}
+
+    void eliminate(bitset<MX>& v, int& b) const {  // 用已有各行把 v 在主元列上的 1 消掉，右端跟着变
+        for (int i = 0; i < (int)row.size(); i++)
+            if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
+    }
+    int add(bitset<MX> v, int b) {               // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+        eliminate(v, b);
+        int p = v._Find_first();
+        if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
+        for (int i = 0; i < (int)row.size(); i++)
+            if (row[i][p]) row[i] ^= v, rhs[i] ^= b;   // 新主元列在旧行里清成 0
+        row.push_back(v), rhs.push_back(b), piv.push_back(p);
+        return 1;
+    }
+    int rank() const { return row.size(); }
+    int implied(bitset<MX> v) const {            // 左边为 v 的方程能否由已有方程推出：能就返回它的右端，不能返回 -1
+        int b = 0;
+        eliminate(v, b);
+        return v.none() ? b : -1;
+    }
+    bitset<MX> solve() const {                   // !bad 时的一组解：自由元取 0，主元等于右端
+        bitset<MX> x;
+        for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
+        return x;
+    }
+    vector<bitset<MX>> kernel() const {          // 齐次方程组解空间的基，共 n - rank() 个；全部解 = solve() 异或上它们的任意子集
+        vector<int> isp(n, -1);
+        for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
+        vector<bitset<MX>> ks;
+        for (int f = 0; f < n; f++) {
+            if (isp[f] >= 0) continue;
+            bitset<MX> x;
+            x[f] = 1;                            // 这个自由元取 1，其余自由元取 0
+            for (int i = 0; i < (int)row.size(); i++)
+                if (row[i][f]) x[piv[i]] = 1;
+            ks.push_back(x);
+        }
+        return ks;
+    }
+};
+```
+
+第 $j$ 个未知数对应 bitset 的第 $j$ 位。`bad` 为真时方程组无解，`solve()` 和 `kernel()` 没有意义；否则解有 $2^{n - \text{rank}}$ 个，就是 [L1 线性代数](/zh/algo/l1-linear-algebra/) 4.5 节的图景：全部解是零空间整体平移一个解。
+
+**选哪份：题目问一组数的子集异或能得到什么，用线性基；题目要解方程、判矛盾，或者未知数超过 60 个，用增量高斯。**

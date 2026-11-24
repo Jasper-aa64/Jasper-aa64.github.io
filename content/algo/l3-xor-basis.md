@@ -524,3 +524,173 @@ Each problem lists the section it uses.
 - The elimination of 2.3 is Gaussian elimination mod 2, and insertion is a special case of incremental elimination in [L2 Gaussian Elimination](/algo/l2-gaussian-elimination/) section 5.2. The number of solutions of an XOR system ($2^{\text{free variables}}$) is the same number as the $2^{n-r}$ of 3.2: the free variables are exactly the numbers whose insertion failed.
 - The 0/1 trie of A6 also finds a maximum XOR, but of "$x$ with one number of the set": only a single number may be chosen; a basis answers "any subset". A statement that says "pick two numbers" wants a trie; one that says "pick some numbers" wants a basis.
 - The greedy of 5.2 is greedy on a matroid, the same structure as Kruskal's minimum spanning tree (acyclic edge sets in place of independent sets).
+
+## Appendix: XOR Basis and Incremental Gauss Templates
+
+The two templates side by side. An XOR basis is incremental Gauss written for "at most 60 columns, no right-hand side", so almost every operation has a counterpart on both sides; right-hand sides, contradictions and solution vectors exist only in incremental Gauss. Both templates were checked against brute-force enumeration.
+
+| Task | XOR basis `XorBasis` | Incremental Gauss `IncGauss` |
+| --- | --- | --- |
+| Add a number / an equation | `insert`, old rows untouched | `add`, clears old rows, always RREF |
+| Can it be represented | `contains` | `implied`, which also gives the implied RHS |
+| Rank | `r` | `rank()` |
+| Reduced form | `reduce()`, called when needed | always reduced |
+| Max / min XOR | `max_xor` / `min_xor` | not in the template; order columns from high bit to low and it works the same |
+| $k$-th smallest / rank of a value | `kth` / `index` (after `reduce()`) | not in the template, same as above |
+| Merge | `merge` | `add` the other side's rows one by one |
+| Range queries | `PrefixBasis` | not in the template; record a position per row, as in 5.3 |
+| Right-hand side and contradictions | none | `add` returns $-1$, `bad` remembers it |
+| One solution / all solutions | none | `solve()` / `kernel()` |
+| Columns | at most 60 | at most `MX`, thousands are fine |
+| One insertion | $O(60)$ | $O(\text{rank} \cdot \text{MX} / 64)$ |
+
+### XOR Basis
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+// XOR basis: values below 2^60; b[i] is 0 or a number whose highest bit is exactly i
+struct XorBasis {
+    static const int B = 60;
+    long long b[B] = {};
+    int r = 0;                                   // rank; 2^r reachable values, each from 2^(n-r) subsets after n insertions
+
+    bool insert(long long x) {                   // true if the rank grows; false means x was already reachable
+        for (int i = B - 1; i >= 0; i--) {
+            if (!(x >> i & 1)) continue;
+            if (!b[i]) { b[i] = x; r++; return true; }
+            x ^= b[i];
+        }
+        return false;
+    }
+    bool contains(long long x) const {           // is x reachable
+        for (int i = B - 1; i >= 0; i--)
+            if (x >> i & 1) {
+                if (!b[i]) return false;
+                x ^= b[i];
+            }
+        return true;
+    }
+    long long max_xor(long long v = 0) const {   // max of v XOR any subset
+        for (int i = B - 1; i >= 0; i--) v = max(v, v ^ b[i]);
+        return v;
+    }
+    long long min_xor(long long v) const {       // min of v XOR any subset
+        for (int i = B - 1; i >= 0; i--) v = min(v, v ^ b[i]);
+        return v;
+    }
+    void reduce() {                              // reduce: each pivot bit stays only in its own number
+        for (int i = 0; i < B; i++)
+            for (int j = i - 1; j >= 0; j--)
+                if (b[j] && (b[i] >> j & 1)) b[i] ^= b[j];
+    }
+    long long kth(unsigned long long k) const {  // reduce() first; k-th smallest (0-based, the 0th is 0), -1 if none
+        long long v = 0;
+        for (int i = 0; i < B; i++)
+            if (b[i]) { if (k & 1) v ^= b[i]; k >>= 1; }
+        return k ? -1 : v;
+    }
+    unsigned long long index(long long x) const {  // reduce() first; rank of a reachable x among the values (0-based)
+        unsigned long long k = 0;
+        for (int i = 0, t = 0; i < B; i++)
+            if (b[i]) { if (x >> i & 1) k |= 1ULL << t; t++; }
+        return k;
+    }
+    void merge(const XorBasis& o) {              // absorb another basis, O(60^2); call reduce() again before kth
+        for (int i = 0; i < B; i++)
+            if (o.b[i]) insert(o.b[i]);
+    }
+};
+
+// prefix basis: insert left to right, each pivot bit keeps the rightmost number
+struct PrefixBasis {
+    static const int B = 60;
+    long long b[B] = {};
+    int pos[B] = {};                             // position of b[i] (1-based)
+
+    void insert(long long x, int p) {            // insert the p-th number
+        for (int i = B - 1; i >= 0; i--) {
+            if (!(x >> i & 1)) continue;
+            if (!b[i]) { b[i] = x; pos[i] = p; return; }
+            if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
+            x ^= b[i];
+        }
+    }
+    long long max_xor(int l) const {             // max XOR over [l, current right end]
+        long long v = 0;
+        for (int i = B - 1; i >= 0; i--)
+            if (pos[i] >= l) v = max(v, v ^ b[i]);
+        return v;
+    }
+    XorBasis at(int l) const {                   // a basis of [l, current right end]; all XorBasis operations apply
+        XorBasis s;
+        for (int i = 0; i < B; i++)
+            if (b[i] && pos[i] >= l) s.b[i] = b[i], s.r++;
+        return s;
+    }
+};
+```
+
+`kth` counts $k$ from 0 and includes 0; whether the statement's "$k$-th smallest" counts 0 depends on whether $r = n$, as at the end of 4.3.
+
+### Incremental Gauss (mod 2)
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MX = 1024;                             // max number of columns (unknowns)
+
+// incremental Gauss (mod 2): add equations one at a time, always in RREF
+struct IncGauss {
+    int n;                                       // number of unknowns
+    vector<bitset<MX>> row;
+    vector<int> rhs, piv;                        // right-hand side and pivot column of each row; several RHS bits can be packed and XORed together
+    bool bad = false;                            // a contradiction has appeared
+    IncGauss(int n) : n(n) {}
+
+    void eliminate(bitset<MX>& v, int& b) const {  // clear v on every pivot column using the rows; the RHS follows
+        for (int i = 0; i < (int)row.size(); i++)
+            if (v[piv[i]]) v ^= row[i], b ^= rhs[i];
+    }
+    int add(bitset<MX> v, int b) {               // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
+        eliminate(v, b);
+        int p = v._Find_first();
+        if (p >= n) { if (b) bad = true; return b ? -1 : 0; }
+        for (int i = 0; i < (int)row.size(); i++)
+            if (row[i][p]) row[i] ^= v, rhs[i] ^= b;   // clear the new pivot column in the old rows
+        row.push_back(v), rhs.push_back(b), piv.push_back(p);
+        return 1;
+    }
+    int rank() const { return row.size(); }
+    int implied(bitset<MX> v) const {            // is the left side v implied? return its RHS if so, else -1
+        int b = 0;
+        eliminate(v, b);
+        return v.none() ? b : -1;
+    }
+    bitset<MX> solve() const {                   // one solution when !bad: free variables 0, each pivot equals its RHS
+        bitset<MX> x;
+        for (int i = 0; i < (int)row.size(); i++) x[piv[i]] = rhs[i];
+        return x;
+    }
+    vector<bitset<MX>> kernel() const {          // basis of the homogeneous solution space, n - rank() vectors; all solutions = solve() XOR any subset of them
+        vector<int> isp(n, -1);
+        for (int i = 0; i < (int)row.size(); i++) isp[piv[i]] = i;
+        vector<bitset<MX>> ks;
+        for (int f = 0; f < n; f++) {
+            if (isp[f] >= 0) continue;
+            bitset<MX> x;
+            x[f] = 1;                            // this free variable 1, the others 0
+            for (int i = 0; i < (int)row.size(); i++)
+                if (row[i][f]) x[piv[i]] = 1;
+            ks.push_back(x);
+        }
+        return ks;
+    }
+};
+```
+
+Unknown $j$ is bit $j$ of the bitset. When `bad` is true the system has no solution and `solve()` and `kernel()` mean nothing; otherwise there are $2^{n - \text{rank}}$ solutions, which is [L1 linear algebra](/algo/l1-linear-algebra/) section 4.5's picture: all solutions are the null space translated by one solution.
+
+**Which one: if the problem asks what XORs of subsets of some numbers can give, use the XOR basis; if it asks to solve equations, detect contradictions, or has more than 60 unknowns, use incremental Gauss.**
