@@ -59,18 +59,11 @@ Stack the $n$ numbers into an $n \times 60$ 0/1 matrix, and insertion is Gaussia
      - **XOR 6**: $\{6\}$, $\{3, 5\}$.
    - **Every value gets exactly 2 subsets**: 4 values is $2^r$, 2 each is $2^{n-r}$, and no value gets more than another.
 2. **Why there are exactly $2^r$ distinct values**
-   - **The $2^r$ choices from the basis give $2^r$ results**: each of the $r$ basis numbers is chosen or not.
-   - **These results are pairwise distinct**: if two different choices gave the same value, XORing the two results would give 0, which is exactly the XOR of the symmetric difference of the two choices; the symmetric difference is nonempty, contradicting independence.
-   - **Every value in the space comes from the basis**: so there are exactly $2^r$ distinct values, including the 0 of the empty set.
+   - **Each choice from the basis gives a different value**: each of the $r$ basis numbers is chosen or not, $2^r$ choices. If two choices gave the same value, XORing them would make a nonempty subset reach 0, contradicting independence. The basis also reaches every value in the space, so there are exactly $2^r$.
    - **Example**: the basis is 6 and 3, and its four choices give 0, 6, 3, 5.
 3. **Why every value gets exactly $2^{n-r}$ subsets**
-   - **An average does not show every value gets the same**: $2^n$ subsets over $2^r$ values average $2^{n-r}$ each; the split still has to be shown to be even.
-   - **Split the $n$ numbers into successes and failures**: the $r$ original numbers whose insertion succeeded form a basis (each cannot be expressed by the successes before it, so they are independent); each of the $n - r$ whose insertion failed is reachable from that basis.
-   - **The failed part can be chosen freely**: to reach a reachable value $v$, first choose any subset of the $n - r$ failed numbers, $2^{n-r}$ ways, and call the XOR of this part $u$.
-   - **The successful part has only one completion**: the remaining $v \oplus u$ is also in the space, and representation in a basis is unique, so exactly 1 choice makes it up.
-   - **Subsets reaching $v$ correspond one to one with choices on the failed part**: so there are exactly $2^{n-r}$ of them, whatever $v$ is.
-   - **Example**: the failed number is 5. To reach 6: without 5, take 6 from the basis, giving $\{6\}$; with 5, the rest must be $6 \oplus 5 = 3$, so take 3, giving $\{3, 5\}$.
-   - **In linear algebra this is rank–nullity**: write a choice as $x \in \{0, 1\}^n$; the XOR $f(x) = x_1 a_1 \oplus \cdots \oplus x_n a_n$ is a linear map whose image has dimension $r$, so the kernel (choices reaching 0) has dimension $n - r$; the choices reaching $v$ are the kernel shifted as a whole, the same size.
+   - **The failed numbers are chosen freely, and the basis completes the rest in one way**: to reach $v$, the $n - r$ numbers whose insertion failed can be chosen any way, $2^{n-r}$ ways; after each, the basis has exactly one choice that makes up the rest, because representation in a basis is unique. So every $v$ is reached by $2^{n-r}$ subsets, whatever $v$ is.
+   - **Example**: the failed number is 5. To reach 6: without 5, take 6, giving $\{6\}$; with 5, 3 is still missing, so take 3, giving $\{3, 5\}$.
 4. **How problems use this result**
    - **Counting subsets with XOR $t$**: $2^{n-r}$ if $t$ is reachable (`contains(t)`), otherwise 0. Code in 2.2.
    - **Counting nonempty subsets with XOR 0**: 0 is always reachable, by $2^{n-r}$ subsets; removing the empty set leaves $2^{n-r} - 1$.
