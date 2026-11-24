@@ -200,11 +200,11 @@ long long max_weight(vector<pair<long long, long long>> items) {
 
 **Independent sets have the exchange property (a smaller one can always borrow a number from a larger one to grow), so inserting greedily by decreasing weight is optimal.** The next section reuses this with position as the weight.
 
-### 5.3 Range Queries: Each Pivot Bit Keeps the Rightmost Number
+### 5.3 Range Queries: The Prefix Basis, Each Pivot Bit Keeps the Rightmost Number
 
 Example (CF 1100F): an array and many queries asking for the maximum subset XOR inside $[l, r]$. Rebuilding a basis per query costs $O(60 \cdot \text{length})$, too slow.
 
-Insert from left to right and keep a position `pos[i]` next to each `b[i]`. When inserting the $p$-th number, if the `b[i]` it meets has a position smaller than $p$, swap them: the newcomer stays in `b[i]` and the old number carries its position further down to the lower bits. The basis after inserting the $r$-th number answers every query with right end $r$: run the greedy using only the `b[i]` with `pos[i]` $\ge l$.
+The technique is called the **prefix basis**: insert from left to right and keep a position `pos[i]` next to each `b[i]`. When inserting the $p$-th number, if the `b[i]` it meets has a position smaller than $p$, swap them: the newcomer stays in `b[i]` and the old number carries its position further down to the lower bits. The basis after inserting the $r$-th number answers every query with right end $r$: run the greedy using only the `b[i]` with `pos[i]` $\ge l$.
 
 ```cpp
 struct PrefixBasis {
@@ -634,7 +634,7 @@ struct XorBasis {
     }
 };
 
-// prefix basis: insert left to right, each pivot bit keeps the rightmost number
+// prefix basis (explained in 5.3): insert left to right, each pivot bit keeps the rightmost number
 struct PrefixBasis {
     static const int B = 60;
     long long b[B] = {};
