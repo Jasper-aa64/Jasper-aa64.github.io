@@ -138,6 +138,60 @@ The difference is in how each is used:
 
 If the problem gives a set of numbers and asks about subset XORs, use an XOR basis; if it gives constraints and asks for each variable to be 0 or 1 (light switches, xor systems), use mod-2 Gaussian elimination with bitsets.
 
+**Three layers**: mod 2 is the rule, elimination is the action, and the XOR basis is the data structure that stores the result.
+
+| Layer | What it is | Analogy |
+| --- | --- | --- |
+| Mod 2 | the arithmetic where $1 + 1 = 0$, i.e. XOR | the comparison rule |
+| Gaussian elimination | clearing redundant vectors to 0 under that rule | the sorting action |
+| XOR basis | the `b[0..59]` left after elimination, maintained online | the sorted structure |
+
+### 4.5 The Geometry of GF(2): Vertices of a Hypercube
+
+> The essence of a linear space over GF(2): a subset of the hypercube's vertices that is closed under XOR.
+
+Over the reals, a span is a line, a plane, a solid: each independent vector adds a dimension, and a dependent vector lies in the existing space, so the dimension stays. Over GF(2) the coefficients are only 0 and 1, so there are no points in between and a space is a finite set of points.
+
+**The whole space is the vertices of a hypercube.** There are $2^n$ bit strings of length $n$, each one a vertex, and two strings that differ in one bit are joined by an edge:
+
+| Bits | Points | Shape |
+| --- | --- | --- |
+| 2 | 4 | square |
+| 3 | 8 | cube |
+| 4 | 16 | 4-dimensional hypercube |
+| 60 | $2^{60}$ | cannot be drawn, same rule |
+
+**Inserting a number grows the space by one dimension.** Insert $6, 3, 5, 1$ in order (3 bits):
+
+| Insert | Values reachable by XOR | Dim | What happened |
+| --- | --- | --- | --- |
+| $6 = 110$ | $\{000, 110\}$ | 1 | 2 points |
+| $3 = 011$ | $\{000, 110, 011, 101\}$ | 2 | 4 points |
+| $5 = 101$ | unchanged | 2 | 5 is already inside, dependent, cleared to 0 |
+| $1 = 001$ | all 8 | 3 | the whole cube |
+
+Each extra dimension doubles the reachable values, because the new vector can be chosen or not: $2 \to 4 \to 8$. A successful insertion adds a dimension; a failed one means the number already lies in the space and nothing changes. The numbers in `b` are a set of "axes" of this space, their count is the dimension $r$, and the reachable values are $2^r$ points.
+
+**Subspaces are not always regular.** In the 3-bit cube, the subspaces of dimension 1 and 2 come in these forms:
+
+| Dim | Example | Shape |
+| --- | --- | --- |
+| 1 | $\{000, 111\}$ | a space diagonal |
+| 2 | $\{000, 001, 010, 011\}$ | a face of the cube |
+| 2 | $\{000, 110, 011, 101\}$ | a regular tetrahedron: the 4 vertices with an even number of 1s, not any face |
+
+To check whether a point set is a space, only one thing matters: it contains 0 and the XOR of any two points stays inside. For example $110 \oplus 011 = 101$ is inside, so the third row is closed.
+
+**A translate is the solution set of a system.** XOR the whole space with a number outside it to get a translate:
+
+$$
+100 \oplus \{000, 110, 011, 101\} = \{100, 010, 111, 001\}
+$$
+
+These are the 4 vertices with an odd number of 1s, another regular tetrahedron; it does not contain 0, so it is not a space. The 8 vertices of the cube split exactly into these two tetrahedra: one is the space and the other is its translate. When $Ax = b$ from section 6 is solvable, the solution set is always $x_0 + \ker A$, a translate of a space, of size $2^{n-r}$; if $b$ is not in the image there is no solution.
+
+**Over another field the picture survives.** $\text{GF}(3)^2$ has 9 points, a 3×3 grid whose top wraps to the bottom and left to right; a one-dimensional subspace is a line through the origin with 3 points. Contests use essentially only GF(2) and $\text{GF}(p)$ for a prime $p$.
+
 ## 5. A Matrix Is a Linear Map
 
 An $m \times n$ matrix $A$ sends an $n$-dimensional vector $x$ to an $m$-dimensional vector $Ax$ and preserves addition and scaling: $A(x + y) = Ax + Ay$ and $A(kx) = k \cdot Ax$. A map that preserves both operations is a **linear map**. Conversely every linear map can be written as a matrix: column $j$ holds the image of the $j$-th unit vector. So a matrix and a linear map are the same thing.
