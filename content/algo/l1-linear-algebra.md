@@ -182,13 +182,14 @@ Each extra dimension doubles the reachable values, because the new vector can be
 
 To check whether a point set is a space, only one thing matters: it contains 0 and the XOR of any two points stays inside. For example $110 \oplus 011 = 101$ is inside, so the third row is closed.
 
-**A translate is the solution set of a system.** XOR the whole space with a number outside it to get a translate:
+**The solution set is a translate, not a space.** The unknown $x$ of $Ax = b$ is also a 0/1 string, so solutions live in the space of $x$. Take $6, 3, 5$ as the columns of $A$:
 
-$$
-100 \oplus \{000, 110, 011, 101\} = \{100, 010, 111, 001\}
-$$
+- The solutions for $b = 0$ (the kernel) are $\{000, 111\}$, because $6 \oplus 3 \oplus 5 = 0$. It contains 0 (choose nothing) and is closed under XOR, so it is a space: a space diagonal in $x$-space.
+- The solutions for $b = 110$ are $\{100, 011\}$: choose only 6, or choose 3 and 5. $x = 000$ gives 0, not 110, so the set does not contain 0 and is not a space. It equals $100 \oplus \{000, 111\}$: one particular solution XOR the whole kernel.
 
-These are the 4 vertices with an odd number of 1s, another regular tetrahedron; it does not contain 0, so it is not a space. The 8 vertices of the cube split exactly into these two tetrahedra: one is the space and the other is its translate. When $Ax = b$ from section 6 is solvable, the solution set is always $x_0 + \ker A$, a translate of a space, of size $2^{n-r}$; if $b$ is not in the image there is no solution.
+In general, when $Ax = b$ is solvable the solution set is $x_0 + \ker A$, any two solutions XOR into the kernel, and its size is $2^{n-r}$; if $b$ is not in the image there is no solution.
+
+The value space has a matching picture: the image is $\{000, 110, 011, 101\}$, and the other 4 vertices $\{100, 010, 111, 001\}$ are its translate, not containing 0. The cube's 8 vertices split exactly into these two tetrahedra: a $b$ in the first has solutions, a $b$ in the second has none.
 
 **Over another field the picture survives.** $\text{GF}(3)^2$ has 9 points, a 3×3 grid whose top wraps to the bottom and left to right; a one-dimensional subspace is a line through the origin with 3 points. Contests use essentially only GF(2) and $\text{GF}(p)$ for a prime $p$.
 
