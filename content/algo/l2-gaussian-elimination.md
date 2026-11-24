@@ -52,21 +52,40 @@ The animation below goes step by step through three systems: a unique solution, 
 
 ## 2. What It Can Solve
 
-Each problem below becomes a linear system or a matrix, and one elimination answers it. Each row says what to build, what to read after eliminating, and where it is covered.
+Gaussian elimination does four things: solve a linear system, compute a determinant, invert a matrix, and find a rank. Expectations with cycles, Lights Out and XOR constraints in problems all turn into the first one once modelled.
 
-| Problem | Build | Read after eliminating | See |
-| --- | --- | --- | --- |
-| Solve a linear system: unique, infinitely many, or none | the $n \times (m + 1)$ augmented matrix | check rows $0 = $ nonzero first (no solution), then free variables | 1.2, 3.2 |
-| Expectations or probabilities whose states depend on each other (cycles) | one unknown per state, each transition an equation | the value of every state | 3.3 |
-| Solve a system modulo a prime | the augmented matrix with coefficients mod $p$ | as above, with division replaced by multiplying by the inverse | 4.1 |
-| Matrix inverse | $[A \mid I]$ | when the left half becomes $I$, the right half is $A^{-1}$; if it cannot, $A$ is singular | 4.2 |
-| Determinant | the square matrix $A$ | clear only below, multiply the diagonal, flip the sign per swap | 4.3 |
-| Lights Out, XOR constraints | one 0/1 unknown per switch or per bit; XOR is addition mod 2 | one solution; there are $2^{\text{free}}$ of them | 5.2, 5.3, 5.4 |
-| Rank, linear independence, whether an equation follows from others | the vectors as rows of a matrix | the number of pivots is the rank | 1.2, 6.1 |
-| Equations arriving one at a time: when everything is determined, or picking an independent set | incremental Gauss | after each one, whether the rank grew and whether a contradiction appeared | 6.1, 6.2 |
-| Which values XORs of subsets can reach | one row per number, at most 60 columns | this is the XOR basis | [L3](/algo/l3-xor-basis/) |
+### 2.1 Solving a Linear System
+
+$n$ equations in $m$ unknowns, written as matrices:
+
+$$
+\begin{pmatrix} a_{11} & a_{12} & \cdots & a_{1m} \\ a_{21} & a_{22} & \cdots & a_{2m} \\ \vdots & \vdots & & \vdots \\ a_{n1} & a_{n2} & \cdots & a_{nm} \end{pmatrix}
+\begin{pmatrix} x_1 \\ x_2 \\ \vdots \\ x_m \end{pmatrix} = \begin{pmatrix} b_1 \\ b_2 \\ \vdots \\ b_n \end{pmatrix},
+$$
+
+or $Ax = b$ for short. Elimination brings the augmented matrix $[A \mid b]$ to reduced row echelon form, and the result is read as in 1.2: a row that became $0 = $ nonzero means no solution; otherwise, if every unknown has a pivot the solution is unique; an unknown without a pivot is a free variable that can be anything, and there are infinitely many solutions.
+
+The coefficients can be three kinds of numbers. The elimination is the same; only the arithmetic differs:
+
+- **Reals** (section 3): pick the pivot with the largest absolute value in each column to keep the error small. The typical problem is expectations or probabilities whose states depend on each other: one unknown per state, one equation per transition; the states form cycles, so they cannot be computed in order and have to be solved together (3.3).
+- **Modulo a prime** (section 4): numbers are exact with no rounding, and dividing by the pivot becomes multiplying by its inverse.
+- **Mod 2** (section 5): addition and subtraction are both XOR, and each row is a bitset. Lights Out and XOR constraints live here: each switch or each bit is a 0/1 unknown, pressing twice is the same as not pressing, and "flipped an odd or even number of times" is one equation mod 2 (5.2, 5.3). When solvable there are $2^{\text{free}}$ solutions (5.4).
 
 An equation that is not linear has to be made linear first. Sphere equations, for example, are quadratic; subtracting neighbouring pairs cancels the quadratic terms and leaves a linear system (practice problem 2).
+
+### 2.2 Computing a Determinant
+
+The three row operations affect the determinant in known ways: swapping two rows flips its sign, multiplying a row by $k$ multiplies it by $k$, and adding a multiple of another row leaves it unchanged. So reduce the matrix to an upper triangle using only "add a multiple" and "swap"; the determinant is the product of the diagonal, with one sign flip per swap, in $O(n^3)$. In contests determinants mostly appear in the matrix-tree theorem (counting spanning trees) and the LGV lemma (counting non-intersecting path systems). The method is in 4.3, and code mod a prime is in [C0 section 4.6](/algo/c0-contest-math-overview/).
+
+### 2.3 Inverting a Matrix
+
+Write $A$ next to the identity as $[A \mid I]$ and eliminate the whole $n \times 2n$ matrix until the left half is $I$; the right half is then $A^{-1}$. Why: each row operation is a left multiplication by an invertible matrix, so all of them together multiply by some matrix $E$ on the left. The left half going from $A$ to $I$ means $EA = I$, so $E = A^{-1}$, and the right half went from $I$ to $EI = E$. If the left half cannot become $I$ (some column has no pivot), $A$ is not invertible. The problem and code are in 4.2.
+
+### 2.4 Rank and Linear Independence
+
+After elimination, the number of pivots is the rank of the matrix. A set of vectors is linearly independent exactly when, written as rows of a matrix, the rank equals the number of vectors; whether an equation follows from the ones you have is whether adding it changes the rank.
+
+When equations arrive one at a time and after each one you need to know whether the rank changed or a contradiction appeared, use the incremental Gauss of section 6 instead of eliminating from scratch. Treating each number as a 0/1 vector of at most 60 bits and asking "which values can XORs of subsets reach" is the [L3 XOR basis](/algo/l3-xor-basis/), which is incremental Gauss with at most 60 columns.
 
 ## 3. Reals: Pick the Pivot of Largest Absolute Value
 
