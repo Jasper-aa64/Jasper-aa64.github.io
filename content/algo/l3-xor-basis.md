@@ -3,7 +3,7 @@ title: "L3: XOR Basis"
 date: 2026-11-02
 slug: "l3-xor-basis"
 aliases: ["/algo/l2-xor-basis/"]
-description: "XOR is addition over GF(2), so all subset XORs form a linear space, and an XOR basis is a basis of it with at most 60 numbers: insertion by highest bit, 2^r values each reached by 2^(n-r) subsets, greedy maximum, k-th smallest after reduction; prefix XORs, weighted greedy, range queries that keep the rightmost number; maximum XOR path written from scratch; two recent contest problems: CCPC Final 2025 L counts distinct range spans, 2026 ICPC Online II A finds the smallest common space. With 8 practice problems."
+description: "XOR is addition over GF(2), so all subset XORs form a linear space, and an XOR basis is a basis of it with at most 60 numbers: insertion by highest bit, 2^r values each reached by 2^(n-r) subsets, greedy maximum, k-th smallest after reduction; prefix XORs, weighted greedy, range queries that keep the rightmost number; the maximum XOR path as a worked example; two recent contest problems: CCPC Final 2025 L counts distinct range spans, 2026 ICPC Online II A finds the smallest common space. With 8 practice problems."
 weight: 17
 math: true
 toc: true
@@ -381,79 +381,89 @@ struct PrefixBasis {
 
 <a href="/images/algo/xor-basis-prefix.en.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-prefix.en.svg" alt="Prefix XOR basis: array 101, 110, 011, 100. After a1: b[2]=101@1. After a2: 110@2 swaps out 101@1, which reduces to 011 and goes to b[1]. After a3: 011@3 swaps out 011@1, which reduces to 0 and is dropped. After a4: 100@4 takes b[2], 110@2 is pushed down, reduces to 001 and goes to b[0]. Query [3,4] uses only 100@4 and 011@3, max XOR 111=7." style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
 
-## 4. Writing One from Scratch: Maximum XOR Path
+## 4. Example: Maximum XOR Path
 
-Problem (Luogu P4151, WC2011): a connected undirected graph with $n \le 5 \times 10^4$ vertices and $m \le 10^5$ edges, weights up to $10^{18}$, possibly with multi-edges and self-loops. Find a path from 1 to $n$ whose edge-weight XOR is maximum; the path may revisit vertices and edges, and a repeated edge counts in the XOR as many times as it is used.
+[Luogu P4151](https://www.luogu.com.cn/problem/P4151), WC2011, time limit 1 s
 
-### 4.1 What Set Do the Path XORs Form
+1. **Statement**
 
-**The XORs of all paths from 1 to $n$ are one fixed path $P$ XOR any value of the cycle space, so the answer is `max_xor(P)`.**
+   A connected undirected graph with non-negative edge weights, vertices numbered 1 to $N$. Find a path from vertex 1 to vertex $N$ whose edge-weight XOR is maximum. The path may revisit vertices and edges, and an edge is XORed in as many times as it appears.
 
-$$
-\{\text{XORs of all paths from 1 to } n\} = \{\, P \oplus C \mid C \text{ is a cycle XOR} \,\}
-$$
+   - **Input**: the first line holds $N, M$, the numbers of vertices and edges. Each of the next $M$ lines holds $S_i, T_i, D_i$: an undirected edge of weight $D_i$ between $S_i$ and $T_i$. There may be multi-edges or self-loops. $N \le 50000$, $M \le 100000$, $D_i \le 10^{18}$.
+   - **Output**: one integer, the maximum XOR.
 
-1. **Every path equals $P$ XOR a cycle**
-   - **Paths may backtrack, and an edge used twice cancels**: going along $P$ and back along another path $Q$ is a cycle $C$, so the XOR of $Q$ is $P \oplus C$.
-   - **Conversely $P \oplus C$ is the XOR of a path**: walk from 1 onto $C$, go around, come back the same way to 1, then follow $P$; the back-and-forth part cancels.
-2. **Cycle XORs form a space**
-   - **Two cycles joined are still a cycle**: the connecting back-and-forth part cancels, so cycle XORs are closed under XOR and a basis applies. What is left is finding a basis of the cycle space.
+   **Input**
 
-### 4.2 A Basis of the Cycle Space: One Cycle per Edge
+   ```text
+   5 7
+   1 2 2
+   1 3 2
+   2 4 1
+   2 5 1
+   4 5 3
+   5 3 4
+   4 3 2
+   ```
 
-**Build a spanning tree and insert $d_u \oplus d_v \oplus w$ for every edge; the result is a basis of the cycle space.**
+   **Output**
 
-$$
-w = d_u \oplus d_v \oplus \underbrace{(d_u \oplus d_v \oplus w)}_{0 \text{ on tree edges}}
-$$
+   ```text
+   6
+   ```
 
-1. **Split every step into a tree part and a cycle**
-   - **$d_u$ is the XOR along tree edges from 1 to $u$**: a BFS (or DFS) from 1 gives a spanning tree, and every step $u \to v$ (weight $w$) of a cycle is written as above.
-2. **Every cycle is an XOR of these cycles**
-   - **Writing out every step of a cycle and XORing them all, the $d$ parts cancel in pairs**: only the bracketed terms remain, nonzero only on non-tree edges; conversely each $d_u \oplus d_v \oplus w$ is itself a cycle.
-   - **Tree edges, self-loops and multi-edges need no special case**: a tree edge inserts 0, which changes nothing.
-3. **The answer is the maximum XOR starting from $d_n$**
-   - **$d_n$ is the tree path $P$**: the cost is $O((n + m) \cdot 60)$.
+   The statement's note: the path $1 \to 2 \to 4 \to 3 \to 5 \to 2 \to 4 \to 5$ has XOR $2 \oplus 1 \oplus 2 \oplus 4 \oplus 1 \oplus 1 \oplus 3 = 6$; the shorter path $1 \to 3 \to 5$ also gives $2 \oplus 4 = 6$.
+2. **Idea**
+   1. **The XORs of all paths are one fixed path $P$ XOR any cycle**:
 
-### 4.3 The Full Program
+      $$\{\text{XORs of all paths from 1 to } N\} = \{\, P \oplus C \mid C \text{ is a cycle XOR} \,\}$$
 
-```cpp
-#include <bits/stdc++.h>
-using namespace std;
+      Paths may backtrack, and an edge used twice cancels: going along $P$ and back along another path $Q$ is a cycle $C$, so the XOR of $Q$ is $P \oplus C$. Conversely, walk from 1 onto $C$, go around, come back the same way to 1, then follow $P$; the back-and-forth part cancels, giving $P \oplus C$.
+   2. **Cycle XORs form a space, so the answer is `max_xor(P)`**: two cycles joined are still a cycle, the connecting back-and-forth part cancelling, so cycle XORs are closed under XOR (1.5) and a basis applies; the answer is the maximum XOR starting from $P$ (2.3). What is left is a basis of the cycle space.
+   3. **A basis of the cycle space: build a spanning tree and insert $d_u \oplus d_v \oplus w$ for every edge**: $d_u$ is the XOR along tree edges from 1 to $u$, given by one BFS from 1. Every step $u \to v$ (weight $w$) of a cycle splits as
 
-// uses XorBasis from the appendix (insert and max_xor)
+      $$w = d_u \oplus d_v \oplus \underbrace{(d_u \oplus d_v \oplus w)}_{0 \text{ on tree edges}}$$
 
-int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-    int n, m;
-    cin >> n >> m;
-    vector<int> eu(m), ev(m);
-    vector<long long> ew(m);
-    vector<vector<pair<int, long long>>> g(n + 1);
-    for (int i = 0; i < m; i++) {
-        cin >> eu[i] >> ev[i] >> ew[i];
-        g[eu[i]].push_back({ev[i], ew[i]});
-        g[ev[i]].push_back({eu[i], ew[i]});
-    }
-    vector<long long> d(n + 1, -1);       // XOR along the spanning tree from 1 to u; -1 means not reached yet
-    d[1] = 0;
-    queue<int> q;
-    q.push(1);
-    while (!q.empty()) {
-        int u = q.front();
-        q.pop();
-        for (auto [v, w] : g[u])
-            if (d[v] < 0) { d[v] = d[u] ^ w; q.push(v); }
-    }
-    XorBasis lb;
-    for (int i = 0; i < m; i++) lb.insert(d[eu[i]] ^ d[ev[i]] ^ ew[i]);   // tree edges insert 0
-    cout << lb.max_xor(d[n]) << '\n';
-}
-```
+      Writing out every step of a cycle and XORing them all, the $d$ parts cancel in pairs and only the bracketed terms remain; conversely each $d_u \oplus d_v \oplus w$ is itself a cycle. So inserting this term for every edge gives a basis of the cycle space. Take $P$ to be the tree path, which is $d_N$.
 
-- **Check against brute force first**: with edge weights below 16, "which vertex and which current XOR" has only $16 n$ states; BFS from $(1, 0)$ and take the largest XOR among states at vertex $n$, then compare with the program.
-- **For path problems that allow revisiting, the state (vertex, XOR) is finite for small weights, a ready-made brute force.**
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // uses XorBasis from the appendix (insert and max_xor)
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int n, m;
+       cin >> n >> m;
+       vector<int> eu(m), ev(m);
+       vector<long long> ew(m);
+       vector<vector<pair<int, long long>>> g(n + 1);
+       for (int i = 0; i < m; i++) {
+           cin >> eu[i] >> ev[i] >> ew[i];
+           g[eu[i]].push_back({ev[i], ew[i]});
+           g[ev[i]].push_back({eu[i], ew[i]});
+       }
+       vector<long long> d(n + 1, -1);       // XOR along the spanning tree from 1 to u; -1 means not reached yet
+       d[1] = 0;
+       queue<int> q;
+       q.push(1);
+       while (!q.empty()) {
+           int u = q.front();
+           q.pop();
+           for (auto [v, w] : g[u])
+               if (d[v] < 0) { d[v] = d[u] ^ w; q.push(v); }
+       }
+       XorBasis lb;
+       for (int i = 0; i < m; i++) lb.insert(d[eu[i]] ^ d[ev[i]] ^ ew[i]);   // tree edges insert 0
+       cout << lb.max_xor(d[n]) << '\n';
+   }
+   ```
+
+3. **Cost and pitfalls**
+   - **Cost**: BFS is $O(n + m)$ and each edge is inserted once at $O(60)$, $O((n + m) \cdot 60)$ in total.
+   - **Tree edges, self-loops and multi-edges need no special case**: a tree edge inserts 0, and a self-loop or multi-edge inserts its own cycle.
+   - **Small weights give a ready-made brute force**: with all weights below 16, the state "which vertex, which current XOR" has only $16 n$ values; BFS from $(1, 0)$ and take the largest XOR at vertex $N$ to cross-check the program.
 
 ## 5. Two Recent Contest Problems
 

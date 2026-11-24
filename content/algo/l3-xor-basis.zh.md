@@ -3,7 +3,7 @@ title: "L3：线性基"
 date: 2026-11-02
 slug: "l3-xor-basis"
 aliases: ["/algo/l2-xor-basis/"]
-description: "异或是 GF(2) 上的加法，任选子集的异或和构成一个线性空间，线性基是它的一组至多 60 个数的基：按最高位插入、2^r 种值每种由 2^(n-r) 个子集得到、最大值贪心、规范化后第 k 小；前缀异或、带权贪心、区间询问留最靠右的数；从 0 写完最大 XOR 和路径；两道近年赛题：CCPC Final 2025 L 数不同的区间张成空间，2026 ICPC 网络赛第二场 A 求最小的公共空间。附 8 道练习题。"
+description: "异或是 GF(2) 上的加法，任选子集的异或和构成一个线性空间，线性基是它的一组至多 60 个数的基：按最高位插入、2^r 种值每种由 2^(n-r) 个子集得到、最大值贪心、规范化后第 k 小；前缀异或、带权贪心、区间询问留最靠右的数；例题最大 XOR 和路径；两道近年赛题：CCPC Final 2025 L 数不同的区间张成空间，2026 ICPC 网络赛第二场 A 求最小的公共空间。附 8 道练习题。"
 weight: 17
 math: true
 toc: true
@@ -381,79 +381,89 @@ struct PrefixBasis {
 
 <a href="/images/algo/xor-basis-prefix.zh.svg" target="_blank" rel="noopener"><img src="/images/algo/xor-basis-prefix.zh.svg" alt="区间线性基：数组 101、110、011、100。插完 a1：b[2]=101@1。插完 a2：110@2 换下 101@1，101 往下消成 011 存进 b[1]。插完 a3：011@3 换下 011@1，旧的消成 0 丢掉。插完 a4：100@4 进 b[2]，110@2 被挤下去，消成 001 存进 b[0]。询问 [3,4] 只用位置不小于 3 的 100@4 和 011@3，最大异或 111=7。" style="display:block;width:100%;max-width:1000px;margin:1em auto"></a>
 
-## 4. 从 0 写一道题：最大 XOR 和路径
+## 4. 例题：最大 XOR 和路径
 
-题（洛谷 P4151，WC2011）：无向连通图，$n \le 5 \times 10^4$ 个点，$m \le 10^5$ 条边，边权不超过 $10^{18}$，可能有重边和自环。求一条从 1 到 $n$ 的路径，使经过的边权异或和最大；路径可以重复经过点和边，重复经过的边重复计入异或。
+[洛谷 P4151](https://www.luogu.com.cn/problem/P4151)，WC2011，时限 1 秒
 
-### 4.1 所有路径的异或值是什么集合
+1. **题面**
 
-**所有 1 到 $n$ 路径的异或值，就是一条固定路径 $P$ 异或上回路空间里的任意值，所以答案是 `max_xor(P)`。**
+   边权为非负整数的无向连通图，节点编号 1 到 $N$。求一条从 1 号点到 $N$ 号点的路径，使路径上边权的异或和最大。路径可以重复经过点和边，一条边出现几次，它的权值就异或几次。
 
-$$
-\{\text{所有 1 到 } n \text{ 路径的异或值}\} = \{\, P \oplus C \mid C \text{ 是回路的异或值} \,\}
-$$
+   - **输入**：第一行 $N, M$，点数和边数。接下来 $M$ 行，每行 $S_i, T_i, D_i$，表示 $S_i$ 和 $T_i$ 之间有一条权值为 $D_i$ 的无向边。可能有重边或自环。$N \le 50000$，$M \le 100000$，$D_i \le 10^{18}$。
+   - **输出**：一个整数，最大的异或和。
 
-1. **任何一条路径都等于 $P$ 异或一个回路**
-   - **路径可以走回头路，一条边走两次等于没走**：沿 $P$ 去、沿另一条路径 $Q$ 原路回，是一条回路 $C$，所以 $Q$ 的异或值是 $P \oplus C$。
-   - **反过来 $P \oplus C$ 也是一条路径的异或值**：从 1 走到 $C$ 上绕一圈、原路回到 1，再走 $P$，来回的那段抵消。
-2. **回路的异或值是一个空间**
-   - **两条回路接起来还是回路**：中间来回的一段抵消，所以回路的异或值对异或封闭，能用线性基。剩下的问题是求出回路空间的一组基。
+   **输入**
 
-### 4.2 回路空间的基：每条边一个环
+   ```text
+   5 7
+   1 2 2
+   1 3 2
+   2 4 1
+   2 5 1
+   4 5 3
+   5 3 4
+   4 3 2
+   ```
 
-**做一棵生成树，把每条边的 $d_u \oplus d_v \oplus w$ 插进线性基，就得到回路空间的基。**
+   **输出**
 
-$$
-w = d_u \oplus d_v \oplus \underbrace{(d_u \oplus d_v \oplus w)}_{\text{树边上是 } 0}
-$$
+   ```text
+   6
+   ```
 
-1. **把每一步拆成树上的部分和一个环**
-   - **$d_u$ 是从 1 沿树边走到 $u$ 的异或和**：从 1 做一遍 BFS（或 DFS）得到生成树，回路上的每一步 $u \to v$（边权 $w$）都写成上式。
-2. **任何回路都是这些环的异或**
-   - **沿回路把每一步写开再全部异或，$d$ 的部分首尾相接、两两抵消**：只剩括号里那项，它只在非树边上非零；反过来，每个 $d_u \oplus d_v \oplus w$ 本身就是一个回路。
-   - **树边、自环、重边都不用特判**：树边插进去是 0，不影响。
-3. **答案是从 $d_n$ 出发的最大异或**
-   - **$d_n$ 就是树上的那条路径 $P$**：复杂度 $O((n + m) \cdot 60)$。
+   题面的样例说明：路径 $1 \to 2 \to 4 \to 3 \to 5 \to 2 \to 4 \to 5$ 的异或和是 $2 \oplus 1 \oplus 2 \oplus 4 \oplus 1 \oplus 1 \oplus 3 = 6$；边数更少的路径 $1 \to 3 \to 5$ 也是 $2 \oplus 4 = 6$。
+2. **思路**
+   1. **所有路径的异或值，是一条固定路径 $P$ 异或上任意一个回路**：
 
-### 4.3 完整程序
+      $$\{\text{所有 1 到 } N \text{ 路径的异或值}\} = \{\, P \oplus C \mid C \text{ 是回路的异或值} \,\}$$
 
-```cpp
-#include <bits/stdc++.h>
-using namespace std;
+      路径可以走回头路，一条边走两次等于没走：沿 $P$ 去、沿另一条路径 $Q$ 原路回，是一条回路 $C$，所以 $Q$ 的异或值是 $P \oplus C$。反过来，从 1 走到 $C$ 上绕一圈、原路回到 1，再走 $P$，来回的那段抵消，得到 $P \oplus C$。
+   2. **回路的异或值是一个空间，所以答案是 `max_xor(P)`**：两条回路接起来还是回路，中间来回的一段抵消，所以回路的异或值对异或封闭（1.5），能用线性基，答案就是从 $P$ 出发的最大异或（2.3）。剩下的是求回路空间的一组基。
+   3. **回路空间的基：做一棵生成树，每条边插一个 $d_u \oplus d_v \oplus w$**：$d_u$ 是从 1 沿树边走到 $u$ 的异或和，从 1 做一遍 BFS 得到。回路上的每一步 $u \to v$（边权 $w$）都拆成
 
-// 套附录的 XorBasis（用到 insert 和 max_xor）
+      $$w = d_u \oplus d_v \oplus \underbrace{(d_u \oplus d_v \oplus w)}_{\text{树边上是 } 0}$$
 
-int main() {
-    ios::sync_with_stdio(false);
-    cin.tie(nullptr);
-    int n, m;
-    cin >> n >> m;
-    vector<int> eu(m), ev(m);
-    vector<long long> ew(m);
-    vector<vector<pair<int, long long>>> g(n + 1);
-    for (int i = 0; i < m; i++) {
-        cin >> eu[i] >> ev[i] >> ew[i];
-        g[eu[i]].push_back({ev[i], ew[i]});
-        g[ev[i]].push_back({eu[i], ew[i]});
-    }
-    vector<long long> d(n + 1, -1);       // 从 1 沿生成树到 u 的异或和，-1 表示还没到过
-    d[1] = 0;
-    queue<int> q;
-    q.push(1);
-    while (!q.empty()) {
-        int u = q.front();
-        q.pop();
-        for (auto [v, w] : g[u])
-            if (d[v] < 0) { d[v] = d[u] ^ w; q.push(v); }
-    }
-    XorBasis lb;
-    for (int i = 0; i < m; i++) lb.insert(d[eu[i]] ^ d[ev[i]] ^ ew[i]);   // 树边插进去是 0
-    cout << lb.max_xor(d[n]) << '\n';
-}
-```
+      沿回路把每一步写开再全部异或，$d$ 的部分首尾相接、两两抵消，只剩括号里那项；反过来，每个 $d_u \oplus d_v \oplus w$ 本身就是一个回路。所以把每条边的这一项插进线性基，就得到回路空间的基。$P$ 取树上的路径，就是 $d_N$。
 
-- **写完先和暴力对拍**：边权取小于 16 的值时，“当前在哪个点、当前异或值是多少”只有 $16 n$ 种状态，从 $(1, 0)$ 出发 BFS，落在点 $n$ 上的那些异或值取最大，和程序比。
-- **能重复走的路径题，小边权下状态（点，异或值）是有限的，这是现成的暴力。**
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // 套附录的 XorBasis（用到 insert 和 max_xor）
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int n, m;
+       cin >> n >> m;
+       vector<int> eu(m), ev(m);
+       vector<long long> ew(m);
+       vector<vector<pair<int, long long>>> g(n + 1);
+       for (int i = 0; i < m; i++) {
+           cin >> eu[i] >> ev[i] >> ew[i];
+           g[eu[i]].push_back({ev[i], ew[i]});
+           g[ev[i]].push_back({eu[i], ew[i]});
+       }
+       vector<long long> d(n + 1, -1);       // 从 1 沿生成树到 u 的异或和，-1 表示还没到过
+       d[1] = 0;
+       queue<int> q;
+       q.push(1);
+       while (!q.empty()) {
+           int u = q.front();
+           q.pop();
+           for (auto [v, w] : g[u])
+               if (d[v] < 0) { d[v] = d[u] ^ w; q.push(v); }
+       }
+       XorBasis lb;
+       for (int i = 0; i < m; i++) lb.insert(d[eu[i]] ^ d[ev[i]] ^ ew[i]);   // 树边插进去是 0
+       cout << lb.max_xor(d[n]) << '\n';
+   }
+   ```
+
+3. **复杂度和坑**
+   - **复杂度**：BFS $O(n + m)$，每条边插一次 $O(60)$，总共 $O((n + m) \cdot 60)$。
+   - **树边、自环、重边都不用特判**：树边插进去是 0，自环和重边插进去就是它们自己的环。
+   - **小边权下有现成的暴力**：边权都小于 16 时，状态“当前在哪个点、当前异或值是多少”只有 $16 n$ 种，从 $(1, 0)$ 出发 BFS，落在点 $N$ 上的异或值取最大，可以拿来和程序对拍。
 
 ## 5. 两道近年的赛题
 
