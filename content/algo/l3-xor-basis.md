@@ -78,20 +78,18 @@ Take $a = (1, 2, 4)$ and forbid choosing two neighbours. The legal choices are n
 
 ## 2. What an XOR Basis Can Do
 
-Every question an XOR basis answers is about "XOR any subset of these numbers". The table lists what it can do; each subsection below gives the cost first and then the code, and section 1 explains why each one works. The template with every function together is in the appendix.
+Every question an XOR basis answers is about "XOR any subset of these numbers". The kinds of questions are laid out below: for each, what is asked, how to do it, how fast, and which subsection covers it. Each subsection then gives the cost first and the code after; section 1 explains why each one works. Below, $n$ is the number of inserted values and $r$ the rank.
 
-| Task | How | Cost | See |
-| --- | --- | --- | --- |
-| Insert a number / test whether it is reachable | `insert` / `contains` | $O(60)$ | 2.1 |
-| Number of distinct reachable values | $2^r$, including 0 | $O(1)$ | 2.2 |
-| Number of subsets with XOR $t$ | $2^{n-r}$ if $t$ is reachable, else 0 | $O(60)$ | 2.2 |
-| Number of nonempty subsets with XOR 0 | $2^{n-r} - 1$ | $O(1)$ | 2.2 |
-| Max / min of $s$ XOR any subset | `max_xor` / `min_xor` | $O(60)$ | 2.3 |
-| $k$-th smallest / rank of a value | one `reduce()`, then `kth` / `index` | $O(60^2)$ once, then $O(60)$ each | 2.4, 2.5 |
-| Minimum over nonempty subsets | 0 if $r < n$, otherwise `kth(1)` | $O(60^2)$ | 2.5 |
-| Merge two bases | `merge` | $O(60^2)$ | 2.6 |
+1. **Whether a number is reachable.** Run the elimination of insertion on it; it is reachable when it ends at 0 (`contains`), $O(60)$. Insertion itself is $O(60)$, and inserting all $n$ numbers is $O(60 n)$. See 2.1.
+2. **Counting.** These use only the rank; see 2.2:
+   - How many distinct values are reachable: $2^r$, including the 0 of the empty set.
+   - How many subsets have XOR $t$: $2^{n-r}$ if $t$ is reachable, otherwise 0. This needs `contains(t)` first, $O(60)$.
+   - How many nonempty subsets have XOR 0: $2^{n-r} - 1$, removing the empty set.
+3. **Maximum and minimum.** The maximum of "$s$ XOR any subset" is greedy from the high bits down: whenever a bit can become 1, XOR in the basis number for it (`max_xor`); the minimum is the reverse (`min_xor`). Both are $O(60)$; see 2.3. For the minimum over nonempty subsets, whether 0 counts depends on whether $r = n$; see the end of 2.5.
+4. **Ranking.** The $k$-th smallest, or the rank of a value: reduce once (`reduce()`, $O(60^2)$, see 2.4); then choosing basis numbers by the binary digits of $k$ gives the $k$-th smallest (`kth`), and reading the pivot bits back gives the rank (`index`), each $O(60)$. See 2.5.
+5. **Merging.** Insert every number of one basis into the other (`merge`), $O(60^2)$. Kept on the nodes of a segment tree or a binary-lifting table, this assembles the basis of any range or tree path. See 2.6.
 
-$n$ is the number of inserted values and $r$ the rank; inserting all $n$ costs $O(60 n)$. Variations such as ranges, weights and range queries are in section 3.
+Variations such as ranges, weights and range queries are in section 3. The template with every function together is in the appendix.
 
 ### 2.1 Insert and Test Whether a Value Is Reachable
 
