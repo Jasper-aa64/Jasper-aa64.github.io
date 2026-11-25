@@ -725,8 +725,75 @@ struct PrefixBasis {
    }
    ```
 
+   4. **Incremental Gauss throughout works too**: an XOR basis is a special case of incremental Gauss (appendix), so both parts can be swapped. `PrefixGauss` replaces `PrefixBasis` and gives each right endpoint's at most 32 equations with their positions; `IncGauss` replaces `insert_reduced`: add them by position, largest first, hashing after each. `PrefixGauss` keeps only row echelon form, so one space can be stored as different rows; passing them through `IncGauss`, which always stays in RREF, makes the result depend only on the space. Column $i$ holds bit $i$ of the number, and `MV` is 64.
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   const int MV = 64;                               // 1024 in the appendix; 32 columns here, so 64 is enough (MV must exceed the column count)
+
+   // the appendix's IncGauss: only the members used here, copy the implementation from the appendix
+   struct IncGauss {
+       int n;                                       // number of columns
+       vector<bitset<MV>> row;                      // always in RREF
+       IncGauss(int n);
+       int add(bitset<MV> v, int b);                // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
+   };
+
+   // the appendix's PrefixGauss: same
+   struct PrefixGauss {
+       int n;
+       vector<bitset<MV>> row;                      // row[c]: the rightmost equation whose first 1 is in column c
+       vector<int> pos;                             // position of row[c] (from 1), 0 if empty
+       PrefixGauss(int n);
+       void add(bitset<MV> v, int b, int p);        // add the p-th equation
+   };
+
+   uint64_t mix(uint64_t x) {                       // splitmix64: scramble a number into 64 random-looking bits
+       x += 0x9e3779b97f4a7c15ULL;
+       x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+       x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+       return x ^ (x >> 31);
+   }
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int T;
+       cin >> T;
+       while (T--) {
+           int n;
+           cin >> n;
+           PrefixGauss pg(32);                      // 32 columns: column i holds bit i of the number
+           vector<uint64_t> hs;
+           for (int r = 1; r <= n; r++) {
+               unsigned long long x;
+               cin >> x;
+               pg.add(bitset<MV>(x), 0, r);         // right-hand side always 0, only the left side matters
+               vector<pair<int, int>> v;            // (position, column), by position descending
+               for (int c = 0; c < 32; c++)
+                   if (pg.pos[c]) v.push_back({pg.pos[c], c});
+               sort(v.rbegin(), v.rend());
+               if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0: B(r, r) = {0}
+               IncGauss g(32);
+               for (auto [q, c] : v) {
+                   g.add(pg.row[c], 0);
+                   uint64_t h = 0;
+                   for (auto& w : g.row) h += mix(w.to_ullong());
+                   hs.push_back(h);                 // B(l, r) for l in (next position, q]
+               }
+           }
+           sort(hs.begin(), hs.end());
+           cout << unique(hs.begin(), hs.end()) - hs.begin() << '\n';
+       }
+   }
+   ```
+
 3. **Cost and pitfalls**
-   - **Cost**: each insertion is $O(60)$ (both the insertion and the rehash scan 60 bits) and each right end inserts at most 32 numbers, $O(60 \cdot 32 \cdot n)$ in total, about $2 \times 10^8$ simple operations at $n = 10^5$, well within the 4-second limit.
+   - **Cost of the XOR basis version**: each insertion is $O(60)$ (both the insertion and the rehash scan 60 bits) and each right end inserts at most 32 numbers, $O(60 \cdot 32 \cdot n)$ in total, about $2 \times 10^8$ simple operations at $n = 10^5$, well within the 4-second limit.
+   - **Cost of the incremental Gauss version**: with `MV` = 64 a bitset row is one word; `pg.add` scans at most 32 columns, `g.add` walks at most 32 rows, and the rehash covers 32 rows, all $O(32)$, $O(32^2 n)$ in total. With the appendix's `MV` = 1024 each XOR touches 16 words, 16 times slower, which may exceed the limit.
+   - **Do not call `pg.at(l)` for every left end**: `at` builds a fresh `IncGauss` each time, $O(32^3)$ per right endpoint, the same problem as calling `reduce()` every time; add the equations one by one by position, largest first, and hash after each.
    - **When $a_r = 0$, count $\{0\}$ separately**: $a_r$ cannot be inserted, so $p_1 < r$, and the ranges with left end in $(p_1, r]$ give $\{0\}$, which the formula above does not cover.
    - **Hash collisions are negligible**: among $O(32 n)$ 64-bit hashes the chance of a collision is about $(3 \times 10^6)^2 / 2^{65}$.
 

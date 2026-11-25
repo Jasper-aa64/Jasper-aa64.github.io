@@ -725,8 +725,75 @@ struct PrefixBasis {
    }
    ```
 
+   4. **全用增量高斯也行**：线性基是增量高斯的特例（附录），两块都能换掉。`PrefixGauss` 代替 `PrefixBasis`，给出每个右端点的至多 32 条方程和它们的位置；`IncGauss` 代替 `insert_reduced`，按位置从大到小加进去，每加一条哈希一次。`PrefixGauss` 只保持行阶梯形，同一个空间可能存成不同的行，所以要再过一遍一直是简化行阶梯形的 `IncGauss`，结果才由空间唯一决定。第 $i$ 列放数的第 $i$ 位，`MV` 开 64。
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   const int MV = 64;                               // 附录里是 1024；这题只有 32 列，开 64 就够（要求 MV > 列数）
+
+   // 附录的 IncGauss：这里只列用到的成员，实现照抄附录
+   struct IncGauss {
+       int n;                                       // 列数
+       vector<bitset<MV>> row;                      // 始终是简化行阶梯形
+       IncGauss(int n);
+       int add(bitset<MV> v, int b);                // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+   };
+
+   // 附录的 PrefixGauss：同上
+   struct PrefixGauss {
+       int n;
+       vector<bitset<MV>> row;                      // row[c]：第一个 1 在第 c 列、位置最靠右的那条
+       vector<int> pos;                             // row[c] 的位置（从 1 数），0 表示空
+       PrefixGauss(int n);
+       void add(bitset<MV> v, int b, int p);        // 加入第 p 条方程
+   };
+
+   uint64_t mix(uint64_t x) {                       // splitmix64：把一个数打散成随机的 64 位
+       x += 0x9e3779b97f4a7c15ULL;
+       x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+       x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+       return x ^ (x >> 31);
+   }
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int T;
+       cin >> T;
+       while (T--) {
+           int n;
+           cin >> n;
+           PrefixGauss pg(32);                      // 32 列：第 i 列放数的第 i 位
+           vector<uint64_t> hs;
+           for (int r = 1; r <= n; r++) {
+               unsigned long long x;
+               cin >> x;
+               pg.add(bitset<MV>(x), 0, r);         // 右端都取 0，只用左边
+               vector<pair<int, int>> v;            // (位置, 列)，按位置从大到小
+               for (int c = 0; c < 32; c++)
+                   if (pg.pos[c]) v.push_back({pg.pos[c], c});
+               sort(v.rbegin(), v.rend());
+               if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0：B(r, r) = {0}
+               IncGauss g(32);
+               for (auto [q, c] : v) {
+                   g.add(pg.row[c], 0);
+                   uint64_t h = 0;
+                   for (auto& w : g.row) h += mix(w.to_ullong());
+                   hs.push_back(h);                 // l 落在 (下一个位置, q] 时的 B(l, r)
+               }
+           }
+           sort(hs.begin(), hs.end());
+           cout << unique(hs.begin(), hs.end()) - hs.begin() << '\n';
+       }
+   }
+   ```
+
 3. **复杂度和坑**
-   - **复杂度**：每插一个数 $O(60)$（插入和重算哈希都扫一遍 60 位），每个右端点至多插 32 个，总共 $O(60 \cdot 32 \cdot n)$，$n = 10^5$ 时约 $2 \times 10^8$ 次简单操作，时限 4 秒够用。
+   - **线性基写法的复杂度**：每插一个数 $O(60)$（插入和重算哈希都扫一遍 60 位），每个右端点至多插 32 个，总共 $O(60 \cdot 32 \cdot n)$，$n = 10^5$ 时约 $2 \times 10^8$ 次简单操作，时限 4 秒够用。
+   - **增量高斯写法的复杂度**：`MV` = 64 时一行 bitset 就是一个字，`pg.add` 至多扫 32 列，`g.add` 至多遍历 32 行，重算哈希也是 32 行，都是 $O(32)$，总共 $O(32^2 n)$。`MV` 照附录开 1024 的话，每次异或要 16 个字，慢 16 倍，可能超时。
+   - **不能对每个左端点调 `pg.at(l)`**：`at` 每次从头建一个 `IncGauss`，每个右端点就是 $O(32^3)$，和每次都 `reduce()` 是同一个问题；要按位置从大到小一条条加，每加一条记一次哈希。
    - **$a_r = 0$ 时要单独算 $\{0\}$**：这时 $a_r$ 插不进去，$p_1 < r$，左端点在 $(p_1, r]$ 的区间给出 $\{0\}$，上面的式子没有覆盖。
    - **哈希碰撞可以忽略**：$O(32 n)$ 个 64 位哈希值里出现碰撞的概率约是 $(3 \times 10^6)^2 / 2^{65}$。
 
