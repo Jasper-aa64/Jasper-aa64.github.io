@@ -852,13 +852,28 @@ struct PrefixBasis {
 
    题面的样例说明：样例 1 操作之后 $S_1, S_2$ 变成 $\{0, 1, 6, 7\}$，$S_3$ 变成 $\{0, 1, \dots, 7\}$，少于 3 次做不到。样例 2 唯一的集合本来就封闭，不用操作。
 2. **思路**
-   1. **把“最少操作”换成“最小的空间”**：对异或封闭的非空集合包含 $a \oplus a = 0$，所以就是空间。设加进去的数组成集合 $T$，所有最终集合的公共部分
+   1. **异或封闭就是等于自己的 span**
 
-      $$K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i$$
+      > 异或封闭的本质：集合等于它自己的 span，即 $S = \operatorname{span}(S)$。
 
-      是若干个空间的交，也是空间，最终集合可以写成 $S_i \cup K$。$T$ 里不必放 $I$ 中的数，它们本来就在每个集合里，所以 $|T| = |K| - |I|$。于是操作最少就是求最小的空间 $K \supseteq I$，使每个 $S_i \cup K$ 都是空间，答案是 $K \setminus I$。
-   2. **每一步加的数都是逼出来的**：从 $K = \operatorname{span}(I)$ 开始。某个 $S_i \cup K$ 不封闭时，取一个在 $\operatorname{span}(S_i \cup K)$ 里、却既不在 $S_i$ 也不在 $K$ 里的 $x$。任取一个包含当前 $K$ 的合法解 $K^*$，$S_i \cup K^*$ 是空间，又包含 $S_i \cup K$，所以包含 $x$；$x$ 不在 $S_i$ 里，只能在 $K^*$ 里。令 $K \leftarrow \operatorname{span}(K \cup \{x\})$，它仍被每个合法解包含，秩加 1。至多 $m$ 步后所有集合都封闭，这时 $K$ 合法，又被每个合法解包含，所以是最小解，答案也唯一。
-   3. **判断封闭只要数元素个数**：$S_i \cup K$ 总在它张成的空间里，那个空间正好有 $2^r$ 个元素（1.3），$r$ 是 $S_i \cup K$ 的秩，个数相等就说明两者是同一个集合：
+      $\operatorname{span}(A)$ 是从 $A$ 里任选若干个数异或出的全部值（含不选给的 0），它是包含 $A$ 的最小的封闭集合，大小是 $2^r$（1.3），$r$ 是 $A$ 的秩。题目要求的就是每个最终集合 $S_i \cup T$ 都等于自己的 span，$T$ 是加进去的数。
+   2. **最少操作就是最小的公共 span $K$**：看所有最终集合的公共部分
+
+      $$K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i .$$
+
+      每个 $S_i \cup T$ 都是 span，几个 span 的交还是 span（交集里两个数的异或仍在每个集合里），所以 $K$ 也是 span。$I \subseteq S_i$，最终集合可以写成 $S_i \cup K$；$K$ 里属于 $I$ 的数本来就在，不用加，$|T| = |K| - |I|$。于是问题变成：找最小的 span $K \supseteq I$，使每个 $S_i \cup K$ 都等于自己的 span，答案是 $K \setminus I$。
+   3. **span 里多出来的数是逼出来的，一个个加上去**
+
+      > 求最小解的本质：只加每个合法解都必须包含的数，加到合法为止，停下时就是最小解。
+
+      起点是 $K = \operatorname{span}(I)$：每个合法的 $K$ 包含 $I$，又是 span，就包含 $\operatorname{span}(I)$。某个 $S_i \cup K$ 不封闭时，$\operatorname{span}(S_i \cup K)$ 比它大，多出来的数 $x$ 既不在 $S_i$ 里也不在 $K$ 里。任取一个合法解 $K^* \supseteq K$：$S_i \cup K^*$ 等于自己的 span，又包含 $S_i \cup K$，就包含 $\operatorname{span}(S_i \cup K)$，也就包含 $x$；$x$ 不在 $S_i$ 里，只能在 $K^*$ 里。所以令 $K \leftarrow \operatorname{span}(K \cup \{x\})$，它仍被每个合法解包含，秩加 1。全集一定合法，至多 $m$ 步就停；停下时 $K$ 合法，又被每个合法解包含，所以是最小解，答案也唯一。
+
+      比如样例 1：$I = \{1\}$，$K = \operatorname{span}\{1\} = \{0, 1\}$。$S_2 \cup K = \{0, 1, 7\}$ 的 span 是 $\{0, 1, 6, 7\}$，多出来的 6 必须加；$K = \{0, 1, 6, 7\}$ 后三个集合都封闭，答案是 $K \setminus I = \{0, 6, 7\}$。
+   4. **判断封闭只数个数**
+
+      > 判断封闭的本质：$S \subseteq \operatorname{span}(S)$，而 span 恰好有 $2^r$ 个元素，个数相等就是同一个集合。
+
+      $S_i \cup K$ 的个数用容斥算，秩用线性基求：
 
       $$S_i \cup K \text{ 封闭} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .$$
 
@@ -936,7 +951,6 @@ struct PrefixBasis {
 
 3. **复杂度和坑**
    - **复杂度**：至多 $m$ 轮，每轮检查所有集合是 $O(m \sum \lvert S_i \rvert)$，再加 $O(2^m)$ 的列举。
-   - **求最小的合法解，从“每个合法解都必须包含什么”出发**：一直加必须包含的数，加到合法为止，停下时就是最小解。
 
 ## 练习
 

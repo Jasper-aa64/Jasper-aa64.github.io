@@ -852,13 +852,28 @@ struct PrefixBasis {
 
    The statement's note: after the operations in sample 1, $S_1$ and $S_2$ become $\{0, 1, 6, 7\}$ and $S_3$ becomes $\{0, 1, \dots, 7\}$; fewer than 3 operations cannot work. In sample 2 the only set is already closed, so no operation is needed.
 2. **Idea**
-   1. **From "fewest operations" to "smallest space"**: a nonempty set closed under XOR contains $a \oplus a = 0$, so it is a space. Let the added numbers form $T$; the common part of all final sets
+   1. **Closed under XOR means equal to its own span**
 
-      $$K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i$$
+      > The essence of XOR closure: a set equals its own span, $S = \operatorname{span}(S)$.
 
-      is an intersection of spaces, hence a space, and the final sets can be written $S_i \cup K$. $T$ need not contain numbers of $I$, which are already in every set, so $|T| = |K| - |I|$. Fewest operations therefore means the smallest space $K \supseteq I$ such that every $S_i \cup K$ is a space; the answer is $K \setminus I$.
-   2. **Every added number is forced**: start from $K = \operatorname{span}(I)$. When some $S_i \cup K$ is not closed, take an $x$ in $\operatorname{span}(S_i \cup K)$ but in neither $S_i$ nor $K$. For any valid solution $K^*$ containing the current $K$, $S_i \cup K^*$ is a space containing $S_i \cup K$, so it contains $x$; since $x \notin S_i$, $x \in K^*$. Set $K \leftarrow \operatorname{span}(K \cup \{x\})$: it is still contained in every valid solution, and its rank grows by 1. Within $m$ steps every set is closed; then $K$ is valid and contained in every valid solution, so it is the smallest, and the answer is unique.
-   3. **Closure is tested by counting elements**: $S_i \cup K$ always lies inside the space it spans, which has exactly $2^r$ elements (1.3), $r$ being the rank of $S_i \cup K$; equal sizes mean the two are the same set:
+      $\operatorname{span}(A)$ is every value obtained by XORing any choice of numbers from $A$ (choosing none gives 0); it is the smallest closed set containing $A$, with $2^r$ elements (1.3), $r$ being the rank of $A$. The task asks that every final set $S_i \cup T$ equal its own span, $T$ being the added numbers.
+   2. **Fewest operations means the smallest common span $K$**: look at the common part of all final sets
+
+      $$K = \bigcap_{i} (S_i \cup T) = I \cup T, \qquad I = \bigcap_i S_i .$$
+
+      Every $S_i \cup T$ is a span, and an intersection of spans is a span (the XOR of two numbers in the intersection stays in every set), so $K$ is a span too. Since $I \subseteq S_i$, the final sets can be written $S_i \cup K$; numbers of $K$ that lie in $I$ are already there and need no operation, so $|T| = |K| - |I|$. The task becomes: find the smallest span $K \supseteq I$ such that every $S_i \cup K$ equals its own span; the answer is $K \setminus I$.
+   3. **The extra numbers of a span are forced; add them one by one**
+
+      > The essence of finding the smallest solution: add only numbers every valid solution must contain, until the result is valid; where it stops is the smallest solution.
+
+      Start from $K = \operatorname{span}(I)$: every valid $K$ contains $I$ and is a span, so it contains $\operatorname{span}(I)$. When some $S_i \cup K$ is not closed, $\operatorname{span}(S_i \cup K)$ is larger, and an extra number $x$ lies in neither $S_i$ nor $K$. Take any valid solution $K^* \supseteq K$: $S_i \cup K^*$ equals its own span and contains $S_i \cup K$, so it contains $\operatorname{span}(S_i \cup K)$ and hence $x$; $x$ is not in $S_i$, so it is in $K^*$. Set $K \leftarrow \operatorname{span}(K \cup \{x\})$: it is still contained in every valid solution, and its rank grows by 1. The full set is always valid, so this stops within $m$ steps; then $K$ is valid and contained in every valid solution, so it is the smallest, and the answer is unique.
+
+      For example, in sample 1: $I = \{1\}$ and $K = \operatorname{span}\{1\} = \{0, 1\}$. The span of $S_2 \cup K = \{0, 1, 7\}$ is $\{0, 1, 6, 7\}$, so the extra 6 must be added; with $K = \{0, 1, 6, 7\}$ all three sets are closed, and the answer is $K \setminus I = \{0, 6, 7\}$.
+   4. **Closure is tested by counting**
+
+      > The essence of the closure test: $S \subseteq \operatorname{span}(S)$, and the span has exactly $2^r$ elements, so equal sizes mean the same set.
+
+      Count $S_i \cup K$ by inclusion and exclusion, and get the rank from an XOR basis:
 
       $$S_i \cup K \text{ closed} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .$$
 
@@ -936,7 +951,6 @@ struct PrefixBasis {
 
 3. **Cost and pitfalls**
    - **Cost**: at most $m$ rounds; checking all sets in one round is $O(m \sum \lvert S_i \rvert)$, plus $O(2^m)$ for the listing.
-   - **To find the smallest valid solution, start from what every valid solution must contain**: keep adding forced numbers until the solution is valid; where it stops is the smallest.
 
 ## Practice
 
