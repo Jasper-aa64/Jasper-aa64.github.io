@@ -118,7 +118,7 @@ toc: true
 3. **求 $s$ 异或上任意子集的最大、最小值**
    - **从高位往低位贪心**：这一位能变成 1 就异或上对应的基（`max_xor`），最小值反过来（`min_xor`），都是 $O(60)$。见 2.3。
 4. **求第 $k$ 小，或者一个值排第几**
-   - **先规范化一次，再按 $k$ 的二进制位选基**：`reduce()` 做一次 $O(60^2)$，之后 `kth`、`index` 每次 $O(60)$。见 2.4、2.5。
+   - **先规范化，再按 $k$ 的二进制位选基**：插完调一次 `reduce()`，$O(60^2)$；或者插入时就用 `insert_reduced` 保持规范，每次 $O(60)$。之后 `kth`、`index` 每次 $O(60)$。见 2.4、2.5。
 5. **合并两组基**
    - **把一组的数逐个插进另一组**：`merge`，$O(60^2)$。放在线段树、倍增表的节点上，就能拼出区间、树上路径的基。见 2.6。
 
@@ -212,11 +212,11 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // 异
 
 ### 2.4 规范化
 
-**从低位到高位，用更低的主元把每个数在别的主元位上的 1 消掉，作用见 1.4。**
+**从低位到高位，用更低的主元把每个数在别的主元位上的 1 消掉，作用见 1.4。也可以插入时就保持规范化，一直不用补。**
 
 #### 复杂度
 
-`reduce()` 是 $O(60^2)$：两重循环，各至多 60 次。
+`reduce()` 是 $O(60^2)$：两重循环，各至多 60 次。`insert_reduced` 每插一个数 $O(60)$，和 `insert` 同阶。
 
 ```cpp
     void reduce() {                              // 规范化：主元位只留在自己那个数里
@@ -229,22 +229,43 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // 异
 - **`i` 从小到大处理**：轮到 `b[i]` 时，更低的 `b[j]` 都已经规范好，除了第 $j$ 位不含别的主元位，异或它只会清掉 `b[i]` 的第 $j$ 位，不会把别的主元位翻回 1。
 - **规范化后还是同一个空间的基**：异或上基里的数不改变张成的空间，也不改变 `b[i]` 的最高位，仍满足 1.2 的规定。
 
+插入时就保持规范化，要在 `insert` 上补两步：
+
+```cpp
+    bool insert_reduced(long long x) {           // 插之前要是规范的，插完仍是规范的；成功返回 true
+        for (int i = B - 1; i >= 0; i--)
+            if ((x >> i & 1) && b[i]) x ^= b[i]; // 消掉 x 上所有已有的主元位，一直消到第 0 位
+        if (!x) return false;                    // 消成 0：已经能被异或出来
+        int t = 63 - __builtin_clzll(x);         // 剩下的最高位是新主元位
+        for (int i = t + 1; i < B; i++)
+            if (b[i] >> t & 1) b[i] ^= x;        // 更高的基里第 t 位清成 0
+        b[t] = x;
+        r++;
+        return true;
+    }
+```
+
+- **第一步把 $x$ 消到底**：`insert` 碰到第一个空位就停，$x$ 更低的主元位上可能还有 1；这里一直消到第 0 位。基是规范的，异或 `b[i]` 在主元位里只翻第 $i$ 位，所以消完 $x$ 在所有主元位上都是 0，剩下的最高位 $t$ 一定是新主元位。
+- **第二步清掉旧基的第 $t$ 位**：更高的基第 $t$ 位是 1 的，异或上 $x$。$x$ 在别的主元位上都是 0，不会把它们翻回 1；更低的基最高位比 $t$ 低，第 $t$ 位本来就是 0。
+- **前提是插之前已经规范**：一直只用 `insert_reduced` 插；或者先用 `insert` 插过一些，调一次 `reduce()` 再接着用。它就是增量高斯 `add`（附录）的线性基写法。
+- **只在最后用一次规范化的基，用 `insert` 加一次 `reduce()`；插入过程中每插一个就要用，用 `insert_reduced`**：比如 5.1 每插一个数就要哈希一次规范化的基，每次都 `reduce()` 是 $O(60^2)$，`insert_reduced` 只要 $O(60)$。
+
 ### 2.5 第 $k$ 小和求排名
 
 **原数组的子集能异或出 $2^r$ 个不同的值（含空集给的 0），把它们从小到大排好：规范化之后，第 $k$ 个（$k$ 从 0 数）就是按 $k$ 的二进制位选基；反过来，读出一个值在主元位上的比特就是它的排名。原理见 1.4。**
 
 #### 复杂度
 
-`kth` 和 `index` 都是 $O(60)$；前面的 `reduce()` 只需要做一次，$O(60^2)$。
+`kth` 和 `index` 都是 $O(60)$；前面的 `reduce()` 只需要做一次，$O(60^2)$，一直用 `insert_reduced` 插的就不用做。
 
 ```cpp
-    long long kth(unsigned long long k) const {  // 先 reduce()；k 从 0 数，第 0 个是 0
+    long long kth(unsigned long long k) const {  // 基要是规范的；k 从 0 数，第 0 个是 0
         long long v = 0;
         for (int i = 0; i < B; i++)
             if (b[i]) { if (k & 1) v ^= b[i]; k >>= 1; }
         return k ? -1 : v;                       // k ≥ 2^r：不存在
     }
-    unsigned long long index(long long x) const {  // 先 reduce()；x 能被异或出来时，它是第几小（从 0 数）
+    unsigned long long index(long long x) const {  // 基要是规范的；x 能被异或出来时，它是第几小（从 0 数）
         unsigned long long k = 0;
         for (int i = 0, t = 0; i < B; i++)
             if (b[i]) { if (x >> i & 1) k |= 1ULL << t; t++; }
@@ -622,7 +643,7 @@ struct PrefixBasis {
 
       这是 3.3 那句“位置 $\ge l$ 的部分正好张成 $a_l, \dots, a_r$”换了个说法。所以只要对每个 $r$ 枚举这至多 32 个空间。
    2. **两个空间相同，当且仅当规范化后的基相同**：空间里每个非零数的最高位都是主元位，所以主元位的集合由空间决定；规范化后主元位 $p$ 上的基，是空间里“主元位中只有第 $p$ 位是 1”的那个数，按 1.4 这样的数只有一个，也由空间决定。于是把规范化后的基哈希成一个 64 位数，数不同的哈希值就是数不同的空间。
-   3. **一边插入一边保持规范化**：每插一个数就 `reduce()` 再整体哈希，每个 $r$ 要 $O(32^3)$，太慢。改成插入时就保持规范化：先用已有的基消掉新数 $y$ 的所有主元位，$y$ 剩下的最高位 $t$ 是新主元位；再把已有的基里第 $t$ 位是 1 的都异或上 $y$。哈希取各个基打散之后的和，改动一个基就减去旧的、加上新的。
+   3. **一边插入一边保持规范化**：每插一个数就 `reduce()` 再整体哈希，每个右端点 $r$ 要 $O(32^3)$，太慢。改用 2.4 的 `insert_reduced`，插入时就保持规范化：先用已有的基消掉新数 $y$ 的所有主元位，$y$ 剩下的最高位 $t$ 是新主元位；再把已有的基里第 $t$ 位是 1 的都异或上 $y$。哈希取各个基打散之后的和，改动一个基就减去旧的、加上新的，每个右端点 $O(32^2)$。
 
    ```cpp
    #include <bits/stdc++.h>
@@ -835,23 +856,43 @@ struct PrefixBasis {
 
 两份板子放在一起对照。线性基是增量高斯在“列数不超过 60、没有右端”时的写法，所以每个操作基本都能在两边找到对应；右端、矛盾、解向量只有增量高斯有。两份都和暴力枚举对拍过。
 
-| 要做的事 | 线性基 `XorBasis` | 增量高斯 `IncGauss` |
+**两份板子的区别**
+
+| | 线性基 `XorBasis` | 增量高斯 `IncGauss` |
 | --- | --- | --- |
 | 一行是什么 | 一个数，没有右端 | 一条方程：系数 bitset + 右端 |
 | 按什么存 | `b[i]` 就是主元在第 $i$ 位的那一行 | 每行记它的主元列 `piv` |
-| 加一个数 / 一条方程 | `insert`，不清旧行，$O(60)$ | `add`，清旧行，始终是简化行阶梯形，$O(r \cdot \text{MV} / 64)$ |
-| 能否表示出来 | `contains`，$O(60)$ | `implied`，还给出推出的右端，$O(r \cdot \text{MV} / 64)$ |
-| 秩 | `r`，$O(1)$ | `rank()`，$O(1)$ |
-| 规范化 | `reduce()`，要用时再调，$O(60^2)$ | 一直是规范的，不用额外做 |
-| 最大 / 最小异或 | `max_xor` / `min_xor`，$O(60)$ | `max_xor` / `min_xor`，$O(r \cdot \text{MV} / 64)$ |
-| 第 $k$ 小 / 求排名 | `kth` / `index`，$O(60)$，之前要 `reduce()` 一次 | `kth` $O(r \log r + r \cdot \text{MV} / 64)$ / `index` $O(r \log r)$，不用先规范化 |
-| 合并 | `merge`，$O(60^2)$ | `merge`，另一组的 $r'$ 行逐条 `add`，$O(r' \cdot r \cdot \text{MV} / 64)$ |
-| 区间询问 | `PrefixBasis`：插入、`max_xor`、`at` 都是 $O(60)$ | `PrefixGauss`：`add`、`implied`、`max_xor` $O(n \cdot \text{MV} / 64)$，`bad` $O(1)$，`rank` $O(n)$，`at` $O(n \cdot r \cdot \text{MV} / 64)$ |
 | 消成 0 时 | 插入失败，这个数能被异或出来 | 看右端：是 0 就能由已有方程推出（返回 0），非 0 就矛盾（返回 $-1$，`bad` 记下） |
-| 一组解 / 全部解 | 没有 | `solve()` $O(r + \text{MV} / 64)$ / `kernel()` $O((n - r)(r + \text{MV} / 64))$ |
 | 列数 | 不超过 60 | 不超过 `MV`，几千也行 |
 
-表里 $r$ 是当前的秩，$n$ 是未知数个数；`MV / 64` 是一行 bitset 占的机器字数，一次 bitset 异或就是这么多次整数异或。线性基的 60 也可以看成“秩不超过 60、一行一个字”，所以两边的复杂度是同一个式子：$\text{MV} = 64$ 时，增量高斯的 $O(r \cdot \text{MV}/64)$ 就是 $O(r)$，而 $r \le 60$。
+**操作和复杂度**
+
+| 要做的事 | `XorBasis` | `IncGauss` | 线性基复杂度 | 增量高斯复杂度 |
+| --- | --- | --- | --- | --- |
+| 插入，不管规范化 | `insert` | 没有 | $O(60)$ | — |
+| 插入，保持规范化 | `insert_reduced` | `add` | $O(60)$ | $O(r w)$ |
+| 事后规范化 | `reduce()` | 不需要 | $O(60^2)$ | — |
+| 能否表示出来 | `contains` | `implied`，还给出推出的右端 | $O(60)$ | $O(r w)$ |
+| 秩 | `r` | `rank()` | $O(1)$ | $O(1)$ |
+| 最大 / 最小异或 | `max_xor` / `min_xor` | `max_xor` / `min_xor` | $O(60)$ | $O(r w)$ |
+| 第 $k$ 小 | `kth`，基要是规范的 | `kth` | $O(60)$ | $O(r \log r + r w)$ |
+| 求排名 | `index`，基要是规范的 | `index` | $O(60)$ | $O(r \log r)$ |
+| 合并 | `merge` | `merge` | $O(60^2)$ | $O(r' r w)$ |
+| 一组解 | 没有 | `solve()` | — | $O(r + w)$ |
+| 全部解 | 没有 | `kernel()` | — | $O((n - r)(r + w))$ |
+
+**区间询问**
+
+| 要做的事 | `PrefixBasis` | `PrefixGauss` | 线性基复杂度 | 增量高斯复杂度 |
+| --- | --- | --- | --- | --- |
+| 加入第 $p$ 个 | `insert` | `add` | $O(60)$ | $O(n w)$ |
+| 区间最大异或 | `max_xor` | `max_xor` | $O(60)$ | $O(n w)$ |
+| 区间能否推出 | 没有 | `implied` | — | $O(n w)$ |
+| 区间是否矛盾 | 没有 | `bad` | — | $O(1)$ |
+| 区间的秩 | 没有 | `rank` | — | $O(n)$ |
+| 取出区间的基 | `at` | `at` | $O(60)$ | $O(n r w)$ |
+
+复杂度里 $r$ 是当前的秩，$r'$ 是另一组的秩，$n$ 是未知数个数，$w = \text{MV} / 64$ 是一行 bitset 占的机器字数，一次 bitset 异或就是 $w$ 次整数异或。线性基一行就是一个字（$w = 1$），秩不超过 60：把增量高斯那列的 $w$ 换成 1、$r$ 换成 60，就是线性基那列。同一个操作两边同阶，差别只在列数能开多大。
 
 所以“这个数能不能被异或出来”和“这条方程是不是多余的”是同一个问题；带上右端，就多了“矛盾”这一种结局。
 
@@ -875,6 +916,17 @@ struct XorBasis {
         }
         return false;
     }
+    bool insert_reduced(long long x) {           // 插之前要是规范的，插完仍是规范的；成功返回 true
+        for (int i = B - 1; i >= 0; i--)
+            if ((x >> i & 1) && b[i]) x ^= b[i]; // 消掉 x 上所有已有的主元位，一直消到第 0 位
+        if (!x) return false;                    // 消成 0：已经能被异或出来
+        int t = 63 - __builtin_clzll(x);         // 剩下的最高位是新主元位
+        for (int i = t + 1; i < B; i++)
+            if (b[i] >> t & 1) b[i] ^= x;        // 更高的基里第 t 位清成 0
+        b[t] = x;
+        r++;
+        return true;
+    }
     bool contains(long long x) const {           // x 能否被异或出来
         for (int i = B - 1; i >= 0; i--)
             if (x >> i & 1) {
@@ -896,13 +948,13 @@ struct XorBasis {
             for (int j = i - 1; j >= 0; j--)
                 if (b[j] && (b[i] >> j & 1)) b[i] ^= b[j];
     }
-    long long kth(unsigned long long k) const {  // 先 reduce()；第 k 小（k 从 0 数，第 0 个是 0），不存在返回 -1
+    long long kth(unsigned long long k) const {  // 基要是规范的；第 k 小（k 从 0 数，第 0 个是 0），不存在返回 -1
         long long v = 0;
         for (int i = 0; i < B; i++)
             if (b[i]) { if (k & 1) v ^= b[i]; k >>= 1; }
         return k ? -1 : v;
     }
-    unsigned long long index(long long x) const {  // 先 reduce()；x 能被异或出来时，它是第几小（从 0 数）
+    unsigned long long index(long long x) const {  // 基要是规范的；x 能被异或出来时，它是第几小（从 0 数）
         unsigned long long k = 0;
         for (int i = 0, t = 0; i < B; i++)
             if (b[i]) { if (x >> i & 1) k |= 1ULL << t; t++; }

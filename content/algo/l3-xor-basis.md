@@ -118,7 +118,7 @@ Given $n$ numbers, pick any subset and XOR it together: what is the largest resu
 3. **Maximum and minimum of $s$ XOR any subset**
    - **Greedy from the high bits down**: whenever a bit can become 1, XOR in the basis number for it (`max_xor`); the minimum is the reverse (`min_xor`). Both $O(60)$. See 2.3.
 4. **The $k$-th smallest, or the rank of a value**
-   - **Reduce once, then choose basis numbers by the binary digits of $k$**: `reduce()` once in $O(60^2)$, then `kth` and `index` in $O(60)$ each. See 2.4 and 2.5.
+   - **Reduce, then choose basis numbers by the binary digits of $k$**: call `reduce()` once after inserting, $O(60^2)$; or keep the basis reduced while inserting with `insert_reduced`, $O(60)$ each. Then `kth` and `index` cost $O(60)$ each. See 2.4 and 2.5.
 5. **Merging two bases**
    - **Insert the numbers of one into the other**: `merge`, $O(60^2)$. Kept on the nodes of a segment tree or a binary-lifting table, this assembles the basis of any range or tree path. See 2.6.
 
@@ -212,11 +212,11 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // sub
 
 ### 2.4 Reduction
 
-**From low bits to high, use the lower pivots to clear each number's 1s at the other pivot bits; what it is for is in 1.4.**
+**From low bits to high, use the lower pivots to clear each number's 1s at the other pivot bits; what it is for is in 1.4. The basis can also stay reduced during insertion, so it never needs fixing afterwards.**
 
 #### Cost
 
-`reduce()` is $O(60^2)$: two nested loops of at most 60 each.
+`reduce()` is $O(60^2)$: two nested loops of at most 60 each. `insert_reduced` costs $O(60)$ per number, the same order as `insert`.
 
 ```cpp
     void reduce() {                              // reduction: each pivot bit stays in its own number
@@ -229,22 +229,43 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // sub
 - **`i` goes upward**: when `b[i]` is processed, every lower `b[j]` is already reduced and has no pivot bit other than bit $j$, so XORing it in only clears bit $j$ of `b[i]` and never turns another pivot bit back to 1.
 - **The result is still a basis of the same space**: XORing in basis numbers keeps the span and the highest bit of `b[i]`, so the rule of 1.2 still holds.
 
+To stay reduced during insertion, `insert` needs two extra steps:
+
+```cpp
+    bool insert_reduced(long long x) {           // basis must be reduced before; stays reduced; true if inserted
+        for (int i = B - 1; i >= 0; i--)
+            if ((x >> i & 1) && b[i]) x ^= b[i]; // clear every existing pivot bit of x, all the way down to bit 0
+        if (!x) return false;                    // reduced to 0: already reachable
+        int t = 63 - __builtin_clzll(x);         // the highest remaining bit is the new pivot
+        for (int i = t + 1; i < B; i++)
+            if (b[i] >> t & 1) b[i] ^= x;        // clear bit t in the higher basis numbers
+        b[t] = x;
+        r++;
+        return true;
+    }
+```
+
+- **Step one eliminates $x$ all the way down**: `insert` stops at the first empty slot, so $x$ may still have 1s at lower pivot bits; here elimination runs to bit 0. The basis is reduced, so XORing `b[i]` flips only bit $i$ among the pivot bits; afterwards $x$ is 0 at every pivot bit, and its highest remaining bit $t$ is a new pivot.
+- **Step two clears bit $t$ in the old basis**: each higher basis number with a 1 at bit $t$ gets $x$ XORed in. $x$ is 0 at the other pivot bits, so none of them turns back to 1; lower basis numbers have their highest bit below $t$, so bit $t$ is already 0.
+- **The basis must be reduced beforehand**: insert only with `insert_reduced`, or after some plain `insert` calls run `reduce()` once and continue. It is incremental Gauss's `add` (appendix) written for an XOR basis.
+- **Need the reduced basis only once at the end: `insert` plus one `reduce()`; need it after every insertion: `insert_reduced`**: in 5.1, for example, the reduced basis is hashed after every insertion; a `reduce()` each time costs $O(60^2)$, `insert_reduced` only $O(60)$.
+
 ### 2.5 The $k$-th Smallest and the Rank of a Value
 
 **The subsets of the original array XOR to $2^r$ distinct values (including 0 from the empty set). Sort them: after reduction, the $k$-th ($k$ from 0) is obtained by choosing basis numbers by the binary digits of $k$; conversely, reading a value's bits at the pivot positions gives its rank. Why: see 1.4.**
 
 #### Cost
 
-`kth` and `index` are both $O(60)$; the `reduce()` before them is needed only once, $O(60^2)$.
+`kth` and `index` are both $O(60)$; the `reduce()` before them is needed only once, $O(60^2)$, and not at all if every insertion used `insert_reduced`.
 
 ```cpp
-    long long kth(unsigned long long k) const {  // call reduce() first; k from 0, the 0-th is 0
+    long long kth(unsigned long long k) const {  // basis must be reduced; k from 0, the 0-th is 0
         long long v = 0;
         for (int i = 0; i < B; i++)
             if (b[i]) { if (k & 1) v ^= b[i]; k >>= 1; }
         return k ? -1 : v;                       // k >= 2^r: no such value
     }
-    unsigned long long index(long long x) const {  // reduce() first; rank of a reachable x among the values (0-based)
+    unsigned long long index(long long x) const {  // basis must be reduced; rank of a reachable x among the values (0-based)
         unsigned long long k = 0;
         for (int i = 0, t = 0; i < B; i++)
             if (b[i]) { if (x >> i & 1) k |= 1ULL << t; t++; }
@@ -622,7 +643,7 @@ struct PrefixBasis {
 
       This restates 3.3: "the part with position $\ge l$ spans exactly $a_l, \dots, a_r$". So for each $r$ only these at most 32 spaces need to be enumerated.
    2. **Two spaces are equal exactly when their reduced bases are**: the highest bit of every nonzero value in the space is a pivot bit, so the set of pivot bits is determined by the space; after reduction the basis number at pivot $p$ is the value of the space whose only 1 among the pivot bits is at $p$, and by 1.4 there is exactly one, so it is determined by the space too. Hash the reduced basis to a 64-bit number; counting distinct hashes counts distinct spaces.
-   3. **Keep the basis reduced while inserting**: calling `reduce()` and rehashing after every insertion costs $O(32^3)$ per $r$, too slow. Stay reduced during insertion instead: eliminate every pivot bit of the new number $y$ with the existing basis, and the highest remaining bit $t$ of $y$ is a new pivot; then XOR $y$ into every existing basis number with a 1 at bit $t$. The hash is the sum of the scrambled basis numbers; changing one basis number subtracts the old term and adds the new.
+   3. **Keep the basis reduced while inserting**: calling `reduce()` and rehashing after every insertion costs $O(32^3)$ per right endpoint $r$, too slow. Use 2.4's `insert_reduced` and stay reduced during insertion instead: eliminate every pivot bit of the new number $y$ with the existing basis, and the highest remaining bit $t$ of $y$ is a new pivot; then XOR $y$ into every existing basis number with a 1 at bit $t$. The hash is the sum of the scrambled basis numbers; changing one basis number subtracts the old term and adds the new, $O(32^2)$ per right endpoint.
 
    ```cpp
    #include <bits/stdc++.h>
@@ -835,23 +856,43 @@ Each problem lists the section it uses.
 
 The two templates side by side. An XOR basis is incremental Gauss written for "at most 60 columns, no right-hand side", so almost every operation has a counterpart on both sides; right-hand sides, contradictions and solution vectors exist only in incremental Gauss. Both templates were checked against brute-force enumeration.
 
-| Task | XOR basis `XorBasis` | Incremental Gauss `IncGauss` |
+**How the two templates differ**
+
+| | XOR basis `XorBasis` | Incremental Gauss `IncGauss` |
 | --- | --- | --- |
 | A row is | a number, no right-hand side | an equation: coefficient bitset + right-hand side |
 | Stored by | `b[i]` is the row whose pivot is bit $i$ | each row remembers its pivot column `piv` |
-| Add a number / an equation | `insert`, old rows untouched, $O(60)$ | `add`, clears old rows, always RREF, $O(r \cdot \text{MV} / 64)$ |
-| Can it be represented | `contains`, $O(60)$ | `implied`, which also gives the implied RHS, $O(r \cdot \text{MV} / 64)$ |
-| Rank | `r`, $O(1)$ | `rank()`, $O(1)$ |
-| Reduced form | `reduce()`, called when needed, $O(60^2)$ | always reduced, no extra work |
-| Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | `max_xor` / `min_xor`, $O(r \cdot \text{MV} / 64)$ |
-| $k$-th smallest / rank of a value | `kth` / `index`, $O(60)$, after one `reduce()` | `kth` $O(r \log r + r \cdot \text{MV} / 64)$ / `index` $O(r \log r)$, no reduction needed |
-| Merge | `merge`, $O(60^2)$ | `merge`, adding the other side's $r'$ rows one by one, $O(r' \cdot r \cdot \text{MV} / 64)$ |
-| Range queries | `PrefixBasis`: insert, `max_xor` and `at` are all $O(60)$ | `PrefixGauss`: `add`, `implied`, `max_xor` $O(n \cdot \text{MV} / 64)$, `bad` $O(1)$, `rank` $O(n)$, `at` $O(n \cdot r \cdot \text{MV} / 64)$ |
 | Reduced to 0 | insertion fails: the number is reachable | check the right-hand side: 0 means implied by the rows (returns 0), nonzero means contradiction (returns $-1$, `bad` remembers it) |
-| One solution / all solutions | none | `solve()` $O(r + \text{MV} / 64)$ / `kernel()` $O((n - r)(r + \text{MV} / 64))$ |
 | Columns | at most 60 | at most `MV`, thousands are fine |
 
-Here $r$ is the current rank and $n$ the number of unknowns; `MV / 64` is the number of machine words in one bitset row, so one bitset XOR costs that many integer XORs. The XOR basis's 60 is just "rank at most 60, one word per row", so both columns follow the same formula: with $\text{MV} = 64$, incremental Gauss's $O(r \cdot \text{MV}/64)$ is $O(r)$ with $r \le 60$.
+**Operations and costs**
+
+| Task | `XorBasis` | `IncGauss` | XOR basis cost | Incremental Gauss cost |
+| --- | --- | --- | --- | --- |
+| Insert, not keeping the basis reduced | `insert` | none | $O(60)$ | — |
+| Insert, keeping it reduced | `insert_reduced` | `add` | $O(60)$ | $O(r w)$ |
+| Reduce afterwards | `reduce()` | not needed | $O(60^2)$ | — |
+| Can it be represented | `contains` | `implied`, which also gives the implied RHS | $O(60)$ | $O(r w)$ |
+| Rank | `r` | `rank()` | $O(1)$ | $O(1)$ |
+| Max / min XOR | `max_xor` / `min_xor` | `max_xor` / `min_xor` | $O(60)$ | $O(r w)$ |
+| $k$-th smallest | `kth`, basis must be reduced | `kth` | $O(60)$ | $O(r \log r + r w)$ |
+| Rank of a value | `index`, basis must be reduced | `index` | $O(60)$ | $O(r \log r)$ |
+| Merge | `merge` | `merge` | $O(60^2)$ | $O(r' r w)$ |
+| One solution | none | `solve()` | — | $O(r + w)$ |
+| All solutions | none | `kernel()` | — | $O((n - r)(r + w))$ |
+
+**Range queries**
+
+| Task | `PrefixBasis` | `PrefixGauss` | XOR basis cost | Incremental Gauss cost |
+| --- | --- | --- | --- | --- |
+| Add the $p$-th item | `insert` | `add` | $O(60)$ | $O(n w)$ |
+| Max XOR of a range | `max_xor` | `max_xor` | $O(60)$ | $O(n w)$ |
+| Implied by a range | none | `implied` | — | $O(n w)$ |
+| Is a range contradictory | none | `bad` | — | $O(1)$ |
+| Rank of a range | none | `rank` | — | $O(n)$ |
+| Extract a range's basis | `at` | `at` | $O(60)$ | $O(n r w)$ |
+
+In the costs, $r$ is the current rank, $r'$ the other side's rank, $n$ the number of unknowns, and $w = \text{MV} / 64$ the number of machine words in one bitset row, so one bitset XOR is $w$ integer XORs. An XOR basis row is a single word ($w = 1$) and its rank is at most 60: put $w = 1$ and $r = 60$ into the incremental Gauss column and you get the XOR basis column. Each operation costs the same order on both sides; the difference is only how many columns fit.
 
 So "can this number be reached by XOR" and "is this equation redundant" are the same question; a right-hand side adds the third outcome, contradiction.
 
@@ -875,6 +916,17 @@ struct XorBasis {
         }
         return false;
     }
+    bool insert_reduced(long long x) {           // basis must be reduced before; stays reduced; true if inserted
+        for (int i = B - 1; i >= 0; i--)
+            if ((x >> i & 1) && b[i]) x ^= b[i]; // clear every existing pivot bit of x, all the way down to bit 0
+        if (!x) return false;                    // reduced to 0: already reachable
+        int t = 63 - __builtin_clzll(x);         // the highest remaining bit is the new pivot
+        for (int i = t + 1; i < B; i++)
+            if (b[i] >> t & 1) b[i] ^= x;        // clear bit t in the higher basis numbers
+        b[t] = x;
+        r++;
+        return true;
+    }
     bool contains(long long x) const {           // is x reachable
         for (int i = B - 1; i >= 0; i--)
             if (x >> i & 1) {
@@ -896,13 +948,13 @@ struct XorBasis {
             for (int j = i - 1; j >= 0; j--)
                 if (b[j] && (b[i] >> j & 1)) b[i] ^= b[j];
     }
-    long long kth(unsigned long long k) const {  // reduce() first; k-th smallest (0-based, the 0th is 0), -1 if none
+    long long kth(unsigned long long k) const {  // basis must be reduced; k-th smallest (0-based, the 0th is 0), -1 if none
         long long v = 0;
         for (int i = 0; i < B; i++)
             if (b[i]) { if (k & 1) v ^= b[i]; k >>= 1; }
         return k ? -1 : v;
     }
-    unsigned long long index(long long x) const {  // reduce() first; rank of a reachable x among the values (0-based)
+    unsigned long long index(long long x) const {  // basis must be reduced; rank of a reachable x among the values (0-based)
         unsigned long long k = 0;
         for (int i = 0, t = 0; i < B; i++)
             if (b[i]) { if (x >> i & 1) k |= 1ULL << t; t++; }
