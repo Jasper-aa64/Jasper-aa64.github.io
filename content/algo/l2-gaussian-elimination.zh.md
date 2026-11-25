@@ -149,7 +149,10 @@ int gauss(vector<vector<double>>& a, int m, vector<int>& where) {
 #include <bits/stdc++.h>
 using namespace std;
 
-// 套 3.1 的 gauss（实数）
+// 3.1 的 gauss（实数）：这里只放声明，实现照抄 3.1
+const double EPS = 1e-8;
+// 返回 -1：无解；否则返回秩。where[c]：第 c 个未知数的主元在哪一行，-1 是自由元
+int gauss(vector<vector<double>>& a, int m, vector<int>& where);
 
 int main() {
     ios::sync_with_stdio(false);
@@ -193,7 +196,10 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
-// 套 3.1 的 gauss（实数）
+// 3.1 的 gauss（实数）：这里只放声明，实现照抄 3.1
+const double EPS = 1e-8;
+// 返回 -1：无解；否则返回秩。where[c]：第 c 个未知数的主元在哪一行，-1 是自由元
+int gauss(vector<vector<double>>& a, int m, vector<int>& where);
 
 int main() {
     ios::sync_with_stdio(false);
@@ -303,7 +309,11 @@ int gauss(vector<vector<ll>>& a, int m, vector<int>& where) {
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
-// 套 4.1 的 gauss（模质数，P 和 qp 也在里面）
+// 4.1 的 gauss（模质数）：这里只放声明，实现照抄 4.1
+using ll = long long;
+const ll P = 1e9 + 7;
+ll qp(ll a, ll e);                               // a^e mod P
+int gauss(vector<vector<ll>>& a, int m, vector<int>& where);   // 返回值和 where 同 3.1
 
 int main() {
     ios::sync_with_stdio(false);
@@ -384,7 +394,10 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
-// 套 5.1 的 gauss（模 2）
+// 5.1 的 gauss（模 2）：这里只放声明，实现照抄 5.1
+const int MV = 2000;                             // 未知数个数的上限
+// 每行前 m 位是系数，第 m 位是右端；返回值和 where 同 3.1
+int gauss(vector<bitset<MV + 1>>& a, int m, vector<int>& where);
 
 const int R = 5, C = 6, V = R * C;
 
@@ -446,7 +459,10 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
-// 套 5.1 的 gauss（模 2）
+// 5.1 的 gauss（模 2）：这里只放声明，实现照抄 5.1
+const int MV = 2000;                             // 未知数个数的上限
+// 每行前 m 位是系数，第 m 位是右端；返回值和 where 同 3.1
+int gauss(vector<bitset<MV + 1>>& a, int m, vector<int>& where);
 
 int main() {
     ios::sync_with_stdio(false);
@@ -609,7 +625,16 @@ struct IncGauss {
 #include <bits/stdc++.h>
 using namespace std;
 
-// 套 6.1 的 IncGauss
+// 6.1 的 IncGauss：这里只列用到的成员，实现照抄 6.1
+const int MV = 1024;                             // 未知数个数的上限
+struct IncGauss {
+    int n;                                       // 未知数个数
+    vector<bitset<MV>> row;
+    vector<int> rhs, piv;                        // 每行的右端、主元列
+    IncGauss(int n);
+    int add(bitset<MV> v, int b);                // 1：独立，秩加 1；0：能由已有方程推出；-1：矛盾
+    int rank() const;
+};
 
 int main() {
     ios::sync_with_stdio(false);

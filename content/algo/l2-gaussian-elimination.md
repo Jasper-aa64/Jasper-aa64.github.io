@@ -149,7 +149,10 @@ This is exactly the reading step of 1.2, and the trap is the order: when a colum
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 3.1 (reals)
+// gauss from 3.1 (reals): declaration only, copy the implementation from 3.1
+const double EPS = 1e-8;
+// returns -1: no solution; otherwise the rank. where[c]: the row holding unknown c's pivot, -1 if free
+int gauss(vector<vector<double>>& a, int m, vector<int>& where);
 
 int main() {
     ios::sync_with_stdio(false);
@@ -193,7 +196,10 @@ Edge $(u, v)$ is walked $\dfrac{f_u}{\deg u} + \dfrac{f_v}{\deg v}$ times in exp
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 3.1 (reals)
+// gauss from 3.1 (reals): declaration only, copy the implementation from 3.1
+const double EPS = 1e-8;
+// returns -1: no solution; otherwise the rank. where[c]: the row holding unknown c's pivot, -1 if free
+int gauss(vector<vector<double>>& a, int m, vector<int>& where);
 
 int main() {
     ios::sync_with_stdio(false);
@@ -303,7 +309,11 @@ Why: each row operation is a left multiplication by an invertible matrix, so the
 ```cpp
 #include <bits/stdc++.h>
 using namespace std;
-// uses gauss from 4.1 (mod a prime; P and qp come with it)
+// gauss from 4.1 (mod a prime): declarations only, copy the implementation from 4.1
+using ll = long long;
+const ll P = 1e9 + 7;
+ll qp(ll a, ll e);                               // a^e mod P
+int gauss(vector<vector<ll>>& a, int m, vector<int>& where);   // return value and where as in 3.1
 
 int main() {
     ios::sync_with_stdio(false);
@@ -384,7 +394,10 @@ $$
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 5.1 (mod 2)
+// gauss from 5.1 (mod 2): declaration only, copy the implementation from 5.1
+const int MV = 2000;                             // max number of unknowns
+// bits 0..m-1 of each row are coefficients, bit m is the RHS; return value and where as in 3.1
+int gauss(vector<bitset<MV + 1>>& a, int m, vector<int>& where);
 
 const int R = 5, C = 6, V = R * C;
 
@@ -446,7 +459,10 @@ which splits into two equations mod 2, one per component. There are $2n \le 2000
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses gauss from 5.1 (mod 2)
+// gauss from 5.1 (mod 2): declaration only, copy the implementation from 5.1
+const int MV = 2000;                             // max number of unknowns
+// bits 0..m-1 of each row are coefficients, bit m is the RHS; return value and where as in 3.1
+int gauss(vector<bitset<MV + 1>>& a, int m, vector<int>& where);
 
 int main() {
     ios::sync_with_stdio(false);
@@ -609,7 +625,16 @@ Problem ([2024 ICPC Kunming Regional E](https://codeforces.com/gym/105588/proble
 #include <bits/stdc++.h>
 using namespace std;
 
-// uses IncGauss from 6.1
+// IncGauss from 6.1: only the members used here, copy the implementation from 6.1
+const int MV = 1024;                             // max number of unknowns
+struct IncGauss {
+    int n;                                       // number of unknowns
+    vector<bitset<MV>> row;
+    vector<int> rhs, piv;                        // right-hand side and pivot column of each row
+    IncGauss(int n);
+    int add(bitset<MV> v, int b);                // 1: independent, rank grows; 0: implied by the rows; -1: contradiction
+    int rank() const;
+};
 
 int main() {
     ios::sync_with_stdio(false);
