@@ -556,6 +556,9 @@ struct PrefixBasis {
 
    The statement's note: the path $1 \to 2 \to 4 \to 3 \to 5 \to 2 \to 4 \to 5$ has XOR $2 \oplus 1 \oplus 2 \oplus 4 \oplus 1 \oplus 1 \oplus 3 = 6$; the shorter path $1 \to 3 \to 5$ also gives $2 \oplus 4 = 6$.
 2. **Idea**
+
+   > The essence of XOR paths: an edge traversed twice cancels to 0, so the XOR of the tree path between $u$ and $v$ equals $d_u \oplus d_v$, the XORs from the root to the two vertices (the shared part from the root to the LCA cancels, so no LCA is needed), and two paths with the same endpoints differ by exactly a cycle.
+
    1. **The XORs of all paths are one fixed path $P$ XOR any cycle**:
 
       $$\{\text{XORs of all paths from 1 to } N\} = \{\, P \oplus C \mid C \text{ is a cycle XOR} \,\}$$
