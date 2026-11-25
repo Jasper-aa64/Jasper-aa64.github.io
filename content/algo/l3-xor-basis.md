@@ -668,10 +668,11 @@ struct PrefixBasis {
 
       **Two different bases almost never collide**: treat $\operatorname{mix}(x)$ as an independent, uniform random 64-bit number assigned to each $x$. For $S \ne T$, $h(S) - h(T)$ is a $\pm 1$ sum of the $\operatorname{mix}$ values over the symmetric difference; with all other terms fixed, the remaining one must hit one specific value, probability $2^{-64}$. With about $3.2 \times 10^6$ hashes, about $5 \times 10^{12}$ pairs, the chance of any collision is about $3 \times 10^{-7}$.
 
-      **Why `mix` first**: raw basis numbers are linearly related. For example, the space $\{0, 1, 2, 3\}$ has reduced basis $\{1, 2\}$ and the space $\{0, 3\}$ has $\{3\}$; both raw sums are 3, while after scrambling $\operatorname{mix}(1) + \operatorname{mix}(2) \ne \operatorname{mix}(3)$.
-
-      **`mix` breaks relations between different numbers, not information outside the numbers**: relations such as $x + y = z$ or $x \oplus y = z$ no longer hold after scrambling. But $h$ only sees which numbers occur, not their order, so the sequences $(1, 2)$ and $(2, 1)$ hash the same. Order is not needed here, since the reduced basis as a set determines the space; to tell orders apart, feed the position into `mix` together with the number.
    4. **Keep the basis reduced while inserting**: calling `reduce()` and rehashing after every insertion costs $O(32^3)$ per right endpoint $r$, too slow. Use 2.4's `insert_reduced` and stay reduced during insertion instead, $O(60)$ per number. The hash is computed as in item 3 and recomputed after each insertion, also $O(60)$. The code uses the appendix's `PrefixBasis` to get the at most 32 basis numbers of each right endpoint, then inserts them into a fresh `XorBasis` by position, largest first.
+
+   > **Why `mix` first**: raw basis numbers are linearly related. For example, the space $\{0, 1, 2, 3\}$ has reduced basis $\{1, 2\}$ and the space $\{0, 3\}$ has $\{3\}$; both raw sums are 3, while after scrambling $\operatorname{mix}(1) + \operatorname{mix}(2) \ne \operatorname{mix}(3)$.
+   >
+   > **`mix` breaks relations between different numbers, not information outside the numbers**: relations such as $x + y = z$ or $x \oplus y = z$ no longer hold after scrambling. But $h$ only sees which numbers occur, not their order, so the sequences $(1, 2)$ and $(2, 1)$ hash the same. Order is not needed here, since the reduced basis as a set determines the space; to tell orders apart, feed the position into `mix` together with the number.
 
    ```cpp
    #include <bits/stdc++.h>
