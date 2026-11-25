@@ -440,7 +440,9 @@
       barEl.appendChild(btn);
       wrap.appendChild(barEl);
       btn.addEventListener("click", function () {
-        var text = (code || pre).innerText;
+        // textContent, not innerText: each highlighted line is a display:flex span that already ends in "\n",
+        // so innerText would add a second line break after every line.
+        var text = (code || pre).textContent.replace(/\n$/, "");
         var done = function () {
           btn.textContent = I18N.copied;
           btn.classList.add("is-copied");
@@ -477,6 +479,43 @@
       else window.addEventListener("resize", fit, { passive: true });
     });
   }
+  /* ---------- Selecting and copying code: no blank line after every line ----------
+     The browser copies a selection as innerText, and each highlighted line (a display:flex span that already
+     ends in "\n") gets an extra line break. Inside a code block, copy the raw text instead; for a selection
+     that runs from prose into a code block, swap each code block for a plain <pre> before taking innerText.
+     Pages with math install their own copy handler first (baseof.html) and handle code blocks there. */
+  document.addEventListener("copy", function (e) {
+    if (e.defaultPrevented) return;
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    var anc = range.commonAncestorContainer;
+    var ancEl = anc.nodeType === 1 ? anc : anc.parentElement;
+    var frag = range.cloneContents();
+    var text;
+    if (ancEl && ancEl.closest("pre")) {
+      var box = document.createElement("div");
+      box.appendChild(frag);
+      text = box.textContent;
+    } else {
+      if (!frag.querySelector(".chroma .line, .line")) return;
+      frag.querySelectorAll(".code-block__bar").forEach(function (b) { b.remove(); });
+      frag.querySelectorAll("pre").forEach(function (p) {
+        var plain = document.createElement("pre");
+        plain.textContent = p.textContent.replace(/\n$/, "");
+        p.replaceWith(plain);
+      });
+      var tmp = document.createElement("div");
+      tmp.style.cssText = "position:fixed;left:-9999px;top:0";
+      tmp.appendChild(frag);
+      document.body.appendChild(tmp);
+      text = tmp.innerText;
+      tmp.remove();
+    }
+    e.clipboardData.setData("text/plain", text);
+    e.preventDefault();
+  });
+
   function fallbackCopy(text) {
     var ta = document.createElement("textarea");
     ta.value = text;
