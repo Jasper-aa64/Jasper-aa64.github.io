@@ -116,14 +116,16 @@ int qp(int a, int b, int p) {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     int T, n = 0, m, d;
-    scanf("%d", &T);
-    for (int i = 1; i <= T; ++i) { scanf("%d %d", &u[i], &v[i]); n = max(n, u[i]); }
+    cin >> T;
+    for (int i = 1; i <= T; ++i) { cin >> u[i] >> v[i]; n = max(n, u[i]); }
     init(n);
 
     for (int o = 1; o <= T; ++o) {
         n = u[o]; d = v[o];
-        if (!b[n]) { puts("0\n"); continue; }
+        if (!b[n]) { cout << "0\n\n"; continue; }
 
         m = ph[n];
         int tmp = m, t = 0;
@@ -147,10 +149,10 @@ int main() {
             cur = int(1LL * cur * g % n);
             if (!p[k]) { q[cur] = true; ++cnt; } else { p[k] = false; }
         }
-        printf("%d\n", cnt);
+        cout << cnt << '\n';
         for (int i = 1, seen = 0; i < n; ++i)
-            if (q[i]) { q[i] = false; if (++seen == d) { printf("%d ", i); seen = 0; } }
-        puts("");
+            if (q[i]) { q[i] = false; if (++seen == d) { cout << i << ' '; seen = 0; } }
+        cout << '\n';
     }
     return 0;
 }

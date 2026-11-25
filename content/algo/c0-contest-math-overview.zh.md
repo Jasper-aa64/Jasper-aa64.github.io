@@ -486,6 +486,8 @@ long long block_sum(long long n, long long m, const vector<long long>& pre) {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     // 线性筛求 φ，筛完再原地改成前缀和，省一个数组
     vector<long long> pre(N + 1);
     vector<int> primes;
@@ -503,11 +505,11 @@ int main() {
     for (int i = 1; i <= N; i++) pre[i] += pre[i - 1];
 
     int T;
-    scanf("%d", &T);
+    cin >> T;
     while (T--) {
         long long n, m;
-        scanf("%lld %lld", &n, &m);
-        printf("%lld\n", block_sum(n, m, pre));
+        cin >> n >> m;
+        cout << block_sum(n, m, pre) << '\n';
     }
 }
 ```
@@ -573,11 +575,13 @@ long long exact_colors(long long n, int m, const Binom& B) {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     long long n;
     int k, m;
-    scanf("%lld %d %d", &n, &k, &m);
+    cin >> n >> k >> m;
     Binom B(k);
-    printf("%lld\n", B.C(k, m) * exact_colors(n, m, B) % MOD);
+    cout << B.C(k, m) * exact_colors(n, m, B) % MOD << '\n';
 }
 ```
 
@@ -624,9 +628,11 @@ Mat mpow(Mat A, long long e) {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     long long n;
-    scanf("%lld", &n);
-    if (n == 1) { puts("1"); return 0; }
+    cin >> n;
+    if (n == 1) { cout << "1\n"; return 0; }
     // 状态 (a_i, a_{i-1}, i+1, 1, S_i)，从 i = 2 走到 i = n
     Mat M = {{1, 1, 1, 0, 0},
              {1, 0, 0, 0, 0},
@@ -634,7 +640,7 @@ int main() {
              {0, 0, 0, 1, 0},
              {1, 1, 1, 0, 1}};
     Mat v = {{1}, {1}, {3}, {1}, {2}};
-    printf("%lld\n", mul(mpow(M, n - 2), v)[4][0]);
+    cout << mul(mpow(M, n - 2), v)[4][0] << '\n';
 }
 ```
 

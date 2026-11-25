@@ -206,6 +206,8 @@ vector<ll> circularConvolution(const vector<ll>& a, const vector<ll>& b) {
 }
 
 int main(){
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     int n = 11;
     vector<ll> a(n), b(n);
     // read a[0..10], b[0..10]

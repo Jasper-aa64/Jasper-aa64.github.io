@@ -99,6 +99,8 @@ void solve(int a, int b, int c, int n) {
     std::cout << (res.s + b / c) % M << ' ' << (res.u + (long long)(b/c)*(b/c)) % M << ' ' << res.t << '\n';
 }
 int main() {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
     int t; std::cin >> t;
     for (; t; --t) { int a, b, c, n; std::cin >> n >> a >> b >> c; solve(a, b, c, n); }
 }

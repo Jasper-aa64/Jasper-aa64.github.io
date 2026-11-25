@@ -59,6 +59,8 @@ Here $f(d)=d$ and $g(\lfloor n/d\rfloor)=\lfloor n/d\rfloor$. The sum of $f$ ove
 #include <iostream>
 using namespace std;
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     long long n; cin >> n;
     long long sum = 0, l, r;
     for (l = 1; l <= n; l = r + 1) {

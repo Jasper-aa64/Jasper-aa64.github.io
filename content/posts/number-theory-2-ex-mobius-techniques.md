@@ -81,19 +81,21 @@ $$\text{Compute }\sum_{i=1}^n\sum_{j=1}^m[\gcd(i,j)=k],\quad 1\leq T,n,m,k\leq5\
 
 ```cpp
 int main(){
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     long long t;
-    read(t);
+    cin >> t;
     get_mu(50000);
     while(t--){
         static long long a, b, d;
-        read(a); read(b); read(d);
+        cin >> a >> b >> d;
         static long long max_rep, ans;
         max_rep = min(a, b); ans = 0;
         for(long long l=1, r; l<=max_rep; l=r+1){
             r = min(a/(a/l), b/(b/l));
             ans += (a/(l*d)) * (b/(l*d)) * (sum[r] - sum[l-1]);
         }
-        printf("%lld\n", ans);
+        cout << ans << '\n';
     }
     return 0;
 }

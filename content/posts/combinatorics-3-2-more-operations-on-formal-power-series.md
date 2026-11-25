@@ -174,6 +174,8 @@ vector<ll> poly_sqrt(const vector<ll>& f, int n){
 }
 
 int main(){
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     int n = 8;           // compute up to x^8
     vector<ll> f = {1, 2, 3};
 

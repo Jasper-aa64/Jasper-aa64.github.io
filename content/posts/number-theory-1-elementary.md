@@ -137,13 +137,6 @@ typedef long long ll;
 ll bit[N]; int n;
 vector<int> prime; bool vis[maxn]; int phi[maxn];
 
-void read(int &x) {
-    x = 0; int f = 1; char ch = getchar();
-    while (!isdigit(ch)) { if (ch == '-') f = -1; ch = getchar(); }
-    while (isdigit(ch)) { x = (x << 3) + (x << 1) + ch - '0'; ch = getchar(); }
-    x *= f;
-}
-
 void init() {
     phi[1] = 1;
     for (int i = 2; i < maxn; i++) {
@@ -175,14 +168,16 @@ ll dfs(int v, int p, int r) {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     init();
     int m, a, op, l, r, x, p;
-    read(n); read(m);
-    for (int i = 1; i <= n; i++) { read(a); range_update(i, i, a); }
+    cin >> n >> m;
+    for (int i = 1; i <= n; i++) { cin >> a; range_update(i, i, a); }
     while (m--) {
-        read(op); read(l); read(r);
-        if (op == 1) { read(x); range_update(l, r, 1LL * x); }
-        else { read(p); printf("%lld\n", dfs(l, p, r) % p); }
+        cin >> op >> l >> r;
+        if (op == 1) { cin >> x; range_update(l, r, 1LL * x); }
+        else { cin >> p; cout << dfs(l, p, r) % p << '\n'; }
     }
     return 0;
 }
@@ -381,12 +376,14 @@ void init(int n) {
     }
 }
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     int n; cin >> n;
     init(n);
     for (int i = 0; i < cnt; i++) {
         int p = primes[i], s = 0;
         for (int j = n; j; j /= p) s += j / p;   // Legendre's formula
-        printf("%d %d\n", p, s);
+        cout << p << ' ' << s << '\n';
     }
     return 0;
 }

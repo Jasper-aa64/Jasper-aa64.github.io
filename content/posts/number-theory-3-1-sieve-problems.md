@@ -228,6 +228,8 @@ const int N = 1e5 + 10;
 int f[N], w[N];
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     memset(f, 0x3f, sizeof f);
 
     int n, max_price = -1;

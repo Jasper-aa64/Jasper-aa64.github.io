@@ -117,6 +117,8 @@ LL cal(int n, int m){
 }
 
 int main(){
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     prepare();
     cin >> n >> m;
     cout << cal(n, m) << el;
@@ -223,6 +225,8 @@ void init(){
 }
 
 int main(){
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     init();
     cin >> T;
     for(int t = 1; t <= T; t++){

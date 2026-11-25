@@ -440,18 +440,25 @@ string minWindow(string s,string t){
   - **右下角外 $(c+1, e+1)$ 加 1**：它被前面两次各减了一次，要补回来。
 
 ```cpp
-#include<bits/stdc++.h>
+#include <bits/stdc++.h>
 using namespace std;
 int d[1005][1005];
-int main(){
-    int n,m;scanf("%d%d",&n,&m);
-    while(m--){
-        int a,b,c,e;scanf("%d%d%d%d",&a,&b,&c,&e);
-        d[a][b]++,d[a][e+1]--,d[c+1][b]--,d[c+1][e+1]++;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int n, m;
+    cin >> n >> m;
+    while (m--) {
+        int a, b, c, e;
+        cin >> a >> b >> c >> e;
+        d[a][b]++, d[a][e + 1]--, d[c + 1][b]--, d[c + 1][e + 1]++;
     }
-    for(int i=1;i<=n;i++,puts(""))for(int j=1;j<=n;j++){
-        d[i][j]+=d[i-1][j]+d[i][j-1]-d[i-1][j-1];
-        printf("%d ",d[i][j]);
+    for (int i = 1; i <= n; i++) {
+        for (int j = 1; j <= n; j++) {
+            d[i][j] += d[i - 1][j] + d[i][j - 1] - d[i - 1][j - 1];
+            cout << d[i][j] << ' ';
+        }
+        cout << '\n';
     }
 }
 ```

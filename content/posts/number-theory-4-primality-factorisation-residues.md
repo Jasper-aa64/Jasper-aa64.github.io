@@ -152,6 +152,8 @@ void factorize(ll n, vector<ll> &factors) {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     ll n = 8051;
     vector<ll> factors;
     factorize(n, factors);

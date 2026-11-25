@@ -317,6 +317,8 @@ int64 count_solutions_mod(int S, const vector<int>& l, const vector<int>& u) {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     int S = 10;
     vector<int> l = {0, 1, 0};
     vector<int> u = {5, 4, 6};
@@ -671,6 +673,8 @@ void solve() {
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     init(100000);
     Prework();
 

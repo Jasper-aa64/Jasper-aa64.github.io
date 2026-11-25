@@ -225,9 +225,11 @@ struct min25 {
 } A;
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     ll n;
-    if (scanf("%lld", &n) != 1) return 0;
-    printf("%lld\n", A.calc(n));
+    if (!(cin >> n)) return 0;
+    cout << A.calc(n) << '\n';
     return 0;
 }
 ```
@@ -318,9 +320,11 @@ struct min25 {
 } A;
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     ll n;
-    if (scanf("%lld", &n) != 1) return 0;
-    printf("%lld\n", A.calc(n));
+    if (!(cin >> n)) return 0;
+    cout << A.calc(n) << '\n';
     return 0;
 }
 ```
@@ -543,6 +547,8 @@ ll getf(ll n){
 }
 
 int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
     ll n; cin>>n;
     Prime::initp(MAXN);
     sumf.assign(MAXN+1, 0);
