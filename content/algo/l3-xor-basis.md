@@ -662,7 +662,16 @@ struct PrefixBasis {
 
       This restates 3.3: "the part with position $\ge l$ spans exactly $a_l, \dots, a_r$". So for each $r$ only these at most 32 spaces need to be enumerated.
    2. **Two spaces are equal exactly when their reduced bases are**: the highest bit of every nonzero value in the space is a pivot bit, so the set of pivot bits is determined by the space; after reduction the basis number at pivot $p$ is the value of the space whose only 1 among the pivot bits is at $p$, and by 1.4 there is exactly one, so it is determined by the space too. Hash the reduced basis to a 64-bit number; counting distinct hashes counts distinct spaces.
-   3. **Keep the basis reduced while inserting**: calling `reduce()` and rehashing after every insertion costs $O(32^3)$ per right endpoint $r$, too slow. Use 2.4's `insert_reduced` and stay reduced during insertion instead, $O(60)$ per number. The hash is the sum of the scrambled basis numbers, recomputed after each insertion, also $O(60)$. The code uses the appendix's `PrefixBasis` to get the at most 32 basis numbers of each right endpoint, then inserts them into a fresh `XorBasis` by position, largest first.
+   3. **The hash of a basis is the sum of `mix` over its numbers**: $h(S) = \sum_{x \in S} \operatorname{mix}(x) \bmod 2^{64}$, skipping positions where `b[i]` is 0.
+
+      **The same basis gives the same value**: `mix` is a fixed function, and a sum does not depend on order.
+
+      **Two different bases almost never collide**: treat $\operatorname{mix}(x)$ as an independent, uniform random 64-bit number assigned to each $x$. For $S \ne T$, $h(S) - h(T)$ is a $\pm 1$ sum of the $\operatorname{mix}$ values over the symmetric difference; with all other terms fixed, the remaining one must hit one specific value, probability $2^{-64}$. With about $3.2 \times 10^6$ hashes, about $5 \times 10^{12}$ pairs, the chance of any collision is about $3 \times 10^{-7}$.
+
+      **Why `mix` first**: the argument needs the values to be independent and close to random. Raw basis numbers are not; they are linearly related by construction. For example, the space $\{0, 1, 2, 3\}$ has reduced basis $\{1, 2\}$ and the space $\{0, 3\}$ has $\{3\}$; the spaces differ, yet both raw sums are 3 and both XORs are 3.
+
+      **The essence of why `mix` scrambles: it alternates xorshifts with multiplication by odd constants, two operations that do not distribute over each other, so additive or XOR relations among the inputs do not survive to the outputs.** An xorshift `x ^= x >> k` is linear for XOR and multiplying by an odd number is linear for addition mod $2^{64}$, but neither is linear for both; after two rounds, $x \oplus y = z$ or $x + y = z$ implies no simple relation among $\operatorname{mix}(x)$, $\operatorname{mix}(y)$, $\operatorname{mix}(z)$. The right shift folds high bits into low ones, and the multiplication carries only upward, spreading low bits into high ones; after two rounds every output bit depends on every input bit, and flipping one input bit flips about half the output bits (avalanche). Every step is invertible (an odd multiplier is invertible mod $2^{64}$, and so is an xorshift), so `mix` is a bijection: distinct numbers stay distinct, and a collision can only come from the summation.
+   4. **Keep the basis reduced while inserting**: calling `reduce()` and rehashing after every insertion costs $O(32^3)$ per right endpoint $r$, too slow. Use 2.4's `insert_reduced` and stay reduced during insertion instead, $O(60)$ per number. The hash is computed as in item 3 and recomputed after each insertion, also $O(60)$. The code uses the appendix's `PrefixBasis` to get the at most 32 basis numbers of each right endpoint, then inserts them into a fresh `XorBasis` by position, largest first.
 
    ```cpp
    #include <bits/stdc++.h>
@@ -725,7 +734,7 @@ struct PrefixBasis {
    }
    ```
 
-   4. **Incremental Gauss throughout works too**: an XOR basis is a special case of incremental Gauss (appendix), so both parts can be swapped. `PrefixGauss` replaces `PrefixBasis` and gives each right endpoint's at most 32 equations with their positions; `IncGauss` replaces `insert_reduced`: add them by position, largest first, hashing after each. `PrefixGauss` keeps only row echelon form, so one space can be stored as different rows; passing them through `IncGauss`, which always stays in RREF, makes the result depend only on the space. Column $i$ holds bit $i$ of the number, and `MV` is 64.
+   5. **Incremental Gauss throughout works too**: an XOR basis is a special case of incremental Gauss (appendix), so both parts can be swapped. `PrefixGauss` replaces `PrefixBasis` and gives each right endpoint's at most 32 equations with their positions; `IncGauss` replaces `insert_reduced`: add them by position, largest first, hashing after each. `PrefixGauss` keeps only row echelon form, so one space can be stored as different rows; passing them through `IncGauss`, which always stays in RREF, makes the result depend only on the space. Column $i$ holds bit $i$ of the number, and `MV` is 64.
 
    ```cpp
    #include <bits/stdc++.h>
@@ -795,7 +804,7 @@ struct PrefixBasis {
    - **Cost of the incremental Gauss version**: with `MV` = 64 a bitset row is one word; `pg.add` scans at most 32 columns, `g.add` walks at most 32 rows, and the rehash covers 32 rows, all $O(32)$, $O(32^2 n)$ in total. With the appendix's `MV` = 1024 each XOR touches 16 words, 16 times slower, which may exceed the limit.
    - **Do not call `pg.at(l)` for every left end**: `at` builds a fresh `IncGauss` each time, $O(32^3)$ per right endpoint, the same problem as calling `reduce()` every time; add the equations one by one by position, largest first, and hash after each.
    - **When $a_r = 0$, count $\{0\}$ separately**: $a_r$ cannot be inserted, so $p_1 < r$, and the ranges with left end in $(p_1, r]$ give $\{0\}$, which the formula above does not cover.
-   - **Hash collisions are negligible**: among $O(32 n)$ 64-bit hashes the chance of a collision is about $(3 \times 10^6)^2 / 2^{65}$.
+   - **Hash collisions are negligible**: the chance is about $3 \times 10^{-7}$; see item 3 of the idea.
 
 ### 5.2 2026 ICPC Online Contest II A (All Closed): What Every Solution Must Contain
 
