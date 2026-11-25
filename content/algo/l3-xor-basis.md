@@ -897,30 +897,30 @@ The two templates side by side. An XOR basis is incremental Gauss written for "a
 
 **Operations and costs**
 
-| Task | `XorBasis` | `IncGauss` | XOR basis cost | Incremental Gauss cost |
-| --- | --- | --- | --- | --- |
-| Insert, not keeping the basis reduced | `insert` | none | $O(60)$ | — |
-| Insert, keeping it reduced | `insert_reduced` | `add` | $O(60)$ | $O(r w)$ |
-| Reduce afterwards | `reduce()` | not needed | $O(60^2)$ | — |
-| Can it be represented | `contains` | `implied`, which also gives the implied RHS | $O(60)$ | $O(r w)$ |
-| Rank | `r` | `rank()` | $O(1)$ | $O(1)$ |
-| Max / min XOR | `max_xor` / `min_xor` | `max_xor` / `min_xor` | $O(60)$ | $O(r w)$ |
-| $k$-th smallest | `kth`, basis must be reduced | `kth` | $O(60)$ | $O(r \log r + r w)$ |
-| Rank of a value | `index`, basis must be reduced | `index` | $O(60)$ | $O(r \log r)$ |
-| Merge | `merge` | `merge` | $O(60^2)$ | $O(r' r w)$ |
-| One solution | none | `solve()` | — | $O(r + w)$ |
-| All solutions | none | `kernel()` | — | $O((n - r)(r + w))$ |
+| Task | `XorBasis` | `IncGauss` |
+| --- | --- | --- |
+| Insert, not keeping the basis reduced | `insert`, $O(60)$ | none |
+| Insert, keeping it reduced | `insert_reduced`, $O(60)$ | `add`, $O(r w)$ |
+| Reduce afterwards | `reduce()`, $O(60^2)$ | not needed |
+| Can it be represented | `contains`, $O(60)$ | `implied`, which also gives the implied RHS, $O(r w)$ |
+| Rank | `r`, $O(1)$ | `rank()`, $O(1)$ |
+| Max / min XOR | `max_xor` / `min_xor`, $O(60)$ | `max_xor` / `min_xor`, $O(r w)$ |
+| $k$-th smallest | `kth`, basis must be reduced, $O(60)$ | `kth`, $O(r \log r + r w)$ |
+| Rank of a value | `index`, basis must be reduced, $O(60)$ | `index`, $O(r \log r)$ |
+| Merge | `merge`, $O(60^2)$ | `merge`, $O(r' r w)$ |
+| One solution | none | `solve()`, $O(r + w)$ |
+| All solutions | none | `kernel()`, $O((n - r)(r + w))$ |
 
 **Range queries**
 
-| Task | `PrefixBasis` | `PrefixGauss` | XOR basis cost | Incremental Gauss cost |
-| --- | --- | --- | --- | --- |
-| Add the $p$-th item | `insert` | `add` | $O(60)$ | $O(n w)$ |
-| Max XOR of a range | `max_xor` | `max_xor` | $O(60)$ | $O(n w)$ |
-| Implied by a range | none | `implied` | — | $O(n w)$ |
-| Is a range contradictory | none | `bad` | — | $O(1)$ |
-| Rank of a range | none | `rank` | — | $O(n)$ |
-| Extract a range's basis | `at` | `at` | $O(60)$ | $O(n r w)$ |
+| Task | `PrefixBasis` | `PrefixGauss` |
+| --- | --- | --- |
+| Add the $p$-th item | `insert`, $O(60)$ | `add`, $O(n w)$ |
+| Max XOR of a range | `max_xor`, $O(60)$ | `max_xor`, $O(n w)$ |
+| Implied by a range | none | `implied`, $O(n w)$ |
+| Is a range contradictory | none | `bad`, $O(1)$ |
+| Rank of a range | none | `rank`, $O(n)$ |
+| Extract a range's basis | `at`, $O(60)$ | `at`, $O(n r w)$ |
 
 In the costs, $r$ is the current rank, $r'$ the other side's rank, $n$ the number of unknowns, and $w = \text{MV} / 64$ the number of machine words in one bitset row, so one bitset XOR is $w$ integer XORs. An XOR basis row is a single word ($w = 1$) and its rank is at most 60: put $w = 1$ and $r = 60$ into the incremental Gauss column and you get the XOR basis column. Each operation costs the same order on both sides; the difference is only how many columns fit.
 

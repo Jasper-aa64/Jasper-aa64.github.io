@@ -897,30 +897,30 @@ struct PrefixBasis {
 
 **操作和复杂度**
 
-| 要做的事 | `XorBasis` | `IncGauss` | 线性基复杂度 | 增量高斯复杂度 |
-| --- | --- | --- | --- | --- |
-| 插入，不管规范化 | `insert` | 没有 | $O(60)$ | — |
-| 插入，保持规范化 | `insert_reduced` | `add` | $O(60)$ | $O(r w)$ |
-| 事后规范化 | `reduce()` | 不需要 | $O(60^2)$ | — |
-| 能否表示出来 | `contains` | `implied`，还给出推出的右端 | $O(60)$ | $O(r w)$ |
-| 秩 | `r` | `rank()` | $O(1)$ | $O(1)$ |
-| 最大 / 最小异或 | `max_xor` / `min_xor` | `max_xor` / `min_xor` | $O(60)$ | $O(r w)$ |
-| 第 $k$ 小 | `kth`，基要是规范的 | `kth` | $O(60)$ | $O(r \log r + r w)$ |
-| 求排名 | `index`，基要是规范的 | `index` | $O(60)$ | $O(r \log r)$ |
-| 合并 | `merge` | `merge` | $O(60^2)$ | $O(r' r w)$ |
-| 一组解 | 没有 | `solve()` | — | $O(r + w)$ |
-| 全部解 | 没有 | `kernel()` | — | $O((n - r)(r + w))$ |
+| 要做的事 | `XorBasis` | `IncGauss` |
+| --- | --- | --- |
+| 插入，不管规范化 | `insert`，$O(60)$ | 没有 |
+| 插入，保持规范化 | `insert_reduced`，$O(60)$ | `add`，$O(r w)$ |
+| 事后规范化 | `reduce()`，$O(60^2)$ | 不需要 |
+| 能否表示出来 | `contains`，$O(60)$ | `implied`，还给出推出的右端，$O(r w)$ |
+| 秩 | `r`，$O(1)$ | `rank()`，$O(1)$ |
+| 最大 / 最小异或 | `max_xor` / `min_xor`，$O(60)$ | `max_xor` / `min_xor`，$O(r w)$ |
+| 第 $k$ 小 | `kth`，基要是规范的，$O(60)$ | `kth`，$O(r \log r + r w)$ |
+| 求排名 | `index`，基要是规范的，$O(60)$ | `index`，$O(r \log r)$ |
+| 合并 | `merge`，$O(60^2)$ | `merge`，$O(r' r w)$ |
+| 一组解 | 没有 | `solve()`，$O(r + w)$ |
+| 全部解 | 没有 | `kernel()`，$O((n - r)(r + w))$ |
 
 **区间询问**
 
-| 要做的事 | `PrefixBasis` | `PrefixGauss` | 线性基复杂度 | 增量高斯复杂度 |
-| --- | --- | --- | --- | --- |
-| 加入第 $p$ 个 | `insert` | `add` | $O(60)$ | $O(n w)$ |
-| 区间最大异或 | `max_xor` | `max_xor` | $O(60)$ | $O(n w)$ |
-| 区间能否推出 | 没有 | `implied` | — | $O(n w)$ |
-| 区间是否矛盾 | 没有 | `bad` | — | $O(1)$ |
-| 区间的秩 | 没有 | `rank` | — | $O(n)$ |
-| 取出区间的基 | `at` | `at` | $O(60)$ | $O(n r w)$ |
+| 要做的事 | `PrefixBasis` | `PrefixGauss` |
+| --- | --- | --- |
+| 加入第 $p$ 个 | `insert`，$O(60)$ | `add`，$O(n w)$ |
+| 区间最大异或 | `max_xor`，$O(60)$ | `max_xor`，$O(n w)$ |
+| 区间能否推出 | 没有 | `implied`，$O(n w)$ |
+| 区间是否矛盾 | 没有 | `bad`，$O(1)$ |
+| 区间的秩 | 没有 | `rank`，$O(n)$ |
+| 取出区间的基 | `at`，$O(60)$ | `at`，$O(n r w)$ |
 
 复杂度里 $r$ 是当前的秩，$r'$ 是另一组的秩，$n$ 是未知数个数，$w = \text{MV} / 64$ 是一行 bitset 占的机器字数，一次 bitset 异或就是 $w$ 次整数异或。线性基一行就是一个字（$w = 1$），秩不超过 60：把增量高斯那列的 $w$ 换成 1、$r$ 换成 60，就是线性基那列。同一个操作两边同阶，差别只在列数能开多大。
 
