@@ -1003,6 +1003,12 @@ In the costs, $r$ is the current rank, $r'$ the other side's rank, $n$ the numbe
 
 So "can this number be reached by XOR" and "is this equation redundant" are the same question; a right-hand side adds the third outcome, contradiction.
 
+**The right-hand side `rhs` is the main difference between the two templates**
+
+- **An XOR basis has no right-hand side because its questions are only about the span**: an inserted number is a vector that may be chosen, not a constraint; reachability, max and min, the $k$-th smallest and the rank look only at the left side.
+- **Using incremental Gauss as an XOR basis, pass 0 as every right-hand side**: `add` then returns only 1 or 0, never a contradiction, and `bad` stays `false`; `implied` returns 0 or $-1$, which is `contains`; the `b ^= rhs[i]` in elimination idles and does not change the cost. The incremental Gauss version in 5.1 does exactly this.
+- **To give an XOR basis a right-hand side, append it as one extra bit of the number**: that bit is XORed along during insertion, the same as storing `rhs` separately; `PrefixGauss` puts the right-hand side in column $n$ for this reason.
+
 ### XOR Basis
 
 ```cpp
