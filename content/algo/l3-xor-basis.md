@@ -643,15 +643,15 @@ struct PrefixBasis {
 
       This restates 3.3: "the part with position $\ge l$ spans exactly $a_l, \dots, a_r$". So for each $r$ only these at most 32 spaces need to be enumerated.
    2. **Two spaces are equal exactly when their reduced bases are**: the highest bit of every nonzero value in the space is a pivot bit, so the set of pivot bits is determined by the space; after reduction the basis number at pivot $p$ is the value of the space whose only 1 among the pivot bits is at $p$, and by 1.4 there is exactly one, so it is determined by the space too. Hash the reduced basis to a 64-bit number; counting distinct hashes counts distinct spaces.
-   3. **Keep the basis reduced while inserting**: calling `reduce()` and rehashing after every insertion costs $O(32^3)$ per right endpoint $r$, too slow. Use 2.4's `insert_reduced` and stay reduced during insertion instead: eliminate every pivot bit of the new number $y$ with the existing basis, and the highest remaining bit $t$ of $y$ is a new pivot; then XOR $y$ into every existing basis number with a 1 at bit $t$. The hash is the sum of the scrambled basis numbers; changing one basis number subtracts the old term and adds the new, $O(32^2)$ per right endpoint.
+   3. **Keep the basis reduced while inserting**: calling `reduce()` and rehashing after every insertion costs $O(32^3)$ per right endpoint $r$, too slow. Use 2.4's `insert_reduced` and stay reduced during insertion instead, $O(60)$ per number. The hash is the sum of the scrambled basis numbers, recomputed after each insertion, also $O(60)$. The code uses the appendix's `PrefixBasis` to get the at most 32 basis numbers of each right endpoint, then inserts them into a fresh `XorBasis` by position, largest first.
 
    ```cpp
    #include <bits/stdc++.h>
    using namespace std;
-   using u32 = uint32_t;
-   using u64 = uint64_t;
 
-   u64 mix(u64 x) {                          // splitmix64: scramble a number into 64 random-looking bits
+   // use the appendix's PrefixBasis (insert) and XorBasis (insert_reduced)
+
+   uint64_t mix(uint64_t x) {                    // splitmix64: scramble a number into 64 random-looking bits
        x += 0x9e3779b97f4a7c15ULL;
        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
        x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
@@ -659,50 +659,41 @@ struct PrefixBasis {
    }
 
    int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
        int T;
-       scanf("%d", &T);
+       cin >> T;
        while (T--) {
            int n;
-           scanf("%d", &n);
-           u32 b[32] = {};                   // the prefix basis of 3.3
-           int pos[32] = {};
-           vector<u64> hs;                   // hash of the space for each (r, j)
+           cin >> n;
+           PrefixBasis pb;
+           vector<uint64_t> hs;                  // hash of the space for each (r, j)
            for (int r = 1; r <= n; r++) {
-               u32 x;
-               scanf("%u", &x);
-               int p = r;
-               for (int i = 31; i >= 0; i--) {
-                   if (!(x >> i & 1)) continue;
-                   if (!b[i]) { b[i] = x; pos[i] = p; break; }
-                   if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
-                   x ^= b[i];
-               }
-               vector<pair<int, u32>> v;     // (position, basis number), by position from high to low
-               for (int i = 0; i < 32; i++)
-                   if (b[i]) v.push_back({pos[i], b[i]});
+               long long x;
+               cin >> x;
+               pb.insert(x, r);
+               vector<pair<int, long long>> v;   // (position, basis number), by position descending
+               for (int i = 0; i < PrefixBasis::B; i++)
+                   if (pb.b[i]) v.push_back({pb.pos[i], pb.b[i]});
                sort(v.rbegin(), v.rend());
                if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0: B(r, r) = {0}
-               u32 c[32] = {};               // reduced basis, filled one number at a time
-               u64 h = 0;
+               XorBasis c;                       // reduced basis, filled one by one in position order
                for (auto [q, y] : v) {
-                   for (int i = 31; i >= 0; i--)
-                       if ((y >> i & 1) && c[i]) y ^= c[i];          // clear the existing pivot bits of y
-                   int t = 31 - __builtin_clz(y);                    // the new pivot bit
-                   for (int i = t + 1; i < 32; i++)
-                       if (c[i] >> t & 1) { h -= mix(c[i]); c[i] ^= y; h += mix(c[i]); }
-                   c[t] = y;
-                   h += mix(y);
-                   hs.push_back(h);          // B(l, r) for l in (next position, q]
+                   c.insert_reduced(y);
+                   uint64_t h = 0;
+                   for (int i = 0; i < XorBasis::B; i++)
+                       if (c.b[i]) h += mix(c.b[i]);
+                   hs.push_back(h);              // B(l, r) for l in (next position, q]
                }
            }
            sort(hs.begin(), hs.end());
-           printf("%d\n", (int)(unique(hs.begin(), hs.end()) - hs.begin()));
+           cout << unique(hs.begin(), hs.end()) - hs.begin() << '\n';
        }
    }
    ```
 
 3. **Cost and pitfalls**
-   - **Cost**: each insertion is $O(32)$ and each right end changes at most 32 basis numbers, $O(32^2 n)$ in total, about $10^8$ simple operations at $n = 10^5$.
+   - **Cost**: each insertion is $O(60)$ (both the insertion and the rehash scan 60 bits) and each right end inserts at most 32 numbers, $O(60 \cdot 32 \cdot n)$ in total, about $2 \times 10^8$ simple operations at $n = 10^5$, well within the 4-second limit.
    - **When $a_r = 0$, count $\{0\}$ separately**: $a_r$ cannot be inserted, so $p_1 < r$, and the ranges with left end in $(p_1, r]$ give $\{0\}$, which the formula above does not cover.
    - **Hash collisions are negligible**: among $O(32 n)$ 64-bit hashes the chance of a collision is about $(3 \times 10^6)^2 / 2^{65}$.
 

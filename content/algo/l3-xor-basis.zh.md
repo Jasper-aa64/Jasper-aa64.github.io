@@ -643,15 +643,15 @@ struct PrefixBasis {
 
       这是 3.3 那句“位置 $\ge l$ 的部分正好张成 $a_l, \dots, a_r$”换了个说法。所以只要对每个 $r$ 枚举这至多 32 个空间。
    2. **两个空间相同，当且仅当规范化后的基相同**：空间里每个非零数的最高位都是主元位，所以主元位的集合由空间决定；规范化后主元位 $p$ 上的基，是空间里“主元位中只有第 $p$ 位是 1”的那个数，按 1.4 这样的数只有一个，也由空间决定。于是把规范化后的基哈希成一个 64 位数，数不同的哈希值就是数不同的空间。
-   3. **一边插入一边保持规范化**：每插一个数就 `reduce()` 再整体哈希，每个右端点 $r$ 要 $O(32^3)$，太慢。改用 2.4 的 `insert_reduced`，插入时就保持规范化：先用已有的基消掉新数 $y$ 的所有主元位，$y$ 剩下的最高位 $t$ 是新主元位；再把已有的基里第 $t$ 位是 1 的都异或上 $y$。哈希取各个基打散之后的和，改动一个基就减去旧的、加上新的，每个右端点 $O(32^2)$。
+   3. **一边插入一边保持规范化**：每插一个数就 `reduce()` 再整体哈希，每个右端点 $r$ 要 $O(32^3)$，太慢。改用 2.4 的 `insert_reduced`，插入时就保持规范化，每插一个数 $O(60)$。哈希取各个基打散之后的和，插完一个数重新加一遍，也是 $O(60)$。代码套附录的 `PrefixBasis` 求每个右端点的至多 32 个基，再把它们按位置从大到小插进一个新的 `XorBasis`。
 
    ```cpp
    #include <bits/stdc++.h>
    using namespace std;
-   using u32 = uint32_t;
-   using u64 = uint64_t;
 
-   u64 mix(u64 x) {                          // splitmix64：把一个数打散成随机的 64 位
+   // 套附录的 PrefixBasis（用到 insert）和 XorBasis（用到 insert_reduced）
+
+   uint64_t mix(uint64_t x) {                    // splitmix64：把一个数打散成随机的 64 位
        x += 0x9e3779b97f4a7c15ULL;
        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
        x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
@@ -659,50 +659,41 @@ struct PrefixBasis {
    }
 
    int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
        int T;
-       scanf("%d", &T);
+       cin >> T;
        while (T--) {
            int n;
-           scanf("%d", &n);
-           u32 b[32] = {};                   // 3.3 的前缀线性基
-           int pos[32] = {};
-           vector<u64> hs;                   // 每个 (r, j) 对应空间的哈希
+           cin >> n;
+           PrefixBasis pb;
+           vector<uint64_t> hs;                  // 每个 (r, j) 对应空间的哈希
            for (int r = 1; r <= n; r++) {
-               u32 x;
-               scanf("%u", &x);
-               int p = r;
-               for (int i = 31; i >= 0; i--) {
-                   if (!(x >> i & 1)) continue;
-                   if (!b[i]) { b[i] = x; pos[i] = p; break; }
-                   if (pos[i] < p) { swap(b[i], x); swap(pos[i], p); }
-                   x ^= b[i];
-               }
-               vector<pair<int, u32>> v;     // (位置, 基)，按位置从大到小
-               for (int i = 0; i < 32; i++)
-                   if (b[i]) v.push_back({pos[i], b[i]});
+               long long x;
+               cin >> x;
+               pb.insert(x, r);
+               vector<pair<int, long long>> v;   // (位置, 基)，按位置从大到小
+               for (int i = 0; i < PrefixBasis::B; i++)
+                   if (pb.b[i]) v.push_back({pb.pos[i], pb.b[i]});
                sort(v.rbegin(), v.rend());
                if (v.empty() || v[0].first < r) hs.push_back(0);   // a_r = 0：B(r, r) = {0}
-               u32 c[32] = {};               // 规范化的基，一个一个往里插
-               u64 h = 0;
+               XorBasis c;                       // 规范化的基，按位置从大到小一个一个插
                for (auto [q, y] : v) {
-                   for (int i = 31; i >= 0; i--)
-                       if ((y >> i & 1) && c[i]) y ^= c[i];          // 消掉 y 上已有的主元位
-                   int t = 31 - __builtin_clz(y);                    // 新的主元位
-                   for (int i = t + 1; i < 32; i++)
-                       if (c[i] >> t & 1) { h -= mix(c[i]); c[i] ^= y; h += mix(c[i]); }
-                   c[t] = y;
-                   h += mix(y);
-                   hs.push_back(h);          // l 落在 (下一个位置, q] 时的 B(l, r)
+                   c.insert_reduced(y);
+                   uint64_t h = 0;
+                   for (int i = 0; i < XorBasis::B; i++)
+                       if (c.b[i]) h += mix(c.b[i]);
+                   hs.push_back(h);              // l 落在 (下一个位置, q] 时的 B(l, r)
                }
            }
            sort(hs.begin(), hs.end());
-           printf("%d\n", (int)(unique(hs.begin(), hs.end()) - hs.begin()));
+           cout << unique(hs.begin(), hs.end()) - hs.begin() << '\n';
        }
    }
    ```
 
 3. **复杂度和坑**
-   - **复杂度**：每插一个数 $O(32)$，每个右端点至多改 32 个基，总共 $O(32^2 n)$，$n = 10^5$ 时约 $10^8$ 次简单操作。
+   - **复杂度**：每插一个数 $O(60)$（插入和重算哈希都扫一遍 60 位），每个右端点至多插 32 个，总共 $O(60 \cdot 32 \cdot n)$，$n = 10^5$ 时约 $2 \times 10^8$ 次简单操作，时限 4 秒够用。
    - **$a_r = 0$ 时要单独算 $\{0\}$**：这时 $a_r$ 插不进去，$p_1 < r$，左端点在 $(p_1, r]$ 的区间给出 $\{0\}$，上面的式子没有覆盖。
    - **哈希碰撞可以忽略**：$O(32 n)$ 个 64 位哈希值里出现碰撞的概率约是 $(3 \times 10^6)^2 / 2^{65}$。
 
