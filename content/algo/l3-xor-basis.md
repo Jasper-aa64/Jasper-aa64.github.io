@@ -384,7 +384,13 @@ When a statement asks for the "$k$-th smallest", first decide what it ranks: dis
    #include <bits/stdc++.h>
    using namespace std;
 
-   // use the XorBasis from the appendix (insert and r)
+   // the appendix's XorBasis: only the members used here, copy the implementation from the appendix
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]: the number whose highest bit is exactly i, 0 if none
+       int r = 0;                              // rank
+       bool insert(long long x);               // true if inserted (rank grows by 1)
+   };
 
    int main() {
        ios::sync_with_stdio(false);
@@ -443,7 +449,13 @@ When a statement asks for the "$k$-th smallest", first decide what it ranks: dis
    #include <bits/stdc++.h>
    using namespace std;
 
-   // use the XorBasis from the appendix (insert)
+   // the appendix's XorBasis: only the members used here, copy the implementation from the appendix
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]: the number whose highest bit is exactly i, 0 if none
+       int r = 0;                              // rank
+       bool insert(long long x);               // true if inserted (rank grows by 1)
+   };
 
    int main() {
        ios::sync_with_stdio(false);
@@ -560,7 +572,14 @@ struct PrefixBasis {
    #include <bits/stdc++.h>
    using namespace std;
 
-   // uses XorBasis from the appendix (insert and max_xor)
+   // the appendix's XorBasis: only the members used here, copy the implementation from the appendix
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]: the number whose highest bit is exactly i, 0 if none
+       int r = 0;                              // rank
+       bool insert(long long x);               // true if inserted (rank grows by 1)
+       long long max_xor(long long v = 0) const;   // max of v XOR any subset
+   };
 
    int main() {
        ios::sync_with_stdio(false);
@@ -649,7 +668,21 @@ struct PrefixBasis {
    #include <bits/stdc++.h>
    using namespace std;
 
-   // use the appendix's PrefixBasis (insert) and XorBasis (insert_reduced)
+   // the appendix's PrefixBasis (3.3): only the members used here, copy the implementation from the appendix
+   struct PrefixBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]: the rightmost number whose pivot is bit i
+       int pos[B] = {};                        // position of b[i] (from 1)
+       void insert(long long x, int p);        // insert the p-th number
+   };
+
+   // the appendix's XorBasis: same
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]: the number whose highest bit is exactly i, 0 if none
+       int r = 0;                              // rank
+       bool insert_reduced(long long x);       // insert and keep the basis reduced; it must be reduced before
+   };
 
    uint64_t mix(uint64_t x) {                    // splitmix64: scramble a number into 64 random-looking bits
        x += 0x9e3779b97f4a7c15ULL;
@@ -757,7 +790,13 @@ struct PrefixBasis {
 
    int n, m;
 
-   // uses XorBasis from the appendix
+   // the appendix's XorBasis: only the members used here, copy the implementation from the appendix
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]: the number whose highest bit is exactly i, 0 if none
+       int r = 0;                              // rank
+       bool insert(long long x);               // true if inserted (rank grows by 1)
+   };
 
    vector<int> expand(const XorBasis& lb) { // list every element of span(b)
        vector<int> all = {0};

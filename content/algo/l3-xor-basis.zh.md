@@ -384,7 +384,13 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // 异
    #include <bits/stdc++.h>
    using namespace std;
 
-   // 套附录的 XorBasis（用到 insert 和 r）
+   // 附录的 XorBasis：这里只列用到的成员，实现照抄附录
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]：最高位恰好是 i 的那个数，没有就是 0
+       int r = 0;                              // 秩
+       bool insert(long long x);               // 插入成功（秩加 1）返回 true
+   };
 
    int main() {
        ios::sync_with_stdio(false);
@@ -443,7 +449,13 @@ long long ways(const XorBasis& lb, int n, long long t) {                  // 异
    #include <bits/stdc++.h>
    using namespace std;
 
-   // 套附录的 XorBasis（用到 insert）
+   // 附录的 XorBasis：这里只列用到的成员，实现照抄附录
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]：最高位恰好是 i 的那个数，没有就是 0
+       int r = 0;                              // 秩
+       bool insert(long long x);               // 插入成功（秩加 1）返回 true
+   };
 
    int main() {
        ios::sync_with_stdio(false);
@@ -560,7 +572,14 @@ struct PrefixBasis {
    #include <bits/stdc++.h>
    using namespace std;
 
-   // 套附录的 XorBasis（用到 insert 和 max_xor）
+   // 附录的 XorBasis：这里只列用到的成员，实现照抄附录
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]：最高位恰好是 i 的那个数，没有就是 0
+       int r = 0;                              // 秩
+       bool insert(long long x);               // 插入成功（秩加 1）返回 true
+       long long max_xor(long long v = 0) const;   // v 异或上任意子集的最大值
+   };
 
    int main() {
        ios::sync_with_stdio(false);
@@ -649,7 +668,21 @@ struct PrefixBasis {
    #include <bits/stdc++.h>
    using namespace std;
 
-   // 套附录的 PrefixBasis（用到 insert）和 XorBasis（用到 insert_reduced）
+   // 附录的 PrefixBasis（3.3）：这里只列用到的成员，实现照抄附录
+   struct PrefixBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]：主元在第 i 位、位置最靠右的那个数
+       int pos[B] = {};                        // b[i] 的位置（从 1 数）
+       void insert(long long x, int p);        // 插入第 p 个数
+   };
+
+   // 附录的 XorBasis：同上
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]：最高位恰好是 i 的那个数，没有就是 0
+       int r = 0;                              // 秩
+       bool insert_reduced(long long x);       // 插入并保持规范化，插之前要是规范的
+   };
 
    uint64_t mix(uint64_t x) {                    // splitmix64：把一个数打散成随机的 64 位
        x += 0x9e3779b97f4a7c15ULL;
@@ -757,7 +790,13 @@ struct PrefixBasis {
 
    int n, m;
 
-   // 套附录的 XorBasis
+   // 附录的 XorBasis：这里只列用到的成员，实现照抄附录
+   struct XorBasis {
+       static const int B = 60;
+       long long b[B] = {};                    // b[i]：最高位恰好是 i 的那个数，没有就是 0
+       int r = 0;                              // 秩
+       bool insert(long long x);               // 插入成功（秩加 1）返回 true
+   };
 
    vector<int> expand(const XorBasis& lb) { // 列出 span(b) 的全部元素
        vector<int> all = {0};
