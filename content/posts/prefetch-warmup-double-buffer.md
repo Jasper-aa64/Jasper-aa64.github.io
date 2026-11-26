@@ -100,7 +100,7 @@ public:
         buffers[1] = std::vector<T>(size);
     }
     void update(const std::vector<T>& newData) {
-        size_t nextIndex = 1 - currentIndex.load(std::memory_order_relaxed);
+        size_t nextIndex = currentIndex.load(std::memory_order_relaxed) ^ 1;   // flip 0 and 1
         std::copy(newData.begin(), newData.end(), buffers[nextIndex].begin());
         currentIndex.store(nextIndex, std::memory_order_release);    // data written before the index changes
     }
