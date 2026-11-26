@@ -94,7 +94,12 @@ This post first says what expectation is and why it splits (section 1), then sor
 3. **When the candidates are symmetric, compute one**
    - **The condition is that every term has the same expectation**: by linearity $E[X_1 + \cdots + X_n] = E[X_1] + \cdots + E[X_n]$, which is $n \cdot E[X_1]$ when the terms share one expectation.
    - **For indicators this becomes two conditions**: each counted term contributes 1, so $E[X_i] = P(\text{counted})$; if the probabilities are also equal, so are the expectations. The expected count is the number of candidates times the probability for one of them.
-   - **Different weights break the shortcut**: if term $i$ contributes $w_i$ when counted, $E[X_i] = w_i p$, and equal probabilities are not enough; a common weight $c$ still works and gives $n c p$.
+   - **When a counted term contributes something other than 1, look at the weights**: let every term be counted with probability $p$ and term $i$ contribute $w_i$ when counted; then $E[X_i] = w_i \cdot p$.
+     - **Different weights break the shortcut**: the expectations $w_i \cdot p$ differ, so equal probabilities are not enough; add term by term to get $p \cdot \sum_i w_i$.
+     - **A common weight $c$ still works**: every term has expectation $c \cdot p$, so the total is $n \cdot c \cdot p$.
+   - **Example: scoring the fixed points of a random permutation**: each position is a fixed point with probability $\frac1n$.
+     - **A fixed point at position $i$ scores $i$**: the weights differ, and the expectation is $\frac1n \cdot (1 + 2 + \cdots + n) = \frac{n + 1}{2}$.
+     - **Every fixed point scores 3**: the weights are equal, and the expectation is $n \cdot 3 \cdot \frac1n = 3$.
    - **Equal probabilities come from a process that treats every position alike**: under a random permutation or a uniform shuffle, relabelling the positions leaves the distribution unchanged, so the event at each position has the same probability.
    - **Independence is not needed**: two neighbouring pairs share a number and are dependent, but linearity does not need independence, so the product still holds.
    - **Example**: for the fixed points above every position has probability $rac{1}{n}$, so only position 1 is computed; for the runs after a shuffle, all $m - 1$ adjacent pairs share one probability, so only one pair is computed (3.2).
