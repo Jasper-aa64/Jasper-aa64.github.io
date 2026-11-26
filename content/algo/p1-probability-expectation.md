@@ -106,27 +106,52 @@ This post first says what expectation is and why it splits (section 1), then sor
 1. **The expected number of something: split into indicators**
    - **Signal**: "the expected number of / pairs / runs".
    - **How**: write the count as a sum of 0/1 variables over candidates, compute the probability each one is counted (1.3), and add. With many candidates, those of the same kind share a probability, so multiply by the size of the kind.
-   - **Examples**: runs of equal colour after a shuffle (3.2); students who read their own message among randomly read messages (3.1).
+   - **Example: runs of equal colour after a shuffle**: shuffle the four crystals `1 1 2 2` uniformly and find the expected number of runs of one colour (the full problem is 3.2).
+     1. **Split into indicators**: runs = 1 + the number of adjacent pairs with different colours, and each of the 3 adjacent pairs contributes a 0 or 1.
+     2. **Symmetry: compute one pair**: every adjacent pair differs with the same probability, the probability that two crystals drawn in order differ. There are $4 \times 3 = 12$ ordered draws, $2 + 2 = 4$ of them the same colour, so the pair differs with probability $\frac{8}{12} = \frac23$.
+     3. **Add up**: $1 + 3 \times \frac23 = 3$.
 2. **The expected maximum or minimum: go through the distribution function**
    - **Signal**: "the maximum of $n$ draws / the time the last task finishes".
    - **How**: $P(\max = y)$ is awkward, but $P(\max \le y)$ means "every draw is $\le y$", a plain product when draws are independent; take differences to get $P(\max = y)$, or use the tail sum $E[Y] = \sum_{y \ge 1} P(Y \ge y)$ (section 4).
-   - **Example**: the maximum of $n$ rolls of an $m$-sided die (4.2).
+   - **Example: the expected maximum of two rolls of a two-sided die** (the full problem is 4.2).
+     1. **"At most" first**: $P(\max \le 1) = \left(\frac12\right)^2 = \frac14$ and $P(\max \le 2) = 1$.
+     2. **Take differences**: $P(\max = 1) = \frac14$ and $P(\max = 2) = 1 - \frac14 = \frac34$.
+     3. **Weight**: $E = 1 \times \frac14 + 2 \times \frac34 = 1.75$. Counting directly agrees: the four outcomes (1,1), (1,2), (2,1), (2,2) have maxima 1, 2, 2, 2.
 3. **The expected number of steps until something happens: geometric distribution or expectation DP**
    - **Signal**: "the expected number of operations until it stops", where each step depends only on the current state.
    - **How**: a constant success probability gives the geometric $\frac{1}{p}$; when it changes with the state, let $E[s]$ be the expected remaining steps from state $s$ and run 1.4 backwards from the end (section 5).
-   - **Examples**: a bag of coins that grows as you draw (5.2); a sequence that stops once it has $k$ subsequences "ab" (5.3).
+   - **Example: constant success probability, rolling a die until a 6**: each roll succeeds with probability $\frac16$, a geometric distribution, so 6 rolls in expectation.
+   - **Example: success probability depends on the state, a bag of coins**: 98 gold, 99 silver and 99 bronze coins; each draw takes one coin, puts it back and adds another of the same kind, stopping when some kind reaches 100. Find the expected number of draws (the full problem is 5.2).
+     1. **Define the state**: $E[a][b][c]$ is the expected number of draws left from $(a, b, c)$, and 0 once some kind reaches 100.
+     2. **Look at the first draw**: there are 296 coins. Silver or bronze (probability $\frac{198}{296}$) reaches 100 and stops; gold (probability $\frac{98}{296}$) leads to $(99, 99, 99)$, where one more draw always stops, so $E[99][99][99] = 1$.
+     3. **Substitute**: $E[98][99][99] = 1 + \frac{98}{296} \times 1 \approx 1.331$.
 4. **Expectation with decisions: take the optimum inside the DP**
    - **Signal**: "choose a strategy that minimises / maximises the expectation".
    - **How**: each state takes the best of its options; when only one place changes, the overall change is "probability of reaching that node × change of its expectation" (5.4).
+   - **Example: delete one passage to minimise the expected steps**: 4 rooms with a passage $i \to j$ for every $i < j$. Start at 1, take a uniformly random outgoing passage in each room, and stop at 4. One passage may be deleted beforehand; find the minimum expected number of steps (the full problem is 5.4).
+     1. **Without deleting, go backwards**: $E_4 = 0$, $E_3 = 1$, $E_2 = 1 + \frac{1 + 0}{2} = 1.5$, $E_1 = 1 + \frac{1.5 + 1 + 0}{3} \approx 1.833$.
+     2. **Deleting at room $u$ changes only $E_u$; delete the successor with the largest expectation**: at 1 delete the passage to 2, $E_1' = 1 + \frac{1 + 0}{2} = 1.5$; at 2 delete the passage to 3, $E_2' = 1 + 0 = 1$; room 3 has a single exit and cannot lose it.
+     3. **Overall change = probability of reaching $u$ × change of $E_u$**: room 1 is reached with probability 1, giving $1.5$; room 2 with probability $\frac13$, giving $1.833 + \frac13 \times (1 - 1.5) \approx 1.667$. The minimum is 1.5.
 5. **States with cycles: write a system of equations**
    - **Signal**: failure sends you back to an earlier state, or a random walk can go back and forth.
    - **How**: one equation per state; eliminate by hand when the structure is simple (6.2, returning to a checkpoint), otherwise use Gaussian elimination ([L2 3.3](/algo/l2-gaussian-elimination/), a random walk on a graph).
+   - **Example: failure returns to the checkpoint**: each attempt clears a level with probability $\frac12$; a failure sends you back to level 1 (the only checkpoint). Find the expected number of attempts to clear 2 levels (the full problem is 6.2).
+     1. **Clear 1 level**: constant success probability, geometric, $E_1 = 2$.
+     2. **Clear 2 levels**: spend $E_1$ attempts on level 1, then try level 2 once; a failure (probability $\frac12$) starts over and needs $E_2$ more. $E_2$ appears on the right: $E_2 = E_1 + 1 + \frac12 E_2$.
+     3. **Move it over**: $E_2 = 2(E_1 + 1) = 6$. Continuing the same way, a segment of $L$ levels costs $2^{L+1} - 2$.
 6. **Everything changes at random together: find a potential**
    - **Signal**: every round all sets / all elements change at once, and there are far too many configurations to use as states.
    - **How**: give each object a score so that the score of the whole configuration rises by exactly 1 per round in expectation; then the expected number of rounds = final score − initial score (section 7).
-   - **Example**: random pairing that moves elements between sets until one set remains (7.2).
+   - **Example: random pairing moves elements until one set remains**: two sets with 1 element each. Every round the 2 elements form a pair, and a random one of them moves into the other's set. Find the expected number of rounds until one set remains (the full problem is 7.2).
+     1. **Give each set a potential by its size**: a set of size $s$ has potential $f(s)$, chosen so that its expected potential rises by exactly $\frac{s}{N}$ per round (here $N = 2$). The sizes add up to $N$, so the whole configuration rises by exactly 1 per round. An empty set disappears, $f(0) = 0$; also take $f(1) = 0$.
+     2. **Write the equation for size 1**: the element is always paired outside; with probability $\frac12$ it leaves (size 0), with probability $\frac12$ the other one comes in (size 2): $\frac12 f(0) + \frac12 f(2) - f(1) = \frac12$, so $f(2) = 1$.
+     3. **Expected rounds = final potential − initial potential**: $f(2) - 2 f(1) = 1$. Indeed one round always merges them.
 
-When the question asks for a probability itself (for example "the probability two ships reach the end in the same number of jumps"), the method is the same as kind 3, storing probabilities instead of expectations: let $f_k[i]$ be the probability of reaching the end from $i$ in exactly $k$ steps; the transition is the average over successors.
+When the question asks for a probability itself, the method is the same as kind 3, storing probabilities instead of expectations.
+   - **Example: start at 0, step 1 or 2 cells with equal probability, and find the probability of landing on cell 3**.
+     1. **Define the state**: $f[i]$ is the probability of landing on 3 from $i$. $f[3] = 1$; reaching 4 means 3 was skipped, $f[4] = 0$.
+     2. **The transition is the average over successors**: $f[i] = \frac12 f[i + 1] + \frac12 f[i + 2]$, computed backwards: $f[2] = \frac12$, $f[1] = \frac12 \times \frac12 + \frac12 \times 1 = \frac34$, $f[0] = \frac12 \times \frac34 + \frac12 \times \frac12 = \frac58$.
+     3. **Check by counting**: the walks that land on 3 are 1+1+1, 1+2 and 2+1, with probability $\frac18 + \frac14 + \frac14 = \frac58$.
 
 ## 3. Linearity: Split into Indicators
 
