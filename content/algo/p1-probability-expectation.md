@@ -845,7 +845,12 @@ $O(\text{states} \times \text{transitions per state})$, the same as an ordinary 
 **When states can return to earlier states, the expectations depend on each other and no computation order exists; write one equation per state and solve them together.**
 
 1. **When the structure is simple, eliminate by hand**
-   - **Returns go only to a few fixed states**: for example, failure returns to the most recent checkpoint. Substitute the equations in order so that each expectation becomes "the checkpoint's expectation + a constant"; finally the checkpoint's own equation contains only itself, and moving terms across solves it.
+   - **Eliminating by hand means solving the system on paper**: use the special structure of the equations to substitute the unknowns away one by one, ending with a formula or an $O(n)$ recurrence; the program computes only that, not a general elimination.
+   - **It applies when returns go only to a few fixed states**: for example, failure returns to the most recent checkpoint. Substitute the equations in order so that each expectation becomes "the checkpoint's expectation + a constant"; finally the checkpoint's own equation contains only itself, and moving terms across solves it.
+   - **Example: 2 levels, each passed with probability $\frac12$, failure returns to the start of level 1**: let $E_0$ and $E_1$ be the expected remaining attempts in front of levels 1 and 2; after clearing, it is 0.
+     - **Equations**: $E_0 = 1 + \frac12 E_1 + \frac12 E_0$, $E_1 = 1 + \frac12 \cdot 0 + \frac12 E_0$.
+     - **Substitute**: the second equation already expresses $E_1 = 1 + \frac12 E_0$ in terms of $E_0$; putting it into the first gives $E_0 = \frac32 + \frac34 E_0$.
+     - **Move across**: $\frac14 E_0 = \frac32$, so $E_0 = 6$, matching the checkpoint example in section 2.
 2. **In general, Gaussian elimination**
    - **$n$ states, $n$ equations**: $E_u - \sum_v P_{u,v} E_v = c_u$, with $E = 0$ at the end. Over the reals this is $O(n^3)$, fine for a few hundred states.
    - **Example**: a random walk on a graph, [L2 3.3 Luogu P3232](/algo/l2-gaussian-elimination/); the modular version is in L2 section 4.
