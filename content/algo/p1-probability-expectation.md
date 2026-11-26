@@ -846,6 +846,7 @@ $O(\text{states} \times \text{transitions per state})$, the same as an ordinary 
 
 1. **When the structure is simple, eliminate by hand**
    - **Eliminating by hand means solving the system on paper**: use the special structure of the equations to substitute the unknowns away one by one, ending with a formula or an $O(n)$ recurrence; the program computes only that, not a general elimination.
+   - **What it saves is complexity, not arithmetic speed**: the paper derivation gives a formula valid for every $n$ and is done once; Gaussian elimination does $O(n^3)$ work on the concrete numbers every time. With $10^5$ states, or a target expectation up to $10^{18}$ as in 6.2, the system cannot even be written down, so a formula has to come first.
    - **It applies when returns go only to a few fixed states**: for example, failure returns to the most recent checkpoint. Substitute the equations in order so that each expectation becomes "the checkpoint's expectation + a constant"; finally the checkpoint's own equation contains only itself, and moving terms across solves it.
    - **Example: 2 levels, each passed with probability $\frac12$, failure returns to the start of level 1**: let $E_0$ and $E_1$ be the expected remaining attempts in front of levels 1 and 2; after clearing, it is 0.
      - **Equations**: $E_0 = 1 + \frac12 E_1 + \frac12 E_0$, $E_1 = 1 + \frac12 \cdot 0 + \frac12 E_0$.
