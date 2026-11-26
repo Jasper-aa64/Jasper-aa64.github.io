@@ -27,7 +27,9 @@ This post first says what expectation is and why it splits (section 1), then sor
 
 1. **A random variable is a number attached to the outcome of a random experiment**
    - **It maps each outcome to a number**: for two dice rolls, "the sum", "the maximum" and "whether a 6 appeared" are all random variables.
-   - **Its distribution is the probability of each value**: $P(X = x)$.
+   - **At heart it is a function**: it takes one outcome of the experiment and returns a number. What is random is which outcome occurs; the rule itself is fixed.
+   - **Turning outcomes into numbers is what lets us average and add**: a raw outcome such as "the crystals come out as `1212`" cannot be added; once mapped to numbers, we can take expectations and split them into sums.
+   - **Its distribution is the probability of each value**: $P(X = x)$. Capital $X$ is the rule; lowercase $x$ is one particular value it takes.
 2. **Expectation is a weighted average**
    - **Definition**: $E[X] = \sum_x x \cdot P(X = x)$.
    - **Meaning**: repeat the experiment independently many times and the average of $X$ approaches $E[X]$.
