@@ -383,9 +383,14 @@ When the question asks for a probability itself, the method is the same as kind 
 
 2. **Idea**
    Let the query length be $m = r - l + 1$ and let colour $c$ appear $\mathit{cnt}_c$ times in it.
-   1. **Runs = 1 + the number of adjacent pairs with different colours**: going left to right, each crystal whose colour differs from the previous one starts a new run.
-   2. **Linearity plus symmetry: compute one pair**: the number of colour changes is a sum of $m - 1$ indicators, so by linearity its expectation is the sum of the probabilities that each adjacent pair differs (1.3). The shuffle is symmetric, so these $m - 1$ probabilities are equal, and the expected number of runs is $1 + (m - 1) \times$ the probability for one pair.
-   3. **That probability equals the chance that two crystals drawn from the segment differ**: there are $m(m - 1)$ ordered draws, of which $S = \sum_c \mathit{cnt}_c (\mathit{cnt}_c - 1)$ have equal colours. Substituting:
+   1. **Runs = 1 + the number of adjacent pairs with different colours**: going left to right, each crystal whose colour differs from the previous one starts a new run. Let $R$ be the number of runs and $I_k = [\text{crystals } k \text{ and } k + 1 \text{ differ after the shuffle}]$ for $1 \le k \le m - 1$; in every outcome of the shuffle,
+      $$R = 1 + I_1 + I_2 + \cdots + I_{m-1}.$$
+   2. **Linearity plus symmetry: compute one pair**: take expectations of both sides, using one property per step:
+      $$E[R] \overset{\text{linearity}}{=} 1 + \sum_{k=1}^{m-1} E[I_k] \overset{\text{indicator}}{=} 1 + \sum_{k=1}^{m-1} P(I_k = 1) \overset{\text{symmetry}}{=} 1 + (m - 1)\, P(I_1 = 1).$$
+      - **Linearity (1.2)**: $I_1$ and $I_2$ share crystal 2 and are tied together, yet they still split.
+      - **Indicator (1.3)**: $I_k$ takes only 0 and 1, so its expectation is the probability that it is 1.
+      - **Symmetry (1.3)**: a uniform shuffle treats every position alike, so these $m - 1$ probabilities are all equal to $P(I_1 = 1)$.
+   3. **$P(I_1 = 1)$ is the chance that two crystals drawn from the segment differ**: after the shuffle, crystals 1 and 2 are just two crystals drawn in order. There are $m(m - 1)$ ordered draws, of which $S = \sum_c \mathit{cnt}_c (\mathit{cnt}_c - 1)$ have equal colours, so $P(I_1 = 1) = 1 - \frac{S}{m(m - 1)}$. Substituting:
       $$E[\text{runs}] = 1 + (m - 1)\Bigl(1 - \frac{S}{m(m - 1)}\Bigr) = m - \frac{S}{m}.$$
       Query $[1, 4]$ of sample 1 (`1 1 2 2`): $m = 4$, $S = 2 + 2 = 4$, answer $4 - 1 = 3$.
    4. **Queries differ only in $S$; maintain it with Mo's algorithm**: adding a crystal of colour $c$ forms two ordered equal pairs with each existing $c$, so $S$ grows by $2 \mathit{cnt}_c$, then $\mathit{cnt}_c$ grows by 1; removing one decreases $\mathit{cnt}_c$ first, then $S$ by $2 \mathit{cnt}_c$.
