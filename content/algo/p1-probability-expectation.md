@@ -2,7 +2,7 @@
 title: "P1: Probability and Expectation"
 date: 2026-11-26
 slug: "p1-probability-expectation"
-description: "Expectation is a probability-weighted average and it is linear: the expected count of something splits into indicator variables (CF 1612E, 2026 Jilin Provincial M counting colour runs); the expected maximum comes from the distribution function (CF 453A); expected time until stopping runs backwards from the end (ABC 184D, the self-loop in CF 908D, ABC 144F where removing one edge changes one node); with cycles, write the equations and eliminate by hand when the structure allows (CF 1453D) or with Gaussian elimination; when everything changes at once, find a potential that rises by exactly 1 per round in expectation (2025 CCPC Harbin H). It ends with techniques for deriving the formulas: tracking several moments together (Luogu P1654 OSU!), phases, the tail sum, and the traps with products and ratios. With 9 practice problems."
+description: "Expectation is a probability-weighted average and it is linear: the expected count of something splits into indicator variables (CF 1612E, 2026 Jilin Provincial M counting colour runs); the expected maximum comes from the distribution function (CF 453A); expected time until stopping runs backwards from the end (ABC 184D, the self-loop in CF 908D, ABC 144F where removing one edge changes one node); with cycles, write the equations and eliminate by hand when the structure allows (CF 1453D) or with Gaussian elimination (Luogu P2973, CodeChef CHEFONM); when everything changes at once, find a potential that rises by exactly 1 per round in expectation (2025 CCPC Harbin H). It ends with techniques for deriving the formulas: tracking several moments together (Luogu P1654 OSU!), phases, the tail sum, and the traps with products and ratios. With 8 practice problems."
 weight: 18
 math: true
 toc: true
@@ -181,7 +181,7 @@ This post first says what expectation is and why it splits (section 1), then sor
      3. **Overall change = probability of reaching $u$ × change of $E_u$**: room 1 is reached with probability 1, giving $1.5$; room 2 with probability $\frac13$, giving $1.833 + \frac13 \times (1 - 1.5) \approx 1.667$. The minimum is 1.5.
 5. **States with cycles: write a system of equations**
    - **Signal**: failure sends you back to an earlier state, or a random walk can go back and forth.
-   - **How**: one equation per state; eliminate by hand when the structure is simple (6.2, returning to a checkpoint), otherwise use Gaussian elimination ([L2 3.3](/algo/l2-gaussian-elimination/), a random walk on a graph).
+   - **How**: one equation per state; eliminate by hand when the structure is simple (6.2, returning to a checkpoint), otherwise use Gaussian elimination (6.3, a random walk on a graph; 6.4, cycle types).
    - **Example: failure returns to the checkpoint**: each attempt clears a level with probability $\frac12$; a failure sends you back to level 1 (the only checkpoint). Find the expected number of attempts to clear 2 levels (the full problem is 6.2).
      1. **Clear 1 level**: constant success probability, geometric, $E_1 = 2$.
      2. **Clear 2 levels**: spend $E_1$ attempts on level 1, then try level 2 once; a failure (probability $\frac12$) starts over and needs $E_2$ more. $E_2$ appears on the right: $E_2 = E_1 + 1 + \frac12 E_2$.
@@ -854,7 +854,7 @@ $O(\text{states} \times \text{transitions per state})$, the same as an ordinary 
      - **Move across**: $\frac14 E_0 = \frac32$, so $E_0 = 6$, matching the checkpoint example in section 2.
 2. **In general, Gaussian elimination**
    - **$n$ states, $n$ equations**: $E_u - \sum_v P_{u,v} E_v = c_u$, with $E = 0$ at the end. Over the reals this is $O(n^3)$, fine for a few hundred states.
-   - **Example**: a random walk on a graph, [L2 3.3 Luogu P3232](/algo/l2-gaussian-elimination/); the modular version is in L2 section 4.
+   - **Example**: 6.3 is a random walk on a graph, 6.4 compresses permutations to cycle types; another random walk is [L2 3.3 Luogu P3232](/algo/l2-gaussian-elimination/), and the modular version is in L2 section 4.
 
 ### 6.2 Example: CF 1453D Checkpoints, Returning to a Checkpoint Costs $2^{L+1} - 2$
 
@@ -932,6 +932,236 @@ $O(\text{states} \times \text{transitions per state})$, the same as an ordinary 
    - **Cost**: $O(\log^2 k)$ per test.
    - **$k = 1$ is impossible**: the shortest block already costs 2.
    - **Do not build from small blocks up**: using only $L = 1$ needs $k / 2$ stages, far beyond 2000 for $k$ up to $10^{18}$.
+
+### 6.3 Example: Luogu P2973 Driving Out the Piggies, a Random Walk on a Graph
+
+[Luogu P2973](https://www.luogu.com.cn/problem/P2973) (USACO 2010 Holiday)
+
+1. **Statement**
+
+   There are $N$ cities and $M$ undirected roads. A bomb starts in city 1. Each hour it explodes in its current city with probability $\frac{P}{Q}$; otherwise it picks one of the current city's roads uniformly at random and moves to the neighbouring city. Find, for every city, the probability that the bomb finally explodes there.
+
+   - **Input**: the first line has $N, M, P, Q$ ($2 \le N \le 300$, $1 \le M \le 44850$, $1 \le P \le Q \le 10^6$); each of the next $M$ lines gives the two endpoints of a road.
+   - **Output**: $N$ lines; line $i$ is the probability for city $i$, with absolute error at most $10^{-6}$.
+
+   **Sample 1 input**
+
+   ```text
+   2 1 1 2
+   1 2
+   ```
+
+   **Sample 1 output**
+
+   ```text
+   0.666666667
+   0.333333333
+   ```
+
+2. **Idea**
+   1. **Turn the probability into an expected count**: let $x_u$ be the expected number of hours the bomb spends in city $u$. The bomb explodes only once, so "explodes in $u$" has probability equal to the expected number of explosions in $u$. Each hour spent in $u$ explodes with probability $\frac{P}{Q}$, so by linearity (1.2) the answer is $x_u \cdot \frac{P}{Q}$.
+   2. **Write the equation by "where was it the hour before"**: the bomb is in $u$ either because it started in city 1, or because it was in a neighbour $v$ the hour before, did not explode, and picked the road to $u$. With $\deg v$ the number of roads at $v$:
+      $$x_u = [u = 1] + \sum_{v \sim u} x_v \cdot \Bigl(1 - \frac{P}{Q}\Bigr) \cdot \frac{1}{\deg v}.$$
+   3. **The equations form cycles, so solve them together**: $x_u$ depends on its neighbours, which depend on $u$, so there is no computation order; a neighbour can be any city, so there is no "return only to a checkpoint" structure as in 6.2 to eliminate by hand. $N$ equations in $N$ unknowns: Gaussian elimination.
+   4. **The solution is unique**: since $P \ge 1$, every hour stops with positive probability, so the expected hours are finite and determined.
+
+   Sample: $x_1 = 1 + \frac12 x_2$, $x_2 = \frac12 x_1$, so $x_1 = \frac43$, $x_2 = \frac23$; times $\frac12$ gives $\frac23$ and $\frac13$.
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // gauss (reals) from L2 3.1: only the declaration here; copy the implementation from L2
+   const double EPS = 1e-8;
+   // Returns -1 if there is no solution, otherwise the rank. where[c]: the row holding column c's pivot, -1 for a free variable
+   int gauss(vector<vector<double>>& a, int m, vector<int>& where);
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int n, m;
+       double p, q;
+       cin >> n >> m >> p >> q;
+       vector<vector<int>> g(n);
+       for (int i = 0; i < m; i++) {
+           int u, v;
+           cin >> u >> v;
+           u--, v--;
+           g[u].push_back(v);
+           g[v].push_back(u);
+       }
+
+       // Unknown x_u: expected number of hours the bomb spends in city u
+       // x_u - sum_{v ~ u} x_v * (1 - p/q) / deg_v = [u == 1]
+       vector<vector<double>> a(n, vector<double>(n + 1, 0));
+       for (int u = 0; u < n; u++) {
+           a[u][u] += 1;
+           for (int v : g[u]) a[u][v] -= (1 - p / q) / g[v].size();
+           a[u][n] = (u == 0);
+       }
+       vector<int> where;
+       gauss(a, n, where);                                    // unique solution, where[c] == c
+
+       for (int u = 0; u < n; u++) cout << fixed << setprecision(9) << a[u][n] * p / q << '\n';
+   }
+   ```
+
+3. **Complexity and pitfalls**
+   - **Complexity**: elimination is $O(N^3)$, about $2.7 \times 10^7$ for $N = 300$.
+   - **Do not write equations for the explosion probability directly**: "explodes in $u$" does not split over neighbours; find the expected hours first and multiply by $\frac{P}{Q}$ at the end.
+   - **Count parallel roads as they are**: two roads between the same cities appear twice in the adjacency list and twice in $\deg$, which exactly doubles the chance of choosing that neighbour.
+   - **$x_u$ is large when $P$ is small**: with $\frac{P}{Q} = 10^{-6}$ the expected hours are around $10^6$; multiplying by $\frac{P}{Q}$ brings them back into $[0, 1]$. `double` is enough, `float` is not.
+
+### 6.4 Example: CodeChef CHEFONM Chef and Sort, States Compressed to Cycle Types
+
+[CodeChef CHEFONM](https://www.codechef.com/problems/CHEFONM)
+
+1. **Statement**
+
+   You are given a permutation of $1 \sim N$. While it is not sorted, pick one of the $\binom{N}{2}$ pairs of positions $(i, j)$ ($i < j$) uniformly at random and swap the two values. Find the expected number of swaps.
+
+   - **Input**: the first line has $T$ ($1 \le T \le 100$); each test has $N$ ($2 \le N \le 10$) on one line and the permutation on the next.
+   - **Output**: one real number per test, with absolute error below $10^{-2}$.
+
+   **Sample 1 input**
+
+   ```text {hl_lines=["2-3","6-7"]}
+   4
+   2
+   2 1
+   3
+   2 1 3
+   4
+   2 3 4 1
+   6
+   2 5 1 3 4 6
+   ```
+
+   **Sample 1 output**
+
+   ```text {hl_lines=[1,3]}
+   1.0000000
+   5.0000000
+   27.5000000
+   781.0416667
+   ```
+
+2. **Idea**
+   1. **The state only needs the cycle type**: following $i \to P_i$ splits the permutation into cycles; `2 3 4 1` is one cycle of length 4, `2 1 3` is cycles of lengths 2 and 1. A random swap treats all positions alike, so the expectation depends only on the cycle lengths, not on which values sit where. For $N = 10$ there are $10! \approx 3.6 \times 10^6$ permutations but only 42 cycle types (integer partitions of 10).
+   2. **One swap either splits one cycle or merges two**: let $T = \binom{N}{2}$.
+      - **Both positions in the same cycle of length $L$**: the cycle splits into cycles of lengths $j$ and $L - j$. There are $L$ pairs of positions $j$ apart on the cycle ($\frac{L}{2}$ pairs when $j = \frac{L}{2}$), so let $j$ run from 1 to $L - 1$ and add $\frac{L}{2T}$ to the partition $\{j, L - j\}$ each time: $j$ and $L - j$ each add once, giving exactly $\frac{L}{T}$, and $j = \frac{L}{2}$ adds once, giving exactly $\frac{L}{2T}$.
+      - **The positions in two cycles of lengths $a$ and $b$**: the two cycles merge into one of length $a + b$; there are $a \cdot b$ such pairs, probability $\frac{a \cdot b}{T}$.
+   3. **Write the equations by 1.4**: all cycles of length 1 (sorted) has $E = 0$; every other partition $s$ has
+      $$E[s] = 1 + \sum_{s'} p(s \to s') \cdot E[s'].$$
+   4. **The equations form cycles, so solve them together**: $\{2, 1\}$ merges into $\{3\}$, and $\{3\}$ splits back into $\{2, 1\}$, so there is no computation order; partitions jump back and forth, with no fixed checkpoint to eliminate by hand. For each $N$, solve one system of at most 42 equations by Gaussian elimination, then answer every query by table lookup.
+
+   Sample 2 ($N = 3$, $T = 3$): `2 1 3` is $\{2, 1\}$. From $\{2, 1\}$, swapping the pair inside the 2-cycle (1 pair) sorts it, and the $2 \cdot 1 = 2$ cross pairs give $\{3\}$; from $\{3\}$, all 3 pairs split it back into $\{2, 1\}$. So $E[\{3\}] = 1 + E[\{2, 1\}]$ and $E[\{2, 1\}] = 1 + \frac23 E[\{3\}]$, which gives $E[\{2, 1\}] = 5$.
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // gauss (reals) from L2 3.1: only the declaration here; copy the implementation from L2
+   const double EPS = 1e-8;
+   // Returns -1 if there is no solution, otherwise the rank. where[c]: the row holding column c's pivot, -1 for a free variable
+   int gauss(vector<vector<double>>& a, int m, vector<int>& where);
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+
+       // E[n][s]: expected remaining swaps for length n with cycle type s (descending)
+       vector<map<vector<int>, double>> E(11);
+       for (int n = 2; n <= 10; n++) {
+           // 1. List every partition of n (descending) and number them
+           vector<vector<int>> parts;
+           vector<int> cur;
+           function<void(int, int)> dfs = [&](int rest, int mx) {
+               if (rest == 0) {
+                   parts.push_back(cur);
+                   return;
+               }
+               for (int x = min(rest, mx); x >= 1; x--) {
+                   cur.push_back(x);
+                   dfs(rest - x, x);
+                   cur.pop_back();
+               }
+           };
+           dfs(n, n);
+           map<vector<int>, int> id;
+           for (int i = 0; i < (int)parts.size(); i++) id[parts[i]] = i;
+           int k = parts.size();
+           double T = n * (n - 1) / 2.0;
+           auto idx = [&](vector<int> t) {
+               sort(t.rbegin(), t.rend());
+               return id[t];
+           };
+
+           // 2. One equation per partition: E[s] - sum p(s -> s') E[s'] = 1; the all-ones partition has E = 0
+           vector<vector<double>> a(k, vector<double>(k + 1, 0));
+           for (int i = 0; i < k; i++) {
+               const vector<int>& s = parts[i];
+               a[i][i] = 1;
+               if (s[0] == 1) continue;
+               a[i][k] = 1;
+               for (int x = 0; x < (int)s.size(); x++) {
+                   // Swap inside one cycle: length s[x] splits into j and s[x] - j, each j adds s[x] / (2T)
+                   for (int j = 1; j < s[x]; j++) {
+                       vector<int> t = s;
+                       t.erase(t.begin() + x);
+                       t.push_back(j);
+                       t.push_back(s[x] - j);
+                       a[i][idx(t)] -= s[x] / (2 * T);
+                   }
+                   // Swap across two cycles: they merge into one, probability s[x] * s[y] / T
+                   for (int y = 0; y < x; y++) {
+                       vector<int> t = s;
+                       t.erase(t.begin() + x);
+                       t.erase(t.begin() + y);
+                       t.push_back(s[x] + s[y]);
+                       a[i][idx(t)] -= s[x] * s[y] / T;
+                   }
+               }
+           }
+           vector<int> where;
+           gauss(a, k, where);                                // unique solution, where[c] == c
+           for (int i = 0; i < k; i++) E[n][parts[i]] = a[i][k];
+       }
+
+       int tc;
+       cin >> tc;
+       while (tc--) {
+           int n;
+           cin >> n;
+           vector<int> p(n);
+           for (int& x : p) {
+               cin >> x;
+               x--;
+           }
+
+           // 3. Find this permutation's cycle type and look it up
+           vector<int> s;
+           vector<bool> vis(n, false);
+           for (int i = 0; i < n; i++) {
+               if (vis[i]) continue;
+               int len = 0;
+               for (int j = i; !vis[j]; j = p[j]) {
+                   vis[j] = true;
+                   len++;
+               }
+               s.push_back(len);
+           }
+           sort(s.rbegin(), s.rend());
+           cout << fixed << setprecision(7) << E[n][s] << '\n';
+       }
+   }
+   ```
+
+3. **Complexity and pitfalls**
+   - **Complexity**: for $N \le 10$ there are at most 42 partitions, so each $N$ costs $42^3 \approx 7 \times 10^4$ for elimination, under $10^6$ in total; each query finds its cycles in $O(N)$.
+   - **The permutation itself cannot be the state**: $10!$ unknowns are far too many to eliminate; compress the states to cycle types by symmetry first.
+   - **Handle $j = \frac{L}{2}$ when counting splits**: adding $\frac{L}{T}$ for every $j$ counts $\{j, L - j\}$ twice; adding $\frac{L}{2T}$ while $j$ runs over all of $1 \sim L - 1$ is exactly right.
+   - **$T$ is the number of unordered pairs** $\binom{N}{2}$, not $N^2$: the problem picks a pair with $i < j$.
 
 ## 7. A Potential: Rising by Exactly 1 per Round in Expectation
 
@@ -1204,9 +1434,8 @@ Each problem lists the sections it uses.
 
 5. [Nowcoder 108215I](https://ac.nowcoder.com/acm/contest/108215/I): the expected number of draws to complete seven pairs; the state only needs "cards left in the wall, pairs already held". Section 5.
 6. [Gym 105358L](https://codeforces.com/gym/105358/problem/L): refreshing a timer to minimise expected penalty; the best strategy is a threshold, whose expectation $\frac{c - 1}{2} + \frac{T}{c}$ is minimised near $\sqrt{2T}$; the answer must be a reduced fraction, so use a fraction class. Sections 1.5 and 1.6.
-7. [Luogu P2973](https://www.luogu.com.cn/problem/P2973): a random walk on a graph with cycles, Gaussian elimination. Section 6.
-8. [Nowcoder 11183F](https://ac.nowcoder.com/acm/contest/11183/F): sentences written at random; the probability that a string appears, a probability DP on the KMP automaton. End of section 2.
-9. [Luogu P1365 WJMZBMR osu! / Easy](https://www.luogu.com.cn/problem/P1365): each `?` is `o` or `x` with probability one half; the expected sum of squared lengths of runs of `o`, the second-order version of 8.2, which tracks only $E[x]$. Section 8.2.
+7. [Nowcoder 11183F](https://ac.nowcoder.com/acm/contest/11183/F): sentences written at random; the probability that a string appears, a probability DP on the KMP automaton. End of section 2.
+8. [Luogu P1365 WJMZBMR osu! / Easy](https://www.luogu.com.cn/problem/P1365): each `?` is `o` or `x` with probability one half; the expected sum of squared lengths of runs of `o`, the second-order version of 8.2, which tracks only $E[x]$. Section 8.2.
 
 ## Related Posts
 

@@ -2,7 +2,7 @@
 title: "P1：概率与期望"
 date: 2026-11-26
 slug: "p1-probability-expectation"
-description: "期望是按概率加权的平均，对加法是线性的：数个数的期望拆成指示变量（CF 1612E、2026 吉林省赛 M 色段数）；最大值的期望先求分布函数再作差（CF 453A）；“直到停止”的期望从终点往回推（ABC 184D、CF 908D 的自环、ABC 144F 删一条边只改一个点）；状态有环就列方程，能手消就手消（CF 1453D），不能就高斯消元；整体一起变的过程找每轮期望恰好加 1 的势能（2025 CCPC 哈尔滨 H）。最后汇总推式子的技巧：同时维护几阶矩（洛谷 P1654 OSU!）、分阶段、尾和、乘积和比值的坑。附 9 道练习。"
+description: "期望是按概率加权的平均，对加法是线性的：数个数的期望拆成指示变量（CF 1612E、2026 吉林省赛 M 色段数）；最大值的期望先求分布函数再作差（CF 453A）；“直到停止”的期望从终点往回推（ABC 184D、CF 908D 的自环、ABC 144F 删一条边只改一个点）；状态有环就列方程，能手消就手消（CF 1453D），不能就高斯消元（洛谷 P2973、CodeChef CHEFONM）；整体一起变的过程找每轮期望恰好加 1 的势能（2025 CCPC 哈尔滨 H）。最后汇总推式子的技巧：同时维护几阶矩（洛谷 P1654 OSU!）、分阶段、尾和、乘积和比值的坑。附 8 道练习。"
 weight: 18
 math: true
 toc: true
@@ -181,7 +181,7 @@ toc: true
      3. **整体变化 = 到达 $u$ 的概率 × $E_u$ 的变化**：到达 1 的概率是 1，答案变成 $1.5$；到达 2 的概率是 $\frac13$，答案变成 $1.833 + \frac13 \times (1 - 1.5) \approx 1.667$。取最小，答案 1.5。
 5. **状态之间有环：列方程组**
    - **信号**：失败会退回之前的状态，随机游走可以来回走。
-   - **怎么化**：每个状态一个方程，结构简单时手消（6.2 退回存档点），一般情况用高斯消元（[L2 3.3](/zh/algo/l2-gaussian-elimination/) 图上随机游走）。
+   - **怎么化**：每个状态一个方程，结构简单时手消（6.2 退回存档点），一般情况用高斯消元（6.3 图上随机游走、6.4 环长分拆）。
    - **例子：失败退回存档点**：每次尝试一关，$\frac12$ 概率过关，失败就回到第 1 关重打（只有第 1 关有存档点），求打通 2 关的期望尝试次数（完整题见 6.2）。
      1. **打通 1 关**：成功率不变，几何分布，$E_1 = 2$。
      2. **打通 2 关**：先花 $E_1$ 次过第 1 关，再试第 2 关一次；失败（概率 $\frac12$）从头再来，还要 $E_2$ 次。方程右边又出现了 $E_2$：$E_2 = E_1 + 1 + \frac12 E_2$。
@@ -854,7 +854,7 @@ $O(\text{状态数} \times \text{每个状态的转移数})$，和普通 DP 一�
      - **移项**：$\frac14 E_0 = \frac32$，$E_0 = 6$，和第 2 节“退回存档点”的例子一致。
 2. **一般情况用高斯消元**
    - **$n$ 个状态、$n$ 个方程**：$E_u - \sum_v P_{u,v} E_v = c_u$，终点 $E = 0$。实数下 $O(n^3)$，$n$ 到几百。
-   - **例子**：图上随机游走，见 [L2 3.3 洛谷 P3232 游走](/zh/algo/l2-gaussian-elimination/)；模质数的写法见 L2 第 4 节。
+   - **例子**：6.3 图上随机游走，6.4 把排列压成环长分拆；另一道图上随机游走见 [L2 3.3 洛谷 P3232 游走](/zh/algo/l2-gaussian-elimination/)，模质数的写法见 L2 第 4 节。
 
 ### 6.2 例：CF 1453D Checkpoints，退回存档点的期望是 $2^{L+1} - 2$
 
@@ -932,6 +932,236 @@ $O(\text{状态数} \times \text{每个状态的转移数})$，和普通 DP 一�
    - **复杂度**：每组 $O(\log^2 k)$。
    - **$k = 1$ 无解**：最短一段的期望是 2。
    - **不要从小往大拼**：全用 $L = 1$ 需要 $k / 2$ 关，$k$ 到 $10^{18}$ 远超 2000。
+
+### 6.3 例：洛谷 P2973 Driving Out the Piggies，图上随机游走
+
+[洛谷 P2973](https://www.luogu.com.cn/problem/P2973)（USACO 2010 Holiday）
+
+1. **题面**
+
+   $N$ 个城市、$M$ 条无向道路。炸弹放在城市 1。每小时它有 $\frac{P}{Q}$ 的概率在当前城市爆炸；没炸就从当前城市的道路里等概率选一条，走到相邻城市。求炸弹最终在每个城市爆炸的概率。
+
+   - **输入**：第一行 $N, M, P, Q$（$2 \le N \le 300$，$1 \le M \le 44850$，$1 \le P \le Q \le 10^6$）；接下来 $M$ 行，每行一条道路的两个端点。
+   - **输出**：$N$ 行，第 $i$ 行是城市 $i$ 爆炸的概率，绝对误差不超过 $10^{-6}$。
+
+   **样例 1 输入**
+
+   ```text
+   2 1 1 2
+   1 2
+   ```
+
+   **样例 1 输出**
+
+   ```text
+   0.666666667
+   0.333333333
+   ```
+
+2. **思路**
+   1. **把概率换成期望次数**：设 $x_u$ 为炸弹待在城市 $u$ 的期望小时数。炸弹只炸一次，所以“在 $u$ 爆炸”的概率 = 在 $u$ 爆炸的期望次数。每在 $u$ 待一小时，爆炸的概率都是 $\frac{P}{Q}$，由线性性（1.2），答案是 $x_u \cdot \frac{P}{Q}$。
+   2. **按“上一小时在哪”列方程**：到达 $u$ 只有两种来路：一开始就在城市 1，或者上一小时在邻居 $v$、没炸、恰好选中通往 $u$ 的路。记 $\deg v$ 为 $v$ 的道路数：
+      $$x_u = [u = 1] + \sum_{v \sim u} x_v \cdot \Bigl(1 - \frac{P}{Q}\Bigr) \cdot \frac{1}{\deg v}.$$
+   3. **方程有环，只能一起解**：$x_u$ 依赖邻居，邻居又依赖 $u$，排不出计算顺序；邻居可以是任意城市，也没有 6.2 那种“只退回存档点”的结构可以手消。$N$ 个方程、$N$ 个未知数，高斯消元。
+   4. **解一定唯一**：$P \ge 1$，每小时都有正概率停下，期望小时数有限且确定。
+
+   样例：$x_1 = 1 + \frac12 x_2$，$x_2 = \frac12 x_1$，代入得 $x_1 = \frac43$，$x_2 = \frac23$，乘 $\frac12$ 得 $\frac23$ 和 $\frac13$。
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // L2 3.1 的 gauss（实数）：这里只放声明，实现照抄 L2
+   const double EPS = 1e-8;
+   // 返回 -1：无解；否则返回秩。where[c]：第 c 个未知数的主元在哪一行，-1 是自由元
+   int gauss(vector<vector<double>>& a, int m, vector<int>& where);
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+       int n, m;
+       double p, q;
+       cin >> n >> m >> p >> q;
+       vector<vector<int>> g(n);
+       for (int i = 0; i < m; i++) {
+           int u, v;
+           cin >> u >> v;
+           u--, v--;
+           g[u].push_back(v);
+           g[v].push_back(u);
+       }
+
+       // 未知数 x_u：炸弹待在城市 u 的期望小时数
+       // x_u - sum_{v ~ u} x_v * (1 - p/q) / deg_v = [u == 1]
+       vector<vector<double>> a(n, vector<double>(n + 1, 0));
+       for (int u = 0; u < n; u++) {
+           a[u][u] += 1;
+           for (int v : g[u]) a[u][v] -= (1 - p / q) / g[v].size();
+           a[u][n] = (u == 0);
+       }
+       vector<int> where;
+       gauss(a, n, where);                                    // 解唯一，where[c] == c
+
+       for (int u = 0; u < n; u++) cout << fixed << setprecision(9) << a[u][n] * p / q << '\n';
+   }
+   ```
+
+3. **复杂度和坑**
+   - **复杂度**：消元 $O(N^3)$，$N = 300$ 约 $2.7 \times 10^7$。
+   - **不要对“爆炸概率”直接列方程**：“在 $u$ 爆炸”不是可以按邻居拆开的量；先求期望待的小时数，最后乘 $\frac{P}{Q}$。
+   - **重边照常计数**：两个城市间有两条路时，邻接表里存两次，$\deg$ 也算两次，选中这对邻居的概率正好翻倍。
+   - **$P$ 很小时 $x_u$ 很大**：$\frac{P}{Q} = 10^{-6}$ 时期望小时数在 $10^6$ 量级，乘回 $\frac{P}{Q}$ 后又回到 $[0, 1]$，`double` 够用，但不要用 `float`。
+
+### 6.4 例：CodeChef CHEFONM Chef and Sort，状态压成环长分拆
+
+[CodeChef CHEFONM](https://www.codechef.com/problems/CHEFONM)
+
+1. **题面**
+
+   给一个 $1 \sim N$ 的排列。只要它还没排好，就从 $\binom{N}{2}$ 对位置 $(i, j)$（$i < j$）里等概率选一对，交换这两个位置上的数。求交换次数的期望。
+
+   - **输入**：第一行 $T$（$1 \le T \le 100$）；每组第一行 $N$（$2 \le N \le 10$），第二行是排列。
+   - **输出**：每组一个实数，绝对误差小于 $10^{-2}$。
+
+   **样例 1 输入**
+
+   ```text {hl_lines=["2-3","6-7"]}
+   4
+   2
+   2 1
+   3
+   2 1 3
+   4
+   2 3 4 1
+   6
+   2 5 1 3 4 6
+   ```
+
+   **样例 1 输出**
+
+   ```text {hl_lines=[1,3]}
+   1.0000000
+   5.0000000
+   27.5000000
+   781.0416667
+   ```
+
+2. **思路**
+   1. **状态只需要环长分拆**：排列按 $i \to P_i$ 拆成若干个环，比如 `2 3 4 1` 是一个长 4 的环，`2 1 3` 是长 2 和长 1 两个环。随机交换对所有位置一视同仁，所以期望只取决于各环的长度，不取决于具体是哪些数。$N = 10$ 时排列有 $10! \approx 3.6 \times 10^6$ 种，环长分拆只有 42 种。
+   2. **一次交换只会裂开一个环，或者合并两个环**：设 $T = \binom{N}{2}$。
+      - **两个位置在同一个长 $L$ 的环里**：这个环裂成长 $j$ 和 $L - j$ 的两个环。在环上相隔 $j$ 的位置对有 $L$ 对（$j = \frac{L}{2}$ 时只有 $\frac{L}{2}$ 对），所以让 $j$ 从 1 跑到 $L - 1$，每个 $j$ 给分拆 $\{j, L - j\}$ 加 $\frac{L}{2T}$：$j$ 和 $L - j$ 各加一次正好是 $\frac{L}{T}$，$j = \frac{L}{2}$ 只加一次正好是 $\frac{L}{2T}$。
+      - **两个位置在长 $a$、$b$ 的两个环里**：这两个环合成长 $a + b$ 的一个环，这样的位置对有 $a \cdot b$ 对，概率 $\frac{a \cdot b}{T}$。
+   3. **按 1.4 写方程**：全是长 1 的环（已排好）$E = 0$；其余每种分拆 $s$：
+      $$E[s] = 1 + \sum_{s'} p(s \to s') \cdot E[s'].$$
+   4. **方程有环，只能一起解**：比如 $\{2, 1\}$ 合并成 $\{3\}$，$\{3\}$ 又裂回 $\{2, 1\}$，排不出计算顺序；分拆之间来回跳，也没有固定的存档点可以手消。每个 $N$ 列一次 42 个以内的方程组，高斯消元，所有询问查表。
+
+   样例 2（$N = 3$，$T = 3$）：`2 1 3` 是 $\{2, 1\}$。从 $\{2, 1\}$ 出发，换长 2 环里那一对（1 对）就排好了，换跨环的 $2 \cdot 1 = 2$ 对变成 $\{3\}$；从 $\{3\}$ 出发，3 对都把它裂回 $\{2, 1\}$。所以 $E[\{3\}] = 1 + E[\{2, 1\}]$，$E[\{2, 1\}] = 1 + \frac23 E[\{3\}]$，解得 $E[\{2, 1\}] = 5$。
+
+   ```cpp
+   #include <bits/stdc++.h>
+   using namespace std;
+
+   // L2 3.1 的 gauss（实数）：这里只放声明，实现照抄 L2
+   const double EPS = 1e-8;
+   // 返回 -1：无解；否则返回秩。where[c]：第 c 个未知数的主元在哪一行，-1 是自由元
+   int gauss(vector<vector<double>>& a, int m, vector<int>& where);
+
+   int main() {
+       ios::sync_with_stdio(false);
+       cin.tie(nullptr);
+
+       // E[n][s]：长度 n、环长分拆为 s（降序）时，还要交换的期望次数
+       vector<map<vector<int>, double>> E(11);
+       for (int n = 2; n <= 10; n++) {
+           // 1. 枚举 n 的所有分拆（降序）并编号
+           vector<vector<int>> parts;
+           vector<int> cur;
+           function<void(int, int)> dfs = [&](int rest, int mx) {
+               if (rest == 0) {
+                   parts.push_back(cur);
+                   return;
+               }
+               for (int x = min(rest, mx); x >= 1; x--) {
+                   cur.push_back(x);
+                   dfs(rest - x, x);
+                   cur.pop_back();
+               }
+           };
+           dfs(n, n);
+           map<vector<int>, int> id;
+           for (int i = 0; i < (int)parts.size(); i++) id[parts[i]] = i;
+           int k = parts.size();
+           double T = n * (n - 1) / 2.0;
+           auto idx = [&](vector<int> t) {
+               sort(t.rbegin(), t.rend());
+               return id[t];
+           };
+
+           // 2. 每种分拆一个方程：E[s] - sum p(s -> s') E[s'] = 1；全是 1 的分拆 E = 0
+           vector<vector<double>> a(k, vector<double>(k + 1, 0));
+           for (int i = 0; i < k; i++) {
+               const vector<int>& s = parts[i];
+               a[i][i] = 1;
+               if (s[0] == 1) continue;
+               a[i][k] = 1;
+               for (int x = 0; x < (int)s.size(); x++) {
+                   // 同一个环里换：长 s[x] 的环裂成 j 和 s[x] - j，每个 j 加 s[x] / (2T)
+                   for (int j = 1; j < s[x]; j++) {
+                       vector<int> t = s;
+                       t.erase(t.begin() + x);
+                       t.push_back(j);
+                       t.push_back(s[x] - j);
+                       a[i][idx(t)] -= s[x] / (2 * T);
+                   }
+                   // 两个环里各取一个换：两个环合成一个，概率 s[x] * s[y] / T
+                   for (int y = 0; y < x; y++) {
+                       vector<int> t = s;
+                       t.erase(t.begin() + x);
+                       t.erase(t.begin() + y);
+                       t.push_back(s[x] + s[y]);
+                       a[i][idx(t)] -= s[x] * s[y] / T;
+                   }
+               }
+           }
+           vector<int> where;
+           gauss(a, k, where);                                // 解唯一，where[c] == c
+           for (int i = 0; i < k; i++) E[n][parts[i]] = a[i][k];
+       }
+
+       int tc;
+       cin >> tc;
+       while (tc--) {
+           int n;
+           cin >> n;
+           vector<int> p(n);
+           for (int& x : p) {
+               cin >> x;
+               x--;
+           }
+
+           // 3. 求这个排列的环长分拆，查表
+           vector<int> s;
+           vector<bool> vis(n, false);
+           for (int i = 0; i < n; i++) {
+               if (vis[i]) continue;
+               int len = 0;
+               for (int j = i; !vis[j]; j = p[j]) {
+                   vis[j] = true;
+                   len++;
+               }
+               s.push_back(len);
+           }
+           sort(s.rbegin(), s.rend());
+           cout << fixed << setprecision(7) << E[n][s] << '\n';
+       }
+   }
+   ```
+
+3. **复杂度和坑**
+   - **复杂度**：$N \le 10$ 时分拆最多 42 种，每个 $N$ 消元 $42^3 \approx 7 \times 10^4$，预处理一共不到 $10^6$；每组询问 $O(N)$ 求环。
+   - **不能拿排列本身当状态**：$10!$ 个未知数没法消元；先用对称性把状态压成环长分拆，消元才可行。
+   - **同环裂开的对数要分 $j = \frac{L}{2}$**：直接给每个 $j$ 加 $\frac{L}{T}$ 会把 $\{j, L - j\}$ 算两遍；按 $\frac{L}{2T}$ 加、$j$ 跑满 $1 \sim L - 1$ 正好对。
+   - **$T$ 是无序对的个数** $\binom{N}{2}$，不是 $N^2$：题目里选的是 $i < j$ 的一对。
 
 ## 7. 势能：每轮期望恰好加 1
 
@@ -1204,9 +1434,8 @@ $O(N^3)$：列方程 $O(N^3)$（常数很小），高斯消元 $O(N^3)$，$N$ �
 
 5. [牛客 108215I](https://ac.nowcoder.com/acm/contest/108215/I)：七对子的期望摸牌次数，状态只需要“牌堆剩几张、已有几对”。第 5 节。
 6. [Gym 105358L](https://codeforces.com/gym/105358/problem/L)：反复刷新计时器使期望罚时最小，最优是阈值策略，期望 $\frac{c - 1}{2} + \frac{T}{c}$ 在 $\sqrt{2T}$ 附近取最小；要输出最简分数，用分子分母都存的分数类。第 1.5、1.6 节。
-7. [洛谷 P2973 Driving Out the Piggies](https://www.luogu.com.cn/problem/P2973)：图上随机游走，期望有环，高斯消元。第 6 节。
-8. [牛客 11183F](https://ac.nowcoder.com/acm/contest/11183/F)：随机写句子，求某个串出现的概率，在 KMP 自动机上做概率 DP。第 2 节末尾。
-9. [洛谷 P1365 WJMZBMR 打 osu! / Easy](https://www.luogu.com.cn/problem/P1365)：`?` 各一半概率是 `o` 或 `x`，连续 `o` 的长度平方之和的期望，8.2 的二阶版，只维护 $E[x]$。第 8.2 节。
+7. [牛客 11183F](https://ac.nowcoder.com/acm/contest/11183/F)：随机写句子，求某个串出现的概率，在 KMP 自动机上做概率 DP。第 2 节末尾。
+8. [洛谷 P1365 WJMZBMR 打 osu! / Easy](https://www.luogu.com.cn/problem/P1365)：`?` 各一半概率是 `o` 或 `x`，连续 `o` 的长度平方之和的期望，8.2 的二阶版，只维护 $E[x]$。第 8.2 节。
 
 ## 和其他文章的连接
 
