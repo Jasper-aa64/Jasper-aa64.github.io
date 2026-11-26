@@ -2,7 +2,7 @@
 title: "P1: Probability and Expectation"
 date: 2026-11-26
 slug: "p1-probability-expectation"
-description: "Expectation is a probability-weighted average and it is linear: the expected count of something splits into indicator variables (CF 1612E, 2026 Jilin Provincial M counting colour runs); the expected maximum comes from the distribution function (CF 453A); expected time until stopping runs backwards from the end (ABC 184D, the self-loop in CF 908D, ABC 144F where removing one edge changes one node); with cycles, write the equations and eliminate by hand when the structure allows (CF 1453D) or with Gaussian elimination; when everything changes at once, find a potential that rises by exactly 1 per round in expectation (2025 CCPC Harbin H). With 8 practice problems."
+description: "Expectation is a probability-weighted average and it is linear: the expected count of something splits into indicator variables (CF 1612E, 2026 Jilin Provincial M counting colour runs); the expected maximum comes from the distribution function (CF 453A); expected time until stopping runs backwards from the end (ABC 184D, the self-loop in CF 908D, ABC 144F where removing one edge changes one node); with cycles, write the equations and eliminate by hand when the structure allows (CF 1453D) or with Gaussian elimination; when everything changes at once, find a potential that rises by exactly 1 per round in expectation (2025 CCPC Harbin H). It ends with techniques for deriving the formulas: tracking several moments together (Luogu P1654 OSU!), phases, the tail sum, and the traps with products and ratios. With 9 practice problems."
 weight: 18
 math: true
 toc: true
@@ -15,7 +15,7 @@ Shuffle a row of crystals at random: on average, how many runs of equal colour d
 - **The average does not need the distribution**: runs = 1 + the number of adjacent pairs with different colours. Each "this pair differs" is 0 or 1, its average is its probability, and the answer is the sum.
 - **That step is linearity of expectation**: the expectation of a sum is the sum of the expectations, with no independence needed. The first move on any expectation problem is to look for such a split; if it does not split, define states and write equations; if the states form cycles, solve a system.
 
-This post first says what expectation is and why it splits (section 1), then sorts the problems it solves (section 2), then goes method by method: indicator variables (section 3), the distribution function (section 4), expectation DP backwards from the end (section 5), equations when there are cycles (section 6), and a potential when everything changes together (section 7). Each section ends with examples. How to solve the cyclic systems is in [L2 Gaussian Elimination](/algo/l2-gaussian-elimination/).
+This post first says what expectation is and why it splits (section 1), then sorts the problems it solves (section 2), then goes method by method: indicator variables (section 3), the distribution function (section 4), expectation DP backwards from the end (section 5), equations when there are cycles (section 6), and a potential when everything changes together (section 7), and finally collects the techniques for deriving the formulas (section 8). Each section ends with examples. How to solve the cyclic systems is in [L2 Gaussian Elimination](/algo/l2-gaussian-elimination/).
 
 <style>.chroma .line.hl{background:rgba(56,139,253,.15)}</style>
 
@@ -1031,6 +1031,108 @@ Problem H of the 11th CCPC Harbin site; 9 of 278 teams solved it in the contest.
 > - **Look for a potential that rises by exactly 1 per round in expectation**: expected rounds = final potential − initial potential, with no need to treat whole configurations as states.
 > - **Split the potential by object**: when each object's change depends only on itself, the equations have only the object's size as a dimension.
 
+## 8. Techniques for Deriving the Formulas
+
+**Write the equation by looking at the first step, then simplify by splitting contributions and moving terms across; squares, phases and step counts each have a standard form.**
+
+### 8.1 Four Already Used Above
+
+1. **Look at the first step; the end state is 0**: $E[s] = 1 + \sum_{s'} P(s \to s') E[s']$, computed backwards from the end (1.4, 5.1).
+2. **When the unknown reappears on the right, move it over**: $E = a + pE$ gives $E = \frac{a}{1 - p}$ (the self-loop in 5.3, the checkpoint in 6.2).
+3. **Split into indicators and compute one when symmetric**: the condition is that every term has the same expectation (1.3, 3.2).
+4. **For extremes, find "at most" first, then take differences**: $P(\max \le y)$ is a product for independent draws (4.1).
+
+### 8.2 An Expectation Cannot Be Squared Directly: Track Several Moments
+
+**$E[x^2] \ne E[x]^2$; to get the expectation of $x^2$, carry $E[x]$ and $E[x^2]$ through the recurrence together.**
+
+1. **Principle**
+   - **Expanding leaves only lower moments**: when $x$ becomes $x + 1$, $(x + 1)^2 = x^2 + 2x + 1$, so $E[(x + 1)^2] = E[x^2] + 2E[x] + 1$. Cubes work the same way: $E[(x + 1)^3] = E[x^3] + 3E[x^2] + 3E[x] + 1$.
+   - **The square of a count splits into pairs**: $\left(\sum_i I_i\right)^2 = \sum_i \sum_j I_i I_j$, so $E[X^2] = \sum_i \sum_j P(I_i = I_j = 1)$.
+   - **Example**: toss $n$ coins and let $X$ be the number of heads. The $n$ terms with $i = j$ have probability $\frac12$; the $n(n - 1)$ terms with $i \ne j$ have probability $\frac14$. $E[X^2] = \frac{n}{2} + \frac{n(n - 1)}{4} = \frac{n(n + 1)}{4}$. For $n = 2$ the four outcomes give $X^2$ = 0, 1, 1, 4, averaging $1.5$, which matches, while $E[X]^2 = 1$.
+2. **Example: Luogu P1654 OSU!, the cube of run lengths**
+   1. **Statement**
+
+      There are $n$ independent operations; operation $i$ succeeds with probability $p_i$. Write the results as a 0/1 string; every maximal run of $x$ ones scores $x^3$. Output the expected total score to one decimal place.
+
+      - **Input**: $n$ on the first line ($1 \le n \le 10^5$), then $n$ reals $p_i$ ($0 \le p_i \le 1$).
+      - **Output**: one real number.
+
+      **Sample input**
+
+      ```text
+      3
+      0.5 0.5 0.5
+      ```
+
+      **Sample output**
+
+      ```text
+      6.0
+      ```
+
+   2. **Idea**
+      1. **Let $x_i$ be the length of the run of ones ending at position $i$**: $x_i = x_{i-1} + 1$ on success and $0$ on failure.
+      2. **Carry the first and second moments together**: let $a_i = E[x_i]$ and $b_i = E[x_i^2]$. Only success (probability $p_i$) is non-zero:
+         $$a_i = p_i (a_{i-1} + 1), \qquad b_i = p_i (b_{i-1} + 2a_{i-1} + 1).$$
+      3. **Split the score by how much position $i$ adds**: a run growing from $x$ to $x + 1$ adds $(x + 1)^3 - x^3 = 3x^2 + 3x + 1$. By linearity, position $i$ adds $p_i (3b_{i-1} + 3a_{i-1} + 1)$ in expectation.
+      4. **Sample**: position 1 adds $\frac12$, with $a_1 = b_1 = \frac12$; position 2 adds $\frac12(1.5 + 1.5 + 1) = 2$, with $a_2 = 0.75$, $b_2 = 1.25$; position 3 adds $\frac12(3.75 + 2.25 + 1) = 3.5$. Total $0.5 + 2 + 3.5 = 6$.
+
+      ```cpp
+      #include <bits/stdc++.h>
+      using namespace std;
+
+      int main() {
+          ios::sync_with_stdio(false);
+          cin.tie(nullptr);
+          int n;
+          cin >> n;
+          double a = 0, b = 0, ans = 0;             // a = E[x], b = E[x^2], x = length of the run of ones ending here
+          for (int i = 0; i < n; i++) {
+              double p;
+              cin >> p;
+              ans += p * (3 * b + 3 * a + 1);       // (x + 1)^3 - x^3 = 3x^2 + 3x + 1
+              b = p * (b + 2 * a + 1);
+              a = p * (a + 1);
+          }
+          printf("%.1f\n", ans);
+      }
+      ```
+
+   3. **Complexity and pitfalls**
+      - **Complexity**: $O(n)$.
+      - **Update $b$ before $a$**: $b_i$ uses $a_{i-1}$.
+      - **$a^3$ is not $E[x^3]$**: in the sample, $a_3 = 0.875$ and $a_3^3 \approx 0.67$, while the true $E[x_3^3] = \frac18 \cdot 27 + \frac18 \cdot 8 + \frac14 \cdot 1 = 4.625$.
+
+### 8.3 Phases: Each One Is Geometric
+
+**When the process splits by progress into phases with a constant success probability inside each, each phase costs $\frac{1}{p}$ in expectation and the total is the sum.**
+
+1. **Why the phases add**: the total count is the sum of the phase counts, so by linearity the expectations add; the phases need not be independent.
+2. **Example: collect all $n$ kinds of cards, each draw a uniformly random kind; find the expected number of draws**
+   1. **Phase by how many kinds you have**: with $k$ kinds, a draw is new with probability $\frac{n - k}{n}$, so the phase costs $\frac{n}{n - k}$ draws.
+   2. **Add up**: $\sum_{k=0}^{n-1} \frac{n}{n - k} = n\left(1 + \frac12 + \cdots + \frac1n\right)$.
+   3. **Small case**: for $n = 2$ the first card is always new (1 draw) and the second kind comes with probability $\frac12$ (2 draws expected), 3 in total; the formula gives $2 \times (1 + \frac12) = 3$.
+
+### 8.4 Counting Steps: Use the Tail Sum
+
+**When "stops exactly at step $t$" is awkward but "has not stopped after $t$ steps" is easy, use $E[T] = \sum_{t \ge 0} P(T > t)$.**
+
+1. **Why it holds**: $T = \sum_{t \ge 0} [T > t]$ (exactly $T$ values of $t$ satisfy $T > t$); take expectations, and each term is a probability.
+2. **Example: $n$ lamps; every round each unlit lamp lights with probability $p$ and stays lit; find the expected number of rounds until all are lit**
+   1. **Not all lit after $t$ rounds**: one lamp is still dark after $t$ rounds with probability $(1 - p)^t$, so $P(T > t) = 1 - \bigl(1 - (1 - p)^t\bigr)^n$.
+   2. **Plug into the tail sum**: for $n = 2$, $p = \frac12$, $P(T > t) = 2 \cdot 2^{-t} - 4^{-t}$, which sums to $2 \times 2 - \frac43 = \frac83$.
+   3. **Check another way**: each lamp alone is geometric with expectation 2; at least one lights in a round with probability $\frac34$, so the first one takes $\frac43$ rounds in expectation. $E[\max] = E[a] + E[b] - E[\min] = 2 + 2 - \frac43 = \frac83$, which matches.
+
+### 8.5 Easy Places to Go Wrong
+
+**Linearity holds for any random variables, but expectations cannot be pushed through products, ratios or extremes.**
+
+1. **$E[XY] = E[X]E[Y]$ needs independence**: with $X = Y$ = "one coin shows heads", $E[XY] = E[X] = \frac12$ while $E[X]E[Y] = \frac14$.
+2. **$E\left[\frac{X}{Y}\right] \ne \frac{E[X]}{E[Y]}$**: with $Y$ equal to 1 or 2 with equal probability, $E\left[\frac{1}{Y}\right] = \frac34$ while $\frac{1}{E[Y]} = \frac23$.
+3. **$E[\max] \ne \max(E)$**: for two coins taking 0 or 1, $E[\max] = \frac34$ while both expectations are $\frac12$. Extremes go through the distribution as in section 4.
+4. **Check with $n = 1, 2$ by hand**: with few cases, list every outcome and average, and write code only once the formula matches.
+
 ## Practice
 
 Each problem lists the sections it uses.
@@ -1048,6 +1150,7 @@ Each problem lists the sections it uses.
 6. [Gym 105358L](https://codeforces.com/gym/105358/problem/L): refreshing a timer to minimise expected penalty; the best strategy is a threshold, whose expectation $\frac{c - 1}{2} + \frac{T}{c}$ is minimised near $\sqrt{2T}$; the answer must be a reduced fraction, so use a fraction class. Sections 1.5 and 1.6.
 7. [Luogu P2973](https://www.luogu.com.cn/problem/P2973): a random walk on a graph with cycles, Gaussian elimination. Section 6.
 8. [Nowcoder 11183F](https://ac.nowcoder.com/acm/contest/11183/F): sentences written at random; the probability that a string appears, a probability DP on the KMP automaton. End of section 2.
+9. [Luogu P1365 WJMZBMR osu! / Easy](https://www.luogu.com.cn/problem/P1365): each `?` is `o` or `x` with probability one half; the expected sum of squared lengths of runs of `o`, the second-order version of 8.2, which tracks only $E[x]$. Section 8.2.
 
 ## Related Posts
 
