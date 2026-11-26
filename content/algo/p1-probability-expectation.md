@@ -70,10 +70,19 @@ This post first says what expectation is and why it splits (section 1), then sor
 4. **Why products do not split**
    - **Compute $XY$ for the same coins**: independent, only the $(1, 1)$ row is 1, expectation $\frac{1}{4}$; copying, $(1, 1)$ is half the ledger, expectation $\frac{1}{2}$; opposite, there is no $(1, 1)$ row, expectation 0.
    - **Reason**: $E[XY]$ depends on whether $Y$ is also 1 in the rows where $X = 1$, which is exactly the dependence. Only for independent coins does it equal $E[X] \cdot E[Y] = \frac{1}{4}$.
-5. **As a formula**
-   - **Expand over the joint distribution of $(X, Y)$**: the joint distribution is the ledger above; $P(X = x, Y = y)$ is the probability of row $(x, y)$.
-     $$E[X + Y] = \sum_{x, y} (x + y) P(X = x, Y = y) = \sum_x x \underbrace{\sum_y P(X = x, Y = y)}_{P(X = x)} + \sum_y y \underbrace{\sum_x P(X = x, Y = y)}_{P(Y = y)}.$$
-   - **Independence is never used**: the sum is split and the order of summation swapped; each inner sum is the distribution of one variable.
+5. **As a formula: "average over the ledger" written as sums**
+   - **Notation**: $P(X = x, Y = y)$ is the joint distribution, the probability of row $(x, y)$ in the ledger above.
+   - **Step 1, average over rows**: multiply each row's $x + y$ by the row's probability and add.
+     $$E[X + Y] = \sum_{x, y} (x + y) \cdot P(X = x, Y = y).$$
+   - **Step 2, split each row in two**: split the $X + Y$ column into the $X$ column and the $Y$ column and sum them separately.
+     $$= \sum_{x, y} x \cdot P(X = x, Y = y) + \sum_{x, y} y \cdot P(X = x, Y = y).$$
+   - **Step 3, group the rows by $x$**: in the first sum, the rows with the same $x$ have probabilities adding up to exactly $P(X = x)$, so the first sum is $E[X]$; grouping the second by $y$ gives $E[Y]$.
+     $$\sum_{x, y} x \cdot P(X = x, Y = y) = \sum_x x \cdot \underbrace{\sum_y P(X = x, Y = y)}_{P(X = x)} = E[X].$$
+   - **Example: the copying coin**: the ledger has rows $(0, 0)$ and $(1, 1)$, each $\frac12$.
+     - **Step 1**: $0 \cdot \frac12 + 2 \cdot \frac12 = 1$.
+     - **Step 2**: the $X$ column gives $0 \cdot \frac12 + 1 \cdot \frac12 = \frac12$, and the $Y$ column also $\frac12$.
+     - **Step 3**: the rows with $x = 1$ are $(1, 0)$ and $(1, 1)$, with probability $0 + \frac12 = P(X = 1)$, so the $X$ column is $1 \cdot P(X = 1) = E[X]$.
+   - **Independence is never used**: only "each row's $x + y$ splits into $x$ plus $y$" and "the rows with the same $x$ add up to $P(X = x)$" are used, and both hold for any joint distribution.
 6. **It extends to $n$ terms with coefficients**
    - **$E[\sum_i c_i X_i] = \sum_i c_i E[X_i]$** for constants $c_i$: in every row, $\sum_i c_i X_i$ is still each entry times its coefficient, added up.
    - **How to use it**: when the quantity you want is a sum of parts, compute each part's expectation and add them, without caring how the parts depend on each other.
