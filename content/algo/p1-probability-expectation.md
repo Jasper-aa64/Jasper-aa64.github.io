@@ -56,7 +56,11 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **A count is each candidate contributing 0 or 1**: by linearity, the expected count is the sum over candidates of the probability of being counted.
    - **Example**: the number of fixed points of a random permutation splits into "is position $i$ fixed", each with probability $\frac{1}{n}$, so the expectation is $n \cdot \frac{1}{n} = 1$. The distribution of the count is messy; the expectation takes one line.
 3. **When the candidates are symmetric, compute one**
-   - **Under a random permutation or a uniform shuffle, every candidate is counted with the same probability**: the expected count is the number of candidates times the probability for one of them.
+   - **The condition is that every term has the same expectation**: by linearity $E[X_1 + \cdots + X_n] = E[X_1] + \cdots + E[X_n]$, which is $n \cdot E[X_1]$ when the terms share one expectation.
+   - **For indicators this becomes two conditions**: each counted term contributes 1, so $E[X_i] = P(\text{counted})$; if the probabilities are also equal, so are the expectations. The expected count is the number of candidates times the probability for one of them.
+   - **Different weights break the shortcut**: if term $i$ contributes $w_i$ when counted, $E[X_i] = w_i p$, and equal probabilities are not enough; a common weight $c$ still works and gives $n c p$.
+   - **Equal probabilities come from a process that treats every position alike**: under a random permutation or a uniform shuffle, relabelling the positions leaves the distribution unchanged, so the event at each position has the same probability.
+   - **Independence is not needed**: two neighbouring pairs share a crystal and are dependent, but linearity does not need independence, so the product still holds.
    - **Example**: for the fixed points above every position has probability $\frac{1}{n}$, so only position 1 is computed; for the colour runs after a shuffle, all $m - 1$ adjacent pairs share one probability, so only one pair is computed (3.2).
 
 ### 1.4 Total Expectation: Look at the First Step, Then Average the Rest
