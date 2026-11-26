@@ -41,7 +41,6 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **Each row is one outcome, with its probability**: the row records this outcome's $X$, $Y$ and $X + Y$.
    - **An expectation is the probability-weighted average of one column**: $E[X]$ averages the $X$ column, $E[X + Y]$ averages the $X + Y$ column.
    - **In every row, the $X + Y$ entry is the $X$ entry plus the $Y$ entry**: with the same weights, adding then averaging equals averaging then adding, so $E[X + Y] = E[X] + E[Y]$.
-   - **Dependence only changes which rows exist and their probabilities**: however $X$ and $Y$ are related, "this row's $X + Y$ is this row's $X$ plus $Y$" still holds, so linearity needs no independence.
 2. **Example: two coins, three kinds of dependence**
    - **Notation**: $X$ is whether the first coin is heads (heads = 1), $Y$ the same for the second coin.
    - **Independent coins**: 4 rows, $(0, 0), (0, 1), (1, 0), (1, 1)$, each $\frac{1}{4}$; $X + Y$ is $0, 1, 1, 2$, expectation $\frac{0 + 1 + 1 + 2}{4} = 1$.
@@ -49,14 +48,20 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **The second coin is the opposite of the first**: 2 rows, $(0, 1), (1, 0)$, each $\frac{1}{2}$; $X + Y$ is always 1, expectation 1.
    - **Conclusion**: the distribution of $X + Y$ is completely different in the three cases ($0/1/2$ with $\frac{1}{4}/\frac{1}{2}/\frac{1}{4}$, $0/2$ half each, always 1), but each coin on its own is heads half the time, $E[X] = E[Y] = \frac{1}{2}$, so $E[X + Y]$ is 1 every time.
    - **Dice work the same way**: if the second roll copies the first, the ledger has only the six rows $(1, 1), (2, 2), \ldots, (6, 6)$, each $\frac{1}{6}$; the sums are $2, 4, \ldots, 12$, averaging $\frac{42}{6} = 7$, the same as $3.5 + 3.5$ for independent rolls.
-3. **Why products do not split**
+3. **Dependence only decides how the parts pair up; the total's average sees only each part's own average**
+   - **Dependence changes which pairings appear in the ledger**: with copying, $(0, 1)$ never appears; with the opposite coin, $(0, 0)$ never appears; the row probabilities change too.
+   - **Each column's average looks only at that column**: $E[X]$ uses only the $X$ values and the row probabilities, not how $Y$ pairs with them. So as long as each part's own average stays the same, the total's average is the same however the parts are tied together.
+   - **If the dependence changes a part's own average, use the new average**: linearity says "the total's average is the sum of the parts' averages", not "the parts' averages never change". For example, if the second coin is heads whenever the first is heads and is tossed independently otherwise, $E[Y] = \frac{1}{2} + \frac{1}{2} \cdot \frac{1}{2} = \frac{3}{4}$, and $E[X + Y] = \frac{1}{2} + \frac{3}{4} = \frac{5}{4}$.
+   - **In a problem, compute each part on its own, ignoring how it is tied to the others**: in a shuffled row of crystals, adjacent pairs 1 and 2 share a crystal, so "pair 1 differs" and "pair 2 differs" are tied together; still, compute each pair's probability of differing alone and add them to get the expected number of differing pairs (3.2).
+   - **When the quantity is about several parts at once, the dependence cannot be avoided**: products, joint occurrence and maxima all depend on the pairing; see the next point and 8.5.
+4. **Why products do not split**
    - **Compute $XY$ for the same coins**: independent, only the $(1, 1)$ row is 1, expectation $\frac{1}{4}$; copying, $(1, 1)$ is half the ledger, expectation $\frac{1}{2}$; opposite, there is no $(1, 1)$ row, expectation 0.
    - **Reason**: $E[XY]$ depends on whether $Y$ is also 1 in the rows where $X = 1$, which is exactly the dependence. Only for independent coins does it equal $E[X] E[Y] = \frac{1}{4}$.
-4. **As a formula**
+5. **As a formula**
    - **Expand over the joint distribution of $(X, Y)$**: the joint distribution is the ledger above; $P(X = x, Y = y)$ is the probability of row $(x, y)$.
      $$E[X + Y] = \sum_{x, y} (x + y) P(X = x, Y = y) = \sum_x x \underbrace{\sum_y P(X = x, Y = y)}_{P(X = x)} + \sum_y y \underbrace{\sum_x P(X = x, Y = y)}_{P(Y = y)}.$$
    - **Independence is never used**: the sum is split and the order of summation swapped; each inner sum is the distribution of one variable.
-5. **It extends to $n$ terms with coefficients**
+6. **It extends to $n$ terms with coefficients**
    - **$E[\sum_i c_i X_i] = \sum_i c_i E[X_i]$** for constants $c_i$: in every row, $\sum_i c_i X_i$ is still each entry times its coefficient, added up.
    - **How to use it**: when the quantity you want is a sum of parts, compute each part's expectation and add them, without caring how the parts depend on each other.
 
