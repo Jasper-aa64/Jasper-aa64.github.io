@@ -28,7 +28,7 @@ This post first says what expectation is and why it splits (section 1), then sor
 1. **A random variable is a number attached to the outcome of a random experiment**
    - **It maps each outcome to a number**: for two dice rolls, "the sum", "the maximum" and "whether a 6 appeared" are all random variables.
    - **At heart it is a function**: it takes one outcome of the experiment and returns a number. What is random is which outcome occurs; the rule itself is fixed.
-   - **Turning outcomes into numbers is what lets us average and add**: a raw outcome such as "the crystals come out as `1212`" cannot be added; once mapped to numbers, we can take expectations and split them into sums.
+   - **Turning outcomes into numbers is what lets us average and add**: a raw outcome such as "the shuffle comes out as `1212`" cannot be added; once mapped to numbers, we can take expectations and split them into sums.
    - **Its distribution is the probability of each value**: $P(X = x)$. Capital $X$ is the rule; lowercase $x$ is one particular value it takes.
 2. **Expectation is a weighted average**
    - **Definition**: $E[X] = \sum_x x \cdot P(X = x)$.
@@ -65,7 +65,7 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **Dependence changes which pairings appear in the ledger**: with copying, $(0, 1)$ never appears; with the opposite coin, $(0, 0)$ never appears; the row probabilities change too.
    - **Each column's average looks only at that column**: $E[X]$ uses only the $X$ values and the row probabilities, not how $Y$ pairs with them. So as long as each part's own average stays the same, the total's average is the same however the parts are tied together.
    - **If the dependence changes a part's own average, use the new average**: linearity says "the total's average is the sum of the parts' averages", not "the parts' averages never change". For example, if the second coin is heads whenever the first is heads and is tossed independently otherwise, $E[Y] = \frac{1}{2} + \frac{1}{2} \cdot \frac{1}{2} = \frac{3}{4}$, and $E[X + Y] = \frac{1}{2} + \frac{3}{4} = \frac{5}{4}$.
-   - **In a problem, compute each part on its own, ignoring how it is tied to the others**: in a shuffled row of crystals, adjacent pairs 1 and 2 share a crystal, so "pair 1 differs" and "pair 2 differs" are tied together; still, compute each pair's probability of differing alone and add them to get the expected number of differing pairs (3.2).
+   - **In a problem, compute each part on its own, ignoring how it is tied to the others**: when a list of numbers is shuffled, adjacent pairs 1 and 2 share a number, so "pair 1 differs" and "pair 2 differs" are tied together; still, compute each pair's probability of differing alone and add them to get the expected number of differing pairs (3.2).
    - **When the quantity is about several parts at once, the dependence cannot be avoided**: products, joint occurrence and maxima all depend on the pairing; see the next point and 8.5.
 4. **Why products do not split**
    - **Compute $XY$ for the same coins**: independent, only the $(1, 1)$ row is 1, expectation $\frac{1}{4}$; copying, $(1, 1)$ is half the ledger, expectation $\frac{1}{2}$; opposite, there is no $(1, 1)$ row, expectation 0.
@@ -92,8 +92,8 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **For indicators this becomes two conditions**: each counted term contributes 1, so $E[X_i] = P(\text{counted})$; if the probabilities are also equal, so are the expectations. The expected count is the number of candidates times the probability for one of them.
    - **Different weights break the shortcut**: if term $i$ contributes $w_i$ when counted, $E[X_i] = w_i p$, and equal probabilities are not enough; a common weight $c$ still works and gives $n c p$.
    - **Equal probabilities come from a process that treats every position alike**: under a random permutation or a uniform shuffle, relabelling the positions leaves the distribution unchanged, so the event at each position has the same probability.
-   - **Independence is not needed**: two neighbouring pairs share a crystal and are dependent, but linearity does not need independence, so the product still holds.
-   - **Example**: for the fixed points above every position has probability $\frac{1}{n}$, so only position 1 is computed; for the colour runs after a shuffle, all $m - 1$ adjacent pairs share one probability, so only one pair is computed (3.2).
+   - **Independence is not needed**: two neighbouring pairs share a number and are dependent, but linearity does not need independence, so the product still holds.
+   - **Example**: for the fixed points above every position has probability $rac{1}{n}$, so only position 1 is computed; for the runs after a shuffle, all $m - 1$ adjacent pairs share one probability, so only one pair is computed (3.2).
 
 ### 1.4 Total Expectation: Look at the First Step, Then Average the Rest
 
@@ -142,11 +142,11 @@ This post first says what expectation is and why it splits (section 1), then sor
 1. **The expected number of something: split into indicators**
    - **Signal**: "the expected number of / pairs / runs".
    - **How**: write the count as a sum of 0/1 variables over candidates, compute the probability each one is counted (1.3), and add. With many candidates, those of the same kind share a probability, so multiply by the size of the kind.
-   - **Example: runs of equal colour after a shuffle**: shuffle the four crystals `1 1 2 2` uniformly and find the expected number of runs of one colour (the full problem is 3.2).
-     1. **Computing directly means listing every arrangement**: the 4 crystals have $4! = 24$ orders, but only 6 colour patterns, all equally likely: `1122`, `1212`, `1221`, `2112`, `2121`, `2211`, with 2, 4, 3, 3, 4, 2 runs, average $\frac{18}{6} = 3$. With more crystals this list is far too long.
-     2. **Split into indicators**: runs = 1 (the first crystal starts a run) + the number of adjacent pairs with different colours, and each of the 3 adjacent pairs (crystals 1–2, 2–3, 3–4) contributes a 0 or 1.
-     3. **Symmetry: compute one pair**: every adjacent pair differs with the same probability, the probability that two crystals drawn in order differ. There are $4 \times 3 = 12$ ordered draws, $2 + 2 = 4$ of them the same colour, so the pair differs with probability $\frac{8}{12} = \frac23$.
-     4. **Tied pairs still add**: pairs 1–2 and 2–3 share crystal 2, so "1–2 differ" and "2–3 differ" affect each other; linearity only needs each pair's own probability (1.2, point 3).
+   - **Example: runs after a shuffle**: shuffle `1 1 2 2` uniformly, merge adjacent equal numbers into runs, and find the expected number of runs (the full problem is 3.2).
+     1. **Computing directly means listing every arrangement**: there are only 6 distinct orders, all equally likely: `1122`, `1212`, `1221`, `2112`, `2121`, `2211`, with 2, 4, 3, 3, 4, 2 runs, average $rac{18}{6} = 3$. With more numbers this list is far too long.
+     2. **Split into indicators**: runs = 1 (the first number starts a run) + the number of adjacent pairs that differ, and each of the 3 adjacent pairs (positions 1–2, 2–3, 3–4) contributes a 0 or 1.
+     3. **Symmetry: compute one pair**: every adjacent pair differs with the same probability, the probability that two numbers drawn in order from the 4 differ. There are $4 	imes 3 = 12$ ordered draws, $2 + 2 = 4$ of them equal, so the pair differs with probability $rac{8}{12} = rac23$.
+     4. **Tied pairs still add**: pairs 1–2 and 2–3 share the second number, so "1–2 differ" and "2–3 differ" affect each other; linearity only needs each pair's own probability (1.2, point 3).
      5. **Add up**: $1 + \frac23 + \frac23 + \frac23 = 3$, matching the list in step 1.
 2. **The expected maximum or minimum: go through the distribution function**
    - **Signal**: "the maximum of $n$ draws / the time the last task finishes".
