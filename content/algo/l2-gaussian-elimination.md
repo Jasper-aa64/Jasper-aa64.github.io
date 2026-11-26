@@ -722,5 +722,6 @@ Each problem lists the section it uses.
 
 - [L1 Linear Algebra](/algo/l1-linear-algebra/): section 3 "finding a basis is elimination", section 6 the structure of solutions (image and kernel), section 4.4 mod-2 elimination and the XOR basis as rows and columns of one matrix.
 - [L3 XOR Basis](/algo/l3-xor-basis/): insertion is the incremental Gauss of 6.1 with at most 60 columns (its appendix compares the two), and the count in 1.3 is 5.4.
+- [P1 Probability and Expectation](/algo/p1-probability-expectation/): cyclic expectations produce the systems solved here; its section 6 says when to eliminate by hand and when to run elimination, and 7.2 uses the modular template of section 4.
 - [C0 Contest Math Overview](/algo/c0-contest-math-overview/): 4.4 lists the three kinds of statements that turn into linear systems, and 4.6 has the determinant template and counting uses.
 - The template collection [Matrix #2: Gaussian Elimination](/posts/matrix-2-gaussian-elimination/): full templates for solving, determinants, inverses and rank over the reals, mod $p$ and mod 2, and the incremental version mod $p$.

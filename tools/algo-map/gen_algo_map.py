@@ -421,6 +421,7 @@ for nid, lane, col, row, cls, tags, zh, en in C:
 
 algo_post('c_gauss', 'L2', 'l2-gaussian-elimination', 1)
 algo_post('c_basis', 'L3', 'l3-xor-basis', 1)
+algo_post('c_prob', 'P1', 'p1-probability-expectation', 1)
 
 # ---------------------------------------------------------------- lines: learn first → learn next
 CHAINS = [['c_pow', 'c_inv', 'c_sieve', 'c_mult', 'c_mob', 'c_dujiao'],

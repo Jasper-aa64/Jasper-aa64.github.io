@@ -323,6 +323,7 @@
   <rect x="805" y="966" width="235" height="92" rx="6" class="sync"/>
   <text x="817" y="990" class="t">Probability · expectation</text>
   <text x="817" y="1008" class="s">Linearity; work backwards</text>
+  <text x="817" y="1026" class="tag"><a href="/algo/p1-probability-expectation/" target="_blank" rel="noopener"><tspan>P1 §1</tspan></a></text>
   </g>
   <g id="c_fwt">
   <rect x="805" y="1084" width="235" height="92" rx="6" class="sync"/>

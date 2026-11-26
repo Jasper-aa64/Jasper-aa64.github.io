@@ -722,5 +722,6 @@ int main() {
 
 - [L1 线性代数](/zh/algo/l1-linear-algebra/)：第 3 节“求基就是消元”，第 6 节解的结构（像和核），第 4.4 节模 2 消元和线性基是同一个矩阵的行和列。
 - [L3 线性基](/zh/algo/l3-xor-basis/)：插入是 6.1 增量高斯在列数不超过 60 时的特例（两者对照在它的附录），1.3 的计数就是 5.4。
+- [P1 概率与期望](/zh/algo/p1-probability-expectation/)：期望有环时列出来的方程组就用这里解，第 6 节讲什么时候能手消、什么时候要消元，7.2 用到第 4 节的模质数模板。
 - [C0 赛场数学总览](/zh/algo/c0-contest-math-overview/)：4.4 列出了落到线性方程组的三类题面信号，4.6 是行列式的模板和计数用法。
 - 英文模板合集 [Matrix #2: Gaussian Elimination](/posts/matrix-2-gaussian-elimination/)：实数、模 $p$、模 2 的求解、行列式、求逆、求秩全套模板，以及模 $p$ 的增量版本。

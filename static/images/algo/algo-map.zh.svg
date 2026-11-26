@@ -335,6 +335,7 @@
   <rect x="805" y="966" width="235" height="92" rx="6" class="sync"/>
   <text x="817" y="990" class="t">概率 · 期望 DP</text>
   <text x="817" y="1008" class="s">期望的线性性；倒推</text>
+  <text x="817" y="1026" class="tag"><a href="/zh/algo/p1-probability-expectation/" target="_blank" rel="noopener"><tspan>P1 第 1 节</tspan></a></text>
   </g>
   <g id="c_fwt">
   <rect x="805" y="1084" width="235" height="92" rx="6" class="sync"/>
