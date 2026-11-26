@@ -34,18 +34,10 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **Definition**: $E[X] = \sum_x x \cdot P(X = x)$.
    - **Meaning**: repeat the experiment independently many times and the average of $X$ approaches $E[X]$.
    - **Example**: one die has $E[X] = \frac{1 + 2 + \cdots + 6}{6} = 3.5$.
-3. **One random experiment carries many random variables, each with its own values**
-   - **$X$ is just a name**: which quantity it stands for depends on what you ask; the same shuffle can be asked "how many runs" or "does this pair differ".
-   - **Example: shuffle the four crystals `1 1 2 2`**: there are 6 colour patterns, each with probability $\frac16$. Let $R$ be the number of runs and $I_k$ whether crystals $k$ and $k + 1$ differ (1 if they differ, 0 if not). The values in each outcome:
-     - `1122`: $I_1 = 0, I_2 = 1, I_3 = 0$, $R = 2$;
-     - `1212`: $I_1 = 1, I_2 = 1, I_3 = 1$, $R = 4$;
-     - `1221`: $I_1 = 1, I_2 = 0, I_3 = 1$, $R = 3$;
-     - `2112`: $I_1 = 1, I_2 = 0, I_3 = 1$, $R = 3$;
-     - `2121`: $I_1 = 1, I_2 = 1, I_3 = 1$, $R = 4$;
-     - `2211`: $I_1 = 0, I_2 = 1, I_3 = 0$, $R = 2$.
-   - **The run count $R$ takes 2, 3 or 4**: each appears twice, so $P(R = 2) = P(R = 3) = P(R = 4) = \frac13$ and $E[R] = \frac{2 + 3 + 4}{3} = 3$.
-   - **Each $I_k$ takes only 0 or 1**: each $I_k$ is 1 in 4 outcomes, so $E[I_k] = \frac46 = \frac23$. A random variable that takes only 0 and 1 is an indicator (1.3).
-   - **Every row has $R = 1 + I_1 + I_2 + I_3$**: the problem asks about $R$, and after splitting we compute the $I_k$; these 6 rows are the ledger of 1.2.
+3. **One experiment carries many random variables, each with its own values**
+   - **Example: shuffle `1 1 2 2`**: the run count $R$ takes 2, 3 or 4; whether numbers $k$ and $k + 1$ differ, written $I_k$, takes only 0 or 1 (an indicator, 1.3).
+   - **They are different translations of the same outcome**: for `1212`, $R = 4$ and $I_1 = I_2 = I_3 = 1$; for `1122`, $R = 2$ and $I_1 = 0, I_2 = 1, I_3 = 0$.
+   - **In every outcome, $R = 1 + I_1 + I_2 + I_3$**: the problem asks about $R$, whose distribution is hard; split into the $I_k$, each needs only one probability.
 
 ### 1.2 Linearity: The Expectation of a Sum Is the Sum of Expectations
 
