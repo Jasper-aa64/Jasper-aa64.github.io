@@ -9,11 +9,11 @@ toc: true
 ---
 > The essence of expectation: a probability-weighted average that is linear, so the expectation of a total is the sum of the expectations of its parts.
 
-Shuffle a row of crystals at random: on average, how many runs of equal colour do you get?
+Shuffle a list of numbers that may repeat (say `1 1 2 2`) and merge adjacent equal numbers into runs: on average, how many runs are there?
 
-- **The distribution is out of reach**: $m$ crystals have $m!$ orders, and the probability of "exactly $j$ runs" has no usable formula.
-- **The average does not need the distribution**: runs = 1 + the number of adjacent pairs with different colours. Each "this pair differs" is 0 or 1, its average is its probability, and the answer is the sum.
-- **That step is linearity of expectation**: the expectation of a sum is the sum of the expectations, with no independence needed. The first move on any expectation problem is to look for such a split; if it does not split, define states and write equations; if the states form cycles, solve a system.
+- **The distribution is out of reach**: the number of orders with "exactly $j$ runs" has no usable formula.
+- **Split it and it becomes easy**: runs = 1 + the number of adjacent pairs that are not equal. Each "this pair differs" is 0 or 1, so its average is its probability; the shuffle treats every position alike, so each pair differs with the probability that two numbers drawn at random differ. For `1 1 2 2` that probability is $\frac23$, and the average is $1 + 3 \times \frac23 = 3$ runs.
+- **That step is linearity of expectation**: the expectation of a sum is the sum of the expectations, with no independence needed; adjacent pairs share a number and still split. The first move on any expectation problem is to look for such a split; if it does not split, define states and write equations; if the states form cycles, solve a system. The full solution of this problem is in 3.2.
 
 This post first says what expectation is and why it splits (section 1), then sorts the problems it solves (section 2), then goes method by method: indicator variables (section 3), the distribution function (section 4), expectation DP backwards from the end (section 5), equations when there are cycles (section 6), and a potential when everything changes together (section 7), and finally collects the techniques for deriving the formulas (section 8). Each section ends with examples. How to solve the cyclic systems is in [L2 Gaussian Elimination](/algo/l2-gaussian-elimination/).
 
