@@ -102,12 +102,10 @@ public:
     void update(const std::vector<T>& newData) {
         size_t nextIndex = 1 - currentIndex.load(std::memory_order_relaxed);
         std::copy(newData.begin(), newData.end(), buffers[nextIndex].begin());
-        std::atomic_thread_fence(std::memory_order_release);   // data fully written before the index changes
-        currentIndex.store(nextIndex, std::memory_order_relaxed);
+        currentIndex.store(nextIndex, std::memory_order_release);    // data written before the index changes
     }
     std::vector<T> read() const {
-        size_t index = currentIndex.load(std::memory_order_relaxed);
-        std::atomic_thread_fence(std::memory_order_acquire);   // read the data only after reading the index
+        size_t index = currentIndex.load(std::memory_order_acquire);  // index read before the data
         return buffers[index];
     }
 private:
@@ -116,31 +114,37 @@ private:
 };
 ```
 
-The two fences pair up: the writer's release fence ensures all the data is written before the index changes, and the reader's acquire fence ensures that once it sees the new index, the data it reads is the fully written copy ([#2](/posts/memory-ordering-false-sharing-dependency-chains/) covers acquire / release).
+The store and load of the index pair up: the writer stores the index with release, so all the data is written before the index changes; the reader loads it with acquire, so once it sees the new index, the data it reads is the fully written copy ([#2](/posts/memory-ordering-false-sharing-dependency-chains/) covers acquire / release).
 
-### 3.2 What `atomic_thread_fence` Is, and Why Not Just Put Acquire / Release on the Index
+### 3.2 Writing It with `atomic_thread_fence` Instead
 
-- **`std::atomic_thread_fence(order)` is a standalone fence that belongs to no atomic variable**: a release fence keeps the reads and writes before it from moving past any atomic store after it; an acquire fence keeps the reads and writes after it from moving ahead of any atomic load before it.
-- **A fence only works when paired with an atomic access**: the writer does "release fence, then a relaxed store to the index", the reader does "relaxed load of the index, then an acquire fence". As long as the reader loads the index value the writer stored, everything written before the writer's fence is visible after the reader's fence. The effect is the same as `store(release)` and `load(acquire)`.
-- **You can put the ordering on the index directly, and here that is the better choice**: there is one index, one store and one load, so tying the ordering to the variable is clearer:
+Another common form uses relaxed accesses on the index with a standalone fence on each side:
 
 ```cpp
-void update(const std::vector<T>& newData) {
-    size_t nextIndex = 1 - currentIndex.load(std::memory_order_relaxed);
-    std::copy(newData.begin(), newData.end(), buffers[nextIndex].begin());
-    currentIndex.store(nextIndex, std::memory_order_release);    // data written before the index changes
-}
-std::vector<T> read() const {
-    size_t index = currentIndex.load(std::memory_order_acquire);  // index read before the data
-    return buffers[index];
-}
+// in update
+std::atomic_thread_fence(std::memory_order_release);   // data written before the index changes
+currentIndex.store(nextIndex, std::memory_order_relaxed);
+// in read
+size_t index = currentIndex.load(std::memory_order_relaxed);
+std::atomic_thread_fence(std::memory_order_acquire);   // index read before the data
 ```
 
+- **`std::atomic_thread_fence(order)` is a standalone fence that belongs to no atomic variable**: a release fence keeps the reads and writes before it from moving past any atomic store after it; an acquire fence keeps the reads and writes after it from moving ahead of any atomic load before it.
+- **A fence only works when paired with an atomic access**: as long as the reader loads the index value the writer stored, everything written before the writer's fence is visible after the reader's fence. The effect is the same as the `store(release)` and `load(acquire)` in 3.1.
+- **The 3.1 form is the better choice here**: there is one index, one store and one load, so tying the ordering to the variable is clearer.
 - **A fence covers more than an ordering tied to one variable**: a release fence applies to every atomic store after it, and an acquire fence to every atomic load before it. So fences fit two cases: publishing several atomic variables at once, or loading with relaxed first and adding an acquire fence only once you know you will use the value, so the loads you discard cost nothing extra.
 - **On x86 both forms cost the same; on ARM the fence can cost more**: on x86 both compile to a plain `mov` and only stop compiler reordering. On ARM, `store(release)` is one `stlr` and `load(acquire)` is one `ldar`, while a fence is a `dmb` that waits for all earlier memory accesses, not just this variable.
-- **Neither form fixes the problem in 3.3**: memory ordering only guarantees that when the reader sees the new index, that copy is fully written; it does nothing to stop the writer from coming back and overwriting the copy still being read.
+- **Neither form fixes the problem in 3.4**: memory ordering only guarantees that when the reader sees the new index, that copy is fully written; it does nothing to stop the writer from coming back and overwriting the copy still being read.
 
-### 3.3 A Fast Writer Writes into the Copy Being Read
+### 3.3 Writing a Whole Copy Needs No Sync; Changing Part of It Does
+
+- **This code copies the complete new data into the spare copy on every `update`**: whatever the spare copy held before does not matter, because once written it is the latest version, so the other copy needs no background sync.
+- **That breaks when you change only a few elements**: the spare copy holds the version from two updates ago, one update behind the live copy. Change just those elements in it and switch, and the previous update is lost.
+- **Fix one, copy then change**: copy the whole live copy into the spare one, change the elements, then switch the index. Simple, but every update copies everything.
+- **Fix two, switch and then redo the change**: change the spare copy, switch the index, wait until everyone reading the old copy has left, then apply the same change to the old copy so the two match again. This is the Left-Right technique; the cost is that changes must be replayable and you must know when readers are done.
+- **Both fixes wait for readers**: before the writer comes back to a copy, everyone reading it must have finished, which is the problem in 3.4.
+
+### 3.4 A Fast Writer Writes into the Copy Being Read
 
 This design assumes the writer won't come back to a copy before the reader has finished reading it. Nothing guarantees that. The reader sees index 0 and starts copying `buffers[0]`; meanwhile the writer updates once, writing `buffers[1]` and changing the index to 1, then immediately updates again, and the next copy is `buffers[0]`, the one being copied. What the reader gets is half old data and half new.
 
@@ -154,6 +158,6 @@ To use this structure, you have to guarantee that before the writer returns to a
 
 Also, `read()` returns a `std::vector` by value, which allocates and copies the whole thing on every read; on the hot path, read in place instead of copying.
 
-### 3.4 Warming on the Wrong Core
+### 3.5 Warming on the Wrong Core
 
 Double buffers like this often come with a "dry-run warm-up": after each `update`, read both copies once per cache line. But `update` runs on the writer's thread, so by 2.3 it warms the writer's core, and the trading thread's core gets nothing. The standby copy will be overwritten by the next update anyway, so warming it only helps the writer. If you want to warm, do it in the trading thread's own idle time.
