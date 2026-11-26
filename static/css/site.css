@@ -1891,11 +1891,12 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
   background: var(--mjx-sel);
   border-radius: 2px;
 }
-/* Inline: only the band the text's own selection covers (--sel-t / --sel-b are measured in baseof.html), so the
-   highlight lines up with the words around it instead of sticking out above them. */
+/* Inline: padded out to the full line height the text's selection covers (--sel-t / --sel-b are measured in
+   baseof.html), so the highlight lines up with the words around it. */
 .prose mjx-container.mjx-sel:not([display="true"]) {
-  background: linear-gradient(transparent var(--sel-t, 0px), var(--mjx-sel) var(--sel-t, 0px),
-    var(--mjx-sel) calc(100% - var(--sel-b, 0px)), transparent calc(100% - var(--sel-b, 0px)));
+  background: var(--mjx-sel);
+  padding-top: var(--sel-t, 0px);
+  padding-bottom: var(--sel-b, 0px);
 }
 .prose .mermaid { margin: 2em 0; text-align: center; }
 

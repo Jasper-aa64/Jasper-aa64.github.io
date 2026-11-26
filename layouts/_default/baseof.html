@@ -127,20 +127,23 @@
         });
         // MathJax glyphs are ::before content, which the browser never paints as selected, so a formula inside the
         // selection looked unselected although copying included it. Mark such formulas with mjx-sel (site.css colours it).
-        // An inline formula's own box is taller than the text's selection band, so its highlight stuck out of the line.
-        // Measure the band once per font size (a probe character next to the formula) and inset the highlight to it.
+        // Chrome paints selected text over the whole line height, but an inline formula's background only covers its
+        // own box, so the formula looked notched into the highlighted line. Measure the line's band once per font size
+        // (an inline-block probe one line-height tall, sitting on the same baseline) and pad the formula out to it;
+        // vertical padding on an inline box widens its background without moving anything.
         const bands = new Map();
         const fitBand = m => {
           if (m.getAttribute('display') === 'true') return;
-          const key = getComputedStyle(m.parentElement).fontSize + '|' + getComputedStyle(m).fontSize;
+          const key = getComputedStyle(m.parentElement).fontSize + '|' + getComputedStyle(m.parentElement).lineHeight + '|' + getComputedStyle(m).fontSize;
           if (!bands.has(key)) {
             const probe = document.createElement('span');
+            probe.style.display = 'inline-block';
             probe.textContent = '字';
             m.before(probe);
             const t = probe.getBoundingClientRect(), b = m.getBoundingClientRect();
             probe.remove();
-            if (Math.abs(b.bottom - t.bottom) > b.height / 2) return; // the probe wrapped onto another line
-            bands.set(key, [t.top - b.top, b.bottom - t.bottom]);
+            if (b.bottom < t.top || b.top > t.bottom) return; // the probe wrapped onto another line
+            bands.set(key, [Math.max(0, b.top - t.top), Math.max(0, t.bottom - b.bottom)]);
           }
           const [top, bot] = bands.get(key);
           m.style.setProperty('--sel-t', top + 'px');
