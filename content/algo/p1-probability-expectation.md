@@ -37,14 +37,28 @@ This post first says what expectation is and why it splits (section 1), then sor
 
 **$E[X + Y] = E[X] + E[Y]$ holds for any two random variables, independent or not.**
 
-1. **Why it holds**
-   - **Expand over the joint distribution of $(X, Y)$**:
+1. **List every possible outcome in one ledger**
+   - **Each row is one outcome, with its probability**: the row records this outcome's $X$, $Y$ and $X + Y$.
+   - **An expectation is the probability-weighted average of one column**: $E[X]$ averages the $X$ column, $E[X + Y]$ averages the $X + Y$ column.
+   - **In every row, the $X + Y$ entry is the $X$ entry plus the $Y$ entry**: with the same weights, adding then averaging equals averaging then adding, so $E[X + Y] = E[X] + E[Y]$.
+   - **Dependence only changes which rows exist and their probabilities**: however $X$ and $Y$ are related, "this row's $X + Y$ is this row's $X$ plus $Y$" still holds, so linearity needs no independence.
+2. **Example: two coins, three kinds of dependence**
+   - **Notation**: $X$ is whether the first coin is heads (heads = 1), $Y$ the same for the second coin.
+   - **Independent coins**: 4 rows, $(0, 0), (0, 1), (1, 0), (1, 1)$, each $\frac{1}{4}$; $X + Y$ is $0, 1, 1, 2$, expectation $\frac{0 + 1 + 1 + 2}{4} = 1$.
+   - **The second coin copies the first**: only 2 rows, $(0, 0), (1, 1)$, each $\frac{1}{2}$; $X + Y$ is $0, 2$, expectation $\frac{0 + 2}{2} = 1$.
+   - **The second coin is the opposite of the first**: 2 rows, $(0, 1), (1, 0)$, each $\frac{1}{2}$; $X + Y$ is always 1, expectation 1.
+   - **Conclusion**: the distribution of $X + Y$ is completely different in the three cases ($0/1/2$ with $\frac{1}{4}/\frac{1}{2}/\frac{1}{4}$, $0/2$ half each, always 1), but each coin on its own is heads half the time, $E[X] = E[Y] = \frac{1}{2}$, so $E[X + Y]$ is 1 every time.
+   - **Dice work the same way**: if the second roll copies the first, the ledger has only the six rows $(1, 1), (2, 2), \ldots, (6, 6)$, each $\frac{1}{6}$; the sums are $2, 4, \ldots, 12$, averaging $\frac{42}{6} = 7$, the same as $3.5 + 3.5$ for independent rolls.
+3. **Why products do not split**
+   - **Compute $XY$ for the same coins**: independent, only the $(1, 1)$ row is 1, expectation $\frac{1}{4}$; copying, $(1, 1)$ is half the ledger, expectation $\frac{1}{2}$; opposite, there is no $(1, 1)$ row, expectation 0.
+   - **Reason**: $E[XY]$ depends on whether $Y$ is also 1 in the rows where $X = 1$, which is exactly the dependence. Only for independent coins does it equal $E[X] E[Y] = \frac{1}{4}$.
+4. **As a formula**
+   - **Expand over the joint distribution of $(X, Y)$**: the joint distribution is the ledger above; $P(X = x, Y = y)$ is the probability of row $(x, y)$.
      $$E[X + Y] = \sum_{x, y} (x + y) P(X = x, Y = y) = \sum_x x \underbrace{\sum_y P(X = x, Y = y)}_{P(X = x)} + \sum_y y \underbrace{\sum_x P(X = x, Y = y)}_{P(Y = y)}.$$
    - **Independence is never used**: the sum is split and the order of summation swapped; each inner sum is the distribution of one variable.
-2. **It extends to $n$ terms with coefficients**
-   - **$E[\sum_i c_i X_i] = \sum_i c_i E[X_i]$** for constants $c_i$.
-   - **Products do not split**: $E[XY] = E[X] E[Y]$ needs independence.
-   - **Example**: the sum of two dice has expectation $3.5 + 3.5 = 7$; if the two rolls are forced equal (fully dependent), the sum is $2X$ and the expectation is still 7.
+5. **It extends to $n$ terms with coefficients**
+   - **$E[\sum_i c_i X_i] = \sum_i c_i E[X_i]$** for constants $c_i$: in every row, $\sum_i c_i X_i$ is still each entry times its coefficient, added up.
+   - **How to use it**: when the quantity you want is a sum of parts, compute each part's expectation and add them, without caring how the parts depend on each other.
 
 ### 1.3 Indicator Variables: The Expectation Is the Probability
 
