@@ -57,10 +57,11 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **Being tied together means not independent**: $X$ and $Y$ are independent when knowing $X$ does not change the probabilities of $Y$'s values; as a formula, $P(X = x, Y = y) = P(X = x) P(Y = y)$ for all $x, y$.
    - **Examples**:
      - **The copying coin**: $P(Y = 1) = \frac12$ on its own; once $X = 1$ is known, $Y$ is certainly 1, so they are not independent.
-     - **Shuffling `1 1 2 2`**: the 6 outcomes `1122`, `1212`, `1221`, `2112`, `2121`, `2211` are equally likely; $I_1$ and $I_2$ say whether positions 1–2 and 2–3 differ.
-       - **$I_2$ on its own**: positions 2 and 3 differ in `1122`, `1212`, `2121`, `2211`, 4 outcomes, so $P(I_2 = 1) = \frac46 = \frac23$.
-       - **$I_2$ only among outcomes with $I_1 = 1$**: the first two differ in `1212`, `1221`, `2112`, `2121`, 4 outcomes; positions 2 and 3 also differ only in `1212` and `2121`, a fraction of $\frac24 = \frac12$.
-       - **$\frac12 \ne \frac23$, so they are not independent**: knowing $I_1 = 1$ lowers the chance that $I_2 = 1$. The reason is that both pairs share position 2: the first two have used one 1 and one 2, so the third comes from the remaining 1 and 2 and differs from the second only half the time.
+     - **Shuffling `1 1 2 2` is drawing two 1s and two 2s from a bag one by one**: $I_2$ asks whether the third draw differs from the second, which depends on what is left in the bag at the third draw.
+       - **$I_2$ on its own**: after the second draw, 3 cards remain and 2 of them differ from it, so $P(I_2 = 1) = \frac23$.
+       - **Given $I_1 = 1$**: the first two are one 1 and one 2, the bag holds one 1 and one 2, and the third draw differs from the second only half the time: $\frac12$.
+       - **Given $I_1 = 0$**: the first two are equal, say two 1s, the bag holds only 2s, and the third draw always differs from the second: probability 1.
+       - **$I_2$'s probability changes with $I_1$, so they are not independent**: both pairs share the second draw, and what the first two draws take decides what is left.
    - **Dependence changes which pairings appear in the ledger**: with copying, $(0, 1)$ never appears; with the opposite coin, $(0, 0)$ never appears; the row probabilities change too.
    - **Each column's average looks only at that column**: $E[X]$ uses only the $X$ values and the row probabilities, not how $Y$ pairs with them. So as long as each part's own average stays the same, the total's average is the same however the parts are tied together.
    - **If the dependence changes a part's own average, use the new average**: linearity says "the total's average is the sum of the parts' averages", not "the parts' averages never change". For example, if the second coin is heads whenever the first is heads and is tossed independently otherwise, $E[Y] = \frac{1}{2} + \frac{1}{2} \cdot \frac{1}{2} = \frac{3}{4}$, and $E[X + Y] = \frac{1}{2} + \frac{3}{4} = \frac{5}{4}$.
