@@ -85,6 +85,8 @@ L1 和 L2 是每个核私有的（[#2](/zh/posts/memory-ordering-false-sharing-d
 
 ## 3. 双数组加原子索引：读的一方不加锁
 
+> 双缓冲的本质：写的一方只写没人在读的那一份，再用一次原子写下标完成切换。
+
 ### 3.1 做法
 
 参数表、合约信息这类数据，控制线程偶尔更新，交易线程一直在读。加锁的话，控制线程拿着锁写的时候，交易线程只能等。双数组（double buffering）的做法是存两份：写的一方先把新数据写进没人在读的那一份，写完再改一个原子下标，指向新的那份；读的一方先读下标，再读它指向的那份：
@@ -116,7 +118,29 @@ private:
 
 两道屏障是配对的：写的一方的 release 屏障保证数据都写完了才改下标，读的一方的 acquire 屏障保证读到新下标之后，读的数据是写完的那份（[#2](/zh/posts/memory-ordering-false-sharing-dependency-chains/) 讲过 acquire / release）。
 
-### 3.2 写得快，就会写到正在被读的那一份
+### 3.2 `atomic_thread_fence` 是什么，为什么不直接给下标加 acquire / release
+
+- **`std::atomic_thread_fence(order)` 是一道单独的屏障，不属于任何原子变量**：release 屏障保证它前面的读写，不会挪到它后面任何一次原子写之后；acquire 屏障保证它后面的读写，不会挪到它前面任何一次原子读之前。
+- **屏障要和一次原子读写配对才起作用**：写的一方是“release 屏障，再 relaxed 写下标”，读的一方是“relaxed 读下标，再 acquire 屏障”。只要读的一方读到了写的一方写的那个下标，屏障前写的数据，读的一方在屏障后都看得到。效果和 `store(release)`、`load(acquire)` 一样。
+- **可以直接给下标加，这里也更推荐**：只有一个下标，一次写、一次读，绑在变量上写更清楚：
+
+```cpp
+void update(const std::vector<T>& newData) {
+    size_t nextIndex = 1 - currentIndex.load(std::memory_order_relaxed);
+    std::copy(newData.begin(), newData.end(), buffers[nextIndex].begin());
+    currentIndex.store(nextIndex, std::memory_order_release);    // 数据写完，才改下标
+}
+std::vector<T> read() const {
+    size_t index = currentIndex.load(std::memory_order_acquire);  // 读到下标之后，才读数据
+    return buffers[index];
+}
+```
+
+- **屏障比绑在变量上的写法管得宽**：release 屏障对它后面所有的原子写都生效，acquire 屏障对它前面所有的原子读都生效。所以屏障适合两种场合：一次要发布好几个原子变量；或者先 relaxed 读，判断确实要用了再补一道 acquire 屏障，用不到的那次就不付代价。
+- **x86 上两种写法一样快，ARM 上屏障可能更贵**：x86 上两种都编成普通的 `mov`，只挡编译器重排；ARM 上 `store(release)` 是一条 `stlr`，`load(acquire)` 是一条 `ldar`，屏障则是一条 `dmb`，要等前面所有的访存，不只这一个变量。
+- **两种写法都解决不了 3.3 的问题**：内存序只保证读到新下标时，那份数据是写完的；管不了写的一方回头覆盖正在被读的那一份。
+
+### 3.3 写得快，就会写到正在被读的那一份
 
 这个做法默认读的一方读完一份之前，写的一方不会回到这一份上。可没人保证这一点。读的一方读到下标 0，开始拷 `buffers[0]`；这时写的一方更新一次，写 `buffers[1]`，下标改成 1；紧接着又更新一次，下一份就是 `buffers[0]`，正在被拷的那一份。读的一方拷出来的数据，一半是旧的，一半是新的。
 
@@ -130,6 +154,6 @@ private:
 
 另外，`read()` 按值返回一个 `std::vector`，每读一次都要分配内存、拷一整份，热路径上应该原地读，不拷贝。
 
-### 3.3 预热放错了核
+### 3.4 预热放错了核
 
 这类双数组常配一个“干跑预热”：每次 `update` 之后，把两份数据各按缓存行读一遍。可 `update` 跑在写的那个线程上，按 2.3 的道理，热起来的是写线程那个核的缓存，交易线程那个核什么也没得到。备用的那一份下次更新就会被覆盖，预热它也只对写的一方有用。要预热，就放到交易线程自己的空闲时间里。

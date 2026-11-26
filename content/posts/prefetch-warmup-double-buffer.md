@@ -85,6 +85,8 @@ Two more points. Warming should only read, not write: a write takes the line exc
 
 ## 3. Double Buffer with an Atomic Index: Readers Don't Lock
 
+> The essence of double buffering: the writer only writes the copy no one is reading, then switches with a single atomic index store.
+
 ### 3.1 How It Works
 
 Data like parameter tables or instrument definitions is updated occasionally by a control thread and read constantly by the trading thread. With a lock, the trading thread has to wait whenever the control thread is holding it to write. Double buffering keeps two copies: the writer writes the new data into the copy nobody is reading, then changes an atomic index to point at the new copy; the reader first reads the index, then reads the copy it points to:
@@ -116,7 +118,29 @@ private:
 
 The two fences pair up: the writer's release fence ensures all the data is written before the index changes, and the reader's acquire fence ensures that once it sees the new index, the data it reads is the fully written copy ([#2](/posts/memory-ordering-false-sharing-dependency-chains/) covers acquire / release).
 
-### 3.2 A Fast Writer Writes into the Copy Being Read
+### 3.2 What `atomic_thread_fence` Is, and Why Not Just Put Acquire / Release on the Index
+
+- **`std::atomic_thread_fence(order)` is a standalone fence that belongs to no atomic variable**: a release fence keeps the reads and writes before it from moving past any atomic store after it; an acquire fence keeps the reads and writes after it from moving ahead of any atomic load before it.
+- **A fence only works when paired with an atomic access**: the writer does "release fence, then a relaxed store to the index", the reader does "relaxed load of the index, then an acquire fence". As long as the reader loads the index value the writer stored, everything written before the writer's fence is visible after the reader's fence. The effect is the same as `store(release)` and `load(acquire)`.
+- **You can put the ordering on the index directly, and here that is the better choice**: there is one index, one store and one load, so tying the ordering to the variable is clearer:
+
+```cpp
+void update(const std::vector<T>& newData) {
+    size_t nextIndex = 1 - currentIndex.load(std::memory_order_relaxed);
+    std::copy(newData.begin(), newData.end(), buffers[nextIndex].begin());
+    currentIndex.store(nextIndex, std::memory_order_release);    // data written before the index changes
+}
+std::vector<T> read() const {
+    size_t index = currentIndex.load(std::memory_order_acquire);  // index read before the data
+    return buffers[index];
+}
+```
+
+- **A fence covers more than an ordering tied to one variable**: a release fence applies to every atomic store after it, and an acquire fence to every atomic load before it. So fences fit two cases: publishing several atomic variables at once, or loading with relaxed first and adding an acquire fence only once you know you will use the value, so the loads you discard cost nothing extra.
+- **On x86 both forms cost the same; on ARM the fence can cost more**: on x86 both compile to a plain `mov` and only stop compiler reordering. On ARM, `store(release)` is one `stlr` and `load(acquire)` is one `ldar`, while a fence is a `dmb` that waits for all earlier memory accesses, not just this variable.
+- **Neither form fixes the problem in 3.3**: memory ordering only guarantees that when the reader sees the new index, that copy is fully written; it does nothing to stop the writer from coming back and overwriting the copy still being read.
+
+### 3.3 A Fast Writer Writes into the Copy Being Read
 
 This design assumes the writer won't come back to a copy before the reader has finished reading it. Nothing guarantees that. The reader sees index 0 and starts copying `buffers[0]`; meanwhile the writer updates once, writing `buffers[1]` and changing the index to 1, then immediately updates again, and the next copy is `buffers[0]`, the one being copied. What the reader gets is half old data and half new.
 
@@ -130,6 +154,6 @@ To use this structure, you have to guarantee that before the writer returns to a
 
 Also, `read()` returns a `std::vector` by value, which allocates and copies the whole thing on every read; on the hot path, read in place instead of copying.
 
-### 3.3 Warming on the Wrong Core
+### 3.4 Warming on the Wrong Core
 
 Double buffers like this often come with a "dry-run warm-up": after each `update`, read both copies once per cache line. But `update` runs on the writer's thread, so by 2.3 it warms the writer's core, and the trading thread's core gets nothing. The standby copy will be overwritten by the next update anyway, so warming it only helps the writer. If you want to warm, do it in the trading thread's own idle time.
