@@ -557,6 +557,8 @@ $O(m \log n)$: $m$ values, each needing one $F(y)^n$ (fast power, $O(\log n)$).
 
 ## 5. Expectation DP: Backwards from the End
 
+> The essence of expectation DP: a state stands for the expected cost still to pay from it until the end; the end is 0, so we work backwards from it.
+
 ### 5.1 Define "How Much Is Left from Here"; the End Is 0
 
 **Let $E[s]$ be the expected remaining cost from state $s$; stopping states are 0, and every other state follows from its successors by 1.4; on an acyclic state graph, compute in reverse topological order.**
