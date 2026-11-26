@@ -130,9 +130,11 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **Signal**: "the expected number of / pairs / runs".
    - **How**: write the count as a sum of 0/1 variables over candidates, compute the probability each one is counted (1.3), and add. With many candidates, those of the same kind share a probability, so multiply by the size of the kind.
    - **Example: runs of equal colour after a shuffle**: shuffle the four crystals `1 1 2 2` uniformly and find the expected number of runs of one colour (the full problem is 3.2).
-     1. **Split into indicators**: runs = 1 + the number of adjacent pairs with different colours, and each of the 3 adjacent pairs contributes a 0 or 1.
-     2. **Symmetry: compute one pair**: every adjacent pair differs with the same probability, the probability that two crystals drawn in order differ. There are $4 \times 3 = 12$ ordered draws, $2 + 2 = 4$ of them the same colour, so the pair differs with probability $\frac{8}{12} = \frac23$.
-     3. **Add up**: $1 + 3 \times \frac23 = 3$.
+     1. **Computing directly means listing every arrangement**: the 4 crystals have $4! = 24$ orders, but only 6 colour patterns, all equally likely: `1122`, `1212`, `1221`, `2112`, `2121`, `2211`, with 2, 4, 3, 3, 4, 2 runs, average $\frac{18}{6} = 3$. With more crystals this list is far too long.
+     2. **Split into indicators**: runs = 1 (the first crystal starts a run) + the number of adjacent pairs with different colours, and each of the 3 adjacent pairs (crystals 1–2, 2–3, 3–4) contributes a 0 or 1.
+     3. **Symmetry: compute one pair**: every adjacent pair differs with the same probability, the probability that two crystals drawn in order differ. There are $4 \times 3 = 12$ ordered draws, $2 + 2 = 4$ of them the same colour, so the pair differs with probability $\frac{8}{12} = \frac23$.
+     4. **Tied pairs still add**: pairs 1–2 and 2–3 share crystal 2, so "1–2 differ" and "2–3 differ" affect each other; linearity only needs each pair's own probability (1.2, point 3).
+     5. **Add up**: $1 + \frac23 + \frac23 + \frac23 = 3$, matching the list in step 1.
 2. **The expected maximum or minimum: go through the distribution function**
    - **Signal**: "the maximum of $n$ draws / the time the last task finishes".
    - **How**: $P(\max = y)$ is awkward, but $P(\max \le y)$ means "every draw is $\le y$", a plain product when draws are independent; take differences to get $P(\max = y)$, or use the tail sum $E[Y] = \sum_{y \ge 1} P(Y \ge y)$ (section 4).
