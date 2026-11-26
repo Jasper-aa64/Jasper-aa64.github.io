@@ -55,6 +55,9 @@ This post first says what expectation is and why it splits (section 1), then sor
 2. **Every count is a sum of indicators**
    - **A count is each candidate contributing 0 or 1**: by linearity, the expected count is the sum over candidates of the probability of being counted.
    - **Example**: the number of fixed points of a random permutation splits into "is position $i$ fixed", each with probability $\frac{1}{n}$, so the expectation is $n \cdot \frac{1}{n} = 1$. The distribution of the count is messy; the expectation takes one line.
+3. **When the candidates are symmetric, compute one**
+   - **Under a random permutation or a uniform shuffle, every candidate is counted with the same probability**: the expected count is the number of candidates times the probability for one of them.
+   - **Example**: for the fixed points above every position has probability $\frac{1}{n}$, so only position 1 is computed; for the colour runs after a shuffle, all $m - 1$ adjacent pairs share one probability, so only one pair is computed (3.2).
 
 ### 1.4 Total Expectation: Look at the First Step, Then Average the Rest
 
@@ -319,13 +322,13 @@ When the question asks for a probability itself (for example "the probability tw
 2. **Idea**
    Let the query length be $m = r - l + 1$ and let colour $c$ appear $\mathit{cnt}_c$ times in it.
    1. **Runs = 1 + the number of adjacent pairs with different colours**: going left to right, each crystal whose colour differs from the previous one starts a new run.
-   2. **Every adjacent pair has the same probability of differing**: the shuffle is symmetric, so all $m - 1$ adjacent pairs share one probability, and the expected number of runs is $1 + (m - 1) \times$ that probability.
+   2. **Linearity plus symmetry: compute one pair**: the number of colour changes is a sum of $m - 1$ indicators, so by linearity its expectation is the sum of the probabilities that each adjacent pair differs (1.3). The shuffle is symmetric, so these $m - 1$ probabilities are equal, and the expected number of runs is $1 + (m - 1) \times$ the probability for one pair.
    3. **That probability equals the chance that two crystals drawn from the segment differ**: there are $m(m - 1)$ ordered draws, of which $S = \sum_c \mathit{cnt}_c (\mathit{cnt}_c - 1)$ have equal colours. Substituting:
       $$E[\text{runs}] = 1 + (m - 1)\Bigl(1 - \frac{S}{m(m - 1)}\Bigr) = m - \frac{S}{m}.$$
       Query $[1, 4]$ of sample 1 (`1 1 2 2`): $m = 4$, $S = 2 + 2 = 4$, answer $4 - 1 = 3$.
    4. **Queries differ only in $S$; maintain it with Mo's algorithm**: adding a crystal of colour $c$ forms two ordered equal pairs with each existing $c$, so $S$ grows by $2 \mathit{cnt}_c$, then $\mathit{cnt}_c$ grows by 1; removing one decreases $\mathit{cnt}_c$ first, then $S$ by $2 \mathit{cnt}_c$.
 
-   > The essence of expected runs: runs = 1 + number of adjacent colour changes, and each adjacent pair differs with the same probability as two random crystals.
+   > The essence of expected runs: linearity turns the runs into a sum of the probabilities that each adjacent pair differs, and symmetry makes each of them equal to the probability that two random crystals differ.
 
    ```cpp
    #include <bits/stdc++.h>
