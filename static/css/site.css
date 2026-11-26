@@ -1884,15 +1884,19 @@ sup { font-size: .62em; vertical-align: super; line-height: 0; }
 }
 /* MathJax draws its glyphs as ::before content, which the browser never paints as selected; the copy script in
    baseof.html marks formulas inside the selection with mjx-sel, and they get the ::selection colour by hand. */
-.prose mjx-container.mjx-sel:not([display="true"]),
+.prose { --mjx-sel: color-mix(in srgb, var(--accent) 22%, transparent); }
+:root[data-theme="dark"] .prose,
+:root[data-theme="black"] .prose { --mjx-sel: rgba(224, 120, 130, .5); }
 .prose mjx-container.mjx-sel[display="true"] > mjx-math {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  background: var(--mjx-sel);
   border-radius: 2px;
 }
-:root[data-theme="dark"] .prose mjx-container.mjx-sel:not([display="true"]),
-:root[data-theme="dark"] .prose mjx-container.mjx-sel[display="true"] > mjx-math,
-:root[data-theme="black"] .prose mjx-container.mjx-sel:not([display="true"]),
-:root[data-theme="black"] .prose mjx-container.mjx-sel[display="true"] > mjx-math { background: rgba(224, 120, 130, .5); }
+/* Inline: only the band the text's own selection covers (--sel-t / --sel-b are measured in baseof.html), so the
+   highlight lines up with the words around it instead of sticking out above them. */
+.prose mjx-container.mjx-sel:not([display="true"]) {
+  background: linear-gradient(transparent var(--sel-t, 0px), var(--mjx-sel) var(--sel-t, 0px),
+    var(--mjx-sel) calc(100% - var(--sel-b, 0px)), transparent calc(100% - var(--sel-b, 0px)));
+}
 .prose .mermaid { margin: 2em 0; text-align: center; }
 
 /* Post footer */

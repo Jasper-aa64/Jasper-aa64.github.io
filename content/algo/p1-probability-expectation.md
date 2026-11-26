@@ -54,7 +54,7 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **The second coin is the opposite of the first**: 2 rows, $(0, 1), (1, 0)$, each $\frac{1}{2}$; $X + Y$ is always 1, expectation 1.
    - **Conclusion**: the distribution of $X + Y$ is completely different in the three cases ($0/1/2$ with $\frac{1}{4}/\frac{1}{2}/\frac{1}{4}$, $0/2$ half each, always 1), but each coin on its own is heads half the time, $E[X] = E[Y] = \frac{1}{2}$, so $E[X + Y]$ is 1 every time.
 3. **Dependence only decides how the parts pair up; the total's average sees only each part's own average**
-   - **Being tied together means not independent**: $X$ and $Y$ are independent when knowing $X$ does not change the probabilities of $Y$'s values; as a formula, $P(X = x, Y = y) = P(X = x) P(Y = y)$ for all $x, y$.
+   - **Being tied together means not independent**: $X$ and $Y$ are independent when knowing $X$ does not change the probabilities of $Y$'s values; as a formula, $P(X = x, Y = y) = P(X = x) \cdot P(Y = y)$ for all $x, y$.
    - **Examples**:
      - **The copying coin**: $P(Y = 1) = \frac12$ on its own; once $X = 1$ is known, $Y$ is certainly 1, so they are not independent.
      - **Shuffling `1 1 2 2` is drawing two 1s and two 2s from a bag one by one**: $I_2$ asks whether the third draw differs from the second, which depends on what is left in the bag at the third draw.
@@ -69,7 +69,7 @@ This post first says what expectation is and why it splits (section 1), then sor
    - **When the quantity is about several parts at once, the dependence cannot be avoided**: products, joint occurrence and maxima all depend on the pairing; see the next point and 8.5.
 4. **Why products do not split**
    - **Compute $XY$ for the same coins**: independent, only the $(1, 1)$ row is 1, expectation $\frac{1}{4}$; copying, $(1, 1)$ is half the ledger, expectation $\frac{1}{2}$; opposite, there is no $(1, 1)$ row, expectation 0.
-   - **Reason**: $E[XY]$ depends on whether $Y$ is also 1 in the rows where $X = 1$, which is exactly the dependence. Only for independent coins does it equal $E[X] E[Y] = \frac{1}{4}$.
+   - **Reason**: $E[XY]$ depends on whether $Y$ is also 1 in the rows where $X = 1$, which is exactly the dependence. Only for independent coins does it equal $E[X] \cdot E[Y] = \frac{1}{4}$.
 5. **As a formula**
    - **Expand over the joint distribution of $(X, Y)$**: the joint distribution is the ledger above; $P(X = x, Y = y)$ is the probability of row $(x, y)$.
      $$E[X + Y] = \sum_{x, y} (x + y) P(X = x, Y = y) = \sum_x x \underbrace{\sum_y P(X = x, Y = y)}_{P(X = x)} + \sum_y y \underbrace{\sum_x P(X = x, Y = y)}_{P(Y = y)}.$$
@@ -1167,7 +1167,7 @@ Problem H of the 11th CCPC Harbin site; 9 of 278 teams solved it in the contest.
 
 **Linearity holds for any random variables, but expectations cannot be pushed through products, ratios or extremes.**
 
-1. **$E[XY] = E[X]E[Y]$ needs independence**: with $X = Y$ = "one coin shows heads", $E[XY] = E[X] = \frac12$ while $E[X]E[Y] = \frac14$.
+1. **$E[XY] = E[X] \cdot E[Y]$ needs independence**: with $X = Y$ = "one coin shows heads", $E[XY] = E[X] = \frac12$ while $E[X] \cdot E[Y] = \frac14$.
 2. **$E\left[\frac{X}{Y}\right] \ne \frac{E[X]}{E[Y]}$**: with $Y$ equal to 1 or 2 with equal probability, $E\left[\frac{1}{Y}\right] = \frac34$ while $\frac{1}{E[Y]} = \frac23$.
 3. **$E[\max] \ne \max(E)$**: for two coins taking 0 or 1, $E[\max] = \frac34$ while both expectations are $\frac12$. Extremes go through the distribution as in section 4.
 4. **Check with $n = 1, 2$ by hand**: with few cases, list every outcome and average, and write code only once the formula matches.

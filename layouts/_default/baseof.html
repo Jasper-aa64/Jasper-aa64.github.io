@@ -127,6 +127,25 @@
         });
         // MathJax glyphs are ::before content, which the browser never paints as selected, so a formula inside the
         // selection looked unselected although copying included it. Mark such formulas with mjx-sel (site.css colours it).
+        // An inline formula's own box is taller than the text's selection band, so its highlight stuck out of the line.
+        // Measure the band once per font size (a probe character next to the formula) and inset the highlight to it.
+        const bands = new Map();
+        const fitBand = m => {
+          if (m.getAttribute('display') === 'true') return;
+          const key = getComputedStyle(m.parentElement).fontSize + '|' + getComputedStyle(m).fontSize;
+          if (!bands.has(key)) {
+            const probe = document.createElement('span');
+            probe.textContent = '字';
+            m.before(probe);
+            const t = probe.getBoundingClientRect(), b = m.getBoundingClientRect();
+            probe.remove();
+            if (Math.abs(b.bottom - t.bottom) > b.height / 2) return; // the probe wrapped onto another line
+            bands.set(key, [t.top - b.top, b.bottom - t.bottom]);
+          }
+          const [top, bot] = bands.get(key);
+          m.style.setProperty('--sel-t', top + 'px');
+          m.style.setProperty('--sel-b', bot + 'px');
+        };
         let marked = [], pending = 0;
         document.addEventListener('selectionchange', () => {
           cancelAnimationFrame(pending);
@@ -140,7 +159,7 @@
             const root = anc.nodeType === 1 ? anc : anc.parentElement;
             const inside = root.closest('mjx-container[data-tex]');
             const cands = inside ? [inside] : root.querySelectorAll('mjx-container[data-tex]');
-            cands.forEach(m => { if (r.intersectsNode(m)) { m.classList.add('mjx-sel'); marked.push(m); } });
+            cands.forEach(m => { if (r.intersectsNode(m)) { fitBand(m); m.classList.add('mjx-sel'); marked.push(m); } });
           });
         });
       </script>
