@@ -18,6 +18,8 @@ Given $n$ numbers, pick any subset and XOR it together: what is the largest resu
 
 ## 1. What an XOR Basis Is
 
+> The essence of an XOR basis: a basis of $\operatorname{span}(a_1, \dots, a_n)$, i.e. at most 60 linearly independent numbers whose XORs give exactly the same values as the original $n$ numbers.
+
 ### 1.1 A Number Is a Vector over GF(2)
 
 **Read a number as a 0/1 vector: XOR is vector addition and a subset XOR is a linear combination.**
