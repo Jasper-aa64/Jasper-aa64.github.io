@@ -880,6 +880,15 @@ struct PrefixBasis {
       $$S_i \cup K \text{ closed} \iff \lvert S_i \rvert + \lvert K \rvert - \lvert S_i \cap K \rvert = 2^r .$$
 
       When it is not closed, list $\operatorname{span}(S_i \cup K)$, at most $2^m$ elements, and any one in neither $S_i$ nor $K$ is the $x$ to add.
+   5. **Add one number per round, then recheck from the first set**
+
+      > The essence of adding one per round: one number already raises the rank by 1, while listing a span costs $2^m$, so each round lists only one.
+
+      - **Every number found is forced, so adding several at once is also correct**: the proof in point 3 holds for every element of $\operatorname{span}(S_i \cup K)$ outside both $S_i$ and $K$, no matter how many are found in a round or whether $K$ grows later. Adding them all would not be wrong; adding one just saves work.
+      - **One is enough to make progress**: $x \notin K$ and $K$ is a span, so `kb.insert(x)` always succeeds and the rank grows by 1, giving at most $m$ rounds.
+      - **Stopping at the first non-closed set keeps one listing per round**: `expand(b)` lists up to $2^m$ numbers. Listing it for every non-closed set costs up to $n \cdot 2^m$ per round, too slow for $n = 2 \cdot 10^5$, $m = 20$. The loop condition `forced < 0` ends the `for` right after the first non-closed set.
+      - **After $K$ grows, a set that was closed may stop being closed**: so the outer `while` rechecks from the first set every round and stops only when a whole round finds every set closed.
+        - **Example**: $S = \{0, 1\}$. With $K = \{0\}$, $S \cup K = \{0, 1\}$ is closed; once $K = \{0, 2\}$, $S \cup K = \{0, 1, 2\}$ and $1 \oplus 2 = 3$ is missing.
 
    ```cpp
    #include <bits/stdc++.h>
@@ -952,7 +961,7 @@ struct PrefixBasis {
    ```
 
 3. **Cost and pitfalls**
-   - **Cost**: at most $m$ rounds; checking all sets in one round is $O(m \sum \lvert S_i \rvert)$, plus $O(2^m)$ for the listing.
+   - **Cost**: at most $m$ rounds; checking all sets in one round is $O(m \sum \lvert S_i \rvert)$, plus $O(2^m)$ for listing $K$ and the span of the first non-closed set.
 
 ## Practice
 
