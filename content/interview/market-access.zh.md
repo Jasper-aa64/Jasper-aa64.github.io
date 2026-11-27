@@ -11,7 +11,7 @@ toc: true
 
 ## 概览 {#overview}
 
-- **行情接入长什么样（[第 1 节](#shape)）**：交易所发出的消息，要有人收包、解码、按序号补齐，这一层叫 feed handler。
+- **行情接入长什么样（[第 1 节](#shape)）**：交易所发出的消息，要有人收包、解码、按序号补齐，这一层叫 feed handler；之后转成统一结构，送给策略、客户或 App。
   - HFT 在托管机房里自己写 feed handler。
   - 用数据商 SDK 时，这层是数据商做的，回调交给你的已经是结构体。
 - **HFT 那套（[第 2 节](#hft)）**：一个绑核的线程忙轮询，从收包、解码、查序号一路跑到订单簿、策略、报单，中间不换线程；行情软件公司前半段一样，后半段拼的是推给大量用户。
@@ -26,11 +26,132 @@ toc: true
 - **“柜台对接经验”指下单**：调柜台的 API 报单、撤单、查询，处理异步回报，维护每笔订单的状态。
 - **我的经验只在行情这一侧**：用数据商的 SDK 收沪深 Level-2，没接过柜台（[行情接入和 SPMC 广播环](/zh/interview/md-feed-spmc/)）。
 
-## 1. 行情接入长什么样：HFT 直连和数据商 SDK {#shape}
+## 1. 行情接入长什么样：完整架构和两条路 {#shape}
 
-### 1.1 一条行情走过的路 {#path}
+### 1.1 完整的架构：从交易所到用行情的程序 {#full}
 
-回调里拿到的一个 tick，就是交易所发出来的一条消息：一张快照，或者一笔逐笔委托、逐笔成交。它到你手里之前，已经有人收好、解码、按序号排好了。区别只在这件事是谁做的：
+<svg viewBox="0 0 680 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="完整的行情接入架构，分四层。第一层交易所：撮合主机产生每笔委托和成交，行情系统按频道编号，用组播发出，缺的用 TCP 补。第二层是直连交易所的接入方的 feed handler：收包（组播或 TCP）、解码（分帧、大端、FAST）、查序号和补缺（按频道，去重传端口要），这三步是前半段；然后转统一结构，从这里起是后半段。HFT、券商、数据商、信息商都在这一层。第三层是转成统一结构之后送到哪：同一台机器上写广播环给订单簿、策略、落盘；数据商和券商经专线转发给客户；信息商经行情服务器推给 App。第四层是客户进程：SDK 收包、解码、续传，相当于替客户做了前半段；回调交出结构体，客户再转统一结构，写广播环给落盘和策略，这是客户自己写的后半段。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .fa1bg  { fill: #fbfaf7; }
+    .fa1bd  { fill: #f4f3ef; stroke: #b9b6ac; stroke-width: 1; stroke-dasharray: 5 4; }
+    .fa1fr  { fill: #ffffff; stroke: #8a8f98; stroke-width: 1.3; }
+    .fa1bk  { fill: #e6f2ec; stroke: #5f9a80; stroke-width: 1.4; }
+    .fa1ink { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .fa1sm  { fill: #4a463e; font-size: 11.5px; }
+    .fa1hd  { fill: #1c1b18; font-size: 13.5px; font-weight: 700; }
+    .fa1mut { fill: #6b6558; font-size: 12px; }
+    .fa1ar  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .fa1hh  { fill: #6b6558; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1bd { fill: #1f1e24; stroke: #4a4855; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1fr { fill: #1d1c22; stroke: #6f7380; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1bk { fill: #1c2a24; stroke: #5f9a80; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1ink, :root:is([data-theme="dark"], [data-theme="black"]) .fa1hd { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1sm, :root:is([data-theme="dark"], [data-theme="black"]) .fa1mut { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1ar { stroke: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .fa1hh { fill: #a19caf; }
+  </style>
+  <defs><marker id="fa1ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="fa1hh"/></marker></defs>
+  <rect class="fa1bg" x="0" y="0" width="680" height="620" rx="10"/>
+
+  <rect class="fa1bd" x="20" y="14" width="640" height="112" rx="12"/>
+  <text class="fa1hd" x="36" y="36">① 交易所</text>
+  <rect class="fa1fr" x="50" y="52" width="240" height="56" rx="8"/>
+  <text class="fa1ink" x="170" y="75" text-anchor="middle">撮合主机</text>
+  <text class="fa1sm" x="170" y="95" text-anchor="middle">产生每笔委托、每笔成交</text>
+  <path class="fa1ar" d="M290 80 L348 80" marker-end="url(#fa1ah)"/>
+  <rect class="fa1fr" x="350" y="52" width="280" height="56" rx="8"/>
+  <text class="fa1ink" x="490" y="75" text-anchor="middle">行情系统</text>
+  <text class="fa1sm" x="490" y="95" text-anchor="middle">按频道编号，组播发出，TCP 补</text>
+
+  <path class="fa1ar" d="M490 108 L490 190" marker-end="url(#fa1ah)"/>
+
+  <rect class="fa1bd" x="20" y="150" width="640" height="122" rx="12"/>
+  <text class="fa1hd" x="36" y="172">② 直连交易所的接入方：feed handler</text>
+  <text class="fa1mut" x="644" y="265" text-anchor="end">HFT、券商、数据商、信息商都在这层</text>
+  <rect class="fa1fr" x="41" y="192" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="108" y="215" text-anchor="middle">收包</text>
+  <text class="fa1sm" x="108" y="235" text-anchor="middle">组播或 TCP</text>
+  <path class="fa1ar" d="M176 220 L192 220" marker-end="url(#fa1ah)"/>
+  <rect class="fa1fr" x="194" y="192" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="261" y="215" text-anchor="middle">解码</text>
+  <text class="fa1sm" x="261" y="235" text-anchor="middle">分帧、大端、FAST</text>
+  <path class="fa1ar" d="M329 220 L345 220" marker-end="url(#fa1ah)"/>
+  <rect class="fa1fr" x="347" y="192" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="414" y="215" text-anchor="middle">查序号、补缺</text>
+  <text class="fa1sm" x="414" y="235" text-anchor="middle">按频道，去重传端口</text>
+  <path class="fa1ar" d="M482 220 L498 220" marker-end="url(#fa1ah)"/>
+  <rect class="fa1bk" x="500" y="192" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="567" y="215" text-anchor="middle">转统一结构</text>
+  <text class="fa1sm" x="567" y="235" text-anchor="middle">价格、代码、字段对齐</text>
+
+  <path class="fa1ar" d="M567 248 L567 288 L135 288"/>
+  <path class="fa1ar" d="M135 288 L135 324" marker-end="url(#fa1ah)"/>
+  <path class="fa1ar" d="M340 288 L340 324" marker-end="url(#fa1ah)"/>
+  <path class="fa1ar" d="M545 288 L545 324" marker-end="url(#fa1ah)"/>
+
+  <rect class="fa1bd" x="20" y="300" width="640" height="122" rx="12"/>
+  <rect class="fa1bk" x="40" y="326" width="190" height="56" rx="8"/>
+  <text class="fa1ink" x="135" y="349" text-anchor="middle">同一台机器：广播环</text>
+  <text class="fa1sm" x="135" y="369" text-anchor="middle">订单簿、策略、落盘来读</text>
+  <rect class="fa1bk" x="245" y="326" width="190" height="56" rx="8"/>
+  <text class="fa1ink" x="340" y="349" text-anchor="middle">转发给客户</text>
+  <text class="fa1sm" x="340" y="369" text-anchor="middle">数据商、券商，走专线</text>
+  <rect class="fa1bk" x="450" y="326" width="190" height="56" rx="8"/>
+  <text class="fa1ink" x="545" y="349" text-anchor="middle">推给用户</text>
+  <text class="fa1sm" x="545" y="369" text-anchor="middle">信息商：行情服务器 → App</text>
+  <text class="fa1hd" x="36" y="408">③ 转成统一结构之后，送到哪</text>
+
+  <path class="fa1ar" d="M340 382 L340 432 L108 432 L108 474" marker-end="url(#fa1ah)"/>
+
+  <rect class="fa1bd" x="20" y="450" width="640" height="122" rx="12"/>
+  <rect class="fa1fr" x="41" y="476" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="108" y="499" text-anchor="middle">SDK</text>
+  <text class="fa1sm" x="108" y="519" text-anchor="middle">收包、解码、续传</text>
+  <path class="fa1ar" d="M176 504 L192 504" marker-end="url(#fa1ah)"/>
+  <rect class="fa1bk" x="194" y="476" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="261" y="499" text-anchor="middle">回调</text>
+  <text class="fa1sm" x="261" y="519" text-anchor="middle">SDK 的线程交出结构体</text>
+  <path class="fa1ar" d="M329 504 L345 504" marker-end="url(#fa1ah)"/>
+  <rect class="fa1bk" x="347" y="476" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="414" y="499" text-anchor="middle">转统一结构</text>
+  <text class="fa1sm" x="414" y="519" text-anchor="middle">厂商字段、单位对齐</text>
+  <path class="fa1ar" d="M482 504 L498 504" marker-end="url(#fa1ah)"/>
+  <rect class="fa1bk" x="500" y="476" width="135" height="56" rx="8"/>
+  <text class="fa1ink" x="567" y="499" text-anchor="middle">写广播环</text>
+  <text class="fa1sm" x="567" y="519" text-anchor="middle">落盘、策略来读</text>
+  <text class="fa1hd" x="36" y="558">④ 客户的进程：SDK 做了前半段，后半段自己写</text>
+
+  <text class="fa1mut" x="340" y="600" text-anchor="middle">白框是前半段（收到完整、按顺序的消息）；绿框是后半段（转成自己的结构，送给用的人）</text>
+</svg>
+
+- **① 交易所**：撮合主机每产生一笔委托、一笔成交，行情系统就打包成一条消息，按频道编号发出去；组播发实时数据，缺了的用 TCP 补。
+- **② 直连交易所的接入方**：机器放在交易所的机房或托管机房里，自己写 feed handler。前三步得到完整、按顺序的消息，是前半段；转成自己的统一结构以后是后半段。
+- **③ 后半段送到哪，决定了你是谁**：
+  - 交给同机的订单簿、策略，是 HFT。
+  - 转发给客户，是数据商、券商。
+  - 推给大量 App 用户，是做行情软件的信息商。
+- **④ 客户的进程**：从数据商或券商收行情的一方，进程里跑的是对方给的 SDK。SDK 替你做了收包、解码、续传，相当于前半段；回调交出厂商的结构体以后，转统一结构、交给下游，是你自己写的后半段。
+- **④ 和 ② 是同一个形状**：都是“拿到完整的消息 → 转统一结构 → 分给下游”，只是 ② 自己解交易所的协议，④ 让 SDK 解。
+
+### 1.2 这些名字在哪一层 {#who}
+
+| 名字 | 是什么 | 在图里哪一层 |
+| --- | --- | --- |
+| 上证信息、深证信息 | 交易所下属的信息公司，发布 Level-2，卖行情授权 | ① |
+| 万得宏汇（TDF） | 数据商，万得旗下的行情系统，直连交易所，给机构客户实时行情 API（[万得](https://wind.com.cn/portal/en/WDS/marketdata.html)） | ② ③ 转发给客户；客户在 ④ 用它的 SDK |
+| 国泰海通、开源证券这些券商 | 给自己的客户提供行情 SDK，常和极速柜台一起提供 | ② ③ 转发给客户；客户在 ④ |
+| 恒生（NSQ 极速行情）、华锐、宽睿 | 系统厂商，把行情系统、柜台卖给券商，券商部署以后给自己的客户用 | 软件跑在券商的 ② ③；客户在 ④ 用券商给的 SDK |
+| 中泰 XTP、华鑫奇点 | 券商自研的极速柜台，附带行情 API | 同上一行 |
+| 做行情软件的信息商 | 直连交易所，加工后推给 App 用户 | ② ③ 推给用户 |
+| HFT 公司 | 直连交易所，只给自己用 | ② ③ 同机 |
+
+- **同一家公司可以在好几层**：数据商、券商在 ② 解交易所的协议，在 ③ 转发；它们的客户在 ④ 接 SDK。
+- **从客户这边看，只分两种来源**：数据商的 SDK，或者券商给的 SDK（底下可能是券商自研的，也可能是恒生这类厂商的软件）。
+
+### 1.3 两条路：HFT 直连和数据商 SDK {#path}
+
+回调里拿到的一个 tick，就是交易所发出来的一条消息：一张快照，或者一笔逐笔委托、逐笔成交。它到你手里之前，已经有人收好、解码、按序号排好了。把 1.1 的图按“前半段谁做”拆成两条路：
 
 <svg viewBox="0 0 680 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="行情接入的两条路。最上面是交易所，撮合后按频道编号发出行情。左边是 HFT 在托管机房里直连：网卡收组播（机器放在交易所旁，内核旁路），自己写的 feed handler（解码、按频道查序号、缺了补），订单簿重建（用逐笔还原每只股票的盘口），策略下单（同一台机器，全程几微秒）。右边是数据商的 SDK：数据商的 feed handler（它直连交易所，做左边那套），数据商转发（自己的协议，专线发给客户），你进程里的 SDK（收包、解码、断线续传），最后回调进入你的代码（统一结构、写环、落盘）。左边每一层都自己写；右边上三层是别人做好的，你从回调开始。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
   <style>
@@ -110,7 +231,7 @@ toc: true
 - **右边是数据商 SDK 这条路**：数据商在它那边做了左边那套，再用自己的协议转发给客户；你进程里的 SDK 收包、解码、断线续传，回调交给你的已经是结构体，延迟在几十到几百微秒（[A 股行情 1.3](/zh/ref/a-share-market/#feed-path)）。
 - **做行情软件的信息商在右边上面两个框的位置**：自己直连交易所做 feed handler，再分发出去，只是下游是大量 App 用户，不是机构。
 
-### 1.2 feed handler 做的五件事 {#feed-handler}
+### 1.4 feed handler 做的五件事 {#feed-handler}
 
 真正意义上的“行情接入”就是这一层，按数据流的顺序：
 
@@ -122,7 +243,7 @@ toc: true
 
 用 SDK 时，前四件是 SDK 和数据商做的；第五件里的“转统一结构、交给下游”是你做的。
 
-### 1.3 两条路差在哪 {#compare}
+### 1.5 两条路差在哪 {#compare}
 
 | 项 | HFT 直连 | 数据商 SDK |
 | --- | --- | --- |
@@ -133,9 +254,9 @@ toc: true
 | 要懂的 | 交易所协议、组播、重传、内核旁路 | SDK 的线程模型、字段口径、断线续传 |
 | 面试里“行情接入”指 | 写 feed handler | 接 SDK 之后这一段：回调、统一结构、分发 |
 
-### 1.4 我做的是哪一段 {#mine}
+### 1.6 我做的是哪一段 {#mine}
 
-- **橙色那一框**：用两家厂商的 SDK 收沪深 Level-2，回调里转成统一结构，经广播环交给另一个进程落盘（[行情接入和 SPMC 广播环](/zh/interview/md-feed-spmc/)）。
+- **在 1.1 的图里是 ④ 的后半段**：用两家厂商的 SDK 收沪深 Level-2，一家是数据商的，一家是券商给的；回调里转成统一结构，经广播环交给另一个进程落盘（[行情接入和 SPMC 广播环](/zh/interview/md-feed-spmc/)）。前半段是 SDK 和对方的 ② 做的。
 - **这一段要保证的**：
   - 不丢、不乱：整日回放核条数，断线续传前后核不丢不重。
   - 字段对：厂商头文件不全，拿真实行情逐个字段核。
@@ -423,7 +544,7 @@ for (;;) {                                         // 线程绑在独占的核�
 
 ### 2.5 行情软件公司是不是这一套 {#vendor-vs-hft}
 
-以“转成统一结构”为界分成两半：前半段是从网卡到统一结构，也就是 feed handler；后半段是统一结构之后送到哪、怎么用。
+以“转成统一结构”为界分成两半（[1.1 的图](#full)里白框和绿框）：前半段是收包、解码、查序号补缺，得到完整、按顺序的消息；后半段从转成自己的统一结构开始，是送到哪、怎么用。
 
 - **前半段一样**：都要直连交易所，自己收包、解码、查序号、补缺。
 - **后半段不一样**：HFT 交给同一个线程里的订单簿和策略，要的是自己最快下单；行情软件公司要加工再一级级推给大量用户，要的是吞吐和稳定。
