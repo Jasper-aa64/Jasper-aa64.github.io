@@ -2,7 +2,7 @@
 title: "IV. 行情接入速览：券商柜台、行情源、“接入经验”分别指什么"
 date: 2026-11-27T00:00:00+08:00
 slug: "market-access"
-description: "行情接入长什么样：HFT 直连和数据商 SDK 两条路的架构图。面试和招聘里常说的券商柜台、行情接入、柜台对接、交易所直连分别指什么。行情是从交易所往里收数据，柜台是券商替你往交易所报单的那一层；两类柜台、交易网关、行情从哪几种渠道来、各种“接入经验”被问时会问到什么。"
+description: "行情接入长什么样：HFT 直连和数据商 SDK 两条路的架构图；HFT 热路径一个线程从收包跑到报单，配一份能跑的简化 feed handler，以及行情软件公司和 HFT 的异同。面试和招聘里常说的券商柜台、行情接入、柜台对接、交易所直连分别指什么。行情是从交易所往里收数据，柜台是券商替你往交易所报单的那一层；两类柜台、交易网关、行情从哪几种渠道来、各种“接入经验”被问时会问到什么。"
 weight: 3
 toc: true
 ---
@@ -14,6 +14,7 @@ toc: true
 - **行情接入长什么样（[第 1 节](#shape)）**：交易所发出的消息，要有人收包、解码、按序号补齐，这一层叫 feed handler。
   - HFT 在托管机房里自己写 feed handler。
   - 用数据商 SDK 时，这层是数据商做的，回调交给你的已经是结构体。
+- **HFT 那套（[第 2 节](#hft)）**：一个绑核的线程忙轮询，从收包、解码、查序号一路跑到订单簿、策略、报单，中间不换线程；行情软件公司前半段一样，后半段拼的是推给大量用户。
 - **两条流，方向相反**：
   - 行情：从交易所流向你。
   - 交易：委托从你经券商柜台流向交易所，回报再原路回来。
@@ -139,9 +140,311 @@ toc: true
   - 不丢、不乱：整日回放核条数，断线续传前后核不丢不重。
   - 字段对：厂商头文件不全，拿真实行情逐个字段核。
   - 回调不堵：回调线程是 SDK 的，不在里面做 I/O。
-- **被问到时先说边界**：行情用的是数据商的 SDK，没直连交易所；左边那套了解结构，没在生产上写过。
+- **被问到时先说边界**：整体结构清楚，实习里只做过回调之后这一段；行情用的是数据商的 SDK，没直连交易所（[2.6](#hft-say)）。
 
-## 2. 两条流 {#flows}
+## 2. HFT 那套展开：一天怎么跑，代码长什么样 {#hft}
+
+### 2.1 一天怎么跑 {#hft-day}
+
+- **盘前**：
+  - 起进程、绑核，订单簿和缓冲区一次性分配好，加载当天的代码表。
+  - 连上行情的实时会话和重传会话、柜台的交易会话，各自登录。
+  - 预热：把热路径的代码和数据先跑几遍，让它们进缓存。
+- **盘中**：一个绑核的线程忙轮询，来一个包就从收包一路跑到策略；要报单，也在这个线程里编码发出去。落盘、监控在别的核上，经环拿数据，不挡热路径。
+- **盘后**：对账；当天收到的原始包已经录成录像，用来回放复现问题、做回测。
+
+### 2.2 热路径：一个线程从收包跑到报单 {#hft-hot}
+
+<svg viewBox="0 0 680 390" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="HFT 行情热路径：一个绑核、忙轮询的线程里，依次是网卡组播包、收包（忙轮询、内核旁路）、分帧校验（按长度切、验校验和）、解码（大端转结构体）、查序号（跳号先缓存再去补）、订单簿（逐笔改盘口）、策略（算信号）、报单（编码发给柜台）。线程外面有三样：查序号缺号时找重传会话（TCP）补；订单簿之后写一份进广播环，给别的核上的落盘和监控；报单发往柜台和交易所。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .hf1bg  { fill: #fbfaf7; }
+    .hf1th  { fill: #f1eef6; stroke: #c3b9d6; stroke-width: 1; stroke-dasharray: 5 4; }
+    .hf1b   { fill: #ffffff; stroke: #8a8f98; stroke-width: 1.3; }
+    .hf1o   { fill: #eaf3ef; stroke: #6f9f8a; stroke-width: 1.3; }
+    .hf1ink { fill: #1c1b18; font-size: 13px; font-weight: 700; }
+    .hf1sm  { fill: #4a463e; font-size: 11.5px; }
+    .hf1hd  { fill: #1c1b18; font-size: 13.5px; font-weight: 700; }
+    .hf1mut { fill: #6b6558; font-size: 12px; }
+    .hf1ar  { stroke: #6b6558; stroke-width: 1.4; fill: none; }
+    .hf1ad  { stroke: #6b6558; stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+    .hf1hh  { fill: #6b6558; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1th { fill: #23202b; stroke: #4c4560; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1b { fill: #1d1c22; stroke: #6f7380; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1o { fill: #1c2723; stroke: #5f8f7a; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1ink, :root:is([data-theme="dark"], [data-theme="black"]) .hf1hd { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1sm, :root:is([data-theme="dark"], [data-theme="black"]) .hf1mut { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1ar, :root:is([data-theme="dark"], [data-theme="black"]) .hf1ad { stroke: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .hf1hh { fill: #a19caf; }
+  </style>
+  <defs><marker id="hf1ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="hf1hh"/></marker></defs>
+  <rect class="hf1bg" x="0" y="0" width="680" height="390" rx="10"/>
+  <rect class="hf1th" x="20" y="20" width="640" height="232" rx="12"/>
+  <text class="hf1hd" x="340" y="44" text-anchor="middle">一个绑核的线程，忙轮询，从收包跑到报单</text>
+
+  <rect class="hf1b" x="41" y="64" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="106" y="85" text-anchor="middle">网卡</text>
+  <text class="hf1sm" x="106" y="104" text-anchor="middle">交易所的组播包</text>
+  <path class="hf1ar" d="M171 90 L195 90" marker-end="url(#hf1ah)"/>
+  <rect class="hf1b" x="197" y="64" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="262" y="85" text-anchor="middle">收包</text>
+  <text class="hf1sm" x="262" y="104" text-anchor="middle">忙轮询，内核旁路</text>
+  <path class="hf1ar" d="M327 90 L351 90" marker-end="url(#hf1ah)"/>
+  <rect class="hf1b" x="353" y="64" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="418" y="85" text-anchor="middle">分帧、校验</text>
+  <text class="hf1sm" x="418" y="104" text-anchor="middle">按长度切，验校验和</text>
+  <path class="hf1ar" d="M483 90 L507 90" marker-end="url(#hf1ah)"/>
+  <rect class="hf1b" x="509" y="64" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="574" y="85" text-anchor="middle">解码</text>
+  <text class="hf1sm" x="574" y="104" text-anchor="middle">大端 → 结构体</text>
+
+  <path class="hf1ar" d="M574 116 L574 138 L106 138 L106 170" marker-end="url(#hf1ah)"/>
+
+  <rect class="hf1b" x="41" y="172" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="106" y="193" text-anchor="middle">查序号</text>
+  <text class="hf1sm" x="106" y="212" text-anchor="middle">跳号先缓存，去补</text>
+  <path class="hf1ar" d="M171 198 L195 198" marker-end="url(#hf1ah)"/>
+  <rect class="hf1b" x="197" y="172" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="262" y="193" text-anchor="middle">订单簿</text>
+  <text class="hf1sm" x="262" y="212" text-anchor="middle">逐笔改盘口</text>
+  <path class="hf1ar" d="M327 198 L351 198" marker-end="url(#hf1ah)"/>
+  <rect class="hf1b" x="353" y="172" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="418" y="193" text-anchor="middle">策略</text>
+  <text class="hf1sm" x="418" y="212" text-anchor="middle">算信号，决定报不报</text>
+  <path class="hf1ar" d="M483 198 L507 198" marker-end="url(#hf1ah)"/>
+  <rect class="hf1b" x="509" y="172" width="130" height="52" rx="8"/>
+  <text class="hf1ink" x="574" y="193" text-anchor="middle">报单</text>
+  <text class="hf1sm" x="574" y="212" text-anchor="middle">编码，发给柜台</text>
+
+  <path class="hf1ad" d="M106 224 L106 278" marker-end="url(#hf1ah)"/>
+  <path class="hf1ad" d="M262 224 L340 278" marker-end="url(#hf1ah)"/>
+  <path class="hf1ar" d="M574 224 L574 278" marker-end="url(#hf1ah)"/>
+  <rect class="hf1o" x="31" y="280" width="150" height="52" rx="8"/>
+  <text class="hf1ink" x="106" y="301" text-anchor="middle">重传会话（TCP）</text>
+  <text class="hf1sm" x="106" y="320" text-anchor="middle">要回缺的那段</text>
+  <rect class="hf1o" x="250" y="280" width="180" height="52" rx="8"/>
+  <text class="hf1ink" x="340" y="301" text-anchor="middle">广播环 → 别的核</text>
+  <text class="hf1sm" x="340" y="320" text-anchor="middle">落盘录像、监控</text>
+  <rect class="hf1o" x="499" y="280" width="150" height="52" rx="8"/>
+  <text class="hf1ink" x="574" y="301" text-anchor="middle">柜台 → 交易所</text>
+  <text class="hf1sm" x="574" y="320" text-anchor="middle">回报从这里回来</text>
+
+  <text class="hf1mut" x="340" y="364" text-anchor="middle">框里是热路径，中间不经过队列、不换线程；框外的旁路不挡它</text>
+</svg>
+
+- **一个线程跑到底，是为了中间不交接**：每交接一次，就多一次跨核搬缓存行和等待，抖动也跟着来（[交易系统架构 3.1](/zh/ref/trading-architecture/#run-to-completion)）。
+- **忙轮询、内核旁路，是为了收包不进内核**：网卡的包直接进用户态，线程一直在问“有新包吗”，不睡，也不等中断。
+- **落盘、监控放在框外**：热路径只往环里写一份就走，慢活在别的核上做。我实习的回调写环、落盘线程批量读，就是这一块的做法。
+
+### 2.3 代码：简化后的完整程序 {#hft-code}
+
+下面把热路径写成一个能跑的程序：消息格式仿深交所 Binary（头是 MsgType 和 BodyLength，尾是校验和，整数都是大端），包用手工造的代替网卡。故意让第 1 个包装两条消息、3 号丢掉、4 号重复，看序号检查怎么处理。
+
+```cpp
+// HFT 行情热路径的简化版：收包 → 分帧校验 → 大端解码 → 按频道查序号、缺了补 → 订单簿 → 策略
+// 消息格式仿深交所 Binary：头 MsgType(u32) + BodyLength(u32)，体，尾 Checksum(u32)，整数都是大端
+// 真实程序里包来自网卡（组播 + 内核旁路），这里用一串手工造的包代替，好在一个文件里跑起来
+// g++ -std=c++20 -O2 -Wall -Wextra feed_handler.cpp -o feed && ./feed
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <map>
+#include <vector>
+
+// ---------- 1. 大端读写 ----------
+static uint32_t rd32(const uint8_t* p) { uint32_t v; std::memcpy(&v, p, 4); return __builtin_bswap32(v); }
+static uint64_t rd64(const uint8_t* p) { uint64_t v; std::memcpy(&v, p, 8); return __builtin_bswap64(v); }
+static void wr32(std::vector<uint8_t>& b, uint32_t v) { for (int i = 3; i >= 0; --i) b.push_back(uint8_t(v >> (8 * i))); }
+static void wr64(std::vector<uint8_t>& b, uint64_t v) { for (int i = 7; i >= 0; --i) b.push_back(uint8_t(v >> (8 * i))); }
+
+// ---------- 2. 解码后的统一结构 ----------
+constexpr uint32_t kOrder = 300192;   // 逐笔委托
+constexpr uint32_t kTrade = 300191;   // 逐笔成交
+struct Tick {
+    uint32_t type;
+    uint16_t channel;
+    uint64_t seq;          // 频道内连续编号（深交所叫 ApplSeqNum）
+    int64_t  price;        // 定点数，4 位小数：186400 = 18.64 元
+    int64_t  qty;
+    char     side;         // '1' 买，'2' 卖；成交里填主动方
+};
+
+// ---------- 3. 订单簿和策略：只做一只股票，只记每个价位的总量 ----------
+struct Book {
+    std::map<int64_t, int64_t, std::greater<>> bids;   // 价高的在前
+    std::map<int64_t, int64_t> asks;                    // 价低的在前
+    void apply(const Tick& t) {
+        if (t.type == kOrder) {
+            (t.side == '1' ? bids[t.price] : asks[t.price]) += t.qty;
+        } else if (t.side == '1') {                     // 成交：主动买吃卖一，主动卖吃买一
+            eat(asks, t.qty);
+        } else {
+            eat(bids, t.qty);
+        }
+    }
+    static void eat(auto& lv, int64_t qty) {
+        auto it = lv.begin();
+        if (it != lv.end() && (it->second -= qty) <= 0) lv.erase(it);
+    }
+};
+struct Strategy {
+    void onBook(const Book& b, uint64_t seq) {
+        int64_t bid = b.bids.empty() ? 0 : b.bids.begin()->first;
+        int64_t ask = b.asks.empty() ? 0 : b.asks.begin()->first;
+        std::printf("seq %2llu  买一 %.2f  卖一 %.2f\n", (unsigned long long)seq, bid / 1e4, ask / 1e4);
+        // 真实策略在这里判断要不要报单，报单也在这个线程里编码发出去
+    }
+};
+
+// ---------- 4. 按频道查序号：重复丢掉，跳号先缓存，同时要求重传 ----------
+template <class Deliver, class Resend>
+struct Sequencer {
+    uint64_t expected = 1;
+    std::map<uint64_t, Tick> pending;   // 先到的、序号靠后的消息
+    Deliver deliver; Resend resend;
+    void on(const Tick& t) {
+        if (t.seq < expected || pending.count(t.seq)) return;           // 收过了，丢
+        if (t.seq > expected) {                                         // 中间缺了
+            if (pending.empty()) resend(t.channel, expected, t.seq - 1);
+            pending.emplace(t.seq, t);
+            return;
+        }
+        deliver(t); ++expected;
+        for (auto it = pending.begin(); it != pending.end() && it->first == expected; it = pending.erase(it)) {
+            deliver(it->second); ++expected;                            // 补齐了，按顺序放出去
+        }
+    }
+};
+
+// ---------- 5. 分帧、校验、解码：一个包里可能有好几条消息 ----------
+template <class OnTick>
+void onPacket(const uint8_t* p, size_t n, OnTick onTick) {
+    while (n >= 12) {
+        uint32_t type = rd32(p), len = rd32(p + 4);
+        if (n < 8 + len + 4) return;                                    // 半条，等下一个包（TCP 才会有）
+        uint32_t sum = 0;
+        for (size_t i = 0; i < 8 + len; ++i) sum += p[i];
+        if (sum % 256 != rd32(p + 8 + len)) return;                     // 校验和不对，丢掉这个包
+        const uint8_t* b = p + 8;
+        Tick t{type, uint16_t(rd32(b)), rd64(b + 4), int64_t(rd64(b + 12)), int64_t(rd64(b + 20)), char(b[28])};
+        onTick(t);
+        p += 8 + len + 4; n -= 8 + len + 4;
+    }
+}
+
+// ---------- 造包：模拟交易所发出来的东西 ----------
+static std::vector<uint8_t> msg(uint32_t type, uint64_t seq, int64_t price, int64_t qty, char side) {
+    std::vector<uint8_t> b;
+    wr32(b, type); wr32(b, 29);
+    wr32(b, 2011); wr64(b, seq); wr64(b, uint64_t(price)); wr64(b, uint64_t(qty)); b.push_back(uint8_t(side));
+    uint32_t sum = 0; for (uint8_t c : b) sum += c;
+    wr32(b, sum % 256);
+    return b;
+}
+
+int main() {
+    std::vector<std::vector<uint8_t>> m = {
+        msg(kOrder, 1, 186300, 500, '1'),   // 买 18.63
+        msg(kOrder, 2, 186500, 300, '2'),   // 卖 18.65
+        msg(kOrder, 3, 186400, 200, '1'),   // 买 18.64
+        msg(kTrade, 4, 186500, 300, '1'),   // 主动买吃掉卖一
+        msg(kOrder, 5, 186600, 100, '2'),   // 卖 18.66
+    };
+    Book book; Strategy strat;
+    std::vector<uint64_t> resendFrom;
+    auto deliver = [&](const Tick& t) { book.apply(t); strat.onBook(book, t.seq); };
+    auto resend  = [&](uint16_t ch, uint64_t from, uint64_t to) {
+        std::printf("频道 %u 缺 %llu..%llu，到重传端口要\n", ch, (unsigned long long)from, (unsigned long long)to);
+        resendFrom.push_back(from);
+    };
+    Sequencer<decltype(deliver), decltype(resend)> seq{1, {}, deliver, resend};
+    auto onTick = [&](const Tick& t) { seq.on(t); };
+
+    // 组播包：第 1 个包里装两条；3 号丢了；4 号到了两次
+    std::vector<uint8_t> pkt = m[0]; pkt.insert(pkt.end(), m[1].begin(), m[1].end());
+    onPacket(pkt.data(), pkt.size(), onTick);
+    onPacket(m[3].data(), m[3].size(), onTick);
+    onPacket(m[3].data(), m[3].size(), onTick);
+    onPacket(m[4].data(), m[4].size(), onTick);
+    // 重传端口把 3 号补回来，3、4、5 按顺序放出
+    onPacket(m[2].data(), m[2].size(), onTick);
+
+    bool ok = book.bids.begin()->first == 186400 && book.asks.begin()->first == 186600 && resendFrom.size() == 1;
+    std::puts(ok ? "全部测试通过！" : "结果不对");
+    return ok ? 0 : 1;
+}
+```
+
+输出：
+
+```text
+seq  1  买一 18.63  卖一 0.00
+seq  2  买一 18.63  卖一 18.65
+频道 2011 缺 3..3，到重传端口要
+seq  3  买一 18.64  卖一 18.65
+seq  4  买一 18.64  卖一 0.00
+seq  5  买一 18.64  卖一 18.66
+全部测试通过！
+```
+
+4 号先到，没有直接用，先缓存起来并要求重传；3 号补回来以后，3、4、5 按顺序放出。重复的那个 4 号被丢掉了。
+
+真实程序里，包从网卡来。用普通 socket 收组播是下面这样，HFT 会把 `recv` 换成内核旁路的接口，循环不变：
+
+```cpp
+int fd = socket(AF_INET, SOCK_DGRAM, 0);
+sockaddr_in addr{};
+addr.sin_family = AF_INET;
+addr.sin_port = htons(port);
+addr.sin_addr.s_addr = htonl(INADDR_ANY);
+bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr);
+
+ip_mreq mreq{};                                    // 加入组播组：交易所往这个组地址发
+mreq.imr_multiaddr.s_addr = inet_addr(group);
+mreq.imr_interface.s_addr = inet_addr(nic_ip);     // 从哪块网卡收
+setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof mreq);
+fcntl(fd, F_SETFL, O_NONBLOCK);
+
+uint8_t buf[2048];
+for (;;) {                                         // 线程绑在独占的核上，一直问，不睡
+    ssize_t n = recv(fd, buf, sizeof buf, 0);
+    if (n > 0) onPacket(buf, size_t(n), onTick);
+}
+```
+
+### 2.4 简化掉了什么 {#hft-real}
+
+- **收包**：真实的用 ef_vi、DPDK 或 Onload 绕过内核，再往前一步是 FPGA 网卡直接解码。
+- **上海要先解 FAST**：字段按“没带值就沿用上一条”编码，解码要记住每个字段上一条的值。
+- **A、B 两路择优**：同一份数据从两条线路各收一份，按序号谁先到用谁。
+- **重传要设超时**：补不回来要报警；快照不补，等下一张。
+- **频道多**：按频道分给几个线程，一个频道只能一个线程处理，才能保证顺序。
+- **订单簿不用 `std::map`**：按价位下标的数组，盘前一次分配好，热路径上不分配内存；还要处理撤单（深圳的撤单在成交消息里）和没有价格的市价单。
+
+### 2.5 行情软件公司是不是这一套 {#vendor-vs-hft}
+
+前半段一样，后半段不一样：都要直连交易所、自己写 feed handler，但收进来以后，HFT 要的是自己最快下单，行情软件公司要的是把行情稳定地推给大量用户。
+
+| 项 | HFT | 行情软件公司（信息商） |
+| --- | --- | --- |
+| 收行情 | 直连交易所，自己写 feed handler | 一样 |
+| 目标 | 自己比别人先下单 | 把行情及时、稳定地推给大量用户 |
+| 延迟要求 | 微秒级，看单线程的延迟和抖动 | 用户看盘，毫秒级就够；更看吞吐和稳定 |
+| 难点 | 热路径上每一步的耗时 | 扇出：全市场加工（K 线、指标）、多级转发、海量连接、处理不过来的客户端 |
+| 下游 | 同一台机器上的策略 | 一级级行情服务器，最后到 App |
+| 常用做法 | 内核旁路、绑核、忙轮询、一个线程跑到底 | 先发全量快照再发增量、慢客户端合并更新只发最新值、主备和水平扩展 |
+
+行情软件公司内部具体怎么实现，没有公开资料；上表是按业务推出来的，面试时可以反问确认。
+
+### 2.6 怎么说 {#hft-say}
+
+| 问 | 答 |
+| --- | --- |
+| 你了解行情接入吗 | 了解整体结构：交易所按频道编号发出来，接入方收包、解码、查序号、缺了到重传端口补，再转成统一结构分发出去；HFT 还会在同一个线程里接着做订单簿和策略。实习里我用的是数据商的 SDK，只做过回调之后这一段：转统一结构、经广播环交给落盘，加上字段核对和断线续传的验证。 |
+| 你写过 feed handler 吗 | 没在生产上写过。结构和难点知道：分帧、大端解码、按频道查序号、缺了先缓存再补，上海还要解 FAST。 |
+| HFT 和行情软件公司的行情系统有什么不同 | 前半段一样，都要直连交易所解码、补缺；后半段 HFT 要自己最快下单，拼单线程延迟，行情软件公司要推给大量用户，拼吞吐、扇出和稳定。 |
+
+## 3. 两条流 {#flows}
 
 ```
 行情：交易所 ─► 行情网关 / 组播 ─► 接入方（信息商、券商、数据商）─► SDK 或自己的 feed handler ─► 你的系统
@@ -157,9 +460,9 @@ toc: true
 | 你对接的 | 行情 SDK，或交易所的行情网关 | 柜台的交易 API |
 | 丢了一条会怎样 | 快照等下一张；逐笔按序号发现缺口，找回来补 | 必须查回来，不然资金、持仓和真实情况对不上 |
 
-## 3. 券商柜台 {#counter}
+## 4. 券商柜台 {#counter}
 
-### 3.1 柜台是什么 {#counter-what}
+### 4.1 柜台是什么 {#counter-what}
 
 - **为什么一定要经过券商**：只有交易所的会员（券商）有交易单元（俗称席位），个人和机构的委托都要经券商报出去，券商还要替交易所把风控和清算这两关。
 - **柜台做的事**：
@@ -170,7 +473,7 @@ toc: true
   - 清算：盘后和中国结算清算交收、对账。
 - **一般分三块**：柜台核心（账户、资金、持仓那些表），对外接口（App、网上交易、程序化客户从这里进），报盘（和交易所交易网关通信）。
 
-### 3.2 两类柜台 {#counter-types}
+### 4.2 两类柜台 {#counter-types}
 
 | 类 | 面向谁 | 放在哪 | 快慢 | 常见产品 |
 | --- | --- | --- | --- | --- |
@@ -180,7 +483,7 @@ toc: true
 
 极速柜台快，是因为功能砍到只剩下单、撤单、查询，内存里做风控，而且机器就在交易所旁边。
 
-### 3.3 柜台和交易所之间：交易网关 {#trade-gateway}
+### 4.3 柜台和交易所之间：交易网关 {#trade-gateway}
 
 - **交易网关是交易所给会员的报单入口**：和收行情的行情网关对应，也部署在接入方的机房。
 - **深交所是 TGW**：2016 年起用流式报盘，协议是 Binary 或 STEP。
@@ -189,7 +492,7 @@ toc: true
   - 数据库报盘：券商把委托写进报盘库的表，交易所的报盘程序去读。
   - 流式报盘：券商和交易网关之间是一条 TCP 会话，委托和回报都是消息，直接收发，延迟低得多。
 
-### 3.4 接柜台 API 要处理什么 {#counter-api}
+### 4.4 接柜台 API 要处理什么 {#counter-api}
 
 - **下单是异步的**：下单函数返回只说明请求发出去了，柜台风控过没过、交易所确没确认、成没成交，都在之后的回调里。
 - **每笔订单有状态**：
@@ -200,7 +503,7 @@ toc: true
 - **断线重连以后先查询再继续**：查委托、成交、持仓，和本地状态对账；不对账就重发，可能重复报单。
 - **报单有流控**：柜台和交易所都限制每秒报单数，超了直接拒单，自己要先限速。
 
-## 4. 行情从哪来 {#feed-sources}
+## 5. 行情从哪来 {#feed-sources}
 
 | 渠道 | 谁在用 | 怎么收 |
 | --- | --- | --- |
@@ -211,7 +514,7 @@ toc: true
 
 几种收法的延迟差别见 [A 股行情 1.3](/zh/ref/a-share-market/#feed-path)，序号和丢包见[第 3 节](/zh/ref/a-share-market/#seq)。
 
-## 5. “接入经验”各指什么 {#phrases}
+## 6. “接入经验”各指什么 {#phrases}
 
 | 说法 | 指什么 | 被问时会问到 |
 | --- | --- | --- |
@@ -222,7 +525,7 @@ toc: true
 | FIX 经验 | 国际通用的交易协议，对接海外券商或交易所用 | 下单和执行回报这两类消息，会话序号和重发 |
 | 低延迟经验 | 托管、绑核、忙轮询、内核旁路、FPGA | 延迟怎么测、抖动从哪来 |
 
-## 6. 放在行情软件公司里 {#vendor-context}
+## 7. 放在行情软件公司里 {#vendor-context}
 
 做行情软件的信息商，两条流都有，但角色和量化公司不同：
 
@@ -235,7 +538,7 @@ toc: true
   - 客户端从自己的行情服务器收推送。
   - 面试时听清是哪一个，反问时可以问。
 
-## 7. 常问 {#qa}
+## 8. 常问 {#qa}
 
 | 问 | 答 |
 | --- | --- |
