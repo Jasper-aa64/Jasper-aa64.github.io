@@ -16,7 +16,7 @@ toc: true
   - 下单是经券商代理的请求-响应：结果异步回来。
 - **消息流每一跳都是同一个形状（[1.2](#hop)）**：收消息 → 解码 → 按序号排好 → 转统一结构 → 分发。用 SDK 时，前三步 SDK 替你做了。
 - **极度追求性能的 HFT 用的还是这个模型（[1.6](#path)、[第 2 节](#hft)）**：自己直连收行情、机器离交易所近、一个线程从收包跑到报单；下单仍经券商的极速柜台。
-- **券商柜台是券商的交易核心系统**：管客户的账户、资金、持仓，下单前做风控，再把委托报给交易所。
+- **券商柜台是券商的交易核心系统**：管客户的账户、资金、持仓，下单前做风控，再把委托报给交易所（例子见 [3.1](#counter-example)）。
 - **柜台分两类**：
   - 集中交易柜台（普通柜台）：服务全体经纪客户，手机 App 下的单最后都落到这里，毫秒级。
   - 极速柜台：面向量化机构，放在离交易所最近的机房里，只留基本的交易功能，微秒级。
@@ -378,7 +378,7 @@ toc: true
 
 #### 机器放在哪，单子走不走券商 {#colo}
 
-- **下单一定经过券商**：只有会员券商有交易单元，委托都要经券商报给交易所（[3.1](#counter-what)）。HFT 用的是券商的极速柜台，柜台和 HFT 的机器放在同一个机房里，离交易所近。
+- **下单一定经过券商**：只有会员券商有交易单元，委托都要经券商报给交易所（[3.2](#counter-what)）。HFT 用的是券商的极速柜台，柜台和 HFT 的机器放在同一个机房里，离交易所近。
 - **“直连”说的是行情和距离，不是绕开券商**：行情可以买授权、直接收交易所发的数据；报单还是 HFT → 券商极速柜台 → 交易所交易网关。
 - **以前的托管机房**：交易所直属的托管机房要经券商、期货公司申请，私募用券商的机柜，或者自己租机柜。
 - **2026 年 7 月底起变了**：交易所关闭托管机房里的局域网交易、行情线路，所有机构和券商统一改走广域网，交易和行情线路的双向时延都按 2 ms 的标准；量化私募托管的服务器搬出交易所机房，转到交易所周边的第三方机房（[第一财经](https://finance.eastmoney.com/a/202608053832389059.html)、[财联社](https://www.cls.cn/detail/2475131)）。
@@ -694,7 +694,76 @@ for (;;) {                                         // 线程绑在独占的核�
 
 ## 3. 券商柜台 {#counter}
 
-### 3.1 柜台是什么 {#counter-what}
+### 3.1 先看例子：在手机上买 1000 股 {#counter-example}
+
+> 柜台的本质：券商替你管账、把关、转交委托的那套服务器。
+
+<svg viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="在手机 App 上买 1000 股的过程。三方从左到右：你的 App、券商柜台、交易所。第 1 步，App 把“买 1000 股，限价 10.00 元”发给柜台。柜台查资金够不够，冻结 1 万元。第 2 步，柜台按交易所的协议把委托报给交易所。第 3 步，交易所回确认，状态变成已报。第 4 步，交易所撮合成交后回成交回报。柜台扣钱、加 1000 股持仓。第 5 步，柜台把“已成交”推给 App。" style="max-width:100%;height:auto;font-family:'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',ui-sans-serif,system-ui,sans-serif">
+  <style>
+    .ct1bg  { fill: #fbfaf7; }
+    .ct1b   { fill: #ffffff; stroke: #8a8f98; stroke-width: 1.3; }
+    .ct1n   { fill: #fff4dc; stroke: #b8964a; stroke-width: 1.3; }
+    .ct1ink { fill: #1c1b18; font-size: 14px; font-weight: 700; }
+    .ct1sm  { fill: #3a372f; font-size: 12px; }
+    .ct1mut { fill: #6b6558; font-size: 12px; }
+    .ct1ln  { stroke: #b9b6ac; stroke-width: 1.2; stroke-dasharray: 4 4; fill: none; }
+    .ct1ar  { stroke: #6b6558; stroke-width: 1.5; fill: none; }
+    .ct1hh  { fill: #6b6558; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1bg { fill: #17161b; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1b { fill: #1d1c22; stroke: #6f7380; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1n { fill: #3a3220; stroke: #b8964a; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1ink { fill: #e9e7ef; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1sm { fill: #d2cfdb; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1mut { fill: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1ln { stroke: #4a4855; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1ar { stroke: #a19caf; }
+      :root:is([data-theme="dark"], [data-theme="black"]) .ct1hh { fill: #a19caf; }
+  </style>
+  <defs><marker id="ct1ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ct1hh"/></marker></defs>
+  <rect class="ct1bg" x="0" y="0" width="680" height="400" rx="10"/>
+
+  <rect class="ct1b" x="50" y="20" width="140" height="40" rx="8"/>
+  <text class="ct1ink" x="120" y="45" text-anchor="middle">你的 App</text>
+  <rect class="ct1b" x="270" y="20" width="140" height="40" rx="8"/>
+  <text class="ct1ink" x="340" y="45" text-anchor="middle">券商柜台</text>
+  <rect class="ct1b" x="490" y="20" width="140" height="40" rx="8"/>
+  <text class="ct1ink" x="560" y="45" text-anchor="middle">交易所</text>
+  <path class="ct1ln" d="M120 60 L120 370"/>
+  <path class="ct1ln" d="M340 60 L340 120"/>
+  <path class="ct1ln" d="M340 160 L340 268"/>
+  <path class="ct1ln" d="M340 308 L340 370"/>
+  <path class="ct1ln" d="M560 60 L560 370"/>
+
+  <text class="ct1sm" x="230" y="86" text-anchor="middle">① 买 1000 股，限价 10.00</text>
+  <path class="ct1ar" d="M120 96 L336 96" marker-end="url(#ct1ah)"/>
+  <rect class="ct1n" x="250" y="120" width="180" height="40" rx="6"/>
+  <text class="ct1sm" x="340" y="145" text-anchor="middle">查资金，冻结 1 万元</text>
+
+  <text class="ct1sm" x="450" y="182" text-anchor="middle">② 报盘：按交易所协议发</text>
+  <path class="ct1ar" d="M340 192 L556 192" marker-end="url(#ct1ah)"/>
+  <text class="ct1sm" x="450" y="214" text-anchor="middle">③ 确认：已报</text>
+  <path class="ct1ar" d="M560 224 L344 224" marker-end="url(#ct1ah)"/>
+  <text class="ct1sm" x="450" y="246" text-anchor="middle">④ 成交回报：成交 1000 股</text>
+  <path class="ct1ar" d="M560 256 L344 256" marker-end="url(#ct1ah)"/>
+  <rect class="ct1n" x="250" y="268" width="180" height="40" rx="6"/>
+  <text class="ct1sm" x="340" y="293" text-anchor="middle">扣钱，加 1000 股持仓</text>
+
+  <text class="ct1sm" x="230" y="330" text-anchor="middle">⑤ 推给你：已成交</text>
+  <path class="ct1ar" d="M340 340 L124 340" marker-end="url(#ct1ah)"/>
+
+  <text class="ct1mut" x="340" y="388" text-anchor="middle">黄框是柜台自己做的事：下单前把关，成交后记账</text>
+</svg>
+
+- **柜台就是券商的交易服务器**：名字来自以前营业部的柜台，人去窗口填单、柜员录入；现在窗口没了，那套“替客户下单、记账”的系统还叫柜台。
+- **它在中间做四件事**：
+  - 管账：你有多少钱、多少股。
+  - 把关：下单前查钱够不够、股够不够卖，先把钱冻结住，防止同一笔钱下两次单。
+  - 转交：把委托翻译成交易所的协议，发给交易所。
+  - 记结果：交易所回来确认、成交、撤单，柜台据此扣钱、加股，再告诉你。
+- **交易所只认券商，不认你**：交易所那边看到的是“某券商的某个交易单元报了一笔买单”，你是谁、钱够不够，全由柜台负责。
+- **类比**：像银行的核心系统。你在手机银行转账，扣款、限额检查、发给对方银行，都是银行的系统替你做的；柜台对股票交易就是这个角色。
+
+### 3.2 柜台是什么 {#counter-what}
 
 - **为什么一定要经过券商**：只有交易所的会员（券商）有交易单元（俗称席位），个人和机构的委托都要经券商报出去，券商还要替交易所把风控和清算这两关。
 - **柜台做的事**：
@@ -705,17 +774,23 @@ for (;;) {                                         // 线程绑在独占的核�
   - 清算：盘后和中国结算清算交收、对账。
 - **一般分三块**：柜台核心（账户、资金、持仓那些表），对外接口（App、网上交易、程序化客户从这里进），报盘（和交易所交易网关通信）。
 
-### 3.2 两类柜台 {#counter-types}
+### 3.3 两类柜台 {#counter-types}
 
 | 类 | 面向谁 | 放在哪 | 快慢 | 常见产品 |
 | --- | --- | --- | --- | --- |
 | 集中交易柜台（普通柜台） | 全体经纪客户；App、网上交易都落在这里 | 券商自己的数据中心 | 毫秒级 | 恒生 UF、金证、顶点 A5 |
-| 极速柜台 | 量化私募等机构，客户用 API 程序化下单 | 交易所的托管机房，离交易网关近 | 微秒级 | 恒生 UFT、华锐 ATP、宽睿 OES、顶点 HTS、金证 FOS、盛立 REM；中泰 XTP 是券商自研的 |
+| 极速柜台 | 量化私募等机构，客户用 API 程序化下单 | 离交易所最近的机房（2026 年 7 月底前在交易所托管机房里） | 微秒级 | 恒生 UFT、华锐 ATP、宽睿 OES、顶点 HTS、金证 FOS、盛立 REM；中泰 XTP 是券商自研的 |
 | 期货柜台 | 期货公司的客户 | 期货公司机房或交易所托管 | 视部署 | CTP（上期技术）最常见，同一套给交易 API 和行情 API |
 
-极速柜台快，是因为功能砍到只剩下单、撤单、查询，内存里做风控，而且机器就在交易所旁边。
+**举例**：
 
-### 3.3 柜台和交易所之间：交易网关 {#trade-gateway}
+- **普通柜台**：你用券商 App 或行情软件里的“交易”买股票，就是它。散户的下单、撤单、查资金，还有两融、新股申购、理财，全在这一套里；一笔单子在柜台里走一遍几毫秒，人感觉不到。
+- **极速柜台**：量化私募的程序一秒可能要报几十上百笔，几毫秒就太慢了。券商给它单独开极速柜台的账户，程序通过 API（比如中泰的 XTP）下单；柜台只做下单、撤单、查询和必要的风控，数据都在内存里，机器放在离交易所最近的机房，一笔在柜台里只要几十微秒。
+- **类比**：普通柜台像银行大厅的窗口，什么业务都办；极速柜台像只办一件事的快速通道。
+
+极速柜台快，是因为功能砍到只剩下单、撤单、查询，内存里做风控，而且机器离交易所近。
+
+### 3.4 柜台和交易所之间：交易网关 {#trade-gateway}
 
 - **交易网关是交易所给会员的报单入口**：和收行情的行情网关对应，也部署在接入方的机房。
 - **深交所是 TGW**：2016 年起用流式报盘，协议是 Binary 或 STEP。
@@ -724,7 +799,7 @@ for (;;) {                                         // 线程绑在独占的核�
   - 数据库报盘：券商把委托写进报盘库的表，交易所的报盘程序去读。
   - 流式报盘：券商和交易网关之间是一条 TCP 会话，委托和回报都是消息，直接收发，延迟低得多。
 
-### 3.4 接柜台 API 要处理什么 {#counter-api}
+### 3.5 接柜台 API 要处理什么 {#counter-api}
 
 - **下单是异步的**：下单函数返回只说明请求发出去了，柜台风控过没过、交易所确没确认、成没成交，都在之后的回调里。
 - **每笔订单有状态**：
