@@ -64,7 +64,6 @@ toc: true
   <text class="fa1ink" x="490" y="75" text-anchor="middle">行情系统</text>
   <text class="fa1sm" x="490" y="95" text-anchor="middle">按频道编号，组播发出，TCP 补</text>
 
-  <path class="fa1ar" d="M490 108 L490 190" marker-end="url(#fa1ah)"/>
 
   <rect class="fa1bd" x="20" y="150" width="640" height="122" rx="12"/>
   <text class="fa1hd" x="36" y="172">② 直连交易所的接入方：feed handler</text>
@@ -85,10 +84,6 @@ toc: true
   <text class="fa1ink" x="567" y="215" text-anchor="middle">转统一结构</text>
   <text class="fa1sm" x="567" y="235" text-anchor="middle">价格、代码、字段对齐</text>
 
-  <path class="fa1ar" d="M567 248 L567 288 L135 288"/>
-  <path class="fa1ar" d="M135 288 L135 324" marker-end="url(#fa1ah)"/>
-  <path class="fa1ar" d="M340 288 L340 324" marker-end="url(#fa1ah)"/>
-  <path class="fa1ar" d="M545 288 L545 324" marker-end="url(#fa1ah)"/>
 
   <rect class="fa1bd" x="20" y="300" width="640" height="122" rx="12"/>
   <rect class="fa1bk" x="40" y="326" width="190" height="56" rx="8"/>
@@ -102,7 +97,6 @@ toc: true
   <text class="fa1sm" x="545" y="369" text-anchor="middle">信息商：行情服务器 → App</text>
   <text class="fa1hd" x="36" y="408">③ 转成统一结构之后，送到哪</text>
 
-  <path class="fa1ar" d="M340 382 L340 432 L108 432 L108 474" marker-end="url(#fa1ah)"/>
 
   <rect class="fa1bd" x="20" y="450" width="640" height="122" rx="12"/>
   <rect class="fa1fr" x="41" y="476" width="135" height="56" rx="8"/>
@@ -123,6 +117,13 @@ toc: true
   <text class="fa1hd" x="36" y="558">④ 客户的进程：SDK 做了前半段，后半段自己写</text>
 
   <text class="fa1mut" x="340" y="600" text-anchor="middle">白框是前半段（收到完整、按顺序的消息）；绿框是后半段（转成自己的结构，送给用的人）</text>
+
+  <path class="fa1ar" d="M490 108 L490 190" marker-end="url(#fa1ah)"/>
+  <path class="fa1ar" d="M567 248 L567 288 L135 288"/>
+  <path class="fa1ar" d="M135 288 L135 324" marker-end="url(#fa1ah)"/>
+  <path class="fa1ar" d="M340 288 L340 324" marker-end="url(#fa1ah)"/>
+  <path class="fa1ar" d="M545 288 L545 324" marker-end="url(#fa1ah)"/>
+  <path class="fa1ar" d="M340 382 L340 432 L108 432 L108 474" marker-end="url(#fa1ah)"/>
 </svg>
 
 - **① 交易所**：撮合主机每产生一笔委托、一笔成交，行情系统就打包成一条消息，按频道编号发出去；组播发实时数据，缺了的用 TCP 补。
