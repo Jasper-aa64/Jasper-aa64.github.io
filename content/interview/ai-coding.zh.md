@@ -68,7 +68,7 @@ toc: true
 | --- | --- | --- |
 | 实习：行情接入 | 写单测、假 SDK 整程序模拟，做几轮代码审查 | 写两家 SDK 的回调解析器和共用的写环函数，拿真实行情核字段含义；审查找出的问题逐条确认后再修（[2.1](#ex-review)） |
 | 实习：性能优化 | 按我的流程剖析、改写、测速 | 定判据和停止条件，决定收不收（[2.4](#ex-perf)） |
-| 项目：性能优化 skill | Agent 按 skill 自主跑完剖析、改写、验证 | 设计 skill 的流程，专门对付 Agent 的三个毛病：改快了但结果错，把测量噪声当提速，拿到一点收益就停（[CV 项目 1](/zh/interview/cv-projects/#skill-why)） |
+| 项目：性能优化 skill | Agent 按 skill 自主跑完剖析、改写、验证 | 设计 skill 的流程，专门对付 Agent 的三个毛病：改快了但结果错，把测量噪声当提速，拿到一点收益就停（[项目 1 第 1 节](/zh/interview/cv-skill/#skill-why)） |
 | 项目：实时语音平台 | 写大部分代码，做只读的代码审计 | 写规格：为什么做、做到什么程度算完、明确不做什么、红线（密钥只走环境变量、兜底必须带标记）；诊断类问题先只让它加日志（[复盘第 6 节](/zh/projects/ielts-studio-retrospective/)） |
 
 **这个 skill 项目是“写流程约束 Agent”，不是“开发 Agent”**：它是一份按需读取的说明书，Agent 照着做，我不写 Agent 本身。
@@ -85,7 +85,7 @@ toc: true
 | `SKILL.md` 正文 | 入口：流程、判据、指向其他文件的目录 | 任务匹配上了才读 |
 | `references/`、`scripts/` | 细节文档、能直接跑的脚本 | 正文指到了才读；脚本只跑、不读，只有输出占上下文 |
 
-我的性能优化 skill 就是这个结构（[CV 项目 1.2](/zh/interview/cv-projects/#skill-what)）：`SKILL.md` 放分诊表、实验约定、停的规则；`references/` 放证据清单、两个“地板”、连续优化的台账规则、收敛图规则；`scripts/` 放画收敛图的脚本。每类瓶颈的修法不在 skill 里，放在博客的瓶颈卡片里，按信号检索（[CV 项目 3](/zh/interview/cv-projects/#skill-signals)）。
+我的性能优化 skill 就是这个结构（[项目 1 第 1.2 节](/zh/interview/cv-skill/#skill-what)）：`SKILL.md` 放分诊表、实验约定、停的规则；`references/` 放证据清单、两个“地板”、连续优化的台账规则、收敛图规则；`scripts/` 放画收敛图的脚本。每类瓶颈的修法不在 skill 里，放在博客的瓶颈卡片里，按信号检索（[项目 1 第 3 节](/zh/interview/cv-skill/#skill-signals)）。
 
 ### 4.2 让 AI 起草 skill，我审这几点 {#skill-review}
 

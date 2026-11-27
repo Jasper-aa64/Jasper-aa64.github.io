@@ -14,7 +14,7 @@ homepage: false
 
 一条行情进来，要把这只股票挂着的 64 个期权重算一遍：每个期权的价格跟着标的挪一点，再算一个 alpha，越过阈值的记下来。每个期权只有 25 次浮点运算，这段代码的中位数却要 510 ns，p90 超过 1 µs，CPU 大部分时间在等数据。
 
-CppCon 2026 上，高频交易公司 Graviton Research Capital 的 Sanchit Gupta 拿这段代码讲了一场（[视频](https://youtu.be/FDjXUP6Am1M)、[幻灯片](https://github.com/CppCon/CppCon2026/blob/main/Presentations/The_Latency_Slippage.pdf)、[代码](https://github.com/0xsanchit/CacheLatency)；我是从[知乎上的一篇介绍](https://zhuanlan.zhihu.com/p/2095095452555391143)看到的）。他分四步把中位数压到 329 ns，p90 压到 550 ns。浮点运算一条没少，改的是数据什么时候到、到哪一层、那时在哪个核手里。[第 6 节](#simd)是演讲之外的一步：SIMD，是我做[项目 1](/zh/interview/cv-projects/#case-simd) 时 Agent 在批处理版本上加的。
+CppCon 2026 上，高频交易公司 Graviton Research Capital 的 Sanchit Gupta 拿这段代码讲了一场（[视频](https://youtu.be/FDjXUP6Am1M)、[幻灯片](https://github.com/CppCon/CppCon2026/blob/main/Presentations/The_Latency_Slippage.pdf)、[代码](https://github.com/0xsanchit/CacheLatency)；我是从[知乎上的一篇介绍](https://zhuanlan.zhihu.com/p/2095095452555391143)看到的）。他分四步把中位数压到 329 ns，p90 压到 550 ns。浮点运算一条没少，改的是数据什么时候到、到哪一层、那时在哪个核手里。[第 6 节](#simd)是演讲之外的一步：SIMD，是我做[项目 1](/zh/interview/cv-skill/#case-simd) 时 Agent 在批处理版本上加的。
 
 每一步用到的机制，博客里大多单独讲过：MLP（memory-level parallelism，内存级并行）和 LFB（line fill buffer，行填充缓冲）、软件预取、MESI。放进同一段代码里，能看到它们各值多少，也能看到它们在抢同一样东西：每个核只有 16 个 LFB，批处理、预取、`clflushopt` 都要占。下面的数字都是演讲那台机器上测的：i9-14900KS，核心 5.9 GHz，只开 4 个大核、关掉超线程，程序跑在隔离的核上；周期数按 3.19 GHz 的 TSC（time stamp counter，时间戳计数器）计。
 
@@ -452,7 +452,7 @@ void aux_tick(const Req& req, Res& res, Option* options, uint64_t seq) {
 - **4 条依赖链同时执行**：单个期权的依赖链长度不变。
 - **收益有限**：总时间主要是访存延迟，我的机器上约 1600 → 1500 ns。
 
-> **演讲的四步里没有这一步。** 它是我做[项目 1](/zh/interview/cv-projects/#skill-case)（性能优化 skill）时，Agent 在第 2、3 节的批处理加预取版本上加的；简历上的“SIMD 向量化”指的就是这里。
+> **演讲的四步里没有这一步。** 它是我做[项目 1](/zh/interview/cv-skill/#skill-case)（性能优化 skill）时，Agent 在第 2、3 节的批处理加预取版本上加的；简历上的“SIMD 向量化”指的就是这里。
 
 ### 6.1 为什么批处理以后才好向量化 {#simd-why}
 
@@ -514,7 +514,7 @@ inline __m256d alpha4(__m256d px, __m256d ref, __m256d arg, __m256d& ema) {
 
 ### 6.5 量出来多少：只压得动计算那一段 {#simd-result}
 
-不是演讲那台机器：我在自己的 Windows 机器上跑[项目拆解页第 12 节](/zh/interview/cv-projects/#handwrite)的完整程序，计时精度 100 ns。批处理加预取以后，再加 SIMD，中位数大约 1600 → 1500 ns，三次里有一次没差别。
+不是演讲那台机器：我在自己的 Windows 机器上跑[项目 1 专页第 6 节](/zh/interview/cv-skill/#handwrite)的完整程序，计时精度 100 ns。批处理加预取以后，再加 SIMD，中位数大约 1600 → 1500 ns，三次里有一次没差别。
 
 原因就是第 1 节那笔账：时间大多花在等 140 条行，计算本来就只占一小段。SIMD 只缩短计算这一段，等内存的时间一点没少。**所以它排在最后**：先让缺失重叠（第 2、3 节），等的时间压下来了，计算占的比例变大，向量化才看得出效果。
 

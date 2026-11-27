@@ -2,12 +2,12 @@
 title: "IV. CV map"
 date: 2026-11-18T00:00:00+08:00
 slug: "cv-map"
-description: "简历的专业技能、实习经历、项目 1 三块原文，每一句都能点：点进去是这一句的讲法、背后的知识点，或者能跑的完整代码。"
+description: "简历的专业技能、实习经历、项目 1、项目 2 四块原文，每一句都能点：点进去是这一句的讲法、背后的知识点，或者能跑的完整代码。"
 weight: -2
 toc: true
 ---
 
-这一页是简历原文，只留**专业技能、实习经历、项目 1** 三块，**每一句都能点**：
+这一页是简历原文，只留**专业技能、实习经历、项目 1、项目 2** 四块，**每一句都能点**：
 
 - **技能行**：每个词点进去是讲它的博客；行末的“问答”是这一行最可能被问的题（[技能行](/zh/interview/cv-skills-review/)）。
 - **实习、项目**：每一句点进去是这一句的讲法；行末的“代码”是能跑的完整代码，没有“代码”的那几句是做法和数字，点进去看怎么讲。
@@ -26,9 +26,9 @@ toc: true
 
 **系统编程**：熟悉 Linux 系统编程（[进程与 IPC](/zh/ref/ipc/)、[epoll](/zh/ref/epoll-internals/)、[mmap](/zh/interview/md-feed-spmc/#shm)、[虚拟内存与缺页](/zh/ref/new-malloc-page-fault/#4-第一次写缺页才拿到物理页)）；了解 [TCP/IP](/zh/ref/tcp-states/)、[HTTP](/zh/ref/http-basics/)、[WebSocket](/zh/interview/cv-projects/#av-wss)。　→ [问答](/zh/interview/cv-skills-review/#system)
 
-**性能分析**：熟练使用 [perf](/zh/posts/low-latency-perf-profiling/)、火焰图做性能剖析与[汇编级分析](/zh/interview/cv-projects/#triage-perf-three)，掌握[基于 TSC 的延迟测量](/zh/posts/tsc-latency-measurement/)与[分位数统计](/zh/posts/trading-system-latency-metrics/#12-统计指标看分布不看平均)；使用 [ASan/UBSan](/zh/ref/sanitizers/)、GTest 保障正确性；熟悉 CMake、vcpkg、Git。　→ [问答](/zh/interview/cv-skills-review/#tools)
+**性能分析**：熟练使用 [perf](/zh/posts/low-latency-perf-profiling/)、火焰图做性能剖析与[汇编级分析](/zh/interview/cv-skill/#triage-perf-three)，掌握[基于 TSC 的延迟测量](/zh/posts/tsc-latency-measurement/)与[分位数统计](/zh/posts/trading-system-latency-metrics/#12-统计指标看分布不看平均)；使用 [ASan/UBSan](/zh/ref/sanitizers/)、GTest 保障正确性；熟悉 CMake、vcpkg、Git。　→ [问答](/zh/interview/cv-skills-review/#tools)
 
-**AI Native**：深度使用 Claude Code、Codex 等 AI 编程工具[完成工程开发与性能优化](/zh/interview/cv-projects/#skill-why)，能[编写 Agent skill 约束 Agent 的工作流程](/zh/interview/cv-projects/#skill-what)；具备 MCP Server 框架完整落地经验，了解大模型底层原理、RAG。
+**AI Native**：深度使用 Claude Code、Codex 等 AI 编程工具[完成工程开发与性能优化](/zh/interview/cv-skill/#skill-why)，能[编写 Agent skill 约束 Agent 的工作流程](/zh/interview/cv-skill/#skill-what)；具备 MCP Server 框架完整落地经验，了解大模型底层原理、RAG。
 
 > **没有链接的词，本站还没有单独讲**：火焰图、GTest、CMake、vcpkg、Git、MCP Server、RAG。被问到按做过的事答。
 
@@ -74,48 +74,88 @@ toc: true
 
 ## 3. 项目 1：C++ 性能自动优化 Agent Skill {#project}
 
-[针对 coding agent 自动优化中“改快但改错”“提速实为测量噪声”“过早停止”三类问题](/zh/interview/cv-projects/#skill-three-failures)，[设计性能优化流程并封装为 Agent skill](/zh/interview/cv-projects/#skill-what)，[由 Agent 按流程自主完成剖析、改写、验证与决策，全程留痕、结果可复现](/zh/interview/cv-projects/#skill-why)。
+专页：[项目 1](/zh/interview/cv-skill/)，一条一节。
+
+[针对 coding agent 自动优化中“改快但改错”“提速实为测量噪声”“过早停止”三类问题](/zh/interview/cv-skill/#skill-three-failures)，[设计性能优化流程并封装为 Agent skill](/zh/interview/cv-skill/#skill-what)，[由 Agent 按流程自主完成剖析、改写、验证与决策，全程留痕、结果可复现](/zh/interview/cv-skill/#skill-why)。
 
 ### 3.1 分诊与 perf 剖析 {#triage}
 
-[先比较墙钟与 CPU 时间等低成本指标](/zh/interview/cv-projects/#triage-two-clocks)，[判断瓶颈属于 CPU 热点、等待与 I/O、锁竞争还是多核扩展，再选剖析手段](/zh/interview/cv-projects/#triage-four-classes)；[CPU 热点用 perf 逐层深入：perf stat 看整体指标，perf report 找热点函数，perf annotate 看热点汇编](/zh/interview/cv-projects/#triage-perf-three)；[跨核争用用 perf c2c 定位到具体缓存行](/zh/interview/cv-projects/#triage-c2c)。
+[先比较墙钟与 CPU 时间等低成本指标](/zh/interview/cv-skill/#triage-two-clocks)，[判断瓶颈属于 CPU 热点、等待与 I/O、锁竞争还是多核扩展，再选剖析手段](/zh/interview/cv-skill/#triage-four-classes)；[CPU 热点用 perf 逐层深入：perf stat 看整体指标，perf report 找热点函数，perf annotate 看热点汇编](/zh/interview/cv-skill/#triage-perf-three)；[跨核争用用 perf c2c 定位到具体缓存行](/zh/interview/cv-skill/#triage-c2c)。
 
 → 命令和输出：[perf 专题](/zh/posts/low-latency-perf-profiling/)
 
 ### 3.2 按信号渐进式披露性能瓶颈修复方法 {#signals}
 
-[Agent 以剖析结果或源码中的信号（如某缓存行跨核争用严重、热点循环为单一累加器串行累加）匹配对应的性能瓶颈](/zh/interview/cv-projects/#signals-index)，[命中后才加载其成因、修复方法与验证方法](/zh/interview/cv-projects/#signals-card)；[按需加载控制上下文占用](/zh/interview/cv-projects/#signals-why)，[新增一类性能瓶颈只需新增一条信号索引](/zh/interview/cv-projects/#signals-add)。
+[Agent 以剖析结果或源码中的信号（如某缓存行跨核争用严重、热点循环为单一累加器串行累加）匹配对应的性能瓶颈](/zh/interview/cv-skill/#signals-index)，[命中后才加载其成因、修复方法与验证方法](/zh/interview/cv-skill/#signals-card)；[按需加载控制上下文占用](/zh/interview/cv-skill/#signals-why)，[新增一类性能瓶颈只需新增一条信号索引](/zh/interview/cv-skill/#signals-add)。
 
 → 信号表：[性能瓶颈速查](/zh/ref/bottlenecks/)
 
 ### 3.3 正确性与性能验证 {#verify}
 
-[每个改动单独验证](/zh/interview/cv-projects/#verify-one-change)：[先比对输出，与原版不一致即否决](/zh/interview/cv-projects/#verify-correctness)；[再测速度，每轮让新旧版本紧挨着各跑一次、先后顺序随机，逐轮对比，避免机器频率、温度等随时间漂移偏向某一方](/zh/interview/cv-projects/#verify-paired)，[多轮结果稳定更快才采纳](/zh/interview/cv-projects/#verify-confirm)。
+[每个改动单独验证](/zh/interview/cv-skill/#verify-one-change)：[先比对输出，与原版不一致即否决](/zh/interview/cv-skill/#verify-correctness)；[再测速度，每轮让新旧版本紧挨着各跑一次、先后顺序随机，逐轮对比，避免机器频率、温度等随时间漂移偏向某一方](/zh/interview/cv-skill/#verify-paired)，[多轮结果稳定更快才采纳](/zh/interview/cv-skill/#verify-confirm)。
 
 → 流程：[回测专页第 4 节](/zh/interview/backtest-framework/#backtest-flow)
 
 ### 3.4 缓存性能瓶颈案例 {#case}
 
-[公开 C++ 低延迟案例（期权定价，单条行情访问上百条缓存行，性能瓶颈在访存延迟与长依赖链）](/zh/interview/cv-projects/#case-what)，[Agent 按流程优化](/zh/interview/cv-projects/#case-diagnose)，采用[双核分担](/zh/interview/cv-projects/#case-split)、[软件预取](/zh/interview/cv-projects/#case-prefetch)、[SIMD 向量化](/zh/interview/cv-projects/#case-simd)，[P50 延迟降低约 67%](/zh/interview/cv-projects/#case-honest)。
+[公开 C++ 低延迟案例（期权定价，单条行情访问上百条缓存行，性能瓶颈在访存延迟与长依赖链）](/zh/interview/cv-skill/#case-what)，[Agent 按流程优化](/zh/interview/cv-skill/#case-diagnose)，采用[双核分担](/zh/interview/cv-skill/#case-split)、[软件预取](/zh/interview/cv-skill/#case-prefetch)、[SIMD 向量化](/zh/interview/cv-skill/#case-simd)，[P50 延迟降低约 67%](/zh/interview/cv-skill/#case-honest)。
 
-→ 代码：[缓存案例博客](/zh/posts/low-latency-cache-case-study/)里的 8 段，[1.1 数据布局](/zh/posts/low-latency-cache-case-study/#11-数据怎么摆期权的地址在股票记录里)、[1.2 基线](/zh/posts/low-latency-cache-case-study/#12-基线一个期权一个期权地取数计算)、[2.2 两趟](/zh/posts/low-latency-cache-case-study/#22-两趟先把一批的行都要过来再集中算)、[3.2 预取](/zh/posts/low-latency-cache-case-study/#32-什么时候要第一趟之后第二趟之前)、[4.2 clflushopt](/zh/posts/low-latency-cache-case-study/#42-clflush-与-clflushopt一个串行一个能并行)、[5.1 两个核 40 / 24](/zh/posts/low-latency-cache-case-study/#51-怎么拆主核留-40-个辅核拿-24-个)、[5.2 读回刚写的行](/zh/posts/low-latency-cache-case-study/#52-读回自己刚写的行对面一读副本就没了)、[6.2 SIMD](/zh/posts/low-latency-cache-case-study/#simd-code)；四个版本的完整程序 [第 12 节](/zh/interview/cv-projects/#handwrite)
+→ 代码：[缓存案例博客](/zh/posts/low-latency-cache-case-study/)里的 8 段，[1.1 数据布局](/zh/posts/low-latency-cache-case-study/#11-数据怎么摆期权的地址在股票记录里)、[1.2 基线](/zh/posts/low-latency-cache-case-study/#12-基线一个期权一个期权地取数计算)、[2.2 两趟](/zh/posts/low-latency-cache-case-study/#22-两趟先把一批的行都要过来再集中算)、[3.2 预取](/zh/posts/low-latency-cache-case-study/#32-什么时候要第一趟之后第二趟之前)、[4.2 clflushopt](/zh/posts/low-latency-cache-case-study/#42-clflush-与-clflushopt一个串行一个能并行)、[5.1 两个核 40 / 24](/zh/posts/low-latency-cache-case-study/#51-怎么拆主核留-40-个辅核拿-24-个)、[5.2 读回刚写的行](/zh/posts/low-latency-cache-case-study/#52-读回自己刚写的行对面一读副本就没了)、[6.2 SIMD](/zh/posts/low-latency-cache-case-study/#simd-code)；四个版本的完整程序 [第 12 节](/zh/interview/cv-skill/#handwrite)
 
 ### 3.5 项目 1 按 STAR 讲 {#project-star}
 
-> **S（背景）**：让 Agent 自己优化 C++ 代码，首要问题是它不知道瓶颈在哪：没先判断是在算还是在等，就直接改代码；修法有几十类，全放进上下文既放不下，也容易乱套用（[第 2 节](/zh/interview/cv-projects/#skill-triage)、[3.1](/zh/interview/cv-projects/#signals-why)）。另外，它常把测量噪声当成提速，拿到一点收益就停（[1.1](/zh/interview/cv-projects/#skill-three-failures)）。
+> **S（背景）**：让 Agent 自己优化 C++ 代码，首要问题是它不知道瓶颈在哪：没先判断是在算还是在等，就直接改代码；修法有几十类，全放进上下文既放不下，也容易乱套用（[第 2 节](/zh/interview/cv-skill/#skill-triage)、[3.1](/zh/interview/cv-skill/#signals-why)）。另外，它常把测量噪声当成提速，拿到一点收益就停（[1.1](/zh/interview/cv-skill/#skill-three-failures)）。
 >
 > **T（任务）**：设计一套性能优化流程，封装成 Agent skill，让 Agent 按流程自己完成剖析、改写、验证和决策，每一步留痕、结果能复现。再拿一个公开案例把流程走通：期权重定价的热路径，一条行情要重算 64 个期权，碰 140 条散开的缓存行，每个期权只算 25 次浮点运算。**瓶颈是访存延迟**：缓存缺失一个接一个排队等，没有同时在路上，再加上每个期权内部一串前后相依的运算。
 >
 > **A（做法）**：
 >
-> 1. **分诊**：先比墙钟和 CPU 时间，分成 CPU 热点、等待与 I/O、锁竞争、多核扩展四类，再选工具。CPU 热点用 `perf stat`、`perf report`、`perf annotate` 一层层往下，跨核争用用 `perf c2c` 定位到缓存行（[第 2 节](/zh/interview/cv-projects/#skill-triage)）。
-> 2. **按信号加载修法**：每类瓶颈一张卡片，索引里只写“看到什么算命中”。命中了才加载成因、修法和验证方法，省上下文，加一类瓶颈只加一张卡片（[第 3 节](/zh/interview/cv-projects/#skill-signals)）。
-> 3. **三道关**：先比输出，不一致直接否决；再配对计时，新旧紧挨着跑、顺序随机，先跑 A/A 看噪声，筛选和确认用不同的数据；停的条件开跑前写好（[第 4 节](/zh/interview/cv-projects/#skill-verify)）。
-> 4. **用在案例上**：一条行情重算 64 个期权，要碰 140 条缓存行，判断是卡在等内存加上长依赖链。Agent 按流程依次落地：分批取数让缺失重叠，软件预取下一批，拆给两个核（40 / 24），4 个期权一组用 AVX2 算（[第 5 节](/zh/interview/cv-projects/#skill-case)）。
+> 1. **分诊**：先比墙钟和 CPU 时间，分成 CPU 热点、等待与 I/O、锁竞争、多核扩展四类，再选工具。CPU 热点用 `perf stat`、`perf report`、`perf annotate` 一层层往下，跨核争用用 `perf c2c` 定位到缓存行（[第 2 节](/zh/interview/cv-skill/#skill-triage)）。
+> 2. **按信号加载修法**：每类瓶颈一张卡片，索引里只写“看到什么算命中”。命中了才加载成因、修法和验证方法，省上下文，加一类瓶颈只加一张卡片（[第 3 节](/zh/interview/cv-skill/#skill-signals)）。
+> 3. **三道关**：先比输出，不一致直接否决；再配对计时，新旧紧挨着跑、顺序随机，先跑 A/A 看噪声，筛选和确认用不同的数据；停的条件开跑前写好（[第 4 节](/zh/interview/cv-skill/#skill-verify)）。
+> 4. **用在案例上**：一条行情重算 64 个期权，要碰 140 条缓存行，判断是卡在等内存加上长依赖链。Agent 按流程依次落地：分批取数让缺失重叠，软件预取下一批，拆给两个核（40 / 24），4 个期权一组用 AVX2 算（[第 5 节](/zh/interview/cv-skill/#skill-case)）。
 >
-> **R（结果）**：案例的 P50 延迟降低约 67%，在测试机（虚拟机）上测的，只说百分比。每个改动都过了比输出和配对计时，记录完整、能复现。代码是 Agent 改的，流程、判据和否决是我做的。有几条规则是知道答案以后补的，所以它证明的是流程能走通，要证明能推广，还得拿 Agent 没见过的代码盲测（[5.7](/zh/interview/cv-projects/#case-honest)）。
+> **R（结果）**：案例的 P50 延迟降低约 67%，在测试机（虚拟机）上测的，只说百分比。每个改动都过了比输出和配对计时，记录完整、能复现。代码是 Agent 改的，流程、判据和否决是我做的。有几条规则是知道答案以后补的，所以它证明的是流程能走通，要证明能推广，还得拿 Agent 没见过的代码盲测（[5.7](/zh/interview/cv-skill/#case-honest)）。
 
-## 4. CV 上没写、讨论过的知识点 {#extra}
+## 4. 项目 2：C++17 实时语音雅思训练平台 {#project2}
+
+专页：[项目 2](/zh/interview/cv-projects/)，一条一节。
+
+[C++17 实时语音雅思训练平台](/zh/interview/cv-projects/#ielts-why)，[集成 ASR、TTS、VAD 和 LLM](/zh/interview/cv-projects/#ielts-what)，提供雅思口语与写作训练。
+
+→ 范围：[简历写的是 3 月的 C++ 原型，现在的产品结构不同](/zh/interview/cv-projects/#ielts-now)；现在的全貌见[代码结构](/zh/projects/ielts-studio-structure/)
+
+### 4.1 架构与状态机 {#p2-arch}
+
+[四层架构（通用层 / 服务层 / 业务层 / UI 层），模块间通过抽象接口解耦](/zh/interview/cv-projects/#arch-layers)；[线程安全的全局状态机作为唯一协调中心](/zh/interview/cv-projects/#arch-why-sm)，[跨线程行为通过事件投递驱动](/zh/interview/cv-projects/#arch-events)。
+
+→ 代码：[四层的接口](/zh/interview/cv-projects/#arch-layers)、[事件投递](/zh/interview/cv-projects/#arch-events)；问题：[全局单例的代价](/zh/interview/cv-projects/#arch-honest)
+
+### 4.2 并发模型 {#p2-threads}
+
+[主线程、麦克风、播放、接收四个线程](/zh/interview/cv-projects/#threads-what)，用 [std::atomic](/zh/interview/cv-projects/#threads-atomic)、[std::mutex、condition_variable](/zh/interview/cv-projects/#threads-queue) 协调，[各线程职责单一](/zh/interview/cv-projects/#threads-what)。
+
+→ 代码：[播放队列](/zh/interview/cv-projects/#threads-queue)、[原子变量](/zh/interview/cv-projects/#threads-atomic)；问题：[后来发现的三个问题](/zh/interview/cv-projects/#threads-honest)
+
+### 4.3 音频与网络 {#p2-audio-net}
+
+[跨平台音频采集与播放](/zh/interview/cv-projects/#av-portaudio)；[Boost.Beast WSS 长连接](/zh/interview/cv-projects/#av-wss)承载[自定义二进制协议（帧头 / 事件 / 压缩）](/zh/interview/cv-projects/#av-frame)。
+
+→ 代码：[帧的打包和解包](/zh/interview/cv-projects/#av-frame)；问题：[跨平台只验证了一部分](/zh/interview/cv-projects/#av-honest)
+
+### 4.4 LLM 集成 {#p2-llm}
+
+[基于 libcurl 封装 OpenAI 兼容客户端](/zh/interview/cv-projects/#llm-client)，[约束 LLM 返回结构化 JSON，实现实时评分](/zh/interview/cv-projects/#llm-json)；[逐句评估，支持原地修改、把认可的表达加入个人语料库、改完重新评分](/zh/interview/cv-projects/#llm-sentence)。
+
+→ 代码：[HTTP 客户端](/zh/interview/cv-projects/#llm-client)、[JSON 校验](/zh/interview/cv-projects/#llm-json)、[逐句结果](/zh/interview/cv-projects/#llm-sentence)；问题：[LLM 调用同步卡在线程里](/zh/interview/cv-projects/#llm-honest)
+
+### 4.5 工程质量 {#p2-quality}
+
+[Pimpl 隔离 Boost.Beast、PortAudio、PoDoFo 等重依赖](/zh/interview/cv-projects/#quality-pimpl)；[spdlog 日志、GTest 单元测试、AddressSanitizer](/zh/interview/cv-projects/#quality-test)；[Qt6 桌面界面，支持导出 JSON 报告](/zh/interview/cv-projects/#quality-ui)。
+
+→ 代码：[Pimpl](/zh/interview/cv-projects/#quality-pimpl)、[测试](/zh/interview/cv-projects/#quality-test)
+
+## 5. CV 上没写、讨论过的知识点 {#extra}
 
 简历上没有、准备时聊到的知识点，从 11-20 起记在这里，一条一句话加链接。
 
@@ -134,7 +174,7 @@ toc: true
 | SPMC 跨进程怎么传下标 | 不传。读者的进度 `next_idx` 各自私有，不放进共享内存，生产者从不看读者。<br>共享内存里是环、每格的戳和写序号 `write_idx`，新读者只在 `getReader` 时读一次 `write_idx` 定起点。 | [SPMC 专页 1.2](/zh/interview/md-feed-spmc/#ring) |
 | 系统调用为什么慢 | 要切到内核态、保存恢复寄存器，还会污染缓存和 TLB。热路径上避免，读时钟这类走 vDSO。 | [epoll 4.1](/zh/ref/epoll-internals/#41-系统调用不等于切换线程)、[SPMC 专页 2.4](/zh/interview/md-feed-spmc/#clock) |
 
-### 4.1 自旋锁的几次迭代 {#spinlock-iterations}
+### 5.1 自旋锁的几次迭代 {#spinlock-iterations}
 
 > **自旋锁迭代的本质：把等锁和交接的代价，从睡醒的几 µs，一步步压到交接时只搬一次缓存行**。
 
